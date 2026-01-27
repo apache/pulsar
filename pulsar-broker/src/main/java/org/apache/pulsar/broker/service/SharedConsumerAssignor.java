@@ -116,6 +116,10 @@ public class SharedConsumerAssignor {
                 }
 
                 final int permits = consumerToPermits.computeIfAbsent(consumerForUuid, Consumer::getAvailablePermits);
+                if (permits <= 0) {
+                    unassignedMessageProcessor.accept(entryAndMetadata);
+                    continue;
+                }
                 if (metadata.getChunkId() == metadata.getNumChunksFromMsg() - 1) {
                     // The last chunk is received, we should remove the uuid from the cache.
                     uuidToConsumer.remove(uuid);

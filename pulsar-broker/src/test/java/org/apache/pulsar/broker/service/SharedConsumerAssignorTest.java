@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
@@ -37,6 +43,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.AfterMethod;
@@ -293,5 +300,53 @@ public class SharedConsumerAssignorTest {
         // 5. Verify internal state is clean (since all chunks are completed)
         assertTrue(assignor.getUuidToConsumer().isEmpty());
     }
+
+    /**
+     * Simulate the occurrence of chunk messages. When a message with chunk ID 0 is abnormally lost, subsequent chunk
+     * messages for that batch should be skipped instead of blocking the entire subscription.
+     */
+    @Test
+    public void testSkipOrphanChunk() {
+        cleanupQueue.clear();
+        Subscription subscription = mock(Subscription.class);
+        when(subscription.getTopicName()).thenReturn("test-topic");
+        when(subscription.getName()).thenReturn("test-sub");
+
+        assignor = new SharedConsumerAssignor(roundRobinConsumerSelector, replayQueue::add, subscription);
+
+        final Consumer consumer = new Consumer("C1", 10);
+        roundRobinConsumerSelector.addConsumers(consumer);
+
+        List<EntryAndMetadata> entries = new ArrayList<>();
+        AtomicLong entryId = new AtomicLong(0);
+        MockProducer producer = new MockProducer("P", entryId, entries);
+
+        // 0:0@P-0
+        producer.sendMessage();
+
+        // Simulate the sending of chunk messages with missing chunkId '0'
+        producer.sendChunk(1, 3);
+        producer.sendChunk(2, 3);
+
+        // 0:3@P-2
+        producer.sendMessage();
+
+        // Add to cleanupQueue but skip the orphan chunk as it will be released by assignor
+        cleanupQueue.add(entries.get(0));
+        cleanupQueue.add(entries.get(3));
+
+        Map<Consumer, List<EntryAndMetadata>> result = assignor.assign(entries, 1);
+
+        List<EntryAndMetadata> assigned = result.get(consumer);
+        assertEquals(assigned.size(), 2);
+        assertEquals(assigned.get(0).toString(), "0:0@P-0");
+        assertEquals(assigned.get(1).toString(), "0:3@P-2");
+
+        verify(subscription, times(2)).acknowledgeMessage(any(), eq(AckType.Individual), any());
+
+        assertTrue(replayQueue.isEmpty());
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+    }
+
 
 }
