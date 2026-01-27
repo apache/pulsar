@@ -20,9 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
-import static org.testng.Assert.assertTrue;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
@@ -41,8 +39,6 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
-import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.Test;
 
 @Test
@@ -156,15 +152,5 @@ public class AutoCloseUselessClientConProxyTest extends AutoCloseUselessClientCo
                 .as("No new connections should be created after releasing unused connections since that would "
                         + "mean that an used connection was released.")
                 .isEqualTo(connectionsCreatedBefore);
-    }
-
-    private void waitForTopicListWatcherStarted(Consumer<?> consumer) {
-        Awaitility.await().untilAsserted(() -> {
-            CompletableFuture<TopicListWatcher> completableFuture =
-                    WhiteboxImpl.getInternalState(consumer, "watcherFuture");
-            log.info("isDone: {}, isCompletedExceptionally: {}", completableFuture.isDone(),
-                    completableFuture.isCompletedExceptionally());
-            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
-        });
     }
 }
