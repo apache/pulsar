@@ -318,7 +318,8 @@ public class BrokerService implements Closeable {
     private volatile DelayedDeliveryTrackerFactory fallbackDelayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
     private final List<Pair<String, EventLoopGroup>> protocolHandlersWorkerGroups = new ArrayList<>();
-
+    // Protocol handler channels for explicit lifecycle management
+    private final List<Channel> protocolHandlerChannels = new ArrayList<>(2);
     @Getter
     private final BundlesQuotas bundlesQuotas;
 
@@ -571,7 +572,8 @@ public class BrokerService implements Closeable {
         }
         bootstrap.childHandler(initializer);
         try {
-            bootstrap.bind(address).sync();
+            Channel ch = bootstrap.bind(address).sync().channel();
+            protocolHandlerChannels.add(ch);
         } catch (Exception e) {
             throw new IOException("Failed to bind protocol `" + protocol + "` on " + address, e);
         }
@@ -3953,5 +3955,25 @@ public class BrokerService implements Closeable {
         } else {
             nsPolicies.allowed_clusters.add(pulsar.getConfig().getClusterName());
         }
+    }
+
+    /**
+     * Close protocol handler channels explicitly with proper shutdown sequence.
+     * This method should be called from PulsarService before protocolHandlers.close()
+     * to ensure proper resource cleanup timing.
+     *
+     * Shutdown sequence: EventLoopGroups → Listen Channels → Protocol Handler Channels
+     *
+     * @return List of CompletableFuture for tracking the close operations
+     */
+    public List<CompletableFuture<Void>> closeProtocolHandlerChannels() {
+        List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
+        protocolHandlerChannels.forEach(ch -> {
+            if (ch.isOpen()) {
+                closeFutures.add(closeChannel(ch));
+            }
+        });
+        protocolHandlerChannels.clear(); // Clear the list after closing
+        return closeFutures;
     }
 }
