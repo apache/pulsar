@@ -107,7 +107,7 @@ public class TopicListService {
          * @param topicName topic name which contains partition suffix.
          */
         @Override
-        public void onTopicEvent(String topicName, NotificationType notificationType) {
+        public synchronized void onTopicEvent(String topicName, NotificationType notificationType) {
             if (closed) {
                 return;
             }
@@ -197,7 +197,7 @@ public class TopicListService {
             sendingCompleted();
         }
 
-        private void handleNewAndDeletedTopicsWhileDisconnected() {
+        private synchronized void handleNewAndDeletedTopicsWhileDisconnected() {
             List<String> newTopics = new ArrayList<>();
             List<String> deletedTopics = new ArrayList<>();
             Set<String> remainingTopics = new HashSet<>(matchingTopics);
