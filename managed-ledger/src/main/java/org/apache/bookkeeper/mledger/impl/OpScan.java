@@ -69,29 +69,23 @@ class OpScan implements ReadEntriesCallback {
         try {
             Position lastPositionForBatch = entries.get(entries.size() - 1).getPosition();
             lastSeenPosition = lastPositionForBatch;
-            // filter out the entry if it has been already deleted
-            // filterReadEntries will call entry.release if the entry is filtered out
-            List<Entry> entriesFiltered = this.cursor.filterReadEntries(entries);
-            int skippedEntries = entries.size() - entriesFiltered.size();
-            remainingEntries.addAndGet(-skippedEntries);
-            if (!entriesFiltered.isEmpty()) {
-                for (Entry entry : entriesFiltered) {
-                    if (remainingEntries.decrementAndGet() <= 0) {
-                        log.warn("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
-                        callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
-                        return;
-                    }
-                    if (!condition.test(entry)) {
-                        log.warn("[{}] Scan abort due to user code", OpScan.this.cursor);
-                        callback.scanComplete(lastSeenPosition, ScanOutcome.USER_INTERRUPTED, OpScan.this.ctx);
-                        return;
-                    }
+            for (Entry entry : entries) {
+                if (remainingEntries.getAndDecrement() <= 0) {
+                    log.warn("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
+                    callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
+                    return;
+                }
+                if (!condition.test(entry)) {
+                    log.warn("[{}] Scan abort due to user code", OpScan.this.cursor);
+                    callback.scanComplete(lastSeenPosition, ScanOutcome.USER_INTERRUPTED, OpScan.this.ctx);
+                    return;
                 }
             }
             searchPosition = ledger.getPositionAfterN(lastPositionForBatch, 1,
                     PositionBound.startExcluded);
             if (log.isDebugEnabled()) {
-                log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
+                log.debug("[{}] readEntryComplete at {} next is {}", OpScan.this.cursor, lastPositionForBatch,
+                        searchPosition);
             }
 
             if (searchPosition.compareTo(lastPositionForBatch) == 0) {
