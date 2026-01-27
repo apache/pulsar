@@ -5926,6 +5926,106 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(future1.get(2, TimeUnit.SECONDS).get(0).getData(), "msg".getBytes());
     }
 
+    @Test(timeOut = 20000)
+    public void testAsyncMarkDeleteNeverLoseProperties() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(3);
+        config.setRetentionTime(20, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(5);
+
+        @Cleanup ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testAsyncMarkDeleteNeverLoseProperties", config);
+        @Cleanup ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        int numMessages = 20;
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Position pos = ledger.addEntry("entry-1".getBytes(Encoding));
+            positions.add(pos);
+        }
+
+        String propertyKey = "test-property";
+        CountDownLatch latch = new CountDownLatch(numMessages);
+        for (int i = 0; i < numMessages; i++) {
+            Map<String, Long> properties = new HashMap<>();
+            properties.put(propertyKey, (long) i);
+            cursor.asyncMarkDelete(positions.get(i), properties, new MarkDeleteCallback() {
+                @Override
+                public void markDeleteComplete(Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    fail("Mark delete should succeed");
+                }
+            }, null);
+        }
+
+        latch.await();
+
+        int lastIndex = numMessages - 1;
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(lastIndex));
+        Map<String, Long> properties = cursor.getProperties();
+        assertEquals(properties.size(), 1);
+        assertEquals(properties.get(propertyKey), lastIndex);
+    }
+
+    @Test(timeOut = 20000)
+    public void testAsyncDeleteNeverLoseMarkDeleteProperties() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(11);
+
+        @Cleanup ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testAsyncDeleteNeverLoseMarkDeleteProperty", config);
+        @Cleanup ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        int numMessages = 10;
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Position pos = ledger.addEntry("entry-1".getBytes(Encoding));
+            positions.add(pos);
+        }
+
+        String propertyKey = "test-property";
+        CountDownLatch latch = new CountDownLatch(numMessages);
+        for (int i = 0; i < numMessages - 1; i++) {
+            Map<String, Long> properties = new HashMap<>();
+            properties.put(propertyKey, (long) i);
+            cursor.asyncMarkDelete(positions.get(i), properties, new MarkDeleteCallback() {
+                @Override
+                public void markDeleteComplete(Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    fail("Mark delete should succeed");
+                }
+            }, null);
+        }
+
+        int lastIndex = numMessages - 1;
+        cursor.asyncDelete(positions.get(lastIndex), new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+                latch.countDown();
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                fail("Delete should succeed");
+            }
+        }, null);
+
+        latch.await();
+
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(lastIndex));
+        Map<String, Long> properties = cursor.getProperties();
+        assertEquals(properties.size(), 1);
+        assertEquals(properties.get(propertyKey), lastIndex - 1);
+    }
+
     class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
         Map<Long, Integer> ledgerErrors = new HashMap<>();
 
