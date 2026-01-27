@@ -25,10 +25,15 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertSame;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -38,6 +43,10 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
+import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.Stat;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -337,6 +346,56 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             fail("sending msg should timeout, because broker is down and there is only one broker");
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.TimeoutException);
+        }
+    }
+
+    @Test
+    public void testMetadataSerDesThreads() throws Exception {
+        final var numSerDesThreads = 5;
+        conf.setMetadataStoreSerDesThreads(numSerDesThreads);
+        setup();
+
+        BiConsumer<MetadataStore, String> verifier = (store, prefix) -> {
+            final var serDes = new CustomMetadataSerDes();
+            final var cache = store.getMetadataCache(prefix, serDes, MetadataCacheConfig.builder().build());
+            for (int i = 0; i < 1000 && serDes.threadNameToSerializedPaths.size() < numSerDesThreads; i++) {
+                cache.create(prefix + i, "value-" + i).join();
+                final var value = cache.get(prefix + i).join();
+                assertEquals(value.orElseThrow(), "value-" + i);
+                final var newValue = cache.readModifyUpdate(prefix + i, s -> s + "-updated").join();
+                assertEquals(newValue, "value-" + i + "-updated");
+                // Verify the serialization and deserialization are handled by the same thread
+                assertEquals(serDes.threadNameToSerializedPaths, serDes.threadNameToDeserializedPaths);
+            }
+            log.info("SerDes thread mapping: {}", serDes.threadNameToSerializedPaths);
+            assertEquals(serDes.threadNameToSerializedPaths.keySet().size(), numSerDesThreads);
+            // Verify a path cannot be handled by multiple threads
+            final var paths = serDes.threadNameToSerializedPaths.values().stream()
+                .flatMap(Set::stream).sorted().toList();
+            assertEquals(paths.stream().distinct().toList(), paths);
+        };
+
+        verifier.accept(pulsar.getLocalMetadataStore(), "/test-local/");
+        verifier.accept(pulsar.getConfigurationMetadataStore(), "/test-config/");
+    }
+
+    private static class CustomMetadataSerDes implements MetadataSerde<String> {
+
+        final Map<String, Set<String>> threadNameToSerializedPaths = new ConcurrentHashMap<>();
+        final Map<String, Set<String>> threadNameToDeserializedPaths = new ConcurrentHashMap<>();
+
+        @Override
+        public byte[] serialize(String path, String value) throws IOException{
+            threadNameToSerializedPaths.computeIfAbsent(Thread.currentThread().getName(),
+                    __ -> ConcurrentHashMap.newKeySet()).add(path);
+            return value.getBytes();
+        }
+
+        @Override
+        public String deserialize(String path, byte[] data, Stat stat) throws IOException {
+            threadNameToDeserializedPaths.computeIfAbsent(Thread.currentThread().getName(),
+                    __ -> ConcurrentHashMap.newKeySet()).add(path);
+            return new String(data);
         }
     }
 }

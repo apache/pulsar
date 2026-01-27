@@ -104,4 +104,7 @@ public class MetadataStoreConfig {
      * The estimator to estimate the payload length of metadata node, which used to limit the batch size requested.
      */
     private MetadataNodeSizeStats nodeSizeStats;
+
+    @Builder.Default
+    private final int numSerDesThreads = Runtime.getRuntime().availableProcessors();
 }
