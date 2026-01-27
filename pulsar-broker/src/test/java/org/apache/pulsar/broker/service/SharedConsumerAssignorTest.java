@@ -307,7 +307,7 @@ public class SharedConsumerAssignorTest {
      */
     @Test
     public void testSkipOrphanChunk() {
-        cleanupQueue.clear();
+        releaseEntries();
         Subscription subscription = mock(Subscription.class);
         when(subscription.getTopicName()).thenReturn("test-topic");
         when(subscription.getName()).thenReturn("test-sub");
@@ -321,31 +321,29 @@ public class SharedConsumerAssignorTest {
         AtomicLong entryId = new AtomicLong(0);
         MockProducer producer = new MockProducer("P", entryId, entries);
 
-        // 0:0@P-0
+        // Send conventional message: "0:0@P-0"
         producer.sendMessage();
 
         // Simulate the sending of chunk messages with missing chunkId '0'
         producer.sendChunk(1, 3);
         producer.sendChunk(2, 3);
 
-        // 0:3@P-2
+        // Send conventional message: "0:3@P-2"
         producer.sendMessage();
-
-        // Add to cleanupQueue but skip the orphan chunk as it will be released by assignor
-        cleanupQueue.add(entries.get(0));
-        cleanupQueue.add(entries.get(3));
 
         Map<Consumer, List<EntryAndMetadata>> result = assignor.assign(entries, 1);
 
-        List<EntryAndMetadata> assigned = result.get(consumer);
-        assertEquals(assigned.size(), 2);
-        assertEquals(assigned.get(0).toString(), "0:0@P-0");
-        assertEquals(assigned.get(1).toString(), "0:3@P-2");
+        List<EntryAndMetadata> entryAndMetadataList = result.get(consumer);
+        assertEquals(entryAndMetadataList.size(), 2);
+        assertEquals(entryAndMetadataList.get(0).toString(), "0:0@P-0");
+        assertEquals(entryAndMetadataList.get(1).toString(), "0:3@P-2");
 
         verify(subscription, times(2)).acknowledgeMessage(any(), eq(AckType.Individual), any());
 
         assertTrue(replayQueue.isEmpty());
         assertTrue(assignor.getUuidToConsumer().isEmpty());
+
+        cleanupQueue.addAll(entryAndMetadataList);
     }
 
 

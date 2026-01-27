@@ -106,9 +106,9 @@ public class SharedConsumerAssignor {
                             if (!(subscription instanceof PulsarCompactorSubscription)) {
                                 subscription.acknowledgeMessage(Collections.singletonList(
                                         entryAndMetadata.getPosition()), AckType.Individual, Collections.emptyMap());
-                                entryAndMetadata.release();
                             }
                         }
+                        entryAndMetadata.release();
                         continue;
                     }
                     consumerForUuid = consumer;
