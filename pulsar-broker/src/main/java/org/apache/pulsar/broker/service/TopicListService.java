@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BlockingDeque;
@@ -80,8 +81,9 @@ public class TopicListService {
         private boolean sendingInProgress;
         private final BlockingDeque<Runnable> sendTopicListUpdateTasks;
         private boolean updatingTopics;
-        private ArrayList<String> matchingTopicsBeforeDisconnected;
+        private List<String> matchingTopicsBeforeDisconnected;
         private boolean disconnected;
+        private List<Runnable> updateCallbacks = new LinkedList<>();
 
         public TopicListWatcher(TopicListService topicListService, long id,
                                 NamespaceName namespace, TopicsPattern topicsPattern, List<String> topics,
@@ -144,11 +146,10 @@ public class TopicListService {
             } else {
                 // if sendTopicListSuccess hasn't completed, add to a queue to be executed after it completes
                 if (!sendTopicListUpdateTasks.offer(task)) {
-                    if (!updatingTopics) {
+                    if (prepareUpdateTopics(null)) {
                         log.warn("Update queue was full for watcher id {} matching {}. Performing full refresh.", id,
                                 topicsPattern.inputPattern());
-                        prepareUpdateTopics();
-                        executor.execute(() -> topicListService.updateTopicListWatcher(this, null));
+                        executor.execute(() -> topicListService.updateTopicListWatcher(this, null, null));
                     }
                 }
             }
@@ -173,13 +174,32 @@ public class TopicListService {
         public synchronized void close() {
             closed = true;
             sendTopicListUpdateTasks.clear();
+            updateCallbacks.clear();
         }
 
-        synchronized void prepareUpdateTopics() {
-            updatingTopics = true;
-            sendingInProgress = true;
-            sendTopicListUpdateTasks.clear();
-            matchingTopics.clear();
+        /**
+         * Returns true if the topic list update is prepared for execution. It is expected that the caller initiates
+         * the update. The callback is registered to be executed after the update, either existing or upcoming is
+         * completed.
+         * @param afterUpdateCompletionCallback callback to be executed after the update is completed.
+         * @return true if an existing update wasn't ongoing and a new update is prepared for execution.
+         */
+        synchronized boolean prepareUpdateTopics(Runnable afterUpdateCompletionCallback) {
+            if (!updatingTopics) {
+                updatingTopics = true;
+                sendingInProgress = true;
+                sendTopicListUpdateTasks.clear();
+                matchingTopics.clear();
+                if (afterUpdateCompletionCallback != null) {
+                    updateCallbacks.add(afterUpdateCompletionCallback);
+                }
+                return true;
+            } else {
+                if (afterUpdateCompletionCallback != null) {
+                    updateCallbacks.add(afterUpdateCompletionCallback);
+                }
+                return false;
+            }
         }
 
         synchronized void updateTopics(List<String> topics) {
@@ -194,10 +214,21 @@ public class TopicListService {
                 matchingTopicsBeforeDisconnected = null;
                 disconnected = false;
             }
+            for (Runnable callback : updateCallbacks) {
+                try {
+                    callback.run();
+                } catch (Exception e) {
+                    log.warn("Error executing topic list update callback: {}", callback, e);
+                }
+            }
+            updateCallbacks.clear();
             sendingCompleted();
         }
 
         private synchronized void handleNewAndDeletedTopicsWhileDisconnected() {
+            if (matchingTopicsBeforeDisconnected == null) {
+                return;
+            }
             List<String> newTopics = new ArrayList<>();
             List<String> deletedTopics = new ArrayList<>();
             Set<String> remainingTopics = new HashSet<>(matchingTopics);
@@ -229,7 +260,7 @@ public class TopicListService {
                             // before the updating is complete. The disconnected flag is reseted after the update
                             // completes.
                             if (disconnected) {
-                                topicListService.updateTopicListWatcher(this, null);
+                                topicListService.updateTopicListWatcher(this, null, null);
                             }
                         }
                     });
@@ -239,7 +270,7 @@ public class TopicListService {
                     if (!disconnected) {
                         disconnected = true;
                         matchingTopicsBeforeDisconnected = new ArrayList<>(matchingTopics);
-                        prepareUpdateTopics();
+                        prepareUpdateTopics(null);
                     }
                     break;
             }
@@ -338,9 +369,11 @@ public class TopicListService {
             }
             // use the existing watcher if it's already created
             watcherFuture = existingWatcherFuture.thenCompose(watcher -> {
-                watcher.prepareUpdateTopics();
                 CompletableFuture<TopicListWatcher> future = new CompletableFuture<>();
-                updateTopicListWatcher(watcher, () -> future.complete(watcher));
+                Runnable callback = () -> future.complete(watcher);
+                if (watcher.prepareUpdateTopics(callback)) {
+                    updateTopicListWatcher(watcher, null, callback);
+                }
                 return future;
             });
         } else {
@@ -498,7 +531,7 @@ public class TopicListService {
         });
     }
 
-    void updateTopicListWatcher(TopicListWatcher watcher, Runnable completionCallback) {
+    void updateTopicListWatcher(TopicListWatcher watcher, Runnable successCallback, Runnable failureCallback) {
         NamespaceName namespace = watcher.namespace;
         long watcherId = watcher.id;
         getTopics(namespace, watcherId).whenComplete((topics, exception) -> {
@@ -513,19 +546,19 @@ public class TopicListService {
                                     + "ms.", connection, unwrappedException.getMessage(), watcherId, namespace,
                             retryAfterMillis);
                     connection.ctx().executor()
-                            .schedule(() -> updateTopicListWatcher(watcher, completionCallback), retryAfterMillis,
-                                    TimeUnit.MILLISECONDS);
+                            .schedule(() -> updateTopicListWatcher(watcher, successCallback, failureCallback),
+                                    retryAfterMillis, TimeUnit.MILLISECONDS);
                 } else {
                     log.warn("[{}] Failed to update topic list watcher watcherId={} for namespace {}.", connection,
                             watcherId, namespace, unwrappedException);
-                    if (completionCallback != null) {
-                        completionCallback.run();
+                    if (failureCallback != null) {
+                        failureCallback.run();
                     }
                 }
             } else {
                 watcher.updateTopics(topics);
-                if (completionCallback != null) {
-                    completionCallback.run();
+                if (successCallback != null) {
+                    successCallback.run();
                 }
             }
         });
