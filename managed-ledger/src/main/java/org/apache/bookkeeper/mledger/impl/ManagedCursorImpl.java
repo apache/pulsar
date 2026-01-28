@@ -2257,37 +2257,51 @@ public class ManagedCursorImpl implements ManagedCursor {
             log.debug("[{}] Mark delete cursor {} up to position: {}", ledger.getName(), name, position);
         }
 
+        // Snapshot all positions into local variables to avoid race condition.
         Position newPosition = ackBatchPosition(position);
+        Position moveForwardPosition = newPosition;
         Position markDeletePos = markDeletePosition;
         Position lastConfirmedEntry = ledger.getLastConfirmedEntry();
-        if (lastConfirmedEntry.compareTo(newPosition) < 0) {
-            boolean shouldCursorMoveForward = false;
-            try {
-                long ledgerEntries = ledger.getLedgerInfo(markDeletePos.getLedgerId()).get().getEntries();
-                Long nextValidLedger = ledger.getNextValidLedger(lastConfirmedEntry.getLedgerId());
-                shouldCursorMoveForward = nextValidLedger != null
-                        && (markDeletePos.getEntryId() + 1 >= ledgerEntries)
-                        && (newPosition.getLedgerId() == nextValidLedger);
-            } catch (Exception e) {
-                log.warn("Failed to get ledger entries while setting mark-delete-position", e);
-            }
-
-            if (shouldCursorMoveForward) {
-                log.info("[{}] move mark-delete-position from {} to {} since all the entries have been consumed",
-                        ledger.getName(), markDeletePos, newPosition);
-            } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {}"
-                             + " for cursor [{}]", ledger.getName(), position, lastConfirmedEntry, name);
+        boolean shouldCursorMoveForward = false;
+        try {
+            if (lastConfirmedEntry.getLedgerId() >= newPosition.getLedgerId()) {
+                LedgerInfo curMarkDeleteLedgerInfo = ledger.getLedgerInfo(newPosition.getLedgerId()).get();
+                Long nextValidLedger = ledger.getNextValidLedger(newPosition.getLedgerId());
+                shouldCursorMoveForward = (nextValidLedger != null)
+                        && (curMarkDeleteLedgerInfo != null
+                        && newPosition.getEntryId() + 1 >= curMarkDeleteLedgerInfo.getEntries());
+                if (shouldCursorMoveForward) {
+                    moveForwardPosition = PositionFactory.create(nextValidLedger, -1);
                 }
-                callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
-                return;
+            } else {
+                Long nextValidLedger = ledger.getNextValidLedger(lastConfirmedEntry.getLedgerId());
+                shouldCursorMoveForward = (nextValidLedger != null)
+                        && (newPosition.getLedgerId() == nextValidLedger)
+                        && (newPosition.getEntryId() == -1);
             }
+        } catch (Exception e) {
+            log.warn("Failed to get ledger entries while setting mark-delete-position", e);
+        }
+
+        if (shouldCursorMoveForward) {
+            log.info("[{}] move cursor {} mark-delete-position from {} to {} since all the entries have been consumed,"
+                    + " last-confirmed-entry: {}, attempt position: {}, ack-batch position: {}", ledger.getName(),
+                    name, markDeletePos, moveForwardPosition, lastConfirmedEntry, position, newPosition);
+        } else if (lastConfirmedEntry.compareTo(newPosition) < 0) {
+            // If newPosition>lastConfirmedEntry and current ledger entries are not fully consumed,
+            // in which case the newPosition is an invalid mark delete position.
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed mark delete due to invalid markDelete {} is ahead of last-confirmed-entry {}"
+                        + " for cursor [{}], attempt position: {}", ledger.getName(), newPosition, lastConfirmedEntry,
+                        name, position);
+            }
+            callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
+            return;
         }
 
         lock.writeLock().lock();
         try {
-            newPosition = setAcknowledgedPosition(newPosition);
+            moveForwardPosition = setAcknowledgedPosition(moveForwardPosition);
         } catch (IllegalArgumentException e) {
             callback.markDeleteFailed(getManagedLedgerException(e), ctx);
             return;
@@ -2298,11 +2312,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         // Apply rate limiting to mark-delete operations
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
             isDirty = true;
-            updateLastMarkDeleteEntryToLatest(newPosition, properties);
+            updateLastMarkDeleteEntryToLatest(moveForwardPosition, properties);
             callback.markDeleteComplete(ctx);
             return;
         }
-        internalAsyncMarkDelete(newPosition, properties, callback, ctx, null);
+        internalAsyncMarkDelete(moveForwardPosition, properties, callback, ctx, null);
     }
 
     private Position ackBatchPosition(Position position) {
