@@ -23,7 +23,6 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -54,7 +53,6 @@ public class TopicListWatcherTest {
     private PulsarClientImpl client;
     private CompletableFuture<TopicListWatcher> watcherFuture;
     private TopicsChangedListener listener;
-    private Runnable recheckTopicsChangeAfterReconnect;
     private PatternMultiTopicsConsumerImpl<byte[]> patternConsumer;
 
     @BeforeMethod(alwaysRun = true)
@@ -85,14 +83,15 @@ public class TopicListWatcherTest {
         when(patternConsumer.recheckTopicsChange()).thenReturn(completedFuture);
         when(listener.onTopicsAdded(anyCollection())).thenReturn(completedFuture);
         when(listener.onTopicsRemoved(anyCollection())).thenReturn(completedFuture);
+        when(patternConsumer.handleWatchTopicListSuccess(any(), any(), anyInt())).thenReturn(completedFuture);
+        when(patternConsumer.supportsTopicListWatcherReconcile()).thenReturn(true);
         PatternConsumerUpdateQueue queue = new PatternConsumerUpdateQueue(patternConsumer, listener);
 
         watcherFuture = new CompletableFuture<>();
-        recheckTopicsChangeAfterReconnect = mock(Runnable.class);
         watcher = new TopicListWatcher(queue, client,
                 TopicsPatternFactory.create(Pattern.compile(topic)), 7,
                 NamespaceName.get("tenant/ns"), patternConsumer::getLocalStateTopicsHash, watcherFuture,
-                recheckTopicsChangeAfterReconnect);
+                () -> 0);
     }
 
     @Test
@@ -149,6 +148,7 @@ public class TopicListWatcherTest {
     @Test
     public void testWatcherTriggersReconciliationOnHashMismatch() {
         ClientCnx clientCnx = mock(ClientCnx.class);
+
         CompletableFuture<CommandWatchTopicListSuccess> responseFuture = new CompletableFuture<>();
         when(clientCnx.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any()))
                 .thenReturn(responseFuture);
@@ -162,8 +162,10 @@ public class TopicListWatcherTest {
         success.addTopic("persistent://tenant/ns/topic11");
         responseFuture.complete(success);
 
-        // Verification of initial reconciliation on connection open
-        verify(recheckTopicsChangeAfterReconnect, atLeastOnce()).run();
+        // verify that the response was handled
+        verify(patternConsumer, times(1)).handleWatchTopicListSuccess(any(), any(), anyInt());
+        // sync local hash
+        when(patternConsumer.getLocalStateTopicsHash()).thenReturn("FEED");
 
         // Send update with a mismatching hash
         CommandWatchTopicUpdate update = new CommandWatchTopicUpdate()

@@ -33,11 +33,13 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -86,7 +88,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                     long watcherId = client.newTopicListWatcherId();
                     topicListWatcher = new TopicListWatcher(updateTaskQueue, client, topicsPattern, watcherId,
                             namespaceName, this::getLocalStateTopicsHash, watcherFuture,
-                            () -> recheckTopicsChangeAfterReconnect());
+                            this::getNextRecheckPatternEpoch);
                     watcherFuture.whenComplete((watcher, ex) -> {
                         if (closed) {
                             log.warn("Pattern consumer [{}] was closed while creating topic list watcher",
@@ -134,33 +136,15 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     }
 
     CompletableFuture<Void> recheckTopicsChange() {
-        final int epoch = recheckPatternEpoch.incrementAndGet();
+        final int epoch = getNextRecheckPatternEpoch();
 
         CompletableFuture<Void> recheckFuture;
         // Prefer watcher-based reconcile when a watcher exists and is connected. Fallback to lookup if watcher
         // is not available or the watcher-based request fails.
         if (supportsTopicListWatcherReconcile()) {
-            recheckFuture = topicListWatcher.reconcile().thenCompose(response -> {
-                synchronized (PatternMultiTopicsConsumerImpl.this) {
-                    if (recheckPatternEpoch.get() > epoch) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    // Build a GetTopicsResult-like object from the watch response
-                    // so we can reuse updateSubscriptions
-                    final List<String> topics = (response != null)
-                            ? response.getTopicsList()
-                            : Collections.emptyList();
-                    final String hash = (response != null && response.hasTopicsHash())
-                            ? response.getTopicsHash()
-                            : null;
-                    final boolean changed = !topics.isEmpty();
-                    final GetTopicsResult getTopicsResult =
-                            new GetTopicsResult(topics, hash, true, changed);
-
-                    final List<String> oldTopics = new ArrayList<>(getPartitions());
-                    return updateSubscriptions(topicsPattern, getTopicsResult, topicsChangeListener, oldTopics,
-                            subscription);
-                }
+            String localStateTopicsHash = getLocalStateTopicsHash();
+            recheckFuture = topicListWatcher.reconcile(localStateTopicsHash).thenCompose(response -> {
+                return handleWatchTopicListSuccess(response, localStateTopicsHash, epoch);
             }).handle((res, ex) -> {
                 if (ex != null) {
                     // watcher-based reconcile failed -> fall back to lookup-based recheck
@@ -169,7 +153,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                     // watcher-based reconcile completed successfully
                     return CompletableFuture.<Void>completedFuture(null);
                 }
-            }).thenCompose(x -> x);
+            }).thenCompose(Function.identity());
         } else {
             // Fallback: perform the existing lookup-based recheck
             recheckFuture = doLookupBasedRecheck(epoch);
@@ -179,6 +163,34 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             scheduleRecheckTopics();
             return null;
         });
+    }
+
+    int getNextRecheckPatternEpoch() {
+        return recheckPatternEpoch.incrementAndGet();
+    }
+
+    CompletableFuture<Void> handleWatchTopicListSuccess(CommandWatchTopicListSuccess response,
+                                                        String localStateTopicsHash, int epoch) {
+        synchronized (PatternMultiTopicsConsumerImpl.this) {
+            if (recheckPatternEpoch.get() > epoch) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Build a GetTopicsResult-like object from the watch response
+            // so we can reuse updateSubscriptions
+            final List<String> topics = (response != null)
+                    ? response.getTopicsList()
+                    : Collections.emptyList();
+            final String hash = (response != null && response.hasTopicsHash())
+                    ? response.getTopicsHash()
+                    : null;
+            final boolean changed = !localStateTopicsHash.equals(hash);
+            final GetTopicsResult getTopicsResult =
+                    new GetTopicsResult(topics, hash, true, changed);
+
+            final List<String> oldTopics = new ArrayList<>(getPartitions());
+            return updateSubscriptions(topicsPattern, getTopicsResult, topicsChangeListener, oldTopics,
+                    subscription);
+        }
     }
 
     boolean supportsTopicListWatcherReconcile() {

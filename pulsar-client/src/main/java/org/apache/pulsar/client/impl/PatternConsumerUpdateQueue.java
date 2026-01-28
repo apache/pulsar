@@ -26,6 +26,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 
 /**
  * Used to make all tasks that will modify subscriptions will be executed one by one, and skip the unnecessary updating.
@@ -105,6 +106,19 @@ public class PatternConsumerUpdateQueue {
         }
     }
 
+    static class WatchTopicListSuccessTask extends UpdateTask {
+        private final CommandWatchTopicListSuccess response;
+        private final String localStateTopicsHash;
+        private final int epoch;
+
+        WatchTopicListSuccessTask(CommandWatchTopicListSuccess response, String localStateTopicsHash, int epoch) {
+            super(UpdateSubscriptionType.WATCH_TOPIC_LIST_SUCCESS);
+            this.response = response;
+            this.localStateTopicsHash = localStateTopicsHash;
+            this.epoch = epoch;
+        }
+    }
+
     /**
      * Whether there is a task is in progress, this variable is used to confirm whether a next-task triggering is
      * needed.
@@ -147,6 +161,11 @@ public class PatternConsumerUpdateQueue {
 
     synchronized void appendRecheckOp() {
         doAppend(RecheckTask.INSTANCE);
+    }
+
+    synchronized void appendWatchTopicListSuccessOp(CommandWatchTopicListSuccess response, String localStateTopicsHash,
+                                              int epoch) {
+        doAppend(new WatchTopicListSuccessTask(response, localStateTopicsHash, epoch));
     }
 
     synchronized void doAppend(UpdateTask task) {
@@ -245,6 +264,12 @@ public class PatternConsumerUpdateQueue {
                 newTaskFuture = patternConsumer.recheckTopicsChange();
                 break;
             }
+            case WATCH_TOPIC_LIST_SUCCESS: {
+                WatchTopicListSuccessTask watchTopicListSuccessTask = (WatchTopicListSuccessTask) task;
+                newTaskFuture = patternConsumer.handleWatchTopicListSuccess(watchTopicListSuccessTask.response,
+                        watchTopicListSuccessTask.localStateTopicsHash, watchTopicListSuccessTask.epoch);
+                break;
+            }
             default: {
                 throw new RuntimeException("Un-support UpdateSubscriptionType");
             }
@@ -303,6 +328,8 @@ public class PatternConsumerUpdateQueue {
         /** Triggered by topic list watcher when topics changed. **/
         TOPICS_CHANGED,
         /** A fully check for pattern consumer. **/
-        RECHECK;
+        RECHECK,
+        /** Handle initial watch topic list success response. **/
+        WATCH_TOPIC_LIST_SUCCESS;
     }
 }
