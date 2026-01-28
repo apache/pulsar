@@ -238,13 +238,14 @@ public class PatternConsumerUpdateQueue {
                                 topicsChangeListener.onTopicsAdded(topicsAddedOrRemovedTask.addedTopics))
                         .thenRun(() -> {
                             if (!patternConsumer.supportsTopicListWatcherReconcile()) {
-                                // ignore topics hash unless topic list watcher reconcile is supported since
-                                // the broker side state might be out of sync and could cause unnecessary
-                                // reconciliation.
-                                // reconciliation will happen later when the client requests the topic listing
-                                // after the next patternAutoDiscoveryPeriod interval
-                                // Broker versions that support topic list watcher reconcile will also update the
-                                // broker side state when reconciliation is requested.
+                                // Ignore the topics hash until topic-list watcher reconciliation is supported.
+                                // Broker-side state can be stale, which would trigger unnecessary reconciliation.
+                                // The client will reconcile later when it fetches the topic list after the next
+                                // patternAutoDiscoveryPeriod interval.
+                                // Brokers that support watcher reconciliation also refresh broker-side state
+                                // when reconciliation is requested.
+                                // Older brokers have known topic-listing bugs (issue 25192: system topics included),
+                                // so their hash is not reliable anyway.
                                 return;
                             }
                             String localHash = patternConsumer.getLocalStateTopicsHash();
