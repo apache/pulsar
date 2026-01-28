@@ -1125,10 +1125,14 @@ public abstract class NamespacesBase extends AdminResource {
         CompletableFuture<AutoTopicCreationOverride> remoteNsPolicyFuture =
                 remoteAdmin.namespaces().getAutoTopicCreationAsync(namespaceStr)
                         .exceptionally(ex -> {
-                            // If namespace doesn't have override, return null
-                            if (ex.getCause() instanceof PulsarAdminException.NotFoundException
-                                    || ex instanceof PulsarAdminException.NotFoundException) {
-                                return null;
+                            // If namespace doesn't have override, return null.
+                            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                            if (actEx instanceof PulsarAdminException.NotFoundException) {
+                                throw new RestException(Status.CONFLICT,
+                                    String.format("Effective auto-topic creation policy mismatch for namespace '%s' "
+                                                    + "between local cluster and remote cluster '%s' -> '%s'. "
+                                                    + "Please ensure the namespace exists on the remote side.",
+                                            namespaceStr, localConfig.getClusterName(), remoteCluster));
                             }
                             throw new CompletionException(ex);
                         });
@@ -1178,6 +1182,8 @@ public abstract class NamespacesBase extends AdminResource {
                         mismatches.add(String.format("topicType: local=%s, remote=%s",
                                 localEffectiveTopicType, remoteEffectiveTopicType));
                     }
+                    // Pulsar does not allow to set a special partition count with non-partitioned topic type, comparing
+                    // default topic count either default topic type is partitioned or non-partitioned.
                     if (localEffectiveDefaultPartitions != remoteEffectiveDefaultPartitions) {
                         mismatches.add(String.format("defaultNumPartitions: local=%d, remote=%d",
                                 localEffectiveDefaultPartitions, remoteEffectiveDefaultPartitions));
