@@ -160,6 +160,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         }
 
         return recheckFuture.handle((__, ex) -> {
+            if (ex != null) {
+                log.info("[{}][{}] Pattern consumer failed to recheck topics changes: {}",
+                        getPattern().inputPattern(), getSubscription(), ex.getMessage());
+            }
             scheduleRecheckTopics();
             return null;
         });
