@@ -303,4 +303,9 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         return c.newWatchTopicList(requestId, watcherId, namespace.toString(),
                 topicsPattern.inputPattern(), localStateTopicsHashSupplier.get());
     }
+
+    public boolean supportsReconcile() {
+        ClientCnx cnx = cnx();
+        return cnx != null && cnx.isSupportsTopicWatcherReconcile();
+    }
 }

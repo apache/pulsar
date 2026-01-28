@@ -139,8 +139,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         CompletableFuture<Void> recheckFuture;
         // Prefer watcher-based reconcile when a watcher exists and is connected. Fallback to lookup if watcher
         // is not available or the watcher-based request fails.
-        if (topicListWatcher != null && watcherFuture.isDone()
-                && !watcherFuture.isCompletedExceptionally() && topicListWatcher.isConnected()) {
+        if (supportsTopicListWatcherReconcile()) {
             recheckFuture = topicListWatcher.reconcile().thenCompose(response -> {
                 synchronized (PatternMultiTopicsConsumerImpl.this) {
                     if (recheckPatternEpoch.get() > epoch) {
@@ -180,6 +179,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             scheduleRecheckTopics();
             return null;
         });
+    }
+
+    boolean supportsTopicListWatcherReconcile() {
+        return topicListWatcher != null && topicListWatcher.supportsReconcile() && watcherFuture.isDone()
+                && !watcherFuture.isCompletedExceptionally() && topicListWatcher.isConnected();
     }
 
     private void scheduleRecheckTopics() {

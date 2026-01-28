@@ -323,6 +323,7 @@ public class Commands {
         connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
         connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
         connected.setFeatureFlags().setSupportsReplDedupByLidAndEid(true);
+        connected.setFeatureFlags().setSupportsTopicWatcherReconcile(true);
         return cmd;
     }
 

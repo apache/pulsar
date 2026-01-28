@@ -218,13 +218,23 @@ public class PatternConsumerUpdateQueue {
                         .thenCompose(__ ->
                                 topicsChangeListener.onTopicsAdded(topicsAddedOrRemovedTask.addedTopics))
                         .thenRun(() -> {
+                            if (!patternConsumer.supportsTopicListWatcherReconcile()) {
+                                // ignore topics hash unless topic list watcher reconcile is supported since
+                                // the broker side state might be out of sync and could cause unnecessary
+                                // reconciliation.
+                                // reconciliation will happen later when the client requests the topic listing
+                                // after the next patternAutoDiscoveryPeriod interval
+                                // Broker versions that support topic list watcher reconcile will also update the
+                                // broker side state when reconciliation is requested.
+                                return;
+                            }
                             String localHash = patternConsumer.getLocalStateTopicsHash();
                             String brokerHash = topicsAddedOrRemovedTask.topicsHash;
                             if (brokerHash != null && brokerHash.length() > 0 && !brokerHash.equals(localHash)) {
                                 log.info("[{}][{}] Hash mismatch detected (local: {}, broker: {}). Triggering "
                                                 + "reconciliation.", patternConsumer.getPattern().inputPattern(),
                                         patternConsumer.getSubscription(), localHash, brokerHash);
-                                patternConsumer.recheckTopicsChange();
+                                appendRecheckOp();
                             }
                         });
                 break;
