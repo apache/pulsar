@@ -72,6 +72,9 @@ public class AutoCloseUselessClientConTopicsPatternConsumerTest extends AutoClos
                 .subscriptionName("my-subscription-y")
                 .subscribe();
 
+        waitForTopicListWatcherStarted(consumer);
+        waitForTopicListWatcherStarted(consumer2);
+
         // check that there are more than 3 connections
         // at least 3 connections are required:
         // 1 for "producer", 1 for "consumer", and 1 for the topic watcher of "consumer"

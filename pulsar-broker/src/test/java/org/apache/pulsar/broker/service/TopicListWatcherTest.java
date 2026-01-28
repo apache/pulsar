@@ -75,7 +75,7 @@ public class TopicListWatcherTest {
     @Test
     public void testAcceptSendsNotificationAndRemembersTopic() {
         String newTopic = "persistent://tenant/ns/topic3";
-        watcher.accept(newTopic, NotificationType.Created);
+        watcher.onTopicEvent(newTopic, NotificationType.Created);
 
         List<String> allMatchingTopics = Arrays.asList(
                 "persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2", newTopic);
@@ -90,7 +90,7 @@ public class TopicListWatcherTest {
     @Test
     public void testAcceptSendsNotificationAndForgetsTopic() {
         String deletedTopic = "persistent://tenant/ns/topic1";
-        watcher.accept(deletedTopic, NotificationType.Deleted);
+        watcher.onTopicEvent(deletedTopic, NotificationType.Deleted);
 
         List<String> allMatchingTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(allMatchingTopics);
@@ -103,7 +103,7 @@ public class TopicListWatcherTest {
 
     @Test
     public void testAcceptIgnoresNonMatching() {
-        watcher.accept("persistent://tenant/ns/mytopic", NotificationType.Created);
+        watcher.onTopicEvent("persistent://tenant/ns/mytopic", NotificationType.Created);
         verifyNoInteractions(topicListService);
         Assert.assertEquals(
                 Arrays.asList("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2"),
@@ -114,10 +114,10 @@ public class TopicListWatcherTest {
     public void testUpdateQueueOverFlowPerformsFullUpdate() {
         for (int i = 10; i <= 20; i++) {
             String newTopic = "persistent://tenant/ns/topic" + i;
-            watcher.accept(newTopic, NotificationType.Created);
+            watcher.onTopicEvent(newTopic, NotificationType.Created);
         }
         verify(topicListService).sendTopicListUpdate(anyLong(), anyString(), any(), any(), any());
-        verify(topicListService).updateTopicListWatcher(any());
+        verify(topicListService).updateTopicListWatcher(any(), eq(null), eq(null));
         verifyNoMoreInteractions(topicListService);
     }
 }

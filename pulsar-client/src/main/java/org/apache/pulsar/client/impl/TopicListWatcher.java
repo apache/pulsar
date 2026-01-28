@@ -24,8 +24,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.protocol.Commands;
@@ -49,14 +52,13 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private final long watcherId;
     private volatile long createWatcherDeadline = 0;
     private final NamespaceName namespace;
-    // TODO maintain the value based on updates from broker and warn the user if inconsistent with hash from polling
-    private String topicsHash;
+    // maintain the value based on updates from broker and allow external components to query it
+    private final Supplier<String> localStateTopicsHashSupplier;
     private final CompletableFuture<TopicListWatcher> watcherFuture;
+    private final IntSupplier nextRecheckPatternEpochSupplier;
 
     private final AtomicInteger previousExceptionCount = new AtomicInteger();
     private final AtomicReference<ClientCnx> clientCnxUsedForWatcherRegistration = new AtomicReference<>();
-
-    private final Runnable recheckTopicsChangeAfterReconnect;
 
 
     /***
@@ -64,9 +66,9 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
      */
     public TopicListWatcher(PatternConsumerUpdateQueue patternConsumerUpdateQueue,
                             PulsarClientImpl client, TopicsPattern topicsPattern, long watcherId,
-                            NamespaceName namespace, String topicsHash,
+                            NamespaceName namespace, Supplier<String> localStateTopicsHashSupplier,
                             CompletableFuture<TopicListWatcher> watcherFuture,
-                            Runnable recheckTopicsChangeAfterReconnect) {
+                            IntSupplier nextRecheckPatternEpochSupplier) {
         super(client, topicsPattern.topicLookupNameForTopicListWatcherPlacement());
         this.patternConsumerUpdateQueue = patternConsumerUpdateQueue;
         this.name = "Watcher(" + topicsPattern + ")";
@@ -81,9 +83,9 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         this.topicsPattern = topicsPattern;
         this.watcherId = watcherId;
         this.namespace = namespace;
-        this.topicsHash = topicsHash;
+        this.localStateTopicsHashSupplier = localStateTopicsHashSupplier;
         this.watcherFuture = watcherFuture;
-        this.recheckTopicsChangeAfterReconnect = recheckTopicsChangeAfterReconnect;
+        this.nextRecheckPatternEpochSupplier = nextRecheckPatternEpochSupplier;
 
         connectionHandler.grabCnx();
     }
@@ -130,11 +132,10 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
         synchronized (this) {
             setClientCnx(cnx);
-            BaseCommand watchRequest = Commands.newWatchTopicList(requestId, watcherId, namespace.toString(),
-                            topicsPattern.inputPattern(), topicsHash);
-
-            cnx.newWatchTopicList(watchRequest, requestId)
-
+            String localStateTopicsHash = localStateTopicsHashSupplier.get();
+            int epoch = nextRecheckPatternEpochSupplier.getAsInt();
+            cnx.newWatchTopicList(requestId, watcherId, namespace.toString(), topicsPattern.inputPattern(),
+                            localStateTopicsHash)
                     .thenAccept(response -> {
                         synchronized (TopicListWatcher.this) {
                             if (!changeToReadyState()) {
@@ -142,14 +143,15 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                                 // drops the watcher on its side
                                 setState(State.Closed);
                                 deregisterFromClientCnx();
+                                log.warn("[{}] Watcher was closed while reconnecting, closing the connection to {}.",
+                                        topic, cnx.channel().remoteAddress());
                                 cnx.channel().close();
                                 future.complete(null);
                                 return;
                             }
                         }
                         this.connectionHandler.resetBackoff();
-
-                        recheckTopicsChangeAfterReconnect.run();
+                        patternConsumerUpdateQueue.appendWatchTopicListSuccessOp(response, localStateTopicsHash, epoch);
                         watcherFuture.complete(this);
                         future.complete(null);
                     }).exceptionally((e) -> {
@@ -280,7 +282,33 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     }
 
     public void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate update) {
-        patternConsumerUpdateQueue.appendTopicsRemovedOp(update.getDeletedTopicsList());
-        patternConsumerUpdateQueue.appendTopicsAddedOp(update.getNewTopicsList());
+        if (update == null) {
+            return;
+        }
+        patternConsumerUpdateQueue.appendTopicsChangedOp(update.getNewTopicsList(), update.getDeletedTopicsList(),
+                update.hasTopicsHash() ? update.getTopicsHash() : "");
+    }
+
+    /**
+     * Perform a single reconciliation request using the existing watcher id and the watcher's last-known topics hash.
+     * This will send a WatchTopicList request including the topics-hash to the broker. If the watcher is not connected,
+     * the returned future will be completed exceptionally.
+     */
+    public CompletableFuture<CommandWatchTopicListSuccess> reconcile(String localStateTopicsHash) {
+        ClientCnx c = cnx();
+        if (c == null || !isConnected()) {
+            CompletableFuture<CommandWatchTopicListSuccess> f = new CompletableFuture<>();
+            f.completeExceptionally(new IllegalStateException("Watcher is not connected"));
+            return f;
+        }
+        long requestId = client.newRequestId();
+        // Use the convenience ClientCnx overload that accepts a topicsHash
+        return c.newWatchTopicList(requestId, watcherId, namespace.toString(),
+                topicsPattern.inputPattern(), localStateTopicsHash);
+    }
+
+    public boolean supportsReconcile() {
+        ClientCnx cnx = cnx();
+        return cnx != null && cnx.isSupportsTopicWatcherReconcile();
     }
 }

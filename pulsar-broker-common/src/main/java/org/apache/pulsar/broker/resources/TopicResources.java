@@ -24,30 +24,32 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 @Slf4j
 public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
 
-    private final MetadataStore store;
+    private final MetadataStoreExtended store;
 
-    private final Map<BiConsumer<String, NotificationType>, Pattern> topicListeners;
+    private final Map<TopicListener, Pattern> topicListeners;
 
-    public TopicResources(MetadataStore store) {
+    public TopicResources(MetadataStoreExtended store) {
         this.store = store;
         topicListeners = new ConcurrentHashMap<>();
         store.registerListener(this::handleNotification);
+        store.registerSessionListener(this::handleSessionEvent);
     }
 
     /***
@@ -111,13 +113,15 @@ public class TopicResources {
         if (notification.getPath().startsWith(MANAGED_LEDGER_PATH)
                 && (notification.getType() == NotificationType.Created
                 || notification.getType() == NotificationType.Deleted)) {
-            for (Map.Entry<BiConsumer<String, NotificationType>, Pattern> entry :
+            for (Map.Entry<TopicListener, Pattern> entry :
                     topicListeners.entrySet()) {
                 Matcher matcher = entry.getValue().matcher(notification.getPath());
                 if (matcher.matches()) {
                     TopicName topicName = TopicName.get(
                             matcher.group(2), NamespaceName.get(matcher.group(1)), decode(matcher.group(3)));
-                    entry.getKey().accept(topicName.toString(), notification.getType());
+                    if (!SystemTopicNames.isSystemTopic(topicName)) {
+                        entry.getKey().onTopicEvent(topicName.toString(), notification.getType());
+                    }
                 }
             }
         }
@@ -128,13 +132,21 @@ public class TopicResources {
                         + TopicDomain.persistent + ")/(" + "[^/]+)");
     }
 
-    public void registerPersistentTopicListener(
-            NamespaceName namespaceName, BiConsumer<String, NotificationType> listener) {
-        topicListeners.put(listener, namespaceNameToTopicNamePattern(namespaceName));
+    public void registerPersistentTopicListener(TopicListener listener) {
+        topicListeners.put(listener, namespaceNameToTopicNamePattern(listener.getNamespaceName()));
     }
 
-    public void deregisterPersistentTopicListener(BiConsumer<String, NotificationType> listener) {
+    public void deregisterPersistentTopicListener(TopicListener listener) {
         topicListeners.remove(listener);
     }
 
+    private void handleSessionEvent(SessionEvent sessionEvent) {
+        topicListeners.keySet().forEach(listener -> {
+            try {
+                listener.onSessionEvent(sessionEvent);
+            } catch (Exception e) {
+                log.warn("Failed to handle session event {} for listener {}", sessionEvent, listener, e);
+            }
+        });
+    }
 }

@@ -50,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -684,9 +685,14 @@ public class PulsarClientImpl implements PulsarClient {
                                 conf.getSubscriptionName(), namespaceName, topicName));
                 }
 
-                List<String> topicsList = getTopicsResult.getTopics();
+                List<String> topicsList;
                 if (!getTopicsResult.isFiltered()) {
                    topicsList = TopicList.filterTopics(getTopicsResult.getTopics(), pattern);
+                } else {
+                    // deduplicate java.lang.String instances using TopicName's cache
+                    topicsList = getTopicsResult.getTopics().stream()
+                            .map(TopicName::get).map(TopicName::toString)
+                            .collect(Collectors.toList());
                 }
                 conf.getTopicNames().addAll(topicsList);
 
@@ -698,7 +704,6 @@ public class PulsarClientImpl implements PulsarClient {
                 // Pattern consumer has his unique check mechanism, so do not need the feature "autoUpdatePartitions".
                 conf.setAutoUpdatePartitions(false);
                 ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(pattern,
-                        getTopicsResult.getTopicsHash(),
                         PulsarClientImpl.this,
                         conf,
                         externalExecutorProvider,
