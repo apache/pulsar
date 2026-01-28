@@ -80,6 +80,8 @@ public interface Subscription extends MessageExpirer {
 
     CompletableFuture<Void> skipMessages(int numMessagesToSkip);
 
+    CompletableFuture<Void> skipMessages(List<SkipEntry> entries);
+
     CompletableFuture<Void> resetCursor(long timestamp);
 
     CompletableFuture<Void> resetCursor(Position position);
