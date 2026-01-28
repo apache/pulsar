@@ -223,13 +223,24 @@ public class TopicListService {
             switch (event) {
                 case SessionReestablished:
                 case Reconnected:
-                    executor.execute(() -> topicListService.updateTopicListWatcher(this, null));
+                    executor.execute(() -> {
+                        synchronized (this) {
+                            // ensure that only one update is triggered when connection is being lost and reconnected
+                            // before the updating is complete. The disconnected flag is reseted after the update
+                            // completes.
+                            if (disconnected) {
+                                topicListService.updateTopicListWatcher(this, null);
+                            }
+                        }
+                    });
                     break;
                 case SessionLost:
                 case ConnectionLost:
-                    disconnected = true;
-                    matchingTopicsBeforeDisconnected = new ArrayList<>(matchingTopics);
-                    prepareUpdateTopics();
+                    if (!disconnected) {
+                        disconnected = true;
+                        matchingTopicsBeforeDisconnected = new ArrayList<>(matchingTopics);
+                        prepareUpdateTopics();
+                    }
                     break;
             }
         }
