@@ -68,6 +68,7 @@ public class PatternConsumerUpdateQueueTest {
         } else {
             when(patternConsumer.getSubscribeFuture()).thenReturn(CompletableFuture.completedFuture(null));
         }
+        when(patternConsumer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
 
         PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener =
                 mock(PatternMultiTopicsConsumerImpl.TopicsChangedListener.class);
