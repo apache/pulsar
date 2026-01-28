@@ -397,8 +397,8 @@ public class TopicListService {
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
-                    log.warn("[{}] Error WatchTopicList for namespace [//{}] by {}",
-                            connection.toString(), namespaceName, requestId);
+                    log.warn("[{}] Error WatchTopicList for namespace [//{}] by {}: {}",
+                            connection.toString(), namespaceName, requestId, ex.getMessage());
                     connection.getCommandSender().sendErrorResponse(requestId,
                             BrokerServiceException.getClientErrorCode(
                                     new BrokerServiceException.ServerMetadataException(ex)), ex.getMessage());

@@ -385,10 +385,6 @@ public class TopicListServiceTest {
         topicListFuture.complete(topics);
         assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
 
-        CompletableFuture<Void> completePending = new CompletableFuture<>();
-        doReturn(completePending).when(pulsarCommandSender)
-                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any());
-
         topicListFuture = new CompletableFuture<>();
         List<String> updatedTopics = IntStream.range(1, 101).mapToObj(i -> "persistent://tenant/ns/topic" + i).toList();
         // when the queue overflows
