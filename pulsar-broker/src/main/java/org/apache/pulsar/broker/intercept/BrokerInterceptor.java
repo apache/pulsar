@@ -21,12 +21,15 @@ package org.apache.pulsar.broker.intercept;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.TopicListingResult;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
@@ -34,10 +37,12 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.naming.NamespaceName;
 
 /**
  * A plugin interface that allows you to intercept the
@@ -222,6 +227,28 @@ public interface BrokerInterceptor extends AutoCloseable {
             throws IOException, ServletException {
         // Just continue the chain by default.
         chain.doFilter(request, response);
+    }
+
+    /**
+     * Intercept the GetTopicsOfNamespace request.
+     * <p>
+     * This method allows plugins to override the default topic discovery logic (ZooKeeper scan).
+     * It enables fetching topics from external sources (e.g., databases, other metadata stores)
+     * based on the provided client context properties.
+     *
+     * @param namespace     The namespace being queried.
+     * @param mode          The query mode (PERSISTENT, NON_PERSISTENT, or ALL).
+     * @param topicsPattern Optional regex pattern provided by the client.
+     * @param properties    Context properties provided by the client.
+     * @return A CompletableFuture containing the result:
+     * If the future completes with {@code Optional.empty()}, proceed to the next interceptor or Broker's default logic.
+     */
+    default CompletableFuture<Optional<TopicListingResult>> interceptGetTopicsOfNamespace(
+            NamespaceName namespace,
+            CommandGetTopicsOfNamespace.Mode mode,
+            Optional<String> topicsPattern,
+            Map<String, String> properties) {
+        return CompletableFuture.completedFuture(Optional.empty());
     }
 
     /**

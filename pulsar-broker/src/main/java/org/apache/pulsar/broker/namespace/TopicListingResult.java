@@ -16,31 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.admin;
+package org.apache.pulsar.broker.namespace;
 
-import java.util.Map;
-import lombok.Builder;
-import lombok.Data;
+import java.util.List;
+import java.util.Objects;
 
-@Data
-@Builder
-public class ListTopicsOptions {
+public record TopicListingResult (List<String> topics, boolean filtered) {
 
-    public static final ListTopicsOptions EMPTY = ListTopicsOptions.builder().build();
-
-    /**
-     * Namespace bundle.
-     */
-    private final String bundle;
-
-    /**
-     * Set to true to get topics including system topic, otherwise not.
-     */
-    private final boolean includeSystemTopic;
-
-    /**
-     * Additional properties for listing topics.
-     */
-    private  final Map<String, String> properties;
-
+    public TopicListingResult{
+        Objects.requireNonNull(topics, "topics");
+    }
 }
