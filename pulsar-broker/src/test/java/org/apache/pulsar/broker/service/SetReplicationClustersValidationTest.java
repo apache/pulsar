@@ -55,7 +55,6 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
     }
     /**
      * Helper method to clean up a namespace properly.
-     * First removes replication clusters (if any), then deletes the namespace.
      */
     private void clearReplicationPolicies(String namespace) throws PulsarAdminException {
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1));
@@ -235,6 +234,19 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
             assertTrue(e.getMessage().contains("auto-topic creation policy mismatch"));
             assertTrue(e.getMessage().contains("defaultNumPartitions"));
         }
+
+        // Verify: Pulsar does not allow setting non-partitioned and a certain partition counts.
+        try {
+            policy1 = AutoTopicCreationOverride.builder()
+                    .allowAutoTopicCreation(true)
+                    .topicType(TopicType.NON_PARTITIONED.toString())
+                    .defaultNumPartitions(4)
+                    .build();
+            admin1.namespaces().setAutoTopicCreation(namespace, policy1);
+            fail("Expected behaviour: Pulsar does not allow setting non-partitioned and a certain partition counts");
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("is not allowed to be set when the type is non-partition"));
+        }
     }
 
     @Test
@@ -252,6 +264,30 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         assertEquals(clusters, Sets.newHashSet(cluster2));
         // cleanup
         clearReplicationPolicies(namespace);
+    }
+
+    @Test
+    public void testRemoteSideHasNotNamespace() throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName("public/testRemoteSideHasNotNamespace");
+
+        // local namespace does not exist.
+        try {
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("does not exist"));
+        }
+
+        // remote namespace does not exist.
+        admin1.namespaces().createNamespace(namespace);
+        try {
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("Please ensure the namespace exists on the remote side"));
+        }
+
+        // Both exist.
+        admin2.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
     }
 
 }
