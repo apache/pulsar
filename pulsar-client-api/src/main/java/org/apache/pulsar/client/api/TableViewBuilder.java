@@ -21,6 +21,8 @@ package org.apache.pulsar.client.api;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -75,6 +77,45 @@ public interface TableViewBuilder<T> {
      * @return the {@link TableView} instance
      */
     CompletableFuture<TableView<T>> createAsync();
+
+    /**
+     * Creates a {@link TableView} instance where the values are the result of applying a user-defined
+     * `mapper` function to each message.
+     *
+     * <p>This provides a flexible way to create a key-value view over a topic, allowing users to extract data
+     * from the message payload, properties, and other metadata into a custom object {@code V}.
+     *
+     * <p>To get a view of the full {@link Message<T>} objects, {@code java.util.function.Function.identity()}
+     * can be used as the mapper.
+     *
+     * <p>If the `mapper` function returns `null`, it is treated as a tombstone message, and the
+     * corresponding key will be removed from the `TableView`.
+     *
+     * @param mapper A function that takes a {@link Message<T>} and returns a custom object of type {@code V}.
+     * @param <V> The type of the value in the TableView.
+     * @return the {@link TableView} instance
+     * @throws PulsarClientException if the tableView creation fails
+     */
+    <V> TableView<V> createMapped(Function<Message<T>, V> mapper) throws PulsarClientException;
+
+    /**
+     * Creates a {@link TableView} instance in asynchronous mode where the values are the result of applying
+     * a user-defined `mapper` function to each message.
+     *
+     * <p>This provides a flexible way to create a key-value view over a topic, allowing users to extract data
+     * from the message payload, properties, and other metadata into a custom object {@code V}.
+     *
+     * <p>To get a view of the full {@link Message<T>} objects, {@code java.util.function.Function.identity()}
+     * can be used as the mapper.
+     *
+     * <p>If the `mapper` function returns `null`, it is treated as a tombstone message, and the
+     * corresponding key will be removed from the `TableView`.
+     *
+     * @param mapper A function that takes a {@link Message<T>} and returns a custom object of type {@code V}.
+     * @param <V> The type of the value in the TableView.
+     * @return a future that can be used to access the {@link TableView} instance when it's ready
+     */
+    <V> CompletableFuture<TableView<V>> createMappedAsync(Function<Message<T>, V> mapper);
 
     /**
      * Set the topic name of the {@link TableView}.
