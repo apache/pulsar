@@ -64,6 +64,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -121,7 +122,7 @@ public class TopicListServiceTest {
         NamespaceService namespaceService = mock(NamespaceService.class);
         when(pulsar.getNamespaceService()).thenReturn(namespaceService);
         doAnswer(invocationOnMock -> topicListFuture)
-                .when(namespaceService).getListOfPersistentTopics(any());
+                .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
         when(pulsar.getPulsarResources()).thenReturn(mock(PulsarResources.class));
         when(pulsar.getPulsarResources().getTopicResources()).thenReturn(topicResources);
 
@@ -480,7 +481,7 @@ public class TopicListServiceTest {
         topicListFuture = new CompletableFuture<>();
         NamespaceService namespaceService = pulsar.getNamespaceService();
         doAnswer(invocationOnMock -> topicListFuture)
-                .when(namespaceService).getListOfPersistentTopics(any());
+                .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
 
         // Simulate session reconnect - this should trigger a topic list refresh
         watcher.onSessionEvent(SessionEvent.Reconnected);
@@ -539,7 +540,7 @@ public class TopicListServiceTest {
         topicListFuture = new CompletableFuture<>();
         NamespaceService namespaceService = pulsar.getNamespaceService();
         doAnswer(invocationOnMock -> topicListFuture)
-                .when(namespaceService).getListOfPersistentTopics(any());
+                .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
 
         // Simulate session reestablished
         watcher.onSessionEvent(SessionEvent.SessionReestablished);
@@ -590,7 +591,7 @@ public class TopicListServiceTest {
         topicListFuture = new CompletableFuture<>();
         NamespaceService namespaceService = pulsar.getNamespaceService();
         doAnswer(invocationOnMock -> topicListFuture)
-                .when(namespaceService).getListOfPersistentTopics(any());
+                .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
 
         watcher.onSessionEvent(SessionEvent.Reconnected);
 

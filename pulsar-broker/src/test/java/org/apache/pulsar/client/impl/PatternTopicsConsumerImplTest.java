@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertSame;
@@ -315,7 +316,11 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         List<String> topics = ((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((PatternMultiTopicsConsumerImpl<byte[]>) consumer).getConsumers();
 
-        assertEquals(topics.size(), 6);
+        List<String> expectedTopics =
+                List.of(topicName1 + "-partition-0",
+                        topicName2 + "-partition-0", topicName2 + "-partition-1",
+                        topicName3 + "-partition-0", topicName3 + "-partition-1", topicName3 + "-partition-2");
+        assertThat(topics).containsExactlyInAnyOrderElementsOf(expectedTopics);
         assertEquals(consumers.size(), 6);
         assertEquals(((PatternMultiTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 3);
 

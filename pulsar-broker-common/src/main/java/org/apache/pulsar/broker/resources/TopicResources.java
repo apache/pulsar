@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.metadata.api.Notification;
@@ -118,7 +119,9 @@ public class TopicResources {
                 if (matcher.matches()) {
                     TopicName topicName = TopicName.get(
                             matcher.group(2), NamespaceName.get(matcher.group(1)), decode(matcher.group(3)));
-                    entry.getKey().onTopicEvent(topicName.toString(), notification.getType());
+                    if (!SystemTopicNames.isSystemTopic(topicName)) {
+                        entry.getKey().onTopicEvent(topicName.toString(), notification.getType());
+                    }
                 }
             }
         }

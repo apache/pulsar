@@ -458,29 +458,31 @@ public class TopicListService {
         return listSizeHolder.getSizeAsync().thenCompose(initialSize -> {
             // use heap size limiter to avoid broker getting overwhelmed by a lot of concurrent topic list requests
             return maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
-                    AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
-                        return namespaceService.getListOfPersistentTopics(namespace).thenComposeAsync(topics -> {
-                            long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
-                            listSizeHolder.updateSize(actualSize);
-                            if (afterListing != null) {
-                                afterListing.accept(topics);
-                            }
-                            if (initialSize != actualSize) {
-                                // use updated permits to slow down responses so that backpressure gets applied
-                                return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
-                                        isPermitRequestCancelled, updatedPermits -> {
-                                            // reset retry backoff
-                                            retryBackoff.reset();
-                                            // just return the topics which were already retrieved before
-                                            return CompletableFuture.completedFuture(topics);
-                                        }, CompletableFuture::failedFuture);
-                            } else {
-                                // reset retry backoff
-                                retryBackoff.reset();
-                                return CompletableFuture.completedFuture(topics);
-                            }
-                        }, connection.ctx().executor());
-                    }, CompletableFuture::failedFuture)
+                            AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
+                                return namespaceService.getListOfUserTopics(namespace,
+                                        CommandGetTopicsOfNamespace.Mode.PERSISTENT).thenComposeAsync(topics -> {
+                                    long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
+                                    listSizeHolder.updateSize(actualSize);
+                                    if (afterListing != null) {
+                                        afterListing.accept(topics);
+                                    }
+                                    if (initialSize != actualSize) {
+                                        // use updated permits to slow down responses so that backpressure gets applied
+                                        return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits,
+                                                actualSize,
+                                                isPermitRequestCancelled, updatedPermits -> {
+                                                    // reset retry backoff
+                                                    retryBackoff.reset();
+                                                    // just return the topics which were already retrieved before
+                                                    return CompletableFuture.completedFuture(topics);
+                                                }, CompletableFuture::failedFuture);
+                                    } else {
+                                        // reset retry backoff
+                                        retryBackoff.reset();
+                                        return CompletableFuture.completedFuture(topics);
+                                    }
+                                }, connection.ctx().executor());
+                            }, CompletableFuture::failedFuture)
                     .thenApplyAsync(Function.identity(), connection.ctx().executor());
         });
     }
