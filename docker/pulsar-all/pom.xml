@@ -152,8 +152,7 @@
                 <id>default</id>
                 <phase>package</phase>
                 <goals>
-                  <goal>build</goal>
-                  <goal>push</goal>
+                  <goal>${docker.goal}</goal>
                 </goals>
                 <configuration>
                   <images>
@@ -196,6 +195,7 @@
     <profile>
       <id>docker-push</id>
       <properties>
+        <docker.goal>push</docker.goal>
         <docker.skip.push>false</docker.skip.push>
         <docker.platforms>linux/amd64,linux/arm64</docker.platforms>
       </properties>
