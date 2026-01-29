@@ -110,6 +110,17 @@ public class TopicResourcesTest {
     }
 
     @Test
+    public void testListenerNotInvokedForSystemTopicChanges() {
+        TopicListener listener = mock(TopicListener.class);
+        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
+        topicResources.registerPersistentTopicListener(listener);
+        verify(listener).getNamespaceName();
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace/persistent/__change_events"));
+        verifyNoMoreInteractions(listener);
+    }
+
+    @Test
     public void testListenerNotInvokedAfterDeregistered() {
         TopicListener listener = mock(TopicListener.class);
         when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));
