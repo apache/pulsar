@@ -19,9 +19,13 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.Map;
+import java.util.Optional;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.InMemoryTopicDelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
@@ -64,4 +68,28 @@ public abstract class AbstractPersistentDispatcherMultipleConsumers extends Abst
     public abstract Map<String, TopicMetricBean> getBucketDelayedIndexStats();
 
     public abstract boolean isClassic();
+
+    /**
+     * Expose the optional DelayedDeliveryTracker from implementations.
+     */
+    protected abstract Optional<DelayedDeliveryTracker> getDelayedDeliveryTrackerOptional();
+
+    /**
+     * Propagate mark-delete progress to topic-level in-memory delayed tracker (when enabled).
+     * Centralizes repeated logic across dispatcher implementations.
+     */
+    protected final void propagateMarkDeleteToTopicDelayedTracker() {
+        Optional<DelayedDeliveryTracker> trackerOpt;
+        synchronized (this) {
+            trackerOpt = getDelayedDeliveryTrackerOptional();
+        }
+        trackerOpt.ifPresent(tracker -> {
+            if (tracker instanceof InMemoryTopicDelayedDeliveryTracker view) {
+                Position md = getCursor().getMarkDeletedPosition();
+                if (md != null) {
+                    view.updateMarkDeletePosition(md);
+                }
+            }
+        });
+    }
 }
