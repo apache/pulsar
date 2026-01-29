@@ -645,4 +645,91 @@ public class TopicListServiceTest {
         Awaitility.await().untilAsserted(() ->
                 assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(initialTopics));
     }
+
+    @Test
+    public void testWatchTopicListReconcileDoesntTriggerOverlappingUpdate() {
+        List<String> initialTopics = List.of(
+                "persistent://tenant/ns/topic1",
+                "persistent://tenant/ns/topic2");
+
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        topicListFuture.complete(initialTopics);
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
+
+        TopicListService.TopicListWatcher watcher = topicListService.getWatcherFuture(13).join();
+
+        clearInvocations(namespaceService);
+        topicListFuture = new CompletableFuture<>();
+        watcher.onSessionEvent(SessionEvent.ConnectionLost);
+        watcher.onSessionEvent(SessionEvent.Reconnected);
+        Awaitility.await().untilAsserted(() -> verify(namespaceService, timeout(500L).times(1))
+                .getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT)));
+
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, TopicList.calculateHash(initialTopics),
+                lookupSemaphore);
+
+        topicListFuture.complete(initialTopics);
+
+        verify(namespaceService, timeout(500L).times(1))
+                .getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+
+        Awaitility.await().untilAsserted(() ->
+                assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(initialTopics));
+    }
+
+    @Test
+    public void testWatchTopicListReconcileNoOverlappingUpdate() {
+        List<String> initialTopics = List.of(
+                "persistent://tenant/ns/topic1",
+                "persistent://tenant/ns/topic2");
+
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        topicListFuture.complete(initialTopics);
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
+
+        TopicListService.TopicListWatcher watcher = topicListService.getWatcherFuture(13).join();
+
+        clearInvocations(namespaceService);
+        topicListFuture = new CompletableFuture<>();
+        watcher.onSessionEvent(SessionEvent.ConnectionLost);
+        watcher.onSessionEvent(SessionEvent.Reconnected);
+        Awaitility.await().untilAsserted(() -> verify(namespaceService, timeout(500L).times(1))
+                .getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT)));
+
+        topicListFuture.complete(initialTopics);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(watcher.isUpdatingTopics()).isFalse();
+        });
+
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, TopicList.calculateHash(initialTopics),
+                lookupSemaphore);
+
+        verify(namespaceService, timeout(1000L).times(2))
+                .getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+
+        Awaitility.await().untilAsserted(() ->
+                assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(initialTopics));
+    }
 }

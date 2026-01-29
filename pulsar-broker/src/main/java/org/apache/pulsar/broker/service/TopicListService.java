@@ -41,6 +41,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.TopicListener;
@@ -80,6 +81,7 @@ public class TopicListService {
         private volatile boolean closed = false;
         private boolean sendingInProgress;
         private final BlockingDeque<Runnable> sendTopicListUpdateTasks;
+        @Getter(onMethod_ = @VisibleForTesting)
         private boolean updatingTopics;
         private List<String> matchingTopicsBeforeDisconnected;
         private boolean disconnected;
