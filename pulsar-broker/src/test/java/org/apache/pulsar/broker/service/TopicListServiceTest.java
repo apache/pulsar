@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
@@ -102,6 +103,7 @@ public class TopicListServiceTest {
     private AsyncDualMemoryLimiterImpl memoryLimiter;
     private ScheduledExecutorService scheduledExecutorService;
     private PulsarService pulsar;
+    private NamespaceService namespaceService;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -119,7 +121,7 @@ public class TopicListServiceTest {
         notificationConsumer = listenerRef.get();
 
         pulsar = mock(PulsarService.class);
-        NamespaceService namespaceService = mock(NamespaceService.class);
+        namespaceService = mock(NamespaceService.class);
         when(pulsar.getNamespaceService()).thenReturn(namespaceService);
         doAnswer(invocationOnMock -> topicListFuture)
                 .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
@@ -601,5 +603,46 @@ public class TopicListServiceTest {
         // Verify that sendWatchTopicListUpdate was NOT called (no changes to report)
         verify(connection.getCommandSender(), timeout(500L).times(0))
                 .sendWatchTopicListUpdate(eq(13L), any(), any(), any(), any());
+    }
+
+    @Test
+    public void testConnectionOrSessionFlappingDoesNotTriggerOverlappingUpdate() {
+        List<String> initialTopics = List.of(
+                "persistent://tenant/ns/topic1",
+                "persistent://tenant/ns/topic2");
+
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        topicListFuture.complete(initialTopics);
+        assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
+
+        TopicListService.TopicListWatcher watcher = topicListService.getWatcherFuture(13).join();
+        clearInvocations(namespaceService);
+
+        topicListFuture = new CompletableFuture<>();
+        watcher.onSessionEvent(SessionEvent.ConnectionLost);
+        watcher.onSessionEvent(SessionEvent.Reconnected);
+
+        Awaitility.await().untilAsserted(() -> verify(namespaceService, timeout(500L).times(1))
+                .getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT)));
+
+        watcher.onSessionEvent(SessionEvent.ConnectionLost);
+        watcher.onSessionEvent(SessionEvent.Reconnected);
+        watcher.onSessionEvent(SessionEvent.ConnectionLost);
+        watcher.onSessionEvent(SessionEvent.Reconnected);
+        watcher.onSessionEvent(SessionEvent.SessionLost);
+        watcher.onSessionEvent(SessionEvent.SessionReestablished);
+
+        verify(namespaceService, timeout(500L).times(1))
+                .getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+
+        topicListFuture.complete(initialTopics);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(initialTopics));
     }
 }

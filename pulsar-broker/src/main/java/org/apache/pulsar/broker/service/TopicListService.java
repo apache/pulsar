@@ -84,6 +84,7 @@ public class TopicListService {
         private List<String> matchingTopicsBeforeDisconnected;
         private boolean disconnected;
         private List<Runnable> updateCallbacks = new LinkedList<>();
+        private boolean updatingWhileDisconnected;
 
         public TopicListWatcher(TopicListService topicListService, long id,
                                 NamespaceName namespace, TopicsPattern topicsPattern, List<String> topics,
@@ -149,7 +150,7 @@ public class TopicListService {
                     if (prepareUpdateTopics(null)) {
                         log.warn("Update queue was full for watcher id {} matching {}. Performing full refresh.", id,
                                 topicsPattern.inputPattern());
-                        executor.execute(() -> topicListService.updateTopicListWatcher(this, null, null));
+                        executor.execute(() -> topicListService.updateTopicListWatcher(this));
                     }
                 }
             }
@@ -257,10 +258,16 @@ public class TopicListService {
                     executor.execute(() -> {
                         synchronized (this) {
                             // ensure that only one update is triggered when connection is being lost and reconnected
-                            // before the updating is complete. The disconnected flag is reseted after the update
-                            // completes.
-                            if (disconnected) {
-                                topicListService.updateTopicListWatcher(this, null, null);
+                            // before the updating is complete. The updatingWhileDisconnected flag is reseted after
+                            // the update completes.
+                            if (!updatingWhileDisconnected) {
+                                updatingWhileDisconnected = true;
+                                CompletableFuture<Void> future = topicListService.updateTopicListWatcher(this);
+                                future.whenComplete((__, ___) -> {
+                                    synchronized (this) {
+                                        updatingWhileDisconnected = false;
+                                    }
+                                });
                             }
                         }
                     });
@@ -371,8 +378,16 @@ public class TopicListService {
             watcherFuture = existingWatcherFuture.thenCompose(watcher -> {
                 CompletableFuture<TopicListWatcher> future = new CompletableFuture<>();
                 Runnable callback = () -> future.complete(watcher);
+                // trigger a new update unless an update is already ongoing. Register the callback to complete
+                // when the update completes.
                 if (watcher.prepareUpdateTopics(callback)) {
-                    updateTopicListWatcher(watcher, null, callback);
+                    updateTopicListWatcher(watcher)
+                            // run the callback also in failure cases
+                            // prepareUpdateTopics handles it for success cases
+                            .exceptionally(ex -> {
+                                callback.run();
+                                return null;
+                            });
                 }
                 return future;
             });
@@ -531,7 +546,17 @@ public class TopicListService {
         });
     }
 
-    void updateTopicListWatcher(TopicListWatcher watcher, Runnable successCallback, Runnable failureCallback) {
+    CompletableFuture<Void> updateTopicListWatcher(TopicListWatcher watcher) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            internalUpdateTopicListWatcher(watcher, future);
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+
+    void internalUpdateTopicListWatcher(TopicListWatcher watcher, CompletableFuture<Void> future) {
         NamespaceName namespace = watcher.namespace;
         long watcherId = watcher.id;
         getTopics(namespace, watcherId).whenComplete((topics, exception) -> {
@@ -546,20 +571,16 @@ public class TopicListService {
                                     + "ms.", connection, unwrappedException.getMessage(), watcherId, namespace,
                             retryAfterMillis);
                     connection.ctx().executor()
-                            .schedule(() -> updateTopicListWatcher(watcher, successCallback, failureCallback),
+                            .schedule(() -> internalUpdateTopicListWatcher(watcher, future),
                                     retryAfterMillis, TimeUnit.MILLISECONDS);
                 } else {
                     log.warn("[{}] Failed to update topic list watcher watcherId={} for namespace {}.", connection,
                             watcherId, namespace, unwrappedException);
-                    if (failureCallback != null) {
-                        failureCallback.run();
-                    }
+                    future.completeExceptionally(unwrappedException);
                 }
             } else {
                 watcher.updateTopics(topics);
-                if (successCallback != null) {
-                    successCallback.run();
-                }
+                future.complete(null);
             }
         });
     }
