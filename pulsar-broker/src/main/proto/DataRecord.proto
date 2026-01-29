@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package pulsar.schema;
+option java_package = "org.apache.pulsar.broker.service.schema.proto";
+
+
+message DataRecord {
+  string field1 = 1;
+  int64 field2 = 2;
+  NestedDataRecord field3 = 3;
+  repeated NestedDataRecord fields4 = 4;
+
+  message NestedDataRecord {
+    string field1 = 1;
+    int64 field2 = 2;
+  }
+}
