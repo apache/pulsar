@@ -101,7 +101,7 @@ public class TopicListWatcherTest {
 
     @Test
     public void testWatcherCreatesBrokerSideObjectWhenConnected() {
-        ClientCnx clientCnx = mock(ClientCnx.class);
+        ClientCnx clientCnx = mockClientCnx();
         CompletableFuture<CommandWatchTopicListSuccess> responseFuture = new CompletableFuture<>();
         when(clientCnx.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any()))
                 .thenReturn(responseFuture);
@@ -119,9 +119,16 @@ public class TopicListWatcherTest {
         assertTrue(watcherFuture.isDone() && !watcherFuture.isCompletedExceptionally());
     }
 
+    private static ClientCnx mockClientCnx() {
+        ClientCnx clientCnx = mock(ClientCnx.class);
+        when(clientCnx.isSupportsTopicWatchers()).thenReturn(true);
+        when(clientCnx.isSupportsTopicWatcherReconcile()).thenReturn(true);
+        return clientCnx;
+    }
+
     @Test
     public void testWatcherCallsListenerOnUpdate() {
-        ClientCnx clientCnx = mock(ClientCnx.class);
+        ClientCnx clientCnx = mockClientCnx();
         CompletableFuture<CommandWatchTopicListSuccess> responseFuture = new CompletableFuture<>();
         when(clientCnx.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any()))
                 .thenReturn(responseFuture);
@@ -147,7 +154,7 @@ public class TopicListWatcherTest {
 
     @Test
     public void testWatcherTriggersReconciliationOnHashMismatch() {
-        ClientCnx clientCnx = mock(ClientCnx.class);
+        ClientCnx clientCnx = mockClientCnx();
 
         CompletableFuture<CommandWatchTopicListSuccess> responseFuture = new CompletableFuture<>();
         when(clientCnx.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any()))
