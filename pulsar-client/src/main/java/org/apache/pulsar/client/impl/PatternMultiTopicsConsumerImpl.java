@@ -213,8 +213,14 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 && !watcherFuture.isCompletedExceptionally() && topicListWatcher.isConnected();
     }
 
-    private void scheduleRecheckTopics() {
+    private synchronized void scheduleRecheckTopics() {
         if (!closed) {
+            // cancel previous timeout if it exists
+            Timeout oldTimeout = this.recheckPatternTimeout;
+            if (oldTimeout != null) {
+                // cancel is a no-op if the timeout has already been executed or cancelled
+                oldTimeout.cancel();
+            }
             this.recheckPatternTimeout = client.timer().newTimeout(this,
                     Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
         }
