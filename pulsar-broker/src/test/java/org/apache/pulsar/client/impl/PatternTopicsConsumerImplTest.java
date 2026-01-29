@@ -54,7 +54,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -266,14 +265,6 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer2.close();
         producer3.close();
         producer4.close();
-    }
-
-    private static void waitTopicListWatcherCreation(Consumer<?> consumer) {
-        Awaitility.await().untilAsserted(() -> {
-            CompletableFuture<TopicListWatcher> completableFuture =
-                    WhiteboxImpl.getInternalState(consumer, "watcherFuture");
-            assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
-        });
     }
 
     @Test(timeOut = testTimeout)
@@ -690,7 +681,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .subscribe();
 
         // 0. Need make sure topic watcher started
-        waitForTopicListWatcherStarted(consumer);
+        waitTopicListWatcherCreation(consumer);
 
         // 1. create partition topic
         String topicName = "persistent://my-property/my-ns/test-pattern" + key;
@@ -730,7 +721,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         try {
             // Wait for topic list watcher to be connected
-            waitForTopicListWatcherStarted(consumer);
+            waitTopicListWatcherCreation(consumer);
 
             PatternMultiTopicsConsumerImpl<?> patternConsumer = (PatternMultiTopicsConsumerImpl<?>) consumer;
 
@@ -834,10 +825,10 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         };
     }
 
-    private void waitForTopicListWatcherStarted(Consumer<?> consumer) {
+    private void waitTopicListWatcherCreation(Consumer<?> consumer) {
         Awaitility.await().untilAsserted(() -> {
             CompletableFuture<TopicListWatcher> completableFuture =
-                    WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+                    ((PatternMultiTopicsConsumerImpl) consumer).getWatcherFuture();
             log.info("isDone: {}, isCompletedExceptionally: {}", completableFuture.isDone(),
                     completableFuture.isCompletedExceptionally());
             assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
@@ -861,7 +852,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .receiverQueueSize(4)
                 .subscribe();
         if (createTopicAfterWatcherStarted) {
-            waitForTopicListWatcherStarted(consumer);
+            waitTopicListWatcherCreation(consumer);
         }
 
         // 1. create topic.

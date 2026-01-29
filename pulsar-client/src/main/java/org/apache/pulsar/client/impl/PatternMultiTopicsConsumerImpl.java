@@ -59,7 +59,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final Mode subscriptionMode;
     @Getter(value = AccessLevel.PROTECTED, onMethod_ = @VisibleForTesting)
     private volatile TopicListWatcher topicListWatcher;
-    @Getter(value = AccessLevel.PROTECTED, onMethod_ = @VisibleForTesting)
+    @Getter(onMethod_ = @VisibleForTesting)
     private final CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
     protected NamespaceName namespaceName;
 

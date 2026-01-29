@@ -38,7 +38,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 
 public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
@@ -197,7 +196,7 @@ public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseT
     protected void waitForTopicListWatcherStarted(Consumer<?> consumer) {
         Awaitility.await().untilAsserted(() -> {
             CompletableFuture<TopicListWatcher> completableFuture =
-                    WhiteboxImpl.getInternalState(consumer, "watcherFuture");
+                    ((PatternMultiTopicsConsumerImpl) consumer).getWatcherFuture();
             assertThat(completableFuture).describedAs("Topic list watcher future should be done").isDone();
         });
     }
