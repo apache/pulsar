@@ -110,6 +110,15 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
 
     @Override
     public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
+        if (!cnx.isSupportsTopicWatchers()) {
+            watcherFuture.completeExceptionally(new PulsarClientException.NotAllowedException(
+                    "Broker does not allow broker side pattern evaluation."));
+            setState(State.Closed);
+            deregisterFromClientCnx();
+            connectionClosed(cnx);
+            return CompletableFuture.completedFuture(null);
+        }
+
         previousExceptionCount.set(0);
 
         State state = getState();
