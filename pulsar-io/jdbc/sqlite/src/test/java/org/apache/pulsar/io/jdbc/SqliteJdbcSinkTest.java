@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.io.jdbc;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -56,6 +58,7 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
+import org.apache.pulsar.io.core.SinkContext;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -857,6 +860,50 @@ public class SqliteJdbcSinkTest {
                 }
             });
 
+        }
+    }
+
+    /**
+     * Test that fatal() is called when an unrecoverable exception occurs during flush.
+     * This verifies the PIP-297 implementation for proper termination of the sink.
+     */
+    @Test
+    public void testFatalCalledOnFlushException() throws Exception {
+        jdbcSink.close();
+        jdbcSink = null;
+
+        String jdbcUrl = sqliteUtils.sqliteUri();
+        Map<String, Object> conf = Maps.newHashMap();
+        conf.put("jdbcUrl", jdbcUrl);
+        conf.put("tableName", "nonexistent_table");  // This will cause an exception on flush
+        conf.put("key", "field3");
+        conf.put("nonKey", "field1,field2");
+        conf.put("batchSize", 1);
+
+        SinkContext mockSinkContext = mock(SinkContext.class);
+        AtomicReference<Throwable> fatalException = new AtomicReference<>();
+        doAnswer(invocation -> {
+            fatalException.set(invocation.getArgument(0));
+            return null;
+        }).when(mockSinkContext).fatal(any(Throwable.class));
+
+        SqliteJdbcAutoSchemaSink sinkWithContext = new SqliteJdbcAutoSchemaSink();
+        try {
+            sinkWithContext.open(conf, mockSinkContext);
+
+            Foo insertObj = new Foo("f1", "f2", 1);
+            Map<String, String> props = Maps.newHashMap();
+            props.put("ACTION", "INSERT");
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            sinkWithContext.write(createMockFooRecord(insertObj, props, future));
+
+            // Wait for the flush to complete and fail
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                verify(mockSinkContext).fatal(any(Throwable.class));
+                Assert.assertNotNull(fatalException.get());
+            });
+        } finally {
+            sinkWithContext.close();
         }
     }
 
