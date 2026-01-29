@@ -175,8 +175,18 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
-                CompletableFuture<Boolean> retryLetterTopicMetadata = checkDlqAlreadyExists(oldRetryLetterTopic);
-                CompletableFuture<Boolean> deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
+                CompletableFuture<Boolean> retryLetterTopicMetadata;
+                if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())) {
+                    retryLetterTopicMetadata = checkDlqAlreadyExists(oldRetryLetterTopic);
+                } else {
+                    retryLetterTopicMetadata = CompletableFuture.completedFuture(false);
+                }
+                CompletableFuture<Boolean> deadLetterTopicMetadata;
+                if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
+                    deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
+                } else {
+                    deadLetterTopicMetadata = CompletableFuture.completedFuture(false);
+                }
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
                             String retryLetterTopic = RetryMessageUtil.getRetryTopic(topicFirst.toString(),
