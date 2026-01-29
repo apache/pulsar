@@ -20,11 +20,14 @@ package org.apache.pulsar.io.jdbc;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -136,7 +139,9 @@ public class SqliteJdbcSinkTest {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
-        jdbcSink.close();
+        if (jdbcSink != null) {
+            jdbcSink.close();
+        }
         sqliteUtils.tearDown();
     }
 
@@ -866,6 +871,12 @@ public class SqliteJdbcSinkTest {
     /**
      * Test that fatal() is called when an unrecoverable exception occurs during flush.
      * This verifies the PIP-297 implementation for proper termination of the sink.
+     *
+     * The test works by:
+     * 1. Opening the sink with a valid table (so open() succeeds)
+     * 2. Using reflection to replace the insertStatement with a mock that throws SQLException
+     * 3. Writing a record to trigger flush
+     * 4. Verifying that fatal() was called with the exception
      */
     @Test
     public void testFatalCalledOnFlushException() throws Exception {
@@ -875,7 +886,7 @@ public class SqliteJdbcSinkTest {
         String jdbcUrl = sqliteUtils.sqliteUri();
         Map<String, Object> conf = Maps.newHashMap();
         conf.put("jdbcUrl", jdbcUrl);
-        conf.put("tableName", "nonexistent_table");  // This will cause an exception on flush
+        conf.put("tableName", tableName);  // Use valid table so open() succeeds
         conf.put("key", "field3");
         conf.put("nonKey", "field1,field2");
         conf.put("batchSize", 1);
@@ -891,6 +902,15 @@ public class SqliteJdbcSinkTest {
         try {
             sinkWithContext.open(conf, mockSinkContext);
 
+            // Create a mock PreparedStatement that throws SQLException on execute()
+            PreparedStatement mockStatement = mock(PreparedStatement.class);
+            SQLException simulatedException = new SQLException("Simulated database connection failure");
+            doThrow(simulatedException).when(mockStatement).execute();
+            doThrow(simulatedException).when(mockStatement).executeBatch();
+
+            // Use reflection to replace the insertStatement with our mock
+            FieldUtils.writeField(sinkWithContext, "insertStatement", mockStatement, true);
+
             Foo insertObj = new Foo("f1", "f2", 1);
             Map<String, String> props = Maps.newHashMap();
             props.put("ACTION", "INSERT");
@@ -901,7 +921,12 @@ public class SqliteJdbcSinkTest {
             Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
                 verify(mockSinkContext).fatal(any(Throwable.class));
                 Assert.assertNotNull(fatalException.get());
+                Assert.assertTrue(fatalException.get() instanceof SQLException);
+                Assert.assertEquals(fatalException.get().getMessage(), "Simulated database connection failure");
             });
+
+            // Verify the record was failed (not acked)
+            Assert.assertFalse(future.get(1, TimeUnit.SECONDS));
         } finally {
             sinkWithContext.close();
         }
