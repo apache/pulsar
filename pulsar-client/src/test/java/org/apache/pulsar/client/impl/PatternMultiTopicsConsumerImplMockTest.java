@@ -27,27 +27,36 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.awaitility.Awaitility;
+import org.jspecify.annotations.NonNull;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -91,8 +100,7 @@ public class PatternMultiTopicsConsumerImplMockTest {
     public void testPatternSubscribeAndReconcileLoop() throws Exception {
         TopicsPattern topicsPattern =
                 TopicsPatternFactory.create("persistent://tenant/namespace/.*", TopicsPattern.RegexImplementation.JDK);
-        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
-        consumerConfData.setSubscriptionName("subscriptionName");
+        ConsumerConfigurationData<byte[]> consumerConfData = createConsumerConfigurationData();
         consumerConfData.setPatternAutoDiscoveryPeriod(1);
 
         CopyOnWriteArrayList<String> topics = new CopyOnWriteArrayList<>();
@@ -133,8 +141,7 @@ public class PatternMultiTopicsConsumerImplMockTest {
     public void testPatternSubscribeWithoutWatcher() throws Exception {
         TopicsPattern topicsPattern =
                 TopicsPatternFactory.create("persistent://tenant/namespace/.*", TopicsPattern.RegexImplementation.JDK);
-        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
-        consumerConfData.setSubscriptionName("subscriptionName");
+        ConsumerConfigurationData<byte[]> consumerConfData = createConsumerConfigurationData();
         consumerConfData.setPatternAutoDiscoveryPeriod(1);
 
         CopyOnWriteArrayList<String> topics = new CopyOnWriteArrayList<>();
@@ -166,10 +173,106 @@ public class PatternMultiTopicsConsumerImplMockTest {
         });
     }
 
+    @Test
+    public void testPatternSubscribeAndHashHandlingWithChanges() throws Exception {
+        TopicsPattern topicsPattern =
+                TopicsPatternFactory.create("persistent://tenant/namespace/.*", TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> consumerConfData = createConsumerConfigurationData();
+        consumerConfData.setPatternAutoDiscoveryPeriod(5);
+        Timer timer = mock(Timer.class);
+        when(clientMock.timer()).thenReturn(timer);
+        Deque<TimerTask> tasks = new ConcurrentLinkedDeque<>();
+        doAnswer(invocationOnMock -> {
+            TimerTask task = invocationOnMock.getArgument(0);
+            tasks.add(task);
+            return mock(Timeout.class);
+        }).when(timer).newTimeout(any(), anyLong(), any());
+        CopyOnWriteArrayList<String> topics = new CopyOnWriteArrayList<>();
+        topics.add("persistent://tenant/namespace/topic1");
+        consumerConfData.setTopicNames(new HashSet<>(topics));
+        AtomicInteger invocationCount = new AtomicInteger(0);
+        doAnswer(invocationOnMock -> {
+            invocationCount.incrementAndGet();
+            long requestId = invocationOnMock.getArgument(0);
+            long watcherId = invocationOnMock.getArgument(1);
+            String localHash = invocationOnMock.getArgument(4);
+            CommandWatchTopicListSuccess success = new CommandWatchTopicListSuccess();
+            success.setRequestId(requestId);
+            success.setWatcherId(watcherId);
+            List<String> topicsCopy = new ArrayList<>(topics);
+            String calculatedHash = TopicList.calculateHash(topicsCopy);
+            if (!localHash.equals(calculatedHash)) {
+                throw new RuntimeException("Assuming no changes");
+            }
+            success.setTopicsHash(calculatedHash);
+            return CompletableFuture.completedFuture(success);
+        }).when(cnx).newWatchTopicList(anyLong(), anyLong(), any(), any(), any());
+        doReturn(true).when(cnx).isSupportsTopicWatchers();
+        doReturn(true).when(cnx).isSupportsTopicWatcherReconcile();
+
+        PatternMultiTopicsConsumerImpl<byte[]> consumer =
+                createPatternMultiTopicsConsumer(consumerConfData, topicsPattern);
+        assertThat(consumer.subscribeFuture).succeedsWithin(Duration.ofSeconds(5));
+        assertThat(consumer.getWatcherFuture()).succeedsWithin(Duration.ofSeconds(5));
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(consumer.getPartitions()).containsExactlyInAnyOrder("persistent://tenant/namespace/topic1");
+        });
+        runTimerTasks(tasks);
+        topics.add("persistent://tenant/namespace/topic2");
+        CommandWatchTopicUpdate update = new CommandWatchTopicUpdate();
+        TopicListWatcher topicListWatcher = consumer.getTopicListWatcher();
+        update.setWatcherId(topicListWatcher.getWatcherId());
+        update.addNewTopic("persistent://tenant/namespace/topic2");
+        update.setTopicsHash(TopicList.calculateHash(topics));
+        topicListWatcher.handleCommandWatchTopicUpdate(update);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(consumer.getPartitions()).containsExactlyInAnyOrder("persistent://tenant/namespace/topic1",
+                    "persistent://tenant/namespace/topic2");
+        });
+        runTimerTasks(tasks);
+        runTimerTasks(tasks);
+        assertThat(invocationCount.get()).isEqualTo(4);
+        CommandWatchTopicUpdate update2 = new CommandWatchTopicUpdate();
+        update2.setWatcherId(topicListWatcher.getWatcherId());
+        topics.add("persistent://tenant/namespace/topic3");
+        update2.addNewTopic("persistent://tenant/namespace/topic3");
+        topics.add("persistent://tenant/namespace/topic4");
+        update2.addNewTopic("persistent://tenant/namespace/topic4");
+        topics.remove("persistent://tenant/namespace/topic1");
+        update2.addDeletedTopic("persistent://tenant/namespace/topic1");
+        update2.setTopicsHash(TopicList.calculateHash(topics));
+        topicListWatcher.handleCommandWatchTopicUpdate(update2);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(consumer.getPartitions()).containsExactlyInAnyOrder("persistent://tenant/namespace/topic2",
+                    "persistent://tenant/namespace/topic3", "persistent://tenant/namespace/topic4");
+        });
+        assertThat(invocationCount.get()).isEqualTo(4);
+        runTimerTasks(tasks);
+        assertThat(invocationCount.get()).isEqualTo(5);
+    }
+
+    private static void runTimerTasks(Deque<TimerTask> tasks) throws Exception {
+        // first drain the queue to a list to avoid an infinite loop
+        List<TimerTask> taskList = new ArrayList<>();
+        while (!tasks.isEmpty()) {
+            taskList.add(tasks.poll());
+        }
+        // now run the tasks
+        for (TimerTask task : taskList) {
+            task.run(mock(Timeout.class));
+        }
+    }
+
     private PatternMultiTopicsConsumerImpl<byte[]> createPatternMultiTopicsConsumer(TopicsPattern topicsPattern) {
+        ConsumerConfigurationData<byte[]> consumerConfData = createConsumerConfigurationData();
+        return createPatternMultiTopicsConsumer(consumerConfData, topicsPattern);
+    }
+
+    private static @NonNull ConsumerConfigurationData<byte[]> createConsumerConfigurationData() {
         ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
         consumerConfData.setSubscriptionName("subscriptionName");
-        return createPatternMultiTopicsConsumer(consumerConfData, topicsPattern);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(0);
+        return consumerConfData;
     }
 
     private PatternMultiTopicsConsumerImpl<byte[]> createPatternMultiTopicsConsumer(

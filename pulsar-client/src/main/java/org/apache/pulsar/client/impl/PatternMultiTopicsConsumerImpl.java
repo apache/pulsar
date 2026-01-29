@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -56,9 +57,9 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     private final TopicsPattern topicsPattern;
     final TopicsChangedListener topicsChangeListener;
     private final Mode subscriptionMode;
+    @Getter(value = AccessLevel.PROTECTED, onMethod_ = @VisibleForTesting)
     private volatile TopicListWatcher topicListWatcher;
-    @VisibleForTesting
-    @Getter
+    @Getter(value = AccessLevel.PROTECTED, onMethod_ = @VisibleForTesting)
     private final CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
     protected NamespaceName namespaceName;
 

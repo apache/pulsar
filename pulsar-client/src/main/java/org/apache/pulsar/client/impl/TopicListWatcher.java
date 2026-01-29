@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelHandlerContext;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +27,8 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
@@ -49,6 +52,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private final String name;
     private final ConnectionHandler connectionHandler;
     private final TopicsPattern topicsPattern;
+    @Getter(value = AccessLevel.PROTECTED, onMethod_ = @VisibleForTesting)
     private final long watcherId;
     private volatile long createWatcherDeadline = 0;
     private final NamespaceName namespace;
