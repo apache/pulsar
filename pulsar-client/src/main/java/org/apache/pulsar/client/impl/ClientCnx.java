@@ -191,6 +191,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
+    @Getter
     private boolean supportsTopicWatchers;
     @Getter
     private boolean supportsGetPartitionedMetadataWithoutAutoCreation;

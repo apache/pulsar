@@ -37,12 +37,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import lombok.Cleanup;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
@@ -112,12 +112,50 @@ public class PatternMultiTopicsConsumerImplMockTest {
             success.setTopicsHash(calculatedHash);
             return CompletableFuture.completedFuture(success);
         }).when(cnx).newWatchTopicList(anyLong(), anyLong(), any(), any(), any());
+        doReturn(true).when(cnx).isSupportsTopicWatchers();
         doReturn(true).when(cnx).isSupportsTopicWatcherReconcile();
 
         PatternMultiTopicsConsumerImpl<byte[]> consumer =
                 createPatternMultiTopicsConsumer(consumerConfData, topicsPattern);
         assertThat(consumer.subscribeFuture).succeedsWithin(Duration.ofSeconds(5));
         assertThat(consumer.getWatcherFuture()).succeedsWithin(Duration.ofSeconds(5));
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(consumer.getPartitions()).containsExactlyInAnyOrder("persistent://tenant/namespace/topic1");
+        });
+        topics.add("persistent://tenant/namespace/topic2");
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(consumer.getPartitions()).containsExactlyInAnyOrder("persistent://tenant/namespace/topic1",
+                    "persistent://tenant/namespace/topic2");
+        });
+    }
+
+    @Test
+    public void testPatternSubscribeWithoutWatcher() throws Exception {
+        TopicsPattern topicsPattern =
+                TopicsPatternFactory.create("persistent://tenant/namespace/.*", TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setPatternAutoDiscoveryPeriod(1);
+
+        CopyOnWriteArrayList<String> topics = new CopyOnWriteArrayList<>();
+        topics.add("persistent://tenant/namespace/topic1");
+        LookupService mockLookup = clientMock.getLookup();
+        doAnswer(invocationOnMock -> {
+            String localHash = invocationOnMock.getArgument(3);
+            List<String> topicsCopy = new ArrayList<>(topics);
+            String calculatedHash = TopicList.calculateHash(topicsCopy);
+            boolean changed = false;
+            if (!localHash.equals(calculatedHash)) {
+                changed = true;
+            }
+            GetTopicsResult result = new GetTopicsResult(topicsCopy, calculatedHash, false, changed);
+            return CompletableFuture.completedFuture(result);
+        }).when(mockLookup).getTopicsUnderNamespace(any(), any(), any(), any());
+        doReturn(false).when(cnx).isSupportsTopicWatchers();
+
+        PatternMultiTopicsConsumerImpl<byte[]> consumer =
+                createPatternMultiTopicsConsumer(consumerConfData, topicsPattern);
+        assertThat(consumer.subscribeFuture).succeedsWithin(Duration.ofSeconds(5));
         Awaitility.await().untilAsserted(() -> {
             assertThat(consumer.getPartitions()).containsExactlyInAnyOrder("persistent://tenant/namespace/topic1");
         });
