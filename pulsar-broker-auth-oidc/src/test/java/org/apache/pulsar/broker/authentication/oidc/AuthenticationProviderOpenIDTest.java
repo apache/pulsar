@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication.oidc;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertNull;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
@@ -172,6 +173,20 @@ public class AuthenticationProviderOpenIDTest {
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
         Assert.assertThrows(AuthenticationException.class,
                 () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
+    }
+
+    @Test
+    public void ensureWithoutNBFSucceeds() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+        DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
+        addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
+        // remove "nbf" claim
+        defaultJwtBuilder.setNotBefore(null);
+        defaultJwtBuilder.signWith(keyPair.getPrivate());
+        DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
+        assertThat(jwt.getNotBefore()).isNull();
+        assertThat(jwt.getClaims().get("nbf")).isNull();
+        basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt);
     }
 
     @Test

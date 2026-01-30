@@ -421,7 +421,6 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .withAnyOfAudience(allowedAudiences)
                 .withClaimPresence(RegisteredClaims.ISSUED_AT)
                 .withClaimPresence(RegisteredClaims.EXPIRES_AT)
-                .withClaimPresence(RegisteredClaims.NOT_BEFORE)
                 .withClaimPresence(RegisteredClaims.SUBJECT);
 
         if (isRoleClaimNotSubject) {
