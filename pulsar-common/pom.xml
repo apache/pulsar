@@ -34,6 +34,31 @@
   <description>Common libraries needed by client/broker/tools</description>
 
   <dependencies>
+<!--    <dependency>-->
+<!--      <groupId>io.grpc</groupId>-->
+<!--      <artifactId>grpc-netty-shaded</artifactId>-->
+<!--      <version>${grpc.version}</version>-->
+<!--      <scope>provided</scope>-->
+<!--    </dependency>-->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf</artifactId>
+      <version>${grpc.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+      <version>${grpc.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency> <!-- necessary for Java 9+ -->
+      <groupId>org.apache.tomcat</groupId>
+      <artifactId>annotations-api</artifactId>
+      <version>6.0.53</version>
+      <scope>provided</scope>
+    </dependency>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-api</artifactId>
@@ -328,6 +353,14 @@
         <groupId>com.github.splunk.lightproto</groupId>
         <artifactId>lightproto-maven-plugin</artifactId>
         <version>${lightproto-maven-plugin.version}</version>
+        <configuration>
+          <sources>
+            <source>${project.basedir}/src/main/proto/PulsarApi.proto</source>
+            <source>${project.basedir}/src/main/proto/PulsarMarkers.proto</source>
+          </sources>
+          <targetSourcesSubDir>generated-sources/lightproto/java</targetSourcesSubDir>
+          <targetTestSourcesSubDir>generated-sources/lightproto/java</targetTestSourcesSubDir>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -459,6 +492,37 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.xolstice.maven.plugins</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>${protobuf-maven-plugin.version}</version>
+        <configuration>
+          <protocArtifact>com.google.protobuf:protoc:${protobuf3.version}:exe:${os.detected.classifier}</protocArtifact>
+          <pluginId>grpc-java</pluginId>
+          <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
+          <excludes>
+            <exclude>**/PulsarApi.proto</exclude>
+            <exclude>**/PulsarMarkers.proto</exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>compile</goal>
+              <goal>compile-custom</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
+
+    <extensions>
+      <extension>
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>${os-maven-plugin.version}</version>
+      </extension>
+    </extensions>
   </build>
 </project>
