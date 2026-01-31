@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.awaitility.Awaitility.await;
+import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-
 import org.testng.annotations.Test;
-
-import static org.awaitility.Awaitility.await;
-import static org.testng.Assert.assertTrue;
 
 public class LoadSimulationControllerTest {
 
@@ -50,7 +48,8 @@ public class LoadSimulationControllerTest {
                     .count();
 
             assertTrue(poolThreadCount == 0,
-                    String.format("Found %d alive non-daemon LoadSimulationController threads after close", poolThreadCount));
+                    String.format("Found %d alive non-daemon LoadSimulationController threads after close",
+                            poolThreadCount));
         });
 
     }

@@ -20,7 +20,8 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.RESOURCE_QUOTA_BASE_PATH;
-
+import com.google.common.util.concurrent.MoreExecutors;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -39,7 +40,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import com.google.common.util.concurrent.MoreExecutors;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -59,7 +59,6 @@ import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 
 /**
