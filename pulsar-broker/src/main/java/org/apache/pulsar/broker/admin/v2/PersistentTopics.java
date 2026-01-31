@@ -124,7 +124,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("bundle") String bundle,
             @ApiParam(value = "Include system topic")
             @QueryParam("includeSystemTopic") boolean includeSystemTopic,
-            @ApiParam(value = "properties for customized topic listing intercept, format: k1=v1,k2=v2")
+            @ApiParam(value = "properties for customized topic listing plugin, format: k1=v1,k2=v2")
             @QueryParam("properties") String propertiesStr) {
         validateNamespaceName(tenant, namespace);
         internalGetListAsync(Optional.ofNullable(bundle), parseProperties(propertiesStr))

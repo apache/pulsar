@@ -296,8 +296,9 @@ public class CmdTopics extends CmdBase {
                 "--include-system-topic" }, description = "Include system topic")
         private boolean includeSystemTopic;
 
-        @Option(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
-                required = false)
+        @Option(names = {"--property", "-p"},
+            description = "key value pair properties(-p a=b -p c=d) for customized topic listing plugin",
+            required = false)
         private Map<String, String> properties;
 
         @Override

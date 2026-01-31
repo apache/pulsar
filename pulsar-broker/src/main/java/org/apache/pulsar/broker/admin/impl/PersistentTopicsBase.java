@@ -75,8 +75,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.broker.intercept.BrokerInterceptor;
-import org.apache.pulsar.broker.namespace.TopicListingResult;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -176,20 +174,8 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
                 }
             })
-            .thenCompose(__ -> {
-                BrokerInterceptor brokerInterceptor = pulsar().getBrokerInterceptor();
-                CompletableFuture<Optional<TopicListingResult>> interceptorFuture =
-                    brokerInterceptor == null ? CompletableFuture.completedFuture(null) :
-                        brokerInterceptor.interceptGetTopicsOfNamespace(namespaceName,
-                            CommandGetTopicsOfNamespace.Mode.PERSISTENT, Optional.empty(), properties);
-                return interceptorFuture.thenCompose(topicListingResult -> {
-                    if (topicListingResult != null && topicListingResult.isPresent()) {
-                        return CompletableFuture.completedFuture(topicListingResult.get().topics());
-                    } else {
-                        return topicResources().listPersistentTopicsAsync(namespaceName);
-                    }
-                });
-            })
+            .thenCompose(__ -> pulsar().getNamespaceService().getListOfTopicsByProperties(namespaceName,
+               CommandGetTopicsOfNamespace.Mode.PERSISTENT, properties))
             .thenApply(topics ->
                 topics.stream()
                     .filter(topic -> {

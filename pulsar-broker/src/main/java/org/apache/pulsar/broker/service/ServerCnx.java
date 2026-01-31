@@ -91,7 +91,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.namespace.TopicListingResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -2601,116 +2600,87 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     Map<String, String> properties,
                                                     Semaphore lookupSemaphore) {
         BooleanSupplier isPermitRequestCancelled = () -> !ctx().channel().isActive();
-        TopicListSizeResultCache.ResultHolder listSizeHolder =
-            service.getTopicListSizeResultCache().getTopicListSize(namespaceName.toString(), mode);
-
+        TopicListSizeResultCache.ResultHolder
+                listSizeHolder = service.getTopicListSizeResultCache().getTopicListSize(namespaceName.toString(), mode);
         listSizeHolder.getSizeAsync().thenAccept(initialSize -> {
             maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
-                AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
-                    BrokerInterceptor brokerInterceptor = getBrokerService().getPulsar().getBrokerInterceptor();
-                    CompletableFuture<Optional<TopicListingResult>> interceptorFuture =
-                        brokerInterceptor == null ? CompletableFuture.completedFuture(Optional.empty()) :
-                            brokerInterceptor.interceptGetTopicsOfNamespace(namespaceName, mode,
-                                topicsPattern, properties);
+                    AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
+                        return getBrokerService().pulsar().getNamespaceService()
+                                .getListOfUserTopicsByProperties(namespaceName, mode, properties)
+                                .thenCompose(topics -> {
+                                    long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
+                                    listSizeHolder.updateSize(actualSize);
+                                    return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
+                                            isPermitRequestCancelled, permits -> {
+                                                boolean filterTopics = false;
+                                                // filter system topic
+                                                List<String> filteredTopics = topics;
 
-                    if (interceptorFuture == null) {
-                        interceptorFuture = CompletableFuture.completedFuture(null);
-                    }
-
-                    return interceptorFuture.thenCompose(interceptorResult -> {
-                        // 2. Decision branch: Use interceptor result OR fall back to default logic
-                        if (interceptorResult != null && interceptorResult.isPresent()) {
-                            // case A: The interceptor has taken over the request
-                            return CompletableFuture.completedFuture(interceptorResult.get());
-                        } else {
-                            // case B: The interceptor did not handle, so the original query logic is executed.
-                            // Wrap List<String> into TopicListingResult(topics, filtered=false) for unified processing
-                            return getBrokerService().pulsar().getNamespaceService()
-                                .getListOfUserTopics(namespaceName, mode)
-                                .thenApply(topics -> new TopicListingResult(topics, false));
-                        }
-                    }).thenCompose(listingResult -> {
-                        List<String> rawTopics = listingResult.topics();
-                        boolean isAlreadyFiltered = listingResult.filtered();
-
-                        // Adjust memory permits based on ACTUAL size
-                        long actualSize = TopicListMemoryLimiter.estimateTopicListSize(rawTopics);
-                        listSizeHolder.updateSize(actualSize);
-
-                        return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
-                            isPermitRequestCancelled, permits -> {
-
-                                List<String> filteredTopics = rawTopics;
-                                boolean hasAppliedFilter = isAlreadyFiltered;
-
-                                // Apply regular expression filtering
-                                // (if the interceptor does not filter and regular expression matching is enabled)
-                                if (!isAlreadyFiltered && enableSubscriptionPatternEvaluation
-                                    && topicsPattern.isPresent()) {
-                                    if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
-                                        hasAppliedFilter = true;
-                                        filteredTopics = TopicList.filterTopics(filteredTopics, topicsPattern.get(),
-                                            topicsPatternImplementation);
-                                    } else {
-                                        log.info("[{}] Subscription pattern provided [{}] was longer than maximum {}.",
-                                            remoteAddress, topicsPattern.get(), maxSubscriptionPatternLength);
-                                    }
-                                }
-
-                                String hash = TopicList.calculateHash(filteredTopics);
-                                boolean hashUnchanged = topicsHash.isPresent() && topicsHash.get().equals(hash);
-                                if (hashUnchanged) {
-                                    filteredTopics = Collections.emptyList();
-                                }
-
-                                if (log.isDebugEnabled()) {
-                                    log.debug(
-                                        "[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
-                                        remoteAddress, namespace, requestId, rawTopics.size());
-                                }
-
-                                return commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics,
-                                        hash,
-                                        hasAppliedFilter, !hashUnchanged, requestId, ex -> {
-                                            log.warn("[{}] Failed to acquire direct memory permits for "
-                                                            + "GetTopicsOfNamespace: {}", remoteAddress,
-                                                    ex.getMessage());
-                                            commandSender.sendErrorResponse(requestId,
-                                                    ServerError.TooManyRequests,
-                                                    "Cannot acquire permits for direct memory");
-                                            return CompletableFuture.completedFuture(null);
-                                        });
-                            },
-                            // Handle logic for heap memory limit exceeded inside withUpdatedPermits
-                            t -> {
-                                log.warn("[{}] Failed to acquire heap memory permits for GetTopicsOfNamespace: {}",
-                                    remoteAddress, t.getMessage());
-                                writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
-                                    "Failed due to heap memory limit exceeded"));
-                                return CompletableFuture.completedFuture(null);
-                            });
-                    }).whenComplete((__, ___) -> {
-                        lookupSemaphore.release();
-                    }).exceptionally(ex -> {
-                        log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
-                            remoteAddress, namespace, requestId);
+                                                if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
+                                                    if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
+                                                        filterTopics = true;
+                                                        filteredTopics = TopicList.filterTopics(filteredTopics,
+                                                                topicsPattern.get(),
+                                                                topicsPatternImplementation);
+                                                    } else {
+                                                        log.info(
+                                                                "[{}] Subscription pattern provided [{}] was longer "
+                                                                        + "than maximum {}.", remoteAddress,
+                                                                topicsPattern.get(),
+                                                                maxSubscriptionPatternLength);
+                                                    }
+                                                }
+                                                String hash = TopicList.calculateHash(filteredTopics);
+                                                boolean hashUnchanged =
+                                                        topicsHash.isPresent() && topicsHash.get().equals(hash);
+                                                if (hashUnchanged) {
+                                                    filteredTopics = Collections.emptyList();
+                                                }
+                                                if (log.isDebugEnabled()) {
+                                                    log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace "
+                                                                    + "[//{}] by {}, size:{}", remoteAddress, namespace,
+                                                            requestId,
+                                                            topics.size());
+                                                }
+                                                return commandSender.sendGetTopicsOfNamespaceResponse(filteredTopics,
+                                                        hash,
+                                                        filterTopics, !hashUnchanged, requestId, ex -> {
+                                                            log.warn("[{}] Failed to acquire direct memory permits for "
+                                                                            + "GetTopicsOfNamespace: {}", remoteAddress,
+                                                                    ex.getMessage());
+                                                            commandSender.sendErrorResponse(requestId,
+                                                                    ServerError.TooManyRequests,
+                                                                    "Cannot acquire permits for direct memory");
+                                                            return CompletableFuture.completedFuture(null);
+                                                        });
+                                            }, t -> {
+                                                log.warn("[{}] Failed to acquire heap memory permits for "
+                                                        + "GetTopicsOfNamespace: {}", remoteAddress, t.getMessage());
+                                                writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
+                                                        "Failed due to heap memory limit exceeded"));
+                                                return CompletableFuture.completedFuture(null);
+                                            });
+                                }).whenComplete((__, ___) -> {
+                                    lookupSemaphore.release();
+                                }).exceptionally(ex -> {
+                                    log.warn("[{}] Error GetTopicsOfNamespace for namespace [//{}] by {}",
+                                            remoteAddress,
+                                            namespace, requestId);
+                                    listSizeHolder.resetIfInitializing();
+                                    commandSender.sendErrorResponse(requestId,
+                                            BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
+                                            ex.getMessage());
+                                    return null;
+                                });
+                    }, t -> {
+                        log.warn("[{}] Failed to acquire initial heap memory permits for GetTopicsOfNamespace: {}",
+                                remoteAddress, t.getMessage());
                         listSizeHolder.resetIfInitializing();
-                        commandSender.sendErrorResponse(requestId,
-                            BrokerServiceException.getClientErrorCode(new ServerMetadataException(ex)),
-                            ex.getMessage());
-                        return null;
+                        writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
+                                "Failed due to heap memory limit exceeded"));
+                        lookupSemaphore.release();
+                        return CompletableFuture.completedFuture(null);
                     });
-                },
-                // Handle logic for initial acquire failure
-                t -> {
-                    log.warn("[{}] Failed to acquire initial heap memory permits for GetTopicsOfNamespace: {}",
-                        remoteAddress, t.getMessage());
-                    listSizeHolder.resetIfInitializing();
-                    writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests,
-                        "Failed due to heap memory limit exceeded"));
-                    lookupSemaphore.release();
-                    return CompletableFuture.completedFuture(null);
-                });
         });
     }
 

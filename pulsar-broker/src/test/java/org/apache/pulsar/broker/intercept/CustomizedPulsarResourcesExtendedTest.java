@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.nio.charset.StandardCharsets;
@@ -28,24 +27,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.PulsarResourcesExtended;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.nar.NarClassLoader;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class GetTopicsOfNamespaceInterceptorTest extends ProducerConsumerBase {
-    private final String interceptorName = "get_topics_of_namespace_interceptor";
-
-    private CustomizedTopicListingInterceptor topicListingInterceptor;
+public class CustomizedPulsarResourcesExtendedTest extends ProducerConsumerBase {
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -54,8 +49,8 @@ public class GetTopicsOfNamespaceInterceptorTest extends ProducerConsumerBase {
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setEnableBrokerSideSubscriptionPatternEvaluation(true);
         conf.setEnableBrokerTopicListWatcher(false);
+        conf.setPulsarResourcesExtendedClassName(CustomizedPulsarResourcesExtended.class.getName());
 
-        this.enableBrokerInterceptor = true;
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -66,18 +61,8 @@ public class GetTopicsOfNamespaceInterceptorTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Override
-    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
-        Map<String, BrokerInterceptorWithClassLoader> interceptorMap = new HashMap<>();
-        BrokerInterceptor interceptor = new CustomizedTopicListingInterceptor();
-        this.topicListingInterceptor = (CustomizedTopicListingInterceptor) interceptor;
-        NarClassLoader narClassLoader = mock(NarClassLoader.class);
-        interceptorMap.put(interceptorName, new BrokerInterceptorWithClassLoader(interceptor, narClassLoader));
-        pulsarTestContextBuilder.brokerInterceptor(new BrokerInterceptors(interceptorMap));
-    }
-
     @Test
-    public void test() throws Exception {
+    public void testListTopicOfNamespace() throws Exception {
         String namespace = "public/default";
         String subName = "test-sub";
 
@@ -93,12 +78,11 @@ public class GetTopicsOfNamespaceInterceptorTest extends ProducerConsumerBase {
         String topicName4 = "persistent://" + namespace + "/test-topic4";
         admin.topics().createPartitionedTopic(topicName4, 3);
 
-        BrokerInterceptors listener = (BrokerInterceptors) pulsar.getBrokerInterceptor();
-        assertNotNull(listener);
-        BrokerInterceptorWithClassLoader brokerInterceptor = listener.getInterceptors().get(interceptorName);
-        assertNotNull(brokerInterceptor);
-        BrokerInterceptor interceptor = brokerInterceptor.getInterceptor();
-        assertTrue(interceptor instanceof CustomizedTopicListingInterceptor);
+        PulsarResourcesExtended pulsarResourcesExtended = pulsar.getPulsarResourcesExtended();
+        assertNotNull(pulsarResourcesExtended);
+        assertTrue(pulsarResourcesExtended instanceof CustomizedPulsarResourcesExtended);
+        CustomizedPulsarResourcesExtended customizedPulsarResourcesExtended =
+            (CustomizedPulsarResourcesExtended) pulsarResourcesExtended;
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName3).create();
@@ -106,9 +90,9 @@ public class GetTopicsOfNamespaceInterceptorTest extends ProducerConsumerBase {
             producer.send(("msg-" + i).getBytes(StandardCharsets.UTF_8));
         }
 
-        topicListingInterceptor.setCustomProperties(TopicName.get(topicName), expectedProperties);
-        topicListingInterceptor.setCustomProperties(TopicName.get(topicName2), expectedProperties);
-        topicListingInterceptor.setCustomProperties(TopicName.get(topicName3), expectedProperties);
+        customizedPulsarResourcesExtended.setCustomProperties(TopicName.get(topicName), expectedProperties);
+        customizedPulsarResourcesExtended.setCustomProperties(TopicName.get(topicName2), expectedProperties);
+        customizedPulsarResourcesExtended.setCustomProperties(TopicName.get(topicName3), expectedProperties);
 
         admin.topics().updateProperties(topicName4, Map.of("env", "test", "region", "us-west"));
 
