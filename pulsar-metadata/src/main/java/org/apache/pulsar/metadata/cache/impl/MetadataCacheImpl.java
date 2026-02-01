@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
@@ -63,22 +64,25 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     private final MetadataStoreExtended storeExtended;
     private final MetadataSerde<T> serde;
     private final OrderedExecutor executor;
+    private final ScheduledExecutorService schedulerExecutor;
     private final MetadataCacheConfig<T> cacheConfig;
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
     public MetadataCacheImpl(String cacheName, MetadataStore store, TypeReference<T> typeRef,
-                             MetadataCacheConfig<T> cacheConfig, OrderedExecutor executor) {
-        this(cacheName, store, new JSONMetadataSerdeTypeRef<>(typeRef), cacheConfig, executor);
+                             MetadataCacheConfig<T> cacheConfig, OrderedExecutor executor,
+                             ScheduledExecutorService schedulerExecutor) {
+        this(cacheName, store, new JSONMetadataSerdeTypeRef<>(typeRef), cacheConfig, executor, schedulerExecutor);
     }
 
     public MetadataCacheImpl(String cacheName, MetadataStore store, JavaType type, MetadataCacheConfig<T> cacheConfig,
-                             OrderedExecutor executor) {
-        this(cacheName, store, new JSONMetadataSerdeSimpleType<>(type), cacheConfig, executor);
+                             OrderedExecutor executor, ScheduledExecutorService schedulerExecutor) {
+        this(cacheName, store, new JSONMetadataSerdeSimpleType<>(type), cacheConfig, executor, schedulerExecutor);
     }
 
     public MetadataCacheImpl(String cacheName, MetadataStore store, MetadataSerde<T> serde,
-                             MetadataCacheConfig<T> cacheConfig, OrderedExecutor executor) {
+                             MetadataCacheConfig<T> cacheConfig, OrderedExecutor executor,
+                             ScheduledExecutorService schedulerExecutor) {
         this.store = store;
         if (store instanceof MetadataStoreExtended) {
             this.storeExtended = (MetadataStoreExtended) store;
@@ -88,6 +92,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         this.serde = serde;
         this.cacheConfig = cacheConfig;
         this.executor = executor;
+        this.schedulerExecutor = schedulerExecutor;
 
         Caffeine<Object, Object> cacheBuilder = Caffeine.newBuilder();
         if (cacheConfig.getRefreshAfterWriteMillis() > 0) {
@@ -348,8 +353,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 final var next = backoff.next();
                 log.info("Update key {} conflicts. Retrying in {} ms. Mandatory stop: {}. Elapsed time: {} ms", key,
                         next, backoff.isMandatoryStopMade(), elapsed);
-                CompletableFuture.delayedExecutor(next, TimeUnit.MILLISECONDS).execute(() ->
-                        execute(op, key, result, backoff));
+                schedulerExecutor.schedule(() -> execute(op, key, result, backoff), next, TimeUnit.MILLISECONDS);
                 return null;
             }
             result.completeExceptionally(ex.getCause());

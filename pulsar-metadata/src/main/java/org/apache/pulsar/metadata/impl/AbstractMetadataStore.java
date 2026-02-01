@@ -41,6 +41,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -80,7 +81,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
     protected final String metadataStoreName;
     private final OrderedExecutor serDesExecutor;
-    private final ScheduledExecutorService eventExecutor;
+    private final ExecutorService eventExecutor;
+    private final ScheduledExecutorService schedulerExecutor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
@@ -103,8 +105,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         this.nodeSizeStats = nodeSizeStats == null ? new DummyMetadataNodeSizeStats()
                 : nodeSizeStats;
         final var namePrefix = StringUtils.isBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
-        this.eventExecutor = Executors.newSingleThreadScheduledExecutor(
+        this.eventExecutor = Executors.newSingleThreadExecutor(
                 new DefaultThreadFactory(namePrefix + "-event"));
+        this.schedulerExecutor = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory(namePrefix + "-scheduler"));
         this.serDesExecutor = OrderedExecutor.newBuilder()
                 .numThreads(numSerDesThreads)
                 .name(namePrefix + "-serde")
@@ -297,7 +301,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         JavaType typeRef = TypeFactory.defaultInstance().constructSimpleType(clazz, null);
         String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
         MetadataCacheImpl<T> metadataCache =
-                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.serDesExecutor);
+                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.serDesExecutor,
+                        this.schedulerExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
@@ -306,7 +311,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
         String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
         MetadataCacheImpl<T> metadataCache =
-                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.serDesExecutor);
+                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.serDesExecutor,
+                        this.schedulerExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
@@ -316,7 +322,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                                                  MetadataCacheConfig cacheConfig) {
         MetadataCacheImpl<T> metadataCache =
                 new MetadataCacheImpl<>(cacheName, this, serde, cacheConfig,
-                        this.serDesExecutor);
+                        this.serDesExecutor, this.schedulerExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
@@ -605,6 +611,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public void close() throws Exception {
         serDesExecutor.shutdown();
+        schedulerExecutor.shutdown();
         eventExecutor.shutdownNow();
         eventExecutor.awaitTermination(10, TimeUnit.SECONDS);
         this.metadataStoreStats.close();
@@ -632,7 +639,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     protected final void scheduleDelayedTask(long delay, TimeUnit unit, Runnable task) {
-        CompletableFuture.delayedExecutor(delay, unit).execute(task);
+        schedulerExecutor.schedule(task, delay, unit);
     }
 
     protected final void safeExecuteCallback(Runnable task, Consumer<Throwable> exceptionHandler) {
