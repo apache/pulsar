@@ -104,7 +104,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             int numSerDesThreads) {
         this.nodeSizeStats = nodeSizeStats == null ? new DummyMetadataNodeSizeStats()
                 : nodeSizeStats;
-        final var namePrefix = StringUtils.isBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
+        final var namePrefix = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName
+                : getClass().getSimpleName();
         this.eventExecutor = Executors.newSingleThreadExecutor(
                 new DefaultThreadFactory(namePrefix + "-event"));
         this.schedulerExecutor = Executors.newSingleThreadScheduledExecutor(
@@ -612,8 +613,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     public void close() throws Exception {
         serDesExecutor.shutdown();
         schedulerExecutor.shutdown();
-        eventExecutor.shutdownNow();
-        eventExecutor.awaitTermination(10, TimeUnit.SECONDS);
+        eventExecutor.shutdown();
         this.metadataStoreStats.close();
     }
 

@@ -72,7 +72,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         if (enabled) {
             readOps = new MpscUnboundedArrayQueue<>(10_000);
             writeOps = new MpscUnboundedArrayQueue<>(10_000);
-            final var name = StringUtils.isBlank(conf.getMetadataStoreName()) ? conf.getMetadataStoreName()
+            final var name = StringUtils.isNotBlank(conf.getMetadataStoreName()) ? conf.getMetadataStoreName()
                     : getClass().getSimpleName();
             flushExecutor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory(
                     name + "-batch-flusher"));
