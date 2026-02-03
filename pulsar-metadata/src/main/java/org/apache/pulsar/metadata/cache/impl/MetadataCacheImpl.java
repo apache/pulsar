@@ -285,23 +285,24 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<Void> create(String path, T value) {
-        return serialize(path, value).thenCompose(content -> store.put(path, content, Optional.of(-1L)))
-                .thenApply(stat -> {
-                    // Make sure we have the value cached before the operation is completed
-                    // In addition to caching the value, we need to add a watch on the path,
-                    // so when/if it changes on any other node, we are notified and we can
-                    // update the cache
-                    return objCache.get(path);
-                })
-                .exceptionallyCompose(ex -> {
-                    if (ex.getCause() instanceof BadVersionException) {
-                        // Use already exists exception to provide more self-explanatory error message
-                        return CompletableFuture.failedFuture(new AlreadyExistsException(ex.getCause()));
-                    } else {
-                        return CompletableFuture.failedFuture(ex.getCause());
-                    }
-                })
-                .thenApply(__ -> null);
+        final var future = new CompletableFuture<Void>();
+        serialize(path, value).thenCompose(content -> store.put(path, content, Optional.of(-1L)))
+            // Make sure we have the value cached before the operation is completed
+            // In addition to caching the value, we need to add a watch on the path,
+            // so when/if it changes on any other node, we are notified and we can
+            // update the cache
+            .thenCompose(__ -> objCache.get(path))
+            .whenComplete((__, ex) -> {
+                if (ex == null) {
+                    future.complete(null);
+                } else if (ex.getCause() instanceof BadVersionException) {
+                    // Use already exists exception to provide more self-explanatory error message
+                    future.completeExceptionally(new AlreadyExistsException(ex.getCause()));
+                } else {
+                    future.completeExceptionally(ex.getCause());
+                }
+            });
+        return future;
     }
 
     @Override
