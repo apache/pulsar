@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import io.netty.util.HashedWheelTimer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -789,8 +790,12 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
 
         groups.setLeft(Sets.newHashSet(isolationGroup1, isolationGroup3));
         groups.setRight(Sets.newHashSet(""));
-        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-        assertEquals(blacklist.size(), 3);
+        // The cache of `isolationPolicy` may not be updated immediately, so we use Awaitility to wait for the result
+        // after the modification on `store`.
+        Awaitility.await().atMost(Duration.ofSeconds(1)).untilAsserted(() -> {
+            final var newBlackList = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+            assertEquals(newBlackList.size(), 3);
+        });
 
         /* Test a bookie belongs to multiple isolation groups and totalAvailableBookiesInPrimaryGroup < ensembleSize */
         groups.setLeft(Sets.newHashSet(isolationGroup1, isolationGroup3));
@@ -813,8 +818,10 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
 
         groups.setLeft(Sets.newHashSet(isolationGroup1));
         groups.setRight(Sets.newHashSet(isolationGroup2));
-        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-        assertEquals(blacklist.size(), 2);
+        Awaitility.await().atMost(Duration.ofSeconds(1)).untilAsserted(() -> {
+            final var newBlackList = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+            assertEquals(newBlackList.size(), 2);
+        });
 
         groups.setLeft(Sets.newHashSet(isolationGroup1));
         groups.setRight(Sets.newHashSet(isolationGroup2));
@@ -836,7 +843,9 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
 
         groups.setLeft(Sets.newHashSet(isolationGroup1));
         groups.setRight(Sets.newHashSet(isolationGroup2));
-        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-        assertTrue(blacklist.isEmpty());
+        Awaitility.await().atMost(Duration.ofSeconds(1)).untilAsserted(() -> {
+            final var newBlackList = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+            assertTrue(newBlackList.isEmpty());
+        });
     }
 }

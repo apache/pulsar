@@ -163,7 +163,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             try {
                 T obj = serde.deserialize(path, res.getValue(), res.getStat());
                 if (log.isDebugEnabled()) {
-                    log.debug("Deserialized value for key {} (version: {})", path, res.getStat().getVersion());
+                    log.debug("Deserialized value for key {} (version: {}): {}", path, res.getStat().getVersion(),
+                        obj);
                 }
                 return FutureUtils.value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
             } catch (Throwable t) {
