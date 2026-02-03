@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.impl.batching;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -105,7 +106,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
                 op.getFuture().completeExceptionally(ex);
             }
             scheduledTask.cancel(true);
-            flushExecutor.shutdown();
+            MoreExecutors.shutdownAndAwaitTermination(flushExecutor, 10, TimeUnit.SECONDS);
         }
         super.close();
         this.batchMetadataStoreStats.close();

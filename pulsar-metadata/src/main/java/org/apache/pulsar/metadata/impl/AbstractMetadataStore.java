@@ -113,7 +113,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 new DefaultThreadFactory(namePrefix + "-scheduler"));
         this.serDesExecutor = OrderedExecutor.newBuilder()
                 .numThreads(numSerDesThreads)
-                .name(namePrefix + "-serde")
+                .name(namePrefix + "-worker")
                 .build();
         registerListener(this);
 
