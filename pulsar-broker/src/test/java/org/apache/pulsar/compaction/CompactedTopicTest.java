@@ -862,13 +862,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             return null;
         }).when(bk).asyncOpenLedger(Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
-        Mockito.doAnswer(invocation -> {
-            Thread.sleep(1500);
-            invocation.callRealMethod();
-            return null;
-        }).when(bk).asyncOpenLedger(Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(),
-                true);
-
         LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
                 Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                 Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
