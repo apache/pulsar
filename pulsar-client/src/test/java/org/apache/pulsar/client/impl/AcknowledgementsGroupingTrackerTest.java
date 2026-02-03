@@ -405,6 +405,45 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
+    @Test
+    public void testAddAcknowledgmentNeverAffectIsDuplicate() throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setMaxAcknowledgmentGroupSize(5);
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+
+        BatchMessageIdImpl batchMessageId0 = new BatchMessageIdImpl(5, 1, 0, 0, 10, null);
+        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(5, 1, 0, 2, 10, null);
+        BatchMessageIdImpl batchMessageId4 = new BatchMessageIdImpl(5, 1, 0, 4, 10, null);
+        BatchMessageIdImpl batchMessageId6 = new BatchMessageIdImpl(5, 1, 0, 6, 10, null);
+        BatchMessageIdImpl batchMessageId8 = new BatchMessageIdImpl(5, 1, 0, 8, 10, null);
+        Thread addAcknowledgmentThread = new Thread(() -> {
+            tracker.addAcknowledgment(batchMessageId0, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(batchMessageId2, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(batchMessageId4, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(batchMessageId6, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(batchMessageId8, AckType.Individual, Collections.emptyMap());
+        }, "");
+        addAcknowledgmentThread.start();
+
+        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(5, 1, 0, 1, 10, null);
+        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(5, 1, 0, 3, 10, null);
+        BatchMessageIdImpl batchMessageId5 = new BatchMessageIdImpl(5, 1, 0, 5, 10, null);
+        BatchMessageIdImpl batchMessageId7 = new BatchMessageIdImpl(5, 1, 0, 7, 10, null);
+        BatchMessageIdImpl batchMessageId9 = new BatchMessageIdImpl(5, 1, 0, 9, 10, null);
+        Thread idDuplicateThread = new Thread(() -> {
+            assertFalse(tracker.isDuplicate(batchMessageId1));
+            assertFalse(tracker.isDuplicate(batchMessageId3));
+            assertFalse(tracker.isDuplicate(batchMessageId5));
+            assertFalse(tracker.isDuplicate(batchMessageId7));
+            assertFalse(tracker.isDuplicate(batchMessageId9));
+        }, "");
+        idDuplicateThread.start();
+
+        addAcknowledgmentThread.join();
+        idDuplicateThread.join();
+    }
+
     public class ClientCnxTest extends ClientCnx {
 
         public ClientCnxTest(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
