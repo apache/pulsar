@@ -25,10 +25,13 @@ import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -66,5 +69,82 @@ public class ProducerImplTest {
                 .defaultAnswer(Mockito.CALLS_REAL_METHODS));
         assertTrue(producer.populateMessageSchema(msg, null));
         verify(msg).setSchemaState(MessageImpl.SchemaState.Ready);
+    }
+
+    @Test
+    public void testFailPendingMessagesClearsReentrantRetry_whenBatchingDisabled()
+            throws Exception {
+        ProducerImpl<byte[]> producer =
+                Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+        Mockito.doNothing()
+                .when(producer)
+                .semaphoreRelease(Mockito.anyInt());
+        Mockito.doReturn(false)
+                .when(producer)
+                .isBatchMessagingEnabled();
+
+        // Real pending queue
+        ProducerImpl.OpSendMsgQueue pendingQueue = new ProducerImpl.OpSendMsgQueue();
+        Field pendingField = ProducerImpl.class.getDeclaredField("pendingMessages");
+        pendingField.setAccessible(true);
+        pendingField.set(producer, pendingQueue);
+
+        // Stub client cleanup path (not under test)
+        PulsarClientImpl client = Mockito.mock(PulsarClientImpl.class);
+        Mockito.when(client.getMemoryLimitController())
+                .thenReturn(Mockito.mock(MemoryLimitController.class));
+        Field clientField = HandlerState.class.getDeclaredField("client");
+        clientField.setAccessible(true);
+        clientField.set(producer, client);
+
+        // 2. OpSendMsg that retries reentrantly
+        MessageImpl<?> msg = Mockito.mock(MessageImpl.class);
+        Mockito.when(msg.getUncompressedSize()).thenReturn(10);
+        Mockito.when(msg.getSequenceId()).thenReturn(1L);
+        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(
+                Mockito.mock(LatencyHistogram.class),
+                msg,
+                Mockito.mock(ByteBufPair.class),
+                1L,
+                Mockito.mock(SendCallback.class)
+        );
+        op.totalChunks = 1;
+        op.chunkId = 0;
+        op.numMessagesInBatch = 1;
+
+        MessageImpl<?> retryMsg = Mockito.mock(MessageImpl.class);
+        Mockito.when(retryMsg.getUncompressedSize()).thenReturn(10);
+        Mockito.when(retryMsg.getSequenceId()).thenReturn(2L);
+
+        // Override sendComplete to Reentrant retry via spy
+        ProducerImpl.OpSendMsg firstSpy = Mockito.spy(op);
+        Mockito.doAnswer(invocation -> {
+            // Reentrant retry during callback
+            ProducerImpl.OpSendMsg retryOp = ProducerImpl.OpSendMsg.create(
+                    Mockito.mock(LatencyHistogram.class),
+                    retryMsg,
+                    Mockito.mock(ByteBufPair.class),
+                    1L,
+                    Mockito.mock(SendCallback.class)
+            );
+            retryOp.totalChunks = 1;
+            retryOp.chunkId = 0;
+            retryOp.numMessagesInBatch = 1;
+            pendingQueue.add(retryOp);
+            return null;
+        }).when(firstSpy).sendComplete(Mockito.any());
+        Mockito.doNothing()
+                .when(firstSpy)
+                .recycle();
+
+        // Seed initial pending message
+        pendingQueue.add(firstSpy);
+
+        // Invoke failPendingMessages(null, ex)
+        producer.failPendingMessages(null, new PulsarClientException.TimeoutException("timeout"));
+        assertEquals(producer.getPendingQueueSize(), 1,
+                "Retry Op should exist in the pending Queue");
+        assertEquals(pendingQueue.peek().msg.getSequenceId(), 2L,
+                "Retry msg should exist in the pendingQueue");
     }
 }
