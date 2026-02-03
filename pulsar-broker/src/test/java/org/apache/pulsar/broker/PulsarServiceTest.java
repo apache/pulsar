@@ -352,8 +352,14 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testMetadataSerDesThreads() throws Exception {
         final var numSerDesThreads = 5;
-        conf.setMetadataStoreSerDesThreads(numSerDesThreads);
-        setup();
+        final var config = new ServiceConfiguration();
+        config.setMetadataStoreSerDesThreads(numSerDesThreads);
+        config.setClusterName("test");
+        config.setMetadataStoreUrl("memory:local");
+        config.setConfigurationMetadataStoreUrl("memory:local");
+
+        @Cleanup final var pulsar = new PulsarService(config);
+        pulsar.start();
 
         BiConsumer<MetadataStore, String> verifier = (store, prefix) -> {
             final var serDes = new CustomMetadataSerDes();

@@ -106,5 +106,5 @@ public class MetadataStoreConfig {
     private MetadataNodeSizeStats nodeSizeStats;
 
     @Builder.Default
-    private final int numSerDesThreads = Runtime.getRuntime().availableProcessors();
+    private final int numSerDesThreads = 1;
 }
