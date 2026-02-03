@@ -922,9 +922,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // needs load management service and before start broker service,
             this.startNamespaceService();
 
-            // Initialize PulsarResourcesExtended
-            pulsarResourcesExtended = loadPulsarResourcesExtended();
-
             schemaStorage = createAndStartSchemaStorage();
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers(), this);
@@ -1035,6 +1032,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
+
+            // Initialize PulsarResourcesExtended
+            pulsarResourcesExtended = loadPulsarResourcesExtended();
 
             // the broker is ready to accept incoming requests by Pulsar binary protocol and http/https
             final List<Runnable> runnables;

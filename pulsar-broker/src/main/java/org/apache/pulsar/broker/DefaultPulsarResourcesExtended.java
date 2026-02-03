@@ -21,6 +21,7 @@ package org.apache.pulsar.broker;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import lombok.Getter;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -33,6 +34,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
  */
 public class DefaultPulsarResourcesExtended implements PulsarResourcesExtended {
 
+    @Getter
     private PulsarService pulsarService;
 
     @Override

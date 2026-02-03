@@ -59,7 +59,6 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.PulsarResourcesExtended;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -195,8 +194,6 @@ public class NamespaceService implements AutoCloseable {
     private ConcurrentHashMap<String, CompletableFuture<List<String>>> inProgressQueryUserTopics =
             new ConcurrentHashMap<>();
 
-    private PulsarResourcesExtended pulsarResourcesExtended;
-
     /**
      * Default constructor.
      */
@@ -211,7 +208,6 @@ public class NamespaceService implements AutoCloseable {
         this.bundleSplitListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
         this.redirectManager = new RedirectManager(pulsar);
-        this.pulsarResourcesExtended = pulsar.getPulsarResourcesExtended();
 
         this.lookupLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
                 .histogramBuilder(LOOKUP_REQUEST_DURATION_METRIC_NAME)
@@ -1539,7 +1535,7 @@ public class NamespaceService implements AutoCloseable {
         if (MapUtils.isEmpty(properties)) {
             return getListOfTopics(namespaceName, mode);
         } else {
-            return pulsarResourcesExtended.listTopicOfNamespace(namespaceName, mode, properties);
+            return pulsar.getPulsarResourcesExtended().listTopicOfNamespace(namespaceName, mode, properties);
         }
     }
 

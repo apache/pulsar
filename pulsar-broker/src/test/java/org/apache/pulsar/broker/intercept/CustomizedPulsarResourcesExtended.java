@@ -39,7 +39,6 @@ import org.jspecify.annotations.Nullable;
 @Slf4j
 public class CustomizedPulsarResourcesExtended extends DefaultPulsarResourcesExtended {
 
-    private PulsarService pulsar;
     private boolean enabledTopicWatcher;
 
     // Map<Namespace, Map<Topic, Map<PropertyKey, PropertyValue>>>
@@ -89,9 +88,9 @@ public class CustomizedPulsarResourcesExtended extends DefaultPulsarResourcesExt
 
     public void setCustomProperties(TopicName topicName, Map<String, String> properties)
         throws ExecutionException, InterruptedException, TimeoutException {
-        int timeoutSeconds = pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds();
+        int timeoutSeconds = getPulsarService().getConfiguration().getMetadataStoreOperationTimeoutSeconds();
         PartitionedTopicMetadata partitionedTopicMetadata =
-            pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+            getPulsarService().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
                 .get(timeoutSeconds, TimeUnit.SECONDS);
         if (partitionedTopicMetadata.partitions == 0) {
             setNonPartitionedTopicCustomProperties(topicName, properties);
@@ -115,7 +114,7 @@ public class CustomizedPulsarResourcesExtended extends DefaultPulsarResourcesExt
 
     @Override
     public void initialize(PulsarService pulsarService) {
-        this.pulsar = pulsarService;
+        super.initialize(pulsarService);
         this.enabledTopicWatcher = pulsarService.getConfiguration().isEnableBrokerTopicListWatcher();
         this.customTopicPropertiesMap = new ConcurrentHashMap<>();
     }
