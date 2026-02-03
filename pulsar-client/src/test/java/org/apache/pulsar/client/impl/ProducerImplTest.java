@@ -97,10 +97,9 @@ public class ProducerImplTest {
         clientField.setAccessible(true);
         clientField.set(producer, client);
 
-        // 2. OpSendMsg that retries reentrantly
+        // OpSendMsg that retries reentrantly
         MessageImpl<?> msg = Mockito.mock(MessageImpl.class);
         Mockito.when(msg.getUncompressedSize()).thenReturn(10);
-        Mockito.when(msg.getSequenceId()).thenReturn(1L);
         ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(
                 Mockito.mock(LatencyHistogram.class),
                 msg,
@@ -114,7 +113,6 @@ public class ProducerImplTest {
 
         MessageImpl<?> retryMsg = Mockito.mock(MessageImpl.class);
         Mockito.when(retryMsg.getUncompressedSize()).thenReturn(10);
-        Mockito.when(retryMsg.getSequenceId()).thenReturn(2L);
 
         // Override sendComplete to Reentrant retry via spy
         ProducerImpl.OpSendMsg firstSpy = Mockito.spy(op);
@@ -124,7 +122,7 @@ public class ProducerImplTest {
                     Mockito.mock(LatencyHistogram.class),
                     retryMsg,
                     Mockito.mock(ByteBufPair.class),
-                    1L,
+                    2L,
                     Mockito.mock(SendCallback.class)
             );
             retryOp.totalChunks = 1;
@@ -144,7 +142,7 @@ public class ProducerImplTest {
         producer.failPendingMessages(null, new PulsarClientException.TimeoutException("timeout"));
         assertEquals(producer.getPendingQueueSize(), 1,
                 "Retry Op should exist in the pending Queue");
-        assertEquals(pendingQueue.peek().msg.getSequenceId(), 2L,
-                "Retry msg should exist in the pendingQueue");
+        assertEquals(pendingQueue.peek().sequenceId, 2L,
+                "Retry Op SequenceId should match with the one in pendingQueue");
     }
 }
