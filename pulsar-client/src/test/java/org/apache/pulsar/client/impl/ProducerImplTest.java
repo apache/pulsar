@@ -72,7 +72,7 @@ public class ProducerImplTest {
     }
 
     @Test
-    public void testFailPendingMessagesClearsReentrantRetry_whenBatchingDisabled()
+    public void testFailPendingMessagesSyncRetry()
             throws Exception {
         ProducerImpl<byte[]> producer =
                 Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
