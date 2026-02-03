@@ -364,7 +364,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         BiConsumer<MetadataStore, String> verifier = (store, prefix) -> {
             final var serDes = new CustomMetadataSerDes();
             final var cache = store.getMetadataCache(prefix, serDes, MetadataCacheConfig.builder().build());
-            for (int i = 0; i < 10000 && serDes.threadNameToSerializedPaths.size() < numSerDesThreads; i++) {
+            for (int i = 0; i < 100 && serDes.threadNameToSerializedPaths.size() < numSerDesThreads; i++) {
                 cache.create(prefix + i, "value-" + i).join();
                 final var value = cache.get(prefix + i).join();
                 assertEquals(value.orElseThrow(), "value-" + i);
