@@ -31,8 +31,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -406,42 +408,51 @@ public class AcknowledgementsGroupingTrackerTest {
     }
 
     @Test
-    public void testAddAcknowledgmentNeverAffectIsDuplicate() throws Exception {
+    public void testDoIndividualBatchAckNeverAffectIsDuplicate() throws Exception {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
-        conf.setMaxAcknowledgmentGroupSize(5);
+        conf.setMaxAcknowledgmentGroupSize(1);
         PersistentAcknowledgmentsGroupingTracker tracker =
                 new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
 
         BatchMessageIdImpl batchMessageId0 = new BatchMessageIdImpl(5, 1, 0, 0, 10, null);
-        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(5, 1, 0, 2, 10, null);
-        BatchMessageIdImpl batchMessageId4 = new BatchMessageIdImpl(5, 1, 0, 4, 10, null);
-        BatchMessageIdImpl batchMessageId6 = new BatchMessageIdImpl(5, 1, 0, 6, 10, null);
-        BatchMessageIdImpl batchMessageId8 = new BatchMessageIdImpl(5, 1, 0, 8, 10, null);
-        Thread addAcknowledgmentThread = new Thread(() -> {
-            tracker.addAcknowledgment(batchMessageId0, AckType.Individual, Collections.emptyMap());
-            tracker.addAcknowledgment(batchMessageId2, AckType.Individual, Collections.emptyMap());
-            tracker.addAcknowledgment(batchMessageId4, AckType.Individual, Collections.emptyMap());
-            tracker.addAcknowledgment(batchMessageId6, AckType.Individual, Collections.emptyMap());
-            tracker.addAcknowledgment(batchMessageId8, AckType.Individual, Collections.emptyMap());
-        }, "");
-        addAcknowledgmentThread.start();
-
         BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(5, 1, 0, 1, 10, null);
-        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(5, 1, 0, 3, 10, null);
-        BatchMessageIdImpl batchMessageId5 = new BatchMessageIdImpl(5, 1, 0, 5, 10, null);
-        BatchMessageIdImpl batchMessageId7 = new BatchMessageIdImpl(5, 1, 0, 7, 10, null);
-        BatchMessageIdImpl batchMessageId9 = new BatchMessageIdImpl(5, 1, 0, 9, 10, null);
-        Thread idDuplicateThread = new Thread(() -> {
-            assertFalse(tracker.isDuplicate(batchMessageId1));
-            assertFalse(tracker.isDuplicate(batchMessageId3));
-            assertFalse(tracker.isDuplicate(batchMessageId5));
-            assertFalse(tracker.isDuplicate(batchMessageId7));
-            assertFalse(tracker.isDuplicate(batchMessageId9));
-        }, "");
-        idDuplicateThread.start();
 
-        addAcknowledgmentThread.join();
-        idDuplicateThread.join();
+        int loops = 10000;
+        int addAcknowledgmentThreadCount = 10;
+        List<Thread> addAcknowledgmentThreads = new ArrayList<>(addAcknowledgmentThreadCount);
+        for (int i = 0; i < addAcknowledgmentThreadCount; i++) {
+            Thread addAcknowledgmentThread = new Thread(() -> {
+                for (int j = 0; j < loops; j++) {
+                    tracker.addAcknowledgment(batchMessageId0, AckType.Individual, Collections.emptyMap());
+                }
+            }, "doIndividualBatchAck-thread-" + i);
+            addAcknowledgmentThread.start();
+            addAcknowledgmentThreads.add(addAcknowledgmentThread);
+        }
+
+        int isDuplicateThreadCount = 10;
+        AtomicBoolean assertResult = new AtomicBoolean();
+        List<Thread> isDuplicateThreads = new ArrayList<>(isDuplicateThreadCount);
+        for (int i = 0; i < isDuplicateThreadCount; i++) {
+            Thread isDuplicateThread = new Thread(() -> {
+                for (int j = 0; j < loops; j++) {
+                    boolean duplicate = tracker.isDuplicate(batchMessageId1);
+                    assertResult.set(assertResult.get() || duplicate);
+                }
+            }, "isDuplicate-thread-" + i);
+            isDuplicateThread.start();
+            isDuplicateThreads.add(isDuplicateThread);
+        }
+
+        for (Thread addAcknowledgmentThread : addAcknowledgmentThreads) {
+            addAcknowledgmentThread.join();
+        }
+
+        for (Thread isDuplicateThread : isDuplicateThreads) {
+            isDuplicateThread.join();
+        }
+
+        assertFalse(assertResult.get());
     }
 
     public class ClientCnxTest extends ClientCnx {
