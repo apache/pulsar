@@ -113,7 +113,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionConflictUnloadException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicBacklogQuotaExceededException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicBlockedQuotaExceededException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
@@ -3754,14 +3754,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (backlogQuotaType == BacklogQuotaType.destination_storage && isSizeBacklogExceeded()) {
                     log.debug("[{}] Size backlog quota exceeded. Cannot create producer [{}]", this.getName(),
                             producerName);
-                    return FutureUtil.failedFuture(new TopicBacklogQuotaExceededException(retentionPolicy));
+                    return FutureUtil.failedFuture(new TopicBlockedQuotaExceededException(retentionPolicy));
                 }
                 if (backlogQuotaType == BacklogQuotaType.message_age) {
                     return checkTimeBacklogExceeded(true).thenCompose(isExceeded -> {
                         if (isExceeded) {
                             log.debug("[{}] Time backlog quota exceeded. Cannot create producer [{}]", this.getName(),
                                     producerName);
-                            return FutureUtil.failedFuture(new TopicBacklogQuotaExceededException(retentionPolicy));
+                            return FutureUtil.failedFuture(new TopicBlockedQuotaExceededException(retentionPolicy));
                         } else {
                             return CompletableFuture.completedFuture(null);
                         }
