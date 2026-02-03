@@ -177,7 +177,12 @@ public class NamespaceBundleFactory {
                     return pulsar.getPulsarResources().getLocalPolicies()
                             .createLocalPoliciesAsync(namespace, localPolicies)
                             .thenApply(stat -> getBundles(namespace,
-                                    Optional.of(Pair.of(localPolicies, 0L))));
+                                    Optional.of(Pair.of(localPolicies, 0L))))
+                            .exceptionally(ex -> {
+                                // If LocalPolicies already exists (possibly with empty content),
+                                // just use the bundles from global policies
+                                return getBundles(namespace, Optional.empty());
+                            });
                 });
     }
 

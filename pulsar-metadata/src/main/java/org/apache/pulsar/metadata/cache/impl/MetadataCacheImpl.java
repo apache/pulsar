@@ -136,7 +136,15 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
                     try {
                         GetResult res = optRes.get();
-                        T obj = serde.deserialize(path, res.getValue(), res.getStat());
+                        byte[] value = res.getValue();
+
+                        // Handle empty content before attempting deserialization
+                        if (value == null || value.length == 0) {
+                            log.warn("Empty content found for key '{}', treating as non-existent", path);
+                            return FutureUtils.value(Optional.empty());
+                        }
+
+                        T obj = serde.deserialize(path, value, res.getStat());
                         return FutureUtils
                                 .value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
                     } catch (Throwable t) {
