@@ -43,7 +43,6 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.metadata.api.CacheGetResult;
-import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
@@ -106,6 +105,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
                     public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Loading key {} into metadata cache {}", key, cacheName);
+                        }
                         return readValueFromStore(key);
                     }
 
@@ -115,12 +117,16 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                             Optional<CacheGetResult<T>> oldValue,
                             Executor executor) {
                         if (store instanceof AbstractMetadataStore && ((AbstractMetadataStore) store).isConnected()) {
-                            return readValueFromStore(key).thenApply(val -> {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Reloading key {} into metadata cache {}", key, cacheName);
+                            }
+                            final var future = readValueFromStore(key);
+                            future.thenAccept(val -> {
                                 if (cacheConfig.getAsyncReloadConsumer() != null) {
                                     cacheConfig.getAsyncReloadConsumer().accept(key, val);
                                 }
-                                return val;
                             });
+                            return future;
                         } else {
                             // Do not try to refresh the cache item if we know that we're not connected to the
                             // metadata store
@@ -133,22 +139,45 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     private CompletableFuture<Optional<CacheGetResult<T>>> readValueFromStore(String path) {
-        return store.get(path)
-                .thenComposeAsync(optRes -> {
-                    if (!optRes.isPresent()) {
-                        return FutureUtils.value(Optional.empty());
-                    }
-
-                    try {
-                        GetResult res = optRes.get();
-                        T obj = serde.deserialize(path, res.getValue(), res.getStat());
-                        return FutureUtils
-                                .value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
-                    } catch (Throwable t) {
-                        return FutureUtils.exception(new ContentDeserializationException(
-                                "Failed to deserialize payload for key '" + path + "'", t));
-                    }
-                }, executor.chooseThread(path));
+        final var future = new CompletableFuture<Optional<CacheGetResult<T>>>();
+        store.get(path).thenComposeAsync(optRes -> {
+            // There could be multiple pending reads for the same path, for example, when a path is created,
+            // 1. The `accept` method will call `refresh`
+            // 2. The `put` method will call `refresh` after the metadata store put operation is done
+            // Both will call this method and the same result will be read. In this case, we only need to deserialize
+            // the value once.
+            if (!optRes.isPresent()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Key {} not found in metadata store", path);
+                }
+                return FutureUtils.value(Optional.<CacheGetResult<T>>empty());
+            }
+            final var res = optRes.get();
+            final var cachedFuture = objCache.getIfPresent(path);
+            if (cachedFuture != null && cachedFuture != future) {
+                if (log.isDebugEnabled()) {
+                    log.debug("A new read on key {} is in progress or completed, ignore this one", path);
+                }
+                return cachedFuture;
+            }
+            try {
+                T obj = serde.deserialize(path, res.getValue(), res.getStat());
+                if (log.isDebugEnabled()) {
+                    log.debug("Deserialized value for key {} (version: {})", path, res.getStat().getVersion());
+                }
+                return FutureUtils.value(Optional.of(new CacheGetResult<>(obj, res.getStat())));
+            } catch (Throwable t) {
+                return FutureUtils.exception(new ContentDeserializationException(
+                    "Failed to deserialize payload for key '" + path + "'", t));
+            }
+        }, executor.chooseThread(path)).whenComplete((result, e) -> {
+            if (e != null) {
+                future.completeExceptionally(e.getCause());
+            } else {
+                future.complete(result);
+            }
+        });
+        return future;
     }
 
     @Override
@@ -282,7 +311,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             } else {
                 return store.put(path, bytes, Optional.empty());
             }
-        }).thenAccept(__ -> refresh(path));
+        }).thenAccept(__ -> {
+            if (log.isDebugEnabled()) {
+                log.debug("Refreshing path {} after put operation", path);
+            }
+            refresh(path);
+        });
     }
 
     @Override
@@ -322,6 +356,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         switch (t.getType()) {
         case Created:
         case Modified:
+            if (log.isDebugEnabled()) {
+                log.debug("Refreshing path {} for {} notification", path, t.getType());
+            }
             refresh(path);
             break;
 
