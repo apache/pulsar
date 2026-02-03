@@ -22,6 +22,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -289,8 +291,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         secondaryBookieGroup.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
         bookieMapping.put("group2", secondaryBookieGroup);
 
-        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
-                Optional.empty()).join();
+        updateBookieInfo(isolationPolicy, jsonMapper.writeValueAsBytes(bookieMapping));
 
         ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(),
                 null).getResult();
@@ -341,8 +342,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 + "\": {\"rack\": \"rack0\", \"hostname\": \"bookie3.example.com\"}, \"" + BOOKIE4
                 + "\": {\"rack\": \"rack2\", \"hostname\": \"bookie4.example.com\"}}}";
 
-        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, data.getBytes(StandardCharsets.UTF_8),
-                Optional.empty()).join();
+        updateBookieInfo(isolationPolicy, data.getBytes(StandardCharsets.UTF_8));
 
         List<BookieId> ensemble = isolationPolicy.newEnsemble(2, 2, 2, Collections.emptyMap(),
                 new HashSet<>()).getResult();
@@ -400,8 +400,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put("group1", mainBookieGroup);
         bookieMapping.put("group2", secondaryBookieGroup);
 
-        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
-                Optional.empty()).join();
+        updateBookieInfo(isolationPolicy, jsonMapper.writeValueAsBytes(bookieMapping));
 
         ensemble = isolationPolicy.newEnsemble(3, 3, 3, Collections.emptyMap(),
                 new HashSet<>()).getResult();
@@ -785,17 +784,12 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put(isolationGroup2, group2);
         bookieMapping.put(isolationGroup3, group3);
 
-        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
-                Optional.empty()).join();
+        updateBookieInfo(isolationPolicy, jsonMapper.writeValueAsBytes(bookieMapping));
 
         groups.setLeft(Sets.newHashSet(isolationGroup1, isolationGroup3));
         groups.setRight(Sets.newHashSet(""));
-        // The cache of `isolationPolicy` may not be updated immediately, so we use Awaitility to wait for the result
-        // after the modification on `store`.
-        Awaitility.await().atMost(Duration.ofSeconds(1)).untilAsserted(() -> {
-            final var newBlackList = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-            assertEquals(newBlackList.size(), 3);
-        });
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertEquals(blacklist.size(), 3);
 
         /* Test a bookie belongs to multiple isolation groups and totalAvailableBookiesInPrimaryGroup < ensembleSize */
         groups.setLeft(Sets.newHashSet(isolationGroup1, isolationGroup3));
@@ -813,15 +807,12 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put(isolationGroup1, group1);
         bookieMapping.put(isolationGroup2, group2);
 
-        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
-                Optional.empty()).join();
+        updateBookieInfo(isolationPolicy, jsonMapper.writeValueAsBytes(bookieMapping));
 
         groups.setLeft(Sets.newHashSet(isolationGroup1));
         groups.setRight(Sets.newHashSet(isolationGroup2));
-        Awaitility.await().atMost(Duration.ofSeconds(1)).untilAsserted(() -> {
-            final var newBlackList = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-            assertEquals(newBlackList.size(), 2);
-        });
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertEquals(blacklist.size(), 2);
 
         groups.setLeft(Sets.newHashSet(isolationGroup1));
         groups.setRight(Sets.newHashSet(isolationGroup2));
@@ -838,14 +829,24 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         bookieMapping.put(isolationGroup1, group1);
         bookieMapping.put(isolationGroup2, group2);
 
-        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
-                Optional.empty()).join();
+        updateBookieInfo(isolationPolicy, jsonMapper.writeValueAsBytes(bookieMapping));
 
         groups.setLeft(Sets.newHashSet(isolationGroup1));
         groups.setRight(Sets.newHashSet(isolationGroup2));
-        Awaitility.await().atMost(Duration.ofSeconds(1)).untilAsserted(() -> {
-            final var newBlackList = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
-            assertTrue(newBlackList.isEmpty());
-        });
+        blacklist = isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
+        assertTrue(blacklist.isEmpty());
+    }
+
+    // The policy gets the bookie info asynchronously before each query or update, when putting the bookie info into
+    // the metadata store, the cache needs some time to receive the notification and update accordingly.
+    private void updateBookieInfo(IsolatedBookieEnsemblePlacementPolicy isolationPolicy, byte[] bookieInfo) {
+        final var cache = isolationPolicy.getBookieMappingCache();
+        assertNotNull(cache); // the policy must have been initialized
+
+        final var key = BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
+        final var previousBookieInfo = cache.getIfCached(key);
+        store.put(key, bookieInfo, Optional.empty()).join();
+        Awaitility.await().atMost(Duration.ofSeconds(1)).untilAsserted(() ->
+                assertNotEquals(cache.getIfCached(key), previousBookieInfo));
     }
 }
