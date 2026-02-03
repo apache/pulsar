@@ -496,7 +496,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "The number of threads used for serializing and deserializing data to and from the metadata store"
     )
-    private int metadataStoreSerDesThreads = Runtime.getRuntime().availableProcessors();
+    private int metadataStoreSerDesThreads = 1;
 
     @Deprecated
     @FieldContext(
