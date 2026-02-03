@@ -50,6 +50,7 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -1827,6 +1828,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
         }
 
+        public void drainTo(Collection<OpSendMsg> opSendMsgs) {
+            opSendMsgs.addAll(delegate);
+            clear();
+        }
+
         public OpSendMsg peek() {
             return delegate.peek();
         }
@@ -2302,7 +2308,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (cnx == null) {
             final AtomicInteger releaseCount = new AtomicInteger();
             final boolean batchMessagingEnabled = isBatchMessagingEnabled();
-            pendingMessages.forEach(op -> {
+            final ArrayList<OpSendMsg> failingMessages = new ArrayList<>(pendingMessages.size());
+            // Drain pending messages before invoking callbacks to avoid reentrancy
+            pendingMessages.drainTo(failingMessages);
+
+            failingMessages.forEach(op -> {
                 releaseCount.addAndGet(batchMessagingEnabled ? op.numMessagesInBatch : 1);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -2324,7 +2334,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op.recycle();
             });
 
-            pendingMessages.clear();
             semaphoreRelease(releaseCount.get());
             if (batchMessagingEnabled) {
                 failPendingBatchMessages(ex);
