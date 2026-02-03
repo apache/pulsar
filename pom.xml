@@ -101,7 +101,6 @@ flexible messaging model and an intuitive client API.</description>
          To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
     -->
     <docker.platforms></docker.platforms>
-    <docker.goal>build</docker.goal>
     <docker.skip.push>true</docker.skip.push>
     <docker.skip.tag>false</docker.skip.tag>
 
