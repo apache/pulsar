@@ -1821,16 +1821,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             messagesCount.set(0);
         }
 
-        public void remove() {
+        public OpSendMsg remove() {
             OpSendMsg op = delegate.remove();
             if (op != null) {
                 messagesCount.addAndGet(-op.numMessagesInBatch);
             }
-        }
-
-        public void drainTo(Collection<OpSendMsg> opSendMsgs) {
-            opSendMsgs.addAll(delegate);
-            clear();
+            return op;
         }
 
         public OpSendMsg peek() {
@@ -2309,11 +2305,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (cnx == null) {
             final AtomicInteger releaseCount = new AtomicInteger();
             final boolean batchMessagingEnabled = isBatchMessagingEnabled();
-            final ArrayList<OpSendMsg> failingMessages = new ArrayList<>(pendingMessages.size());
-            // Drain pending messages before invoking callbacks to avoid reentrancy
-            pendingMessages.drainTo(failingMessages);
+            // Track message count to fail so that newly added messages by synchronous retries
+            // triggered by op.sendComplete(ex); don't get removed
+            int pendingMessagesToFailCount = pendingMessages.size();
 
-            failingMessages.forEach(op -> {
+            for(int i =0 ; i < pendingMessagesToFailCount; i++) {
+                OpSendMsg op = pendingMessages.remove();
                 releaseCount.addAndGet(batchMessagingEnabled ? op.numMessagesInBatch : 1);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -2333,7 +2330,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
                 ReferenceCountUtil.safeRelease(op.cmd);
                 op.recycle();
-            });
+            }
 
             semaphoreRelease(releaseCount.get());
             if (batchMessagingEnabled) {
