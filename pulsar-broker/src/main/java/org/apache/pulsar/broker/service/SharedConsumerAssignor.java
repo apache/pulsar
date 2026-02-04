@@ -58,7 +58,7 @@ public class SharedConsumerAssignor {
     private final Subscription subscription;
 
     public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
-                                                        final int numConsumers) {
+            final int numConsumers) {
         assert numConsumers >= 0;
         consumerToPermits.clear();
         final Map<Consumer, List<EntryAndMetadata>> consumerToEntries = new IdentityHashMap<>();
@@ -89,47 +89,12 @@ public class SharedConsumerAssignor {
                 availablePermits = consumer.getAvailablePermits();
             }
 
-            if (metadata == null || !metadata.hasUuid() || !metadata.hasChunkId() || !metadata.hasNumChunksFromMsg()) {
-                consumerToEntries.computeIfAbsent(consumer, __ -> new ArrayList<>()).add(entryAndMetadata);
+            if (!isChunkedMessage(metadata)) {
+                addEntry(consumerToEntries, consumer, entryAndMetadata);
                 availablePermits--;
             } else {
-                final String uuid = metadata.getUuid();
-                Consumer consumerForUuid = uuidToConsumer.get(uuid);
-                if (consumerForUuid == null) {
-                    if (metadata.getChunkId() != 0) {
-                        if (subscription != null) {
-                            log.warn("[{}][{}] Skip the message because it is not the first chunk."
-                                            + " Position: {}, UUID: {}, ChunkId: {}, NumChunksFromMsg: {}",
-                                    subscription.getTopicName(), subscription.getName(), entryAndMetadata.getPosition(),
-                                    metadata.getUuid(), metadata.getChunkId(), metadata.getNumChunksFromMsg());
-                            // Directly ack the message.
-                            if (!(subscription instanceof PulsarCompactorSubscription)) {
-                                subscription.acknowledgeMessage(Collections.singletonList(
-                                        entryAndMetadata.getPosition()), AckType.Individual, Collections.emptyMap());
-                            }
-                        }
-                        entryAndMetadata.release();
-                        continue;
-                    }
-                    consumerForUuid = consumer;
-                    uuidToConsumer.put(uuid, consumerForUuid);
-                }
-
-                final int permits = consumerToPermits.computeIfAbsent(consumerForUuid, Consumer::getAvailablePermits);
-                if (permits <= 0) {
-                    unassignedMessageProcessor.accept(entryAndMetadata);
-                    continue;
-                }
-                if (metadata.getChunkId() == metadata.getNumChunksFromMsg() - 1) {
-                    // The last chunk is received, we should remove the uuid from the cache.
-                    uuidToConsumer.remove(uuid);
-                }
-
-                consumerToEntries.computeIfAbsent(consumerForUuid, __ -> new ArrayList<>()).add(entryAndMetadata);
-                consumerToPermits.put(consumerForUuid, permits - 1);
-                if (consumerForUuid == consumer) {
-                    availablePermits--;
-                }
+                availablePermits = assignChunk(entryAndMetadata, metadata, consumer, consumerToEntries,
+                        availablePermits);
             }
         }
 
@@ -138,6 +103,64 @@ public class SharedConsumerAssignor {
         }
 
         return consumerToEntries;
+    }
+
+    private int assignChunk(EntryAndMetadata entryAndMetadata, MessageMetadata metadata, Consumer consumer,
+            Map<Consumer, List<EntryAndMetadata>> consumerToEntries, int availablePermits) {
+        final String uuid = metadata.getUuid();
+        Consumer consumerForUuid = uuidToConsumer.get(uuid);
+        if (consumerForUuid == null) {
+            if (skipChunk(entryAndMetadata, metadata)) {
+                return availablePermits;
+            }
+            consumerForUuid = consumer;
+            uuidToConsumer.put(uuid, consumerForUuid);
+        }
+
+        final int permits = consumerToPermits.computeIfAbsent(consumerForUuid, Consumer::getAvailablePermits);
+        if (permits <= 0) {
+            unassignedMessageProcessor.accept(entryAndMetadata);
+            return availablePermits;
+        }
+        if (metadata.getChunkId() == metadata.getNumChunksFromMsg() - 1) {
+            // The last chunk is received, we should remove the uuid from the cache.
+            uuidToConsumer.remove(uuid);
+        }
+
+        addEntry(consumerToEntries, consumerForUuid, entryAndMetadata);
+        consumerToPermits.put(consumerForUuid, permits - 1);
+        if (consumerForUuid == consumer) {
+            return availablePermits - 1;
+        }
+        return availablePermits;
+    }
+
+    private boolean isChunkedMessage(MessageMetadata metadata) {
+        return metadata != null && metadata.hasUuid() && metadata.hasChunkId() && metadata.hasNumChunksFromMsg();
+    }
+
+    private void addEntry(Map<Consumer, List<EntryAndMetadata>> consumerToEntries, Consumer consumer,
+            EntryAndMetadata entry) {
+        consumerToEntries.computeIfAbsent(consumer, __ -> new ArrayList<>()).add(entry);
+    }
+
+    private boolean skipChunk(EntryAndMetadata entryAndMetadata, MessageMetadata metadata) {
+        if (metadata.getChunkId() != 0) {
+            if (subscription != null) {
+                log.warn("[{}][{}] Skip the message because it is not the first chunk."
+                                + " Position: {}, UUID: {}, ChunkId: {}, NumChunksFromMsg: {}",
+                        subscription.getTopicName(), subscription.getName(), entryAndMetadata.getPosition(),
+                        metadata.getUuid(), metadata.getChunkId(), metadata.getNumChunksFromMsg());
+                // Directly ack the message.
+                if (!(subscription instanceof PulsarCompactorSubscription)) {
+                    subscription.acknowledgeMessage(Collections.singletonList(
+                            entryAndMetadata.getPosition()), AckType.Individual, Collections.emptyMap());
+                }
+            }
+            entryAndMetadata.release();
+            return true;
+        }
+        return false;
     }
 
     private Consumer getConsumer(final int numConsumers) {
