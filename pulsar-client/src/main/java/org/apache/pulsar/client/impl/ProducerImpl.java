@@ -50,7 +50,6 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -2309,7 +2308,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // triggered by op.sendComplete(ex); don't get removed
             int pendingMessagesToFailCount = pendingMessages.size();
 
-            for(int i =0 ; i < pendingMessagesToFailCount; i++) {
+            for (int i = 0; i < pendingMessagesToFailCount; i++) {
                 OpSendMsg op = pendingMessages.remove();
                 releaseCount.addAndGet(batchMessagingEnabled ? op.numMessagesInBatch : 1);
                 try {
