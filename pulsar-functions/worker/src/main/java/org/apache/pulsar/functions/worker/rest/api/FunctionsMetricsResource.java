@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.common.TextFormat;
 import java.io.IOException;
@@ -32,6 +31,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
@@ -44,7 +45,7 @@ public class FunctionsMetricsResource extends FunctionApiResource {
     public Response getMetrics() throws IOException {
 
         WorkerService workerService = get();
-        ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
         // if request, also attach the prometheus metrics
         if (workerService.getWorkerConfig().isIncludeStandardPrometheusMetrics()) {
             Writer writer = new BufWriter(buf);
@@ -63,7 +64,7 @@ public class FunctionsMetricsResource extends FunctionApiResource {
             };
             return Response
                 .ok(streamOut)
-                .type(MediaType.TEXT_PLAIN_TYPE)
+                .type(PrometheusMetricsServlet.PROMETHEUS_CONTENT_TYPE_004)
                 .build();
         } finally {
             buf.release();

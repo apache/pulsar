@@ -222,7 +222,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         if (testTopic.equals(RECOVER_COMMIT)) {
             tnx2.commit().get();
 
-            for (int i = messageCnt; i > 1; i --) {
+            for (int i = messageCnt; i > 1; i--) {
                 message = consumer.receive();
                 log.info("Txn2 commit receive message : {}, messageId : {}",
                         message.getValue(), message.getMessageId());
@@ -235,7 +235,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         } else {
             tnx2.abort().get();
 
-            for (int i = messageCnt / 2; i > 1; i --) {
+            for (int i = messageCnt / 2; i > 1; i--) {
                 message = consumer.receive();
                 log.info("Txn2 commit receive message : {}, messageId : {}",
                         message.getValue(), message.getMessageId());
@@ -259,7 +259,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         AtomicBoolean isFirstCallOfMethodHasReadNextAsync = new AtomicBoolean();
 
         doAnswer(invocation -> {
-            if (isFirstCallOfMethodHasMoreEvents.compareAndSet(false,true)){
+            if (isFirstCallOfMethodHasMoreEvents.compareAndSet(false, true)){
                 return true;
             } else {
                 return false;
@@ -362,10 +362,13 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         Awaitility.await().untilAsserted(() -> {
             TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
             assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), -1);
-            assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                    ((MessageIdImpl) messageId1).getLedgerId());
             transactionBufferSnapshot = reader.readNext().getValue();
-            assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId1).getEntryId() + 1);
-            assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId1).getLedgerId());
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(),
+                    ((MessageIdImpl) messageId1).getEntryId() + 1);
+            assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                    ((MessageIdImpl) messageId1).getLedgerId());
             assertFalse(reader.hasMessageAvailable());
         });
 
@@ -384,8 +387,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         abortTxn.abort().get();
 
         TransactionBufferSnapshot transactionBufferSnapshot = reader.readNext().getValue();
-        assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId3).getEntryId() + 1);
-        assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(), ((MessageIdImpl) messageId3).getLedgerId());
+        assertEquals(transactionBufferSnapshot.getMaxReadPositionEntryId(),
+                ((MessageIdImpl) messageId3).getEntryId() + 1);
+        assertEquals(transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                ((MessageIdImpl) messageId3).getLedgerId());
         assertEquals(transactionBufferSnapshot.getAborts().size(), 1);
         assertEquals(transactionBufferSnapshot.getAborts().get(0).getTxnIdLeastBits(),
                 ((TransactionImpl) abortTxn).getTxnIdLeastBits());
@@ -456,8 +461,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     PersistentTopic persistentTopic = (PersistentTopic) topic.get();
                     var field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
                     field.setAccessible(true);
-                    NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers
-                            = (NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>) field.get(persistentTopic.getManagedLedger());
+                    NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers =
+                            (NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>)
+                                    field.get(persistentTopic.getManagedLedger());
 
                     ledgers.remove(((MessageIdImpl) messageId1).getLedgerId());
                     tnx = pulsarClient.newTransaction()
@@ -584,7 +590,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         }
     }
 
-    @Test(timeOut=30000)
+    @Test(timeOut = 30000)
     public void testTransactionBufferRecoverThrowException() throws Exception {
         String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowPulsarClientException";
         @Cleanup
@@ -624,7 +630,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         Field field = PulsarService.class.getDeclaredField("transactionBufferSnapshotServiceFactory");
         field.setAccessible(true);
         TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactoryOriginal =
-                ((TransactionBufferSnapshotServiceFactory)field.get(getPulsarServiceList().get(0)));
+                ((TransactionBufferSnapshotServiceFactory) field.get(getPulsarServiceList().get(0)));
         // mock reader can't read snapshot fail throw RuntimeException
         doThrow(new RuntimeException("test")).when(reader).hasMoreEvents();
         // check reader close topic
@@ -647,7 +653,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
         checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceFactoryOriginal,
                 transactionBufferSnapshotServiceFactory, originalTopic, field, producer);
-        doReturn(CompletableFuture.completedFuture(reader)).when(systemTopicTxnBufferSnapshotService).createReader(any());
+        doReturn(CompletableFuture.completedFuture(reader))
+                .when(systemTopicTxnBufferSnapshotService).createReader(any());
 
         // check create writer fail close topic
         originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
@@ -661,11 +668,11 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     private void checkCloseTopic(PulsarClient pulsarClient,
-                                 TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactoryOriginal,
-                                 TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactory,
-                                 PersistentTopic originalTopic,
-                                 Field field,
-                                 Producer<byte[]> producer) throws Exception {
+                                TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactoryOriginal,
+                                TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactory,
+                                PersistentTopic originalTopic,
+                                Field field,
+                                Producer<byte[]> producer) throws Exception {
         final var pulsar = getPulsarServiceList().get(0);
         field.set(pulsar, transactionBufferSnapshotServiceFactory);
 
@@ -715,7 +722,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         indexesWriter.write(SNAPSHOT_INDEX, transactionBufferTransactionBufferSnapshotIndexes);
 
         assertTrue(indexesReader.hasMoreEvents());
-        transactionBufferTransactionBufferSnapshotIndexes = indexesReader.readNext().getValue();
+        @Cleanup("release")
+        Message<TransactionBufferSnapshotIndexes> message = indexesReader.readNext();
+        transactionBufferTransactionBufferSnapshotIndexes = message.getValue();
         assertEquals(transactionBufferTransactionBufferSnapshotIndexes.getTopicName(), SNAPSHOT_INDEX);
         assertEquals(transactionBufferTransactionBufferSnapshotIndexes.getIndexList().size(), 5);
         assertNull(transactionBufferTransactionBufferSnapshotIndexes.getSnapshot());
@@ -772,7 +781,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         snapshot.setPersistentPositionEntryId(3L);
         LinkedList<TxnIDData> txnIDSet = new LinkedList<>();
         txnIDSet.add(new TxnIDData(1, 1));
-        snapshot.setAborts(txnIDSet );
+        snapshot.setAborts(txnIDSet);
 
         segmentWriter.write(buildKey(snapshot), snapshot);
         snapshot.setSequenceId(2L);
@@ -808,7 +817,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         };
         pulsarService.getDefaultManagedLedgerFactory()
                 .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName.getPersistenceNamingEncoding(), callback,
-                        brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(),null);
+                        brokerService.getManagedLedgerConfig(snapshotSegmentTopicName).get(), null);
 
         Entry entry = entryCompletableFuture.get();
         //decode snapshot from entry
@@ -829,7 +838,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     //Verify the snapshotSegmentProcessor end to end
     @Test
     public void testSnapshotSegment() throws Exception {
-        String topic ="persistent://" + NAMESPACE1 + "/testSnapshotSegment";
+        String topic = "persistent://" + NAMESPACE1 + "/testSnapshotSegment";
         String subName = "testSnapshotSegment";
 
         LinkedMap<Transaction, MessageId> ongoingTxns = new LinkedMap<>();
@@ -890,7 +899,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
                 if (message != null) {
                     Assert.assertTrue(message.getMessageId().compareTo(maxReadMessage) < 0);
-                    hasReceived ++;
+                    hasReceived++;
                 } else {
                     break;
                 }

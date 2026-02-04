@@ -20,19 +20,23 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.MSG_COMPRESSION_TYPE;
 import static org.testng.Assert.assertEquals;
-
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -46,45 +50,49 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
-public class StrategicCompactionTest extends CompactionTest {
+public class StrategicCompactionTest extends MockedPulsarServiceBaseTest {
+
+    protected ScheduledExecutorService compactionScheduler;
+    protected BookKeeper bk;
     private TopicCompactionStrategy strategy;
     private StrategicTwoPhaseCompactor compactor;
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     public void setup() throws Exception {
-        super.setup();
+        super.internalSetup();
+        compactionScheduler = Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
         compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
     }
 
+    @AfterClass(alwaysRun = true)
     @Override
-    protected long compact(String topic) throws ExecutionException, InterruptedException {
+    public void cleanup() throws Exception {
+        super.internalCleanup();
+        bk.close();
+        if (compactionScheduler != null) {
+            compactionScheduler.shutdownNow();
+        }
+    }
+
+    private long compact(String topic) throws ExecutionException, InterruptedException {
         return (long) compactor.compact(topic, strategy).get();
     }
-
-    @Override
-    protected long compact(String topic, CryptoKeyReader cryptoKeyReader)
-            throws ExecutionException, InterruptedException {
-        return (long) compactor.compact(topic, strategy, cryptoKeyReader).get();
-    }
-
-    @Override
-    protected PublishingOrderCompactor getCompactor() {
-        return compactor;
-    }
-
 
     @Test
     public void testNumericOrderCompaction() throws Exception {
 
         strategy = new NumericOrderCompactionStrategy();
 
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/use/my-ns/numeric-order-compaction";
         final int numMessages = 50;
         final int maxKeys = 5;
 
@@ -127,7 +135,8 @@ public class StrategicCompactionTest extends CompactionTest {
 
         Map<String, Integer> expectedCopy = new HashMap<>(expected);
         // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
+        try (Consumer<Integer> consumer =
+                     pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             while (!expected.isEmpty()) {
                 Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
@@ -137,7 +146,8 @@ public class StrategicCompactionTest extends CompactionTest {
         }
 
         // can get full backlog if read compacted disabled
-        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
+        try (Consumer<Integer> consumer =
+                     pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
                 .readCompacted(false).subscribe()) {
             while (true) {
                 Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
@@ -184,8 +194,8 @@ public class StrategicCompactionTest extends CompactionTest {
         FutureUtil.waitForAll(futures).get();
 
         // 2.compact the topic.
-        StrategicTwoPhaseCompactor compactor
-                = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         compactor.compact(topic, strategy).get();
 
         // consumer with readCompacted enabled only get compacted entries

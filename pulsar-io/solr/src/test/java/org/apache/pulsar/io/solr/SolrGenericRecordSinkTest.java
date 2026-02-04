@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.io.solr;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
@@ -34,14 +38,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /**
- * solr Sink test
+ * solr Sink test.
  */
 @Slf4j
 public class SolrGenericRecordSinkTest {
@@ -50,7 +48,7 @@ public class SolrGenericRecordSinkTest {
     private Message<GenericRecord> message;
 
     /**
-     * A Simple class to test solr class
+     * A Simple class to test solr class.
      */
     @Data
     public static class Foo {
@@ -70,7 +68,7 @@ public class SolrGenericRecordSinkTest {
     }
 
     @Test
-    public void TestOpenAndWriteSink() throws Exception {
+    public void testOpenAndWriteSink() throws Exception {
         message = mock(MessageImpl.class);
         Map<String, Object> configs = new HashMap<>();
         configs.put("solrUrl", "http://localhost:8983/solr");

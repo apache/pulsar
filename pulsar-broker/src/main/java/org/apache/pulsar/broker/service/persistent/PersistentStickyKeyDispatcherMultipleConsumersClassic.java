@@ -34,6 +34,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -57,6 +58,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,13 +84,37 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
      */
     private final LinkedHashMap<Consumer, Position> recentlyJoinedConsumers;
 
+    /**
+     * The method {@link #sortRecentlyJoinedConsumersIfNeeded} is a un-normal method, which used to fix the issue that
+     * was described at https://github.com/apache/pulsar/pull/23795.
+     * To cover the case that does not contain the hot fix that https://github.com/apache/pulsar/pull/23795 provided,
+     * we add this method to reproduce the issue in tests.
+     **/
+    @Setter
+    public boolean sortRecentlyJoinedConsumersIfNeeded = true;
+
     PersistentStickyKeyDispatcherMultipleConsumersClassic(PersistentTopic topic, ManagedCursor cursor,
                                                           Subscription subscription, ServiceConfiguration conf,
                                                           KeySharedMeta ksm) {
+        this(topic, cursor, subscription, conf, ksm, null);
+    }
+
+    /**
+     * @param recentlyJoinedConsumers This parameter is only used for testing.
+     */
+    @VisibleForTesting
+    PersistentStickyKeyDispatcherMultipleConsumersClassic(PersistentTopic topic, ManagedCursor cursor,
+                                                  Subscription subscription, ServiceConfiguration conf,
+                                                  KeySharedMeta ksm,
+                                                  @Nullable LinkedHashMap<Consumer, Position> recentlyJoinedConsumers) {
         super(topic, cursor, subscription, ksm.isAllowOutOfOrderDelivery());
 
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
-        this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
+        if (recentlyJoinedConsumers == null) {
+            this.recentlyJoinedConsumers = allowOutOfOrderDelivery ? null : new LinkedHashMap<>();
+        } else {
+            this.recentlyJoinedConsumers = recentlyJoinedConsumers;
+        }
         this.keySharedMode = ksm.getKeySharedMode();
         switch (this.keySharedMode) {
         case AUTO_SPLIT:
@@ -144,11 +170,60 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 if (!allowOutOfOrderDelivery
                         && recentlyJoinedConsumers != null
                         && consumerList.size() > 1
-                        && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
+                        && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1
+                        // If there is a delayed "cursor.rewind" after the pending read, the consumers that will be
+                        // added before the "cursor.rewind" will have a same "recent joined position", which is the
+                        // same as "mark deleted position +1", so we can skip this adding.
+                        && !shouldRewindBeforeReadingOrReplaying) {
                     recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
+                    sortRecentlyJoinedConsumersIfNeeded();
                 }
             }
         });
+    }
+
+    /**
+     * Sort items in the collection "recentlyJoinedConsumers" if needed.
+     * Since we check the order of queue after each consumer joined, we can only check the last two items.
+     */
+    private void sortRecentlyJoinedConsumersIfNeeded() {
+        if (!sortRecentlyJoinedConsumersIfNeeded) {
+            return;
+        }
+        if (recentlyJoinedConsumers.size() == 1) {
+            return;
+        }
+        boolean sortNeeded = false;
+        Position secondLatest = null;
+        Position latest = null;
+        for (Map.Entry<Consumer, Position> entry : recentlyJoinedConsumers.entrySet()) {
+            if (secondLatest == null) {
+                secondLatest = entry.getValue();
+            } else if (latest == null) {
+                latest = entry.getValue();
+            } else {
+                secondLatest = latest;
+                latest = entry.getValue();
+            }
+        }
+        if (secondLatest != null && latest != null) {
+            if (secondLatest.compareTo(latest) > 0) {
+                sortNeeded = true;
+            }
+        }
+        // Something went wrongly, sort the collection.
+        if (sortNeeded) {
+            log.error("[{}] [{}] The items in recentlyJoinedConsumers are out-of-order. {}",
+                    topic.getName(), name, recentlyJoinedConsumers.entrySet().stream().map(entry ->
+                            String.format("%s-%s:%s", entry.getKey().consumerName(), entry.getValue().getLedgerId(),
+                                    entry.getValue().getEntryId())).collect(Collectors.toList()));
+            List<Map.Entry<Consumer, Position>> sortedList = new ArrayList<>(recentlyJoinedConsumers.entrySet());
+            Collections.sort(sortedList, Map.Entry.comparingByValue());
+            recentlyJoinedConsumers.clear();
+            for (Map.Entry<Consumer, Position> entry : sortedList) {
+                recentlyJoinedConsumers.put(entry.getKey(), entry.getValue());
+            }
+        }
     }
 
     @Override
@@ -560,8 +635,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                 && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
     }
 
-    public LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
-        return recentlyJoinedConsumers;
+    public synchronized LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {
+        if (recentlyJoinedConsumers == null) {
+            return null;
+        }
+        return new LinkedHashMap<>(recentlyJoinedConsumers);
     }
 
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
@@ -574,7 +652,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
             // use the cached sticky key hash if available, otherwise calculate the sticky key hash and cache it
             return entryAndMetadata.getOrUpdateCachedStickyKeyHash(selector::makeStickyKeyHash);
         }
-        return selector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
+        return selector.makeStickyKeyHash(peekStickyKey(entry));
     }
 
     private static final Logger log =

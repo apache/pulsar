@@ -22,13 +22,14 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.handler.ssl.SslHandler;
 import java.net.InetSocketAddress;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -38,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -55,8 +57,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final InetSocketAddress socks5ProxyAddress;
     private final String socks5ProxyUsername;
     private final String socks5ProxyPassword;
-
-    private final PulsarSslFactory pulsarSslFactory;
+    private final ClientConfigurationData conf;
+    private final Map<String, PulsarSslFactory> pulsarSslFactoryMap;
 
     private static final long TLS_CERTIFICATE_CACHE_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
@@ -69,26 +71,17 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         this.socks5ProxyAddress = conf.getSocks5ProxyAddress();
         this.socks5ProxyUsername = conf.getSocks5ProxyUsername();
         this.socks5ProxyPassword = conf.getSocks5ProxyPassword();
-
+        this.conf = conf.clone();
         if (tlsEnabled) {
-            this.pulsarSslFactory = (PulsarSslFactory) Class.forName(conf.getSslFactoryPlugin())
-                    .getConstructor().newInstance();
-            try {
-                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf);
-                this.pulsarSslFactory.initialize(sslConfiguration);
-                this.pulsarSslFactory.createInternalSslContext();
-            } catch (Exception e) {
-                log.error("Unable to initialize and create the ssl context", e);
-            }
+            this.pulsarSslFactoryMap = new ConcurrentHashMap<>();
             if (scheduledExecutorService != null && conf.getAutoCertRefreshSeconds() > 0) {
                 scheduledExecutorService.scheduleWithFixedDelay(() -> this.refreshSslContext(conf),
                         conf.getAutoCertRefreshSeconds(),
                         conf.getAutoCertRefreshSeconds(),
                         TimeUnit.SECONDS);
             }
-
         } else {
-            pulsarSslFactory = null;
+            this.pulsarSslFactoryMap = null;
         }
     }
 
@@ -98,14 +91,12 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
         // Setup channel except for the SsHandler for TLS enabled connections
         ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.getEncoder(tlsEnabled));
-
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-                Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+        FrameDecoderUtil.addFrameDecoder(ch.pipeline(), Commands.DEFAULT_MAX_MESSAGE_SIZE);
         ChannelHandler clientCnx = clientCnxSupplier.get();
         ch.pipeline().addLast("handler", clientCnx);
     }
 
-   /**
+    /**
      * Initialize TLS for a channel. Should be invoked before the channel is connected to the remote address.
      *
      * @param ch      the channel
@@ -123,6 +114,23 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         CompletableFuture<Channel> initTlsFuture = new CompletableFuture<>();
         ch.eventLoop().execute(() -> {
             try {
+                PulsarSslFactory pulsarSslFactory = pulsarSslFactoryMap.computeIfAbsent(sniHost.getHostName(), key -> {
+                    try {
+                        PulsarSslFactory factory = (PulsarSslFactory) Class.forName(conf.getSslFactoryPlugin())
+                                .getConstructor().newInstance();
+                        PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf, key);
+                        factory.initialize(sslConfiguration);
+                        factory.createInternalSslContext();
+                        return factory;
+                    } catch (Exception e) {
+                        log.error("Unable to initialize and create the ssl context", e);
+                        initTlsFuture.completeExceptionally(e);
+                        return null;
+                    }
+                });
+                if (pulsarSslFactory == null) {
+                    return;
+                }
                 SslHandler handler = new SslHandler(pulsarSslFactory
                         .createClientSslEngine(ch.alloc(), sniHost.getHostName(), sniHost.getPort()));
 
@@ -181,7 +189,9 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             return ch;
         }));
     }
-    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData config)
+
+protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData config,
+                                                       String host)
             throws PulsarClientException {
         return PulsarSslConfiguration.builder()
                 .tlsProvider(config.getSslProvider())
@@ -200,28 +210,30 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                 .requireTrustedClientCertOnConnect(false)
                 .tlsEnabledWithKeystore(config.isUseKeyStoreTls())
                 .tlsCustomParams(config.getSslFactoryPluginParams())
-                .authData(config.getAuthentication().getAuthData())
+                .authData(config.getAuthentication().getAuthData(host))
                 .serverMode(false)
                 .build();
     }
 
     protected void refreshSslContext(ClientConfigurationData conf) {
-        try {
+        pulsarSslFactoryMap.forEach((key, pulsarSslFactory) -> {
             try {
-                if (conf.isUseKeyStoreTls()) {
-                    this.pulsarSslFactory.getInternalSslContext();
-                } else {
-                    this.pulsarSslFactory.getInternalNettySslContext();
+                try {
+                    if (conf.isUseKeyStoreTls()) {
+                        pulsarSslFactory.getInternalSslContext();
+                    } else {
+                        pulsarSslFactory.getInternalNettySslContext();
+                    }
+                } catch (Exception e) {
+                    log.error("SSL Context is not initialized", e);
+                    PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf, key);
+                    pulsarSslFactory.initialize(sslConfiguration);
                 }
+                pulsarSslFactory.update();
             } catch (Exception e) {
-                log.error("SSL Context is not initialized", e);
-                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf);
-                this.pulsarSslFactory.initialize(sslConfiguration);
+                log.error("Failed to refresh SSL context", e);
             }
-            this.pulsarSslFactory.update();
-        } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
-        }
+        });
     }
 
 }

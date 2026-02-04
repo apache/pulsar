@@ -116,7 +116,7 @@ public class TopicResources {
                 Matcher matcher = entry.getValue().matcher(notification.getPath());
                 if (matcher.matches()) {
                     TopicName topicName = TopicName.get(
-                            matcher.group(2), NamespaceName.get(matcher.group(1)), matcher.group(3));
+                            matcher.group(2), NamespaceName.get(matcher.group(1)), decode(matcher.group(3)));
                     entry.getKey().accept(topicName.toString(), notification.getType());
                 }
             }
@@ -124,8 +124,8 @@ public class TopicResources {
     }
 
     Pattern namespaceNameToTopicNamePattern(NamespaceName namespaceName) {
-        return Pattern.compile(
-                MANAGED_LEDGER_PATH + "/(" + namespaceName + ")/(" + TopicDomain.persistent + ")/(" + "[^/]+)");
+        return Pattern.compile(MANAGED_LEDGER_PATH + "/(" + Pattern.quote(namespaceName.toString()) + ")/("
+                        + TopicDomain.persistent + ")/(" + "[^/]+)");
     }
 
     public void registerPersistentTopicListener(

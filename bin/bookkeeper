@@ -197,16 +197,24 @@ OPTS="$OPTS --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java
 # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
 # https://github.com/netty/netty/issues/12265
 OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+# Required by RocksDB java.lang.System::loadLibrary call
+OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
 
 OPTS="-cp $BOOKIE_CLASSPATH $OPTS"
 
 # Disable ipv6 as it can cause issues
-OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
+OPTS="-Djava.net.preferIPv4Stack=true $OPTS"
+# Required to allow sun.misc.Unsafe on JDK 24 without warnings
+# Also required for enabling unsafe memory access for Netty since 4.1.121.Final
+if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
+  OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
+fi
 
 OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 
 # log directory & file
 BOOKIE_LOG_APPENDER=${BOOKIE_LOG_APPENDER:-"Console"}
+BOOKIE_LOG_CONSOLE_JSON_TEMPLATE=${BOOKIE_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}
 
 # send bookie shell output to console unconditionally
 if [ $COMMAND == "shell" ]; then
@@ -220,6 +228,7 @@ fi
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$BOOKIE_LOG_APPENDER"
+OPTS="$OPTS -Dpulsar.log.console.json.template=$BOOKIE_LOG_CONSOLE_JSON_TEMPLATE"
 OPTS="$OPTS -Dbk.log.appender=$BOOKIE_LOG_APPENDER"
 OPTS="$OPTS -Dbk.log.level=error"
 OPTS="$OPTS -Dpulsar.log.dir=$BOOKIE_LOG_DIR"

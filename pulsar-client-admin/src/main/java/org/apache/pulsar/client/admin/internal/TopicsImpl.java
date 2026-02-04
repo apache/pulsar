@@ -184,7 +184,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                                                         Map<QueryParam, Object> params) {
         ListTopicsOptions options = ListTopicsOptions
                 .builder()
-                .bundle((String) params.get(QueryParam.Bundle.value))
+                .bundle((String) params.get(QueryParam.Bundle))
                 .build();
         return getListAsync(namespace, topicDomain, options);
     }
@@ -2817,6 +2817,32 @@ public class TopicsImpl extends BaseResource implements Topics {
                 return createPartitionedTopicAsync(shadowTopic, sourceTopicMeta.partitions, shadowProperties);
             }
         });
+    }
+
+    @Override
+    public MessageId getMessageIdByIndex(String topicName, long index) throws PulsarAdminException {
+        return sync(() -> getMessageIdByIndexAsync(topicName, index));
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getMessageIdByIndexAsync(String topicName, long index) {
+        final CompletableFuture<MessageId> messageIdCompletableFuture = new CompletableFuture<>();
+        TopicName topic = validateTopic(topicName);
+        WebTarget path = topicPath(topic, "getMessageIdByIndex");
+        path = path.queryParam("index", index);
+        asyncGetRequest(path, new InvocationCallback<MessageIdImpl>(){
+
+            @Override
+            public void completed(MessageIdImpl messageId) {
+                messageIdCompletableFuture.complete(messageId);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                messageIdCompletableFuture.completeExceptionally(throwable);
+            }
+        });
+        return messageIdCompletableFuture;
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

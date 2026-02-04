@@ -161,6 +161,18 @@ public class NamespaceStatsAggregator {
         subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
         subsStats.delayedMessageIndexSizeInBytes = subscriptionStats.delayedMessageIndexSizeInBytes;
         subsStats.bucketDelayedIndexStats = subscriptionStats.bucketDelayedIndexStats;
+        subsStats.dispatchThrottledMsgEventsBySubscriptionLimit =
+                subscriptionStats.dispatchThrottledMsgEventsBySubscriptionLimit;
+        subsStats.dispatchThrottledBytesEventsBySubscriptionLimit =
+                subscriptionStats.dispatchThrottledBytesEventsBySubscriptionLimit;
+        subsStats.dispatchThrottledMsgEventsByTopicLimit =
+                subscriptionStats.dispatchThrottledMsgEventsByTopicLimit;
+        subsStats.dispatchThrottledBytesEventsByTopicLimit =
+                subscriptionStats.dispatchThrottledBytesEventsByTopicLimit;
+        subsStats.dispatchThrottledMsgEventsByBrokerLimit =
+                subscriptionStats.dispatchThrottledMsgEventsByBrokerLimit;
+        subsStats.dispatchThrottledBytesEventsByBrokerLimit =
+                subscriptionStats.dispatchThrottledBytesEventsByBrokerLimit;
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -314,7 +326,7 @@ public class NamespaceStatsAggregator {
 
         compactorMXBean
                 .flatMap(mxBean -> mxBean.getCompactionRecordForTopic(topic.getName()))
-                .map(compactionRecord -> {
+                .ifPresent(compactionRecord -> {
                     stats.compactionRemovedEventCount = compactionRecord.getCompactionRemovedEventCount();
                     stats.compactionSucceedCount = compactionRecord.getCompactionSucceedCount();
                     stats.compactionFailedCount = compactionRecord.getCompactionFailedCount();
@@ -334,7 +346,6 @@ public class NamespaceStatsAggregator {
                         stats.compactionCompactedEntriesCount = entries;
                         stats.compactionCompactedEntriesSize = size;
                     }
-                    return compactionRecord;
                 });
     }
 

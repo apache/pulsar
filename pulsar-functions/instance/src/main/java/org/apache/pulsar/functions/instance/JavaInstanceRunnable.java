@@ -101,8 +101,10 @@ import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSource;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig;
 import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
+import org.apache.pulsar.functions.utils.BatchingUtils;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.MessagePayloadProcessorUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -334,8 +336,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // set last invocation time
                 stats.setLastInvocation(System.currentTimeMillis());
 
-                // start time for process latency stat
-                stats.processTimeStart();
 
                 // process the message
                 Thread.currentThread().setContextClassLoader(functionClassLoader);
@@ -345,9 +345,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         asyncResultConsumer,
                         asyncErrorHandler);
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
-
-                // register end time
-                stats.processTimeEnd();
 
                 if (result != null) {
                     // process the synchronous results
@@ -383,6 +380,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (stats != null) {
                 stats.incrSysExceptions(deathException);
             }
+            // clear possible thread interrupted state so that closing can be handled gracefully
+            Thread.interrupted();
         } finally {
             log.info("Closing instance");
             close();
@@ -448,6 +447,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // increment total successfully processed
             stats.incrTotalProcessedSuccessfully();
         }
+        // handle endTime here
+        stats.processTimeEnd(result.getStartTime());
     }
 
     private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
@@ -631,6 +632,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return "";
     }
 
+    @VisibleForTesting
+    void setStats(ComponentStatsManager stats) {
+        this.stats = stats;
+    }
+
     public InstanceCommunication.MetricsData getAndResetMetrics() {
         if (isInitialized) {
             statsLock.writeLock().lock();
@@ -789,6 +795,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
                 if (conf.hasCryptoSpec()) {
                     consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
+                }
+                if (conf.hasMessagePayloadProcessorSpec()) {
+                    consumerConfig.setMessagePayloadProcessorConfig(
+                            MessagePayloadProcessorUtils.convertFromSpec(conf.getMessagePayloadProcessorSpec()));
                 }
                 consumerConfig.setPoolMessages(conf.getPoolMessages());
 
@@ -1048,6 +1058,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                             .batchBuilder(conf.getBatchBuilder())
                             .useThreadLocalProducers(conf.getUseThreadLocalProducers())
                             .cryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()))
+                            .batchingConfig(BatchingUtils.convertFromSpec(conf.getBatchingSpec()))
                             .compressionType(FunctionCommon.convertFromFunctionDetailsCompressionType(
                                     conf.getCompressionType()));
                     pulsarSinkConfig.setProducerConfig(builder.build());

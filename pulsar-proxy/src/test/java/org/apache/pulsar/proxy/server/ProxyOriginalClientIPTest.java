@@ -27,9 +27,10 @@ import nl.altindag.console.ConsoleCaptor;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.assertj.core.api.ThrowingConsumer;
 import org.awaitility.Awaitility;
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProxyProtocolClientConnectionFactory.V2;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -39,7 +40,6 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
-    static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
     HttpClient httpClient;
     ProxyServiceStarter serviceStarter;
     String webServiceUrl;
@@ -49,7 +49,7 @@ public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
-        serviceStarter = new ProxyServiceStarter(ARGS, proxyConfig -> {
+        serviceStarter = new ProxyServiceStarter(ProxyServiceStarterTest.getArgs(), proxyConfig -> {
             proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
             proxyConfig.setBrokerWebServiceURL(pulsar.getWebServiceAddress());
             proxyConfig.setWebServicePort(Optional.of(0));
@@ -67,7 +67,8 @@ public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
         serviceStarter.start();
         webServiceUrl = "http://localhost:" + serviceStarter.getServer().getListenPortHTTP().get();
         webServiceUrlTls = "https://localhost:" + serviceStarter.getServer().getListenPortHTTPS().get();
-        httpClient = new HttpClient(new SslContextFactory(true));
+        httpClient = new HttpClient();
+        httpClient.setSslContextFactory(new SslContextFactory.Client(true));
         httpClient.start();
     }
 
@@ -100,7 +101,7 @@ public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
         performLoggingTest(consoleCaptor -> {
             // Send a GET request to the metrics URL
             ContentResponse response = httpClient.newRequest(url)
-                    .header("X-Forwarded-For", "11.22.33.44")
+                    .headers(hdrs -> hdrs.ensureField(new HttpField("X-Forwarded-For", "11.22.33.44")))
                     .send();
 
             // Validate the response

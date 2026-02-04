@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.service;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.events.PulsarEvent;
+import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 
@@ -43,7 +45,15 @@ public class TopicPolicyTestUtils {
 
     public static TopicPolicies getTopicPolicies(TopicPoliciesService topicPoliciesService, TopicName topicName)
             throws ExecutionException, InterruptedException {
-        return topicPoliciesService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.DEFAULT).get()
+        return topicPoliciesService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY).get()
+                .orElse(null);
+    }
+
+    public static TopicPolicies getTopicPolicies(TopicPoliciesService topicPoliciesService, TopicName topicName,
+             boolean global) throws ExecutionException, InterruptedException {
+        TopicPoliciesService.GetType getType = global ? TopicPoliciesService.GetType.GLOBAL_ONLY
+                : TopicPoliciesService.GetType.LOCAL_ONLY;
+        return topicPoliciesService.getTopicPoliciesAsync(topicName, getType).get()
                 .orElse(null);
     }
 
@@ -60,15 +70,36 @@ public class TopicPolicyTestUtils {
     }
 
     public static Optional<TopicPolicies> getTopicPoliciesBypassCache(TopicPoliciesService topicPoliciesService,
-                                                                      TopicName topicName) throws Exception {
+                                                                      TopicName topicName, boolean isGlobal)
+            throws Exception {
         @Cleanup final var reader = ((SystemTopicBasedTopicPoliciesService) topicPoliciesService)
                 .getNamespaceEventsSystemTopicFactory()
                 .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject())
                 .newReader();
-        PulsarEvent event = null;
+        TopicPoliciesEvent lastTopicPoliciesEvent = null;
         while (reader.hasMoreEvents()) {
-            event = reader.readNext().getValue();
+            @Cleanup("release")
+            Message<PulsarEvent> message = reader.readNext();
+            if (message.getValue() == null) {
+                boolean isGlobalPolicy = TopicPoliciesService.isGlobalPolicy(message);
+                TopicName eventTopicName = TopicName.get(TopicPoliciesService.unwrapEventKey(message.getKey())
+                        .getPartitionedTopicName());
+                if (eventTopicName.equals(topicName) && isGlobalPolicy == isGlobal) {
+                    lastTopicPoliciesEvent = null;
+                }
+            } else {
+                TopicPoliciesEvent topicPoliciesEvent = message.getValue().getTopicPoliciesEvent();
+                if (topicPoliciesEvent != null) {
+                    TopicName eventTopicName =
+                            TopicName.get(topicPoliciesEvent.getDomain(), topicPoliciesEvent.getTenant(),
+                                    topicPoliciesEvent.getNamespace(), topicPoliciesEvent.getTopic());
+                    if (eventTopicName.equals(topicName)
+                            && topicPoliciesEvent.getPolicies().isGlobalPolicies() == isGlobal) {
+                        lastTopicPoliciesEvent = topicPoliciesEvent;
+                    }
+                }
+            }
         }
-        return Optional.ofNullable(event).map(e -> e.getTopicPoliciesEvent().getPolicies());
+        return Optional.ofNullable(lastTopicPoliciesEvent).map(TopicPoliciesEvent::getPolicies);
     }
 }

@@ -21,6 +21,7 @@ package org.apache.pulsar.admin.cli;
 import static org.apache.pulsar.admin.cli.utils.CmdUtils.maxValueCheck;
 import static org.apache.pulsar.admin.cli.utils.CmdUtils.positiveCheck;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -59,7 +60,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     public CmdTopicPolicies(Supplier<PulsarAdmin> admin) {
         super("topicPolicies", admin);
-
+        addCommand("delete", new DeletePolicies());
         addCommand("get-message-ttl", new GetMessageTTL());
         addCommand("set-message-ttl", new SetMessageTTL());
         addCommand("remove-message-ttl", new RemoveMessageTTL());
@@ -168,6 +169,10 @@ public class CmdTopicPolicies extends CmdBase {
                 new GetDispatcherPauseOnAckStatePersistent());
         addCommand("remove-dispatcher-pause-on-ack-state-persistent",
                 new RemoveDispatcherPauseOnAckStatePersistent());
+
+        addCommand("get-replication-clusters", new GetReplicationClusters());
+        addCommand("set-replication-clusters", new SetReplicationClusters());
+        addCommand("remove-replication-clusters", new RemoveReplicationClusters());
     }
 
     @Command(description = "Get entry filters for a topic")
@@ -1188,9 +1193,12 @@ public class CmdTopicPolicies extends CmdBase {
                 description = "Number of acks (guaranteed copies) to wait for each entry")
         private int bookkeeperAckQuorum = 2;
 
-        @Option(names = { "-r", "--ml-mark-delete-max-rate" },
-                description = "Throttling rate of mark-delete operation (0 means no throttle)")
-        private double managedLedgerMaxMarkDeleteRate = 0;
+        @Option(names = { "-r",
+                "--ml-mark-delete-max-rate" },
+                description = "Throttling rate of mark-delete operation "
+                        + "(0 means no throttle, -1 means unset which will use "
+                        + "the configuration from namespace or broker)")
+        private double managedLedgerMaxMarkDeleteRate = -1;
 
         @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously", arity = "0")
@@ -1207,9 +1215,6 @@ public class CmdTopicPolicies extends CmdBase {
             if (bookkeeperEnsemble <= 0 || bookkeeperWriteQuorum <= 0 || bookkeeperAckQuorum <= 0) {
                 throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
                         + "and [--bookkeeper-ack-quorum] must greater than 0.");
-            }
-            if (managedLedgerMaxMarkDeleteRate < 0) {
-                throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getTopicPolicies(isGlobal).setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
                     bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
@@ -1954,7 +1959,7 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            getTopicPolicies(isGlobal).setDispatcherPauseOnAckStatePersistent(persistentTopic);
+            sync(() -> getTopicPolicies(isGlobal).setDispatcherPauseOnAckStatePersistent(persistentTopic));
         }
     }
 
@@ -1973,7 +1978,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            print(getTopicPolicies(isGlobal).getDispatcherPauseOnAckStatePersistent(persistentTopic, applied));
+            print(sync(() ->
+                    (getTopicPolicies(isGlobal).getDispatcherPauseOnAckStatePersistent(persistentTopic, applied))));
         }
     }
 
@@ -1989,7 +1995,84 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic);
+            sync(() -> getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic));
+        }
+    }
+
+    @Command(description = "Set the replication clusters for a topic, global policy will be copied to the remote"
+            + " cluster if you enabled namespace level replication. "
+            + "When removing a cluster: "
+            + "with shared configuration store, topic data will be deleted from the removed cluster; "
+            + "with separate configuration store, only replication stops but topic data is preserved.")
+    private class SetReplicationClusters extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--clusters",
+                "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
+        private String clusterIds;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            List<String> clusters = Lists.newArrayList(clusterIds.split(","));
+            sync(() -> getTopicPolicies(isGlobal).setReplicationClusters(persistentTopic, clusters));
+        }
+    }
+
+    @Command(description = "Get the replication clusters for a topic")
+    private class GetReplicationClusters extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic. If set to true,"
+                + " the param \"--global\" will be ignored. ")
+        private boolean applied = false;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set \"--applied\" to true, the current param will be ignored. ")
+        private boolean isGlobal = false;
+
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            print(getTopicPolicies(isGlobal).getReplicationClusters(persistentTopic, applied));
+        }
+    }
+
+    @Command(description = "Remove the replication clusters for a topic, it will not remove the policy from the remote"
+            + "cluster")
+    private class RemoveReplicationClusters extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            getTopicPolicies(isGlobal).removeReplicationClusters(persistentTopic);
+        }
+    }
+
+    @Command(description = "Remove the all policies for a topic, it will not remove policies from the remote"
+            + "cluster")
+    private class DeletePolicies extends CliCommand {
+
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            getTopicPolicies(false).deleteTopicPolicies(persistentTopic);
         }
     }
 

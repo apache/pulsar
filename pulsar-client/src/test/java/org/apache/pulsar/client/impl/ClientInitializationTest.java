@@ -41,6 +41,6 @@ public class ClientInitializationTest {
                 .build();
 
         verify(auth).start();
-        verify(auth, times(1)).getAuthData();
+        verify(auth, times(0)).getAuthData();
     }
 }

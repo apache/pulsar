@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
@@ -96,6 +97,9 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private transient MessageListenerExecutor messageListenerExecutor;
     @JsonIgnore
     private MessageListener<T> messageListener;
+
+    @JsonIgnore
+    private DecryptFailListener<T> decryptFailListener;
 
     @JsonIgnore
     private ConsumerEventListener consumerEventListener;
@@ -155,6 +159,16 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "redelivered after a fixed timeout."
     )
     private long negativeAckRedeliveryDelayMicros = TimeUnit.MINUTES.toMicros(1);
+
+    @ApiModelProperty(
+            name = "negativeAckPrecisionBitCnt",
+            value = "The redelivery time precision bit count. The lower bits of the redelivery time will be"
+                    + "trimmed to reduce the memory occupation.\nThe default value is 8, which means the"
+                    + "redelivery time will be bucketed by 256ms, the redelivery time could be earlier(no later)"
+                    + "than the expected time, but no more than 256ms. \nIf set to k, the redelivery time will be"
+                    + "bucketed by 2^k ms.\nIf the value is 0, the redelivery time will be accurate to ms."
+    )
+    private int negativeAckPrecisionBitCnt = 8;
 
     @ApiModelProperty(
             name = "maxTotalReceiverQueueSizeAcrossPartitions",
@@ -274,7 +288,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "Delivered encrypted message contains {@link EncryptionContext} which contains encryption and "
                     + "compression information in it using which application can decrypt consumed message payload."
     )
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+    private ConsumerCryptoFailureAction cryptoFailureAction;
 
     @ApiModelProperty(
             name = "properties",
@@ -390,7 +404,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @JsonIgnore
     private KeySharedPolicy keySharedPolicy;
 
-    private boolean batchIndexAckEnabled = false;
+    private boolean batchIndexAckEnabled = true;
 
     private boolean ackReceiptEnabled = false;
 

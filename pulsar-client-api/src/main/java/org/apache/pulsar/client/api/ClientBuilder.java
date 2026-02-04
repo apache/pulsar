@@ -121,6 +121,44 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
     /**
+     * Configure the service URL init quarantine duration.
+     * For single host serviceUrl, this setting has no effect.
+     *
+     * <p>When the client is unable to connect to an endpoint from serviceUrl with multiple hosts, that endpoint
+     *  will be quarantined for a specific duration that is determined in a certain exponential way.
+     * The init value of a single quarantine duration is set by
+     * @param serviceUrlQuarantineInitDuration. A successful usage of the endpoint will reset the
+     * duration to the initial value and move it back to the available addresses pool.
+     *
+     * <p>
+     * A value of 0 means don't quarantine any endpoints even if they fail.
+     * @param serviceUrlQuarantineInitDuration the initial quarantine duration
+     * for unavailable endpoint. Defaults to 60 seconds.
+     * @param unit the time unit for the quarantine duration
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration, TimeUnit unit);
+
+    /**
+     * Configure the service URL max quarantine duration.
+     * For single host serviceUrl, this setting has no effect.
+     *
+     * <p>When the client is unable to connect to an endpoint from serviceUrl with multiple hosts, that endpoint
+     * will be quarantined for a specific duration that is determined in a certain exponential way.
+     * The max value of a single quarantine duration is set by
+     * @param serviceUrlQuarantineMaxDuration. A successful usage of the endpoint will reset the
+     * duration to the initial value and move it back to the available addresses pool.
+     *
+     * <p>
+     * A value of 0 means don't quarantine any endpoints even if they fail.
+     * @param serviceUrlQuarantineMaxDuration the maximum quarantine duration for
+     * unavailable endpoint. Defaults to 1 day.
+     * @param unit the time unit for the quarantine duration
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration, TimeUnit unit);
+
+    /**
      * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
      *
      * @param name the listener name
@@ -578,6 +616,44 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
 
     /**
+     * Enable OpenTelemetry distributed tracing.
+     *
+     * <p>When enabled, interceptors are automatically added to all producers and consumers
+     * to create spans for message publishing and consumption, and automatically propagate trace context
+     * via message properties.
+     *
+     * <p>This method is useful when OpenTelemetry is configured globally (e.g., via Java Agent or
+     * {@link io.opentelemetry.api.GlobalOpenTelemetry}) and you just want to enable tracing interceptors
+     * without explicitly setting an OpenTelemetry instance.
+     *
+     * <p>Example with Java Agent:
+     * <pre>{@code
+     * // When using -javaagent:opentelemetry-javaagent.jar
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)  // Use GlobalOpenTelemetry
+     *     .build();
+     * }</pre>
+     *
+     * <p>Example with GlobalOpenTelemetry:
+     * <pre>{@code
+     * // Configure GlobalOpenTelemetry elsewhere in your application
+     * GlobalOpenTelemetry.set(myOpenTelemetry);
+     *
+     * // Just enable tracing in the client
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)
+     *     .build();
+     * }</pre>
+     *
+     * @param tracingEnabled whether to enable tracing (default: false)
+     * @return the client builder instance
+     * @since 4.2.0
+     */
+    ClientBuilder enableTracing(boolean tracingEnabled);
+
+    /**
      * The clock used by the pulsar client.
      *
      * <p>The clock is currently used by producer for setting publish timestamps.
@@ -679,4 +755,35 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * - The `loadManagerClassName` config in broker is a class that implements the `ExtensibleLoadManager` interface
      */
     ClientBuilder lookupProperties(Map<String, String> properties);
+
+    /**
+     * Set the description.
+     *
+     * <p> By default, when the client connects to the broker, a version string like "Pulsar-Java-v<x.y.z>" will be
+     * carried and saved by the broker. The client version string could be queried from the topic stats.
+     *
+     * <p> This method provides a way to add more description to a specific PulsarClient instance. If it's configured,
+     * the description will be appended to the original client version string, with '-' as the separator.
+     *
+     * <p>For example, if the client version is 3.0.0, and the description is "forked", the final client version string
+     * will be "Pulsar-Java-v3.0.0-forked".
+     *
+     * @param description the description of the current PulsarClient instance
+     * @throws IllegalArgumentException if the length of description exceeds 64
+     */
+    ClientBuilder description(String description);
+
+    /**
+     * Provide a set of shared client resources to be reused by this client.
+     * <p>
+     * Providing a shared resource instance allows PulsarClient instances to share resources
+     * (such as IO/event loops, timers, executors, DNS resolver/cache) with other PulsarClient
+     * instances, reducing memory footprint and thread usage when creating many clients in the same JVM.
+     *
+     * @param sharedResources the shared resources instance created with {@link PulsarClientSharedResources#builder()}
+     * @return the client builder instance
+     * @see PulsarClientSharedResources
+     * @see PulsarClientSharedResourcesBuilder
+     */
+    ClientBuilder sharedResources(PulsarClientSharedResources sharedResources);
 }

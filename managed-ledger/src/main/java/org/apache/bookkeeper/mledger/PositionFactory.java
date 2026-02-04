@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.Objects;
 import org.apache.bookkeeper.mledger.impl.ImmutablePositionImpl;
 
 /**
@@ -48,12 +49,17 @@ public final class PositionFactory {
     }
 
     /**
-     * Create a new position.
+     * Create a new position or returns the other instance if it's immutable.
      *
      * @param other other position
      * @return new position
      */
     public static Position create(Position other) {
+        Objects.requireNonNull(other, "Position cannot be null");
+        if (other instanceof ImmutablePositionImpl) {
+            // Return the same instance if it's already an ImmutablePositionImpl
+            return other;
+        }
         return new ImmutablePositionImpl(other);
     }
 }

@@ -47,9 +47,42 @@ public class ManagedLedgerFactoryConfig {
     private long cacheEvictionIntervalMs = 10;
 
     /**
-     * All entries that have stayed in cache for more than the configured time, will be evicted.
+     * Controls time-to-live (TTL) for entries in the managed ledger (broker) cache.
+     * The TTL can be extended in two ways:
+     * 1. When cacheEvictionByExpectedReadCount is enabled: TTL is extended for entries with remaining
+     * expected reads. The maximum number of extensions is controlled by
+     * managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes.
+     * 2. When cacheEvictionExtendTTLOfRecentlyAccessed is enabled: TTL is extended for entries
+     * accessed since the last expiration check.
      */
     private long cacheEvictionTimeThresholdMillis = 1000;
+
+    /**
+     * This setting configures the duration of continuing to cache added entries while there are no
+     * active cursors, when the last active cursor has left or immediately after initialization when
+     * the persistent topic and the managed ledger gets loaded.
+     * This setting is ignored unless cacheEvictionByExpectedReadCount is enabled.
+     */
+    private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
+
+    /**
+     * Maximum number of times the cache can extend the TTL of an entry that has remaining expected reads.
+     * Only takes effect when cacheEvictionByExpectedReadCount is enabled.
+     * This helps optimize cache efficiency for scenarios like:
+     * - Key_Shared subscription replays
+     * - Catch-up reads for lagging consumers
+     * - Consumers temporarily falling behind the tail
+     * Entries with remaining expected reads will have their TTL extended up to this many times
+     * before being eligible for eviction. The TTL will be extended by
+     * managedLedgerCacheEvictionTimeThresholdMillis each time.
+     */
+    private int cacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
+
+    /**
+     * Controls whether recently accessed entries in the managed ledger cache should have their
+     * lifetime extended before cache eviction.
+     */
+    private boolean cacheEvictionExtendTTLOfRecentlyAccessed = true;
 
     /**
      * Whether we should make a copy of the entry payloads when inserting in cache.
@@ -60,6 +93,18 @@ public class ManagedLedgerFactoryConfig {
      * Maximum number of (estimated) data in-flight reading from storage and the cache.
      */
     private long managedLedgerMaxReadsInFlightSize = 0;
+
+    /**
+     * Maximum time to wait for acquiring permits for max reads in flight when managedLedgerMaxReadsInFlightSizeInMB is
+     * set (>0) and the limit is reached.
+     */
+    private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;
+
+    /**
+     * Maximum number of reads that can be queued for acquiring permits for max reads in flight when
+     * managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.
+     */
+    private int managedLedgerMaxReadsInFlightPermitsAcquireQueueSize = 10000;
 
     /**
      * Whether trace managed ledger task execution time.

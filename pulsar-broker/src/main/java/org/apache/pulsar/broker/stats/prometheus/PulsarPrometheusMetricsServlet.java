@@ -35,7 +35,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
-import org.eclipse.jetty.server.HttpOutput;
+import org.eclipse.jetty.ee8.nested.HttpOutput;
 
 @Slf4j
 public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
@@ -145,7 +145,7 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
                     response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
                 } else {
                     response.setStatus(HTTP_STATUS_OK_200);
-                    response.setContentType("text/plain;charset=utf-8");
+                    response.setContentType(PROMETHEUS_CONTENT_TYPE_004);
                     if (compressOutput) {
                         response.setHeader("Content-Encoding", "gzip");
                     }

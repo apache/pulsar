@@ -19,11 +19,14 @@
 package org.apache.pulsar.common.protocol;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
+import lombok.Setter;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
@@ -37,6 +40,8 @@ import org.slf4j.LoggerFactory;
  * parameter instance lifecycle.
  */
 public abstract class PulsarHandler extends PulsarDecoder {
+    @VisibleForTesting
+    @Setter
     protected ChannelHandlerContext ctx;
     protected SocketAddress remoteAddress;
     private int remoteEndpointProtocolVersion = ProtocolVersion.v0.getValue();
@@ -57,7 +62,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     }
 
     @Override
-    protected void messageReceived() {
+    protected void messageReceived(BaseCommand cmd) {
         waitingForPingResponse = false;
     }
 

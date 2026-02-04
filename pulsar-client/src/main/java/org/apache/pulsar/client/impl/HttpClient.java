@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.resolver.NameResolver;
+import io.netty.util.Timer;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
@@ -59,18 +63,26 @@ import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 @Slf4j
 public class HttpClient implements Closeable {
 
+    private static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
     protected static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
     protected static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     protected final AsyncHttpClient httpClient;
     protected final ServiceNameResolver serviceNameResolver;
+    private final NameResolver<InetAddress> nameResolver;
     protected final Authentication authentication;
+    protected final ClientConfigurationData clientConf;
     protected ScheduledExecutorService executorService;
     protected PulsarSslFactory sslFactory;
 
-    protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
+    protected HttpClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, Timer timer,
+                         NameResolver<InetAddress> nameResolver)
+            throws PulsarClientException {
         this.authentication = conf.getAuthentication();
-        this.serviceNameResolver = new PulsarServiceNameResolver();
+        this.clientConf = conf;
+        this.serviceNameResolver = new PulsarServiceNameResolver(conf.getServiceUrlQuarantineInitDurationMs(),
+                conf.getServiceUrlQuarantineMaxDurationMs());
+        this.nameResolver = nameResolver;
         this.serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
@@ -80,7 +92,10 @@ public class HttpClient implements Closeable {
         confBuilder.setMaxRedirects(conf.getMaxLookupRedirects());
         confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
         confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
-        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+        confBuilder.setUserAgent(String.format("Pulsar-Java-v%s%s",
+                PulsarVersion.getVersion(),
+                (conf.getDescription() == null ? "" : ("-" + conf.getDescription()))
+        ));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
             public boolean keepAlive(InetSocketAddress remoteAddress, Request ahcRequest,
@@ -97,7 +112,8 @@ public class HttpClient implements Closeable {
                 this.executorService = Executors
                         .newSingleThreadScheduledExecutor(new ExecutorProvider
                                 .ExtendedThreadFactory("httpclient-ssl-refresh"));
-                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf);
+                PulsarSslConfiguration sslConfiguration =
+                        buildSslConfiguration(conf, serviceNameResolver.resolveHostUri().getHost());
                 this.sslFactory = (PulsarSslFactory) Class.forName(conf.getSslFactoryPlugin())
                         .getConstructor().newInstance();
                 this.sslFactory.initialize(sslConfiguration);
@@ -113,7 +129,6 @@ public class HttpClient implements Closeable {
                 confBuilder.setSslEngineFactory(sslEngineFactory);
 
 
-
                 confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
                 confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
             } catch (Exception e) {
@@ -121,6 +136,7 @@ public class HttpClient implements Closeable {
             }
         }
         confBuilder.setEventLoopGroup(eventLoopGroup);
+        confBuilder.setNettyTimer(timer);
         AsyncHttpClientConfig config = confBuilder.build();
         httpClient = new DefaultAsyncHttpClient(config);
 
@@ -167,6 +183,8 @@ public class HttpClient implements Closeable {
             // auth complete, do real request
             authFuture.whenComplete((respHeaders, ex) -> {
                 if (ex != null) {
+                    serviceNameResolver.markHostAvailability(
+                            InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
                     log.warn("[{}] Failed to perform http request at authentication stage: {}",
                         requestUrl, ex.getMessage());
                     future.completeExceptionally(new PulsarClientException(ex));
@@ -175,7 +193,9 @@ public class HttpClient implements Closeable {
 
                 // auth complete, use a new builder
                 BoundRequestBuilder builder = httpClient.prepareGet(requestUrl)
-                    .setHeader("Accept", "application/json");
+                        // share the DNS resolver and cache with Pulsar client
+                        .setNameResolver(nameResolver)
+                        .setHeader("Accept", "application/json");
 
                 if (authData.hasDataForHttp()) {
                     Set<Entry<String, String>> headers;
@@ -191,21 +211,49 @@ public class HttpClient implements Closeable {
                     }
                 }
 
+                // Add X-Original-Principal header if originalPrincipal is configured (for proxy scenarios)
+                if (clientConf.getOriginalPrincipal() != null) {
+                    builder.addHeader(ORIGINAL_PRINCIPAL_HEADER, clientConf.getOriginalPrincipal());
+                }
+
                 builder.execute().toCompletableFuture().whenComplete((response2, t) -> {
                     if (t != null) {
+                        serviceNameResolver.markHostAvailability(
+                                InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
                         log.warn("[{}] Failed to perform http request: {}", requestUrl, t.getMessage());
                         future.completeExceptionally(new PulsarClientException(t));
                         return;
                     }
+                    serviceNameResolver.markHostAvailability(
+                            InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), true);
 
                     // request not success
                     if (response2.getStatusCode() != HttpURLConnection.HTTP_OK) {
-                        log.warn("[{}] HTTP get request failed: {}", requestUrl, response2.getStatusText());
+                        String errorReason = response2.getStatusText();
+                        if ("application/json".equals(response2.getContentType()) || "text/json".equals(
+                                response2.getContentType())) {
+                            String responseBody = response2.getResponseBody();
+                            try {
+                                JsonNode jsonNode =
+                                        ObjectMapperFactory.getMapper().getObjectMapper().readTree(responseBody);
+                                if (jsonNode.has("reason") && jsonNode.get("reason").isTextual()) {
+                                    errorReason = jsonNode.get("reason").asText();
+                                } else if (jsonNode.has("message") && jsonNode.get("message").isTextual()) {
+                                    errorReason = jsonNode.get("message").asText();
+                                }
+                            } catch (IOException e) {
+                                // ignore
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] Failed to parse error response: {}", requestUrl, responseBody);
+                                }
+                            }
+                        }
+                        log.warn("[{}] HTTP get request failed: {}", requestUrl, errorReason);
                         Exception e;
                         if (response2.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-                            e = new NotFoundException("Not found: " + response2.getStatusText());
+                            e = new NotFoundException("Not found: " + errorReason);
                         } else {
-                            e = new PulsarClientException("HTTP get request failed: " + response2.getStatusText());
+                            e = new PulsarClientException("HTTP get request failed: " + errorReason);
                         }
                         future.completeExceptionally(e);
                         return;
@@ -233,7 +281,7 @@ public class HttpClient implements Closeable {
         return future;
     }
 
-    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData config)
+    protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData config, String host)
             throws PulsarClientException {
         return PulsarSslConfiguration.builder()
                 .tlsProvider(config.getSslProvider())
@@ -252,7 +300,7 @@ public class HttpClient implements Closeable {
                 .requireTrustedClientCertOnConnect(false)
                 .tlsEnabledWithKeystore(config.isUseKeyStoreTls())
                 .tlsCustomParams(config.getSslFactoryPluginParams())
-                .authData(config.getAuthentication().getAuthData())
+                .authData(config.getAuthentication().getAuthData(host))
                 .serverMode(false)
                 .isHttps(true)
                 .build();
@@ -265,4 +313,5 @@ public class HttpClient implements Closeable {
             log.error("Failed to refresh SSL context", e);
         }
     }
+
 }

@@ -29,6 +29,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -37,6 +39,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -46,6 +49,8 @@ public class SharedConsumerAssignorTest {
     private final ConsumerSelector roundRobinConsumerSelector = new ConsumerSelector();
     private final List<EntryAndMetadata> entryAndMetadataList = new ArrayList<>();
     private final List<EntryAndMetadata> replayQueue = new ArrayList<>();
+    private final Queue<EntryAndMetadata> cleanupQueue = new LinkedBlockingDeque<>();
+
     private SharedConsumerAssignor assignor;
 
     @BeforeMethod
@@ -53,7 +58,7 @@ public class SharedConsumerAssignorTest {
         roundRobinConsumerSelector.clear();
         entryAndMetadataList.clear();
         replayQueue.clear();
-        assignor = new SharedConsumerAssignor(roundRobinConsumerSelector, replayQueue::add);
+        assignor = new SharedConsumerAssignor(roundRobinConsumerSelector, replayQueue::add, null);
         final AtomicLong entryId = new AtomicLong(0L);
         final MockProducer producerA = new MockProducer("A", entryId, entryAndMetadataList);
         final MockProducer producerB = new MockProducer("B", entryId, entryAndMetadataList);
@@ -77,6 +82,16 @@ public class SharedConsumerAssignorTest {
         // P.S. In the table above, The uuid represents the "<producer-name>-<sequence-id>" for non-chunks
         assertEquals(toString(entryAndMetadataList), Arrays.asList(
                 "0:0@A-0", "0:1@A-1-0-3", "0:2@A-1-1-3", "0:3@B-0", "0:4@B-1-0-2", "0:5@A-1-2-3", "0:6@B-1-1-2"));
+        entryAndMetadataList.forEach(entry -> assertEquals(entry.getDataBuffer().refCnt(), 1));
+        cleanupQueue.addAll(entryAndMetadataList);
+    }
+
+    @AfterMethod
+    public void releaseEntries() {
+        EntryAndMetadata entry;
+        while ((entry = cleanupQueue.poll()) != null) {
+            entry.release();
+        }
     }
 
     @Test
@@ -199,9 +214,13 @@ public class SharedConsumerAssignorTest {
 
     private static EntryAndMetadata createEntryAndMetadata(final long entryId,
                                                            final MessageMetadata metadata) {
-        final ByteBuf payload = Commands.serializeMetadataAndPayload(
-                Commands.ChecksumType.Crc32c, metadata, PulsarByteBufAllocator.DEFAULT.buffer());
-        return EntryAndMetadata.create(EntryImpl.create(0L, entryId, payload));
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer();
+        final ByteBuf data = Commands.serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, metadata, payload);
+        payload.release();
+        EntryAndMetadata entryAndMetadata = EntryAndMetadata.create(EntryImpl.create(0L, entryId, data));
+        data.release();
+        return entryAndMetadata;
     }
 
     private static MessageMetadata createMetadata(final String producerName,
@@ -219,4 +238,60 @@ public class SharedConsumerAssignorTest {
         }
         return metadata;
     }
+
+    /**
+     * When there are no consumers online, chunk messages will not be directly lost.
+     */
+    @Test
+    public void testChunkMessagesNotBeLostNoConsumer() {
+        // 1. No consumer initially
+        Map<Consumer, List<EntryAndMetadata>> result = assignor.assign(entryAndMetadataList, 1);
+        assertTrue(result.isEmpty());
+        assertEquals(replayQueue.size(), entryAndMetadataList.size());
+        assertEquals(toString(replayQueue), toString(entryAndMetadataList));
+
+        // 2. Two Consumers come online
+        final Consumer consumerA = new Consumer("A", 100);
+        final Consumer consumerB = new Consumer("B", 100);
+        roundRobinConsumerSelector.addConsumers(consumerA, consumerB);
+
+        // 3. Retry messages from replay queue
+        List<EntryAndMetadata> retryList = new ArrayList<>(replayQueue);
+        replayQueue.clear();
+
+        // Use a larger batch size to ensure we can process enough messages
+        result = assignor.assign(retryList, 10);
+
+        // 4. Verify consumer receives all messages
+        int totalReceived = result.values().stream().mapToInt(List::size).sum();
+        assertEquals(totalReceived, retryList.size());
+
+        // Verify that chunks are assigned to the same consumer
+        List<String> entriesA = toString(result.getOrDefault(consumerA, Collections.emptyList()));
+        List<String> entriesB = toString(result.getOrDefault(consumerB, Collections.emptyList()));
+
+        // Check A-1 chunks (0:1, 0:2, 0:5)
+        boolean a1InA = entriesA.stream().anyMatch(s -> s.contains("A-1"));
+        if (a1InA) {
+            assertTrue(entriesA.containsAll(Arrays.asList("0:1@A-1-0-3", "0:2@A-1-1-3", "0:5@A-1-2-3")));
+            assertTrue(entriesB.stream().noneMatch(s -> s.contains("A-1")));
+        } else {
+            assertTrue(entriesB.containsAll(Arrays.asList("0:1@A-1-0-3", "0:2@A-1-1-3", "0:5@A-1-2-3")));
+            assertTrue(entriesA.stream().noneMatch(s -> s.contains("A-1")));
+        }
+
+        // Check B-1 chunks (0:4, 0:6)
+        boolean b1InA = entriesA.stream().anyMatch(s -> s.contains("B-1"));
+        if (b1InA) {
+            assertTrue(entriesA.containsAll(Arrays.asList("0:4@B-1-0-2", "0:6@B-1-1-2")));
+            assertTrue(entriesB.stream().noneMatch(s -> s.contains("B-1")));
+        } else {
+            assertTrue(entriesB.containsAll(Arrays.asList("0:4@B-1-0-2", "0:6@B-1-1-2")));
+            assertTrue(entriesA.stream().noneMatch(s -> s.contains("B-1")));
+        }
+
+        // 5. Verify internal state is clean (since all chunks are completed)
+        assertTrue(assignor.getUuidToConsumer().isEmpty());
+    }
+
 }

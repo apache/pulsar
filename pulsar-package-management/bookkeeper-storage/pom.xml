@@ -25,7 +25,7 @@
     <parent>
         <artifactId>pulsar-package-management</artifactId>
         <groupId>org.apache.pulsar</groupId>
-        <version>4.1.0-SNAPSHOT</version>
+        <version>4.2.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -48,6 +48,12 @@
                     <artifactId>lz4</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>zookeeper-with-patched-admin</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
@@ -102,6 +108,7 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>testmocks</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

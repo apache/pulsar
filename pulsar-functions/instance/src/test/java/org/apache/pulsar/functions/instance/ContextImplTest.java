@@ -55,6 +55,7 @@ import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -103,6 +104,7 @@ public class ContextImplTest {
 
         producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
+        when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
         when(client.newProducer()).thenAnswer(invocation -> new ProducerBuilderImpl(client, Schema.BYTES));

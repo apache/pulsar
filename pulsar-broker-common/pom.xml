@@ -26,11 +26,12 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>4.1.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker-common</artifactId>
   <description>Common classes used in multiple broker modules</description>
+  <name>Pulsar Broker Common</name>
 
   <dependencies>
     <dependency>
@@ -42,11 +43,6 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.prometheus</groupId>
-      <artifactId>simpleclient_jetty</artifactId>
     </dependency>
 
     <dependency>
@@ -74,6 +70,26 @@
       <artifactId>jjwt-jackson</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-server</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty.compression</groupId>
+      <artifactId>jetty-compression-server</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty.compression</groupId>
+      <artifactId>jetty-compression-gzip</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty.ee8</groupId>
+      <artifactId>jetty-ee8-servlet</artifactId>
+    </dependency>
+
     <!-- test -->
     <dependency>
       <groupId>org.bouncycastle</groupId>
@@ -91,6 +107,12 @@
     <dependency>
       <groupId>io.rest-assured</groupId>
       <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.glassfish.jersey.core</groupId>
+      <artifactId>jersey-server</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

@@ -31,6 +31,7 @@ import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -79,12 +80,15 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
+import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -171,7 +175,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -181,17 +185,19 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).sendTimeout(0, TimeUnit.SECONDS).create();
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS).create();
         MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
         TransactionInBufferStats transactionInBufferStats = admin.transactions()
                 .getTransactionInBufferStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic).get();
         Position position =
-                PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
+                PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId)
+                        .getEntryId());
         assertEquals(transactionInBufferStats.startPosition, position.toString());
         assertFalse(transactionInBufferStats.aborted);
 
@@ -216,7 +222,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -227,7 +233,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
@@ -255,11 +261,11 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                         transaction.getTxnIdLeastBits()), topic, subName).get();
 
         assertEquals(transactionInPendingAckStats.cumulativeAckPosition,
-                String.valueOf(batchMessageId.getLedgerId()) +
-                        ':' +
-                        batchMessageId.getEntryId() +
-                        ':' +
-                        batchMessageId.getBatchIndex());
+                String.valueOf(batchMessageId.getLedgerId())
+                        + ':'
+                        + batchMessageId.getEntryId()
+                        + ':'
+                        + batchMessageId.getBatchIndex());
     }
 
     @Test(timeOut = 20000)
@@ -342,7 +348,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -352,7 +358,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
@@ -400,7 +406,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -410,7 +416,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
@@ -511,7 +517,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     private static Position getPositionByMessageId(MessageId messageId) {
-        return PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
+        return PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId)
+                .getEntryId());
     }
 
     @Test(timeOut = 20000)
@@ -549,7 +556,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -559,7 +566,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
@@ -664,8 +671,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
             // Get managed ledger internal stats for the transaction buffer segments topic
             PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(
-                    TopicName.get(topic2).getNamespace() + "/" +
-                            SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
+                    TopicName.get(topic2).getNamespace() + "/"
+                            + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
             verifyManagedLedgerInternalStats(stats.segmentInternalStats.managedLedgerInternalStats, internalStats);
             assertTrue(stats.segmentInternalStats.managedLedgerName
                     .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
@@ -673,8 +680,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             // Get managed ledger internal stats for the transaction buffer indexes topic
             assertNotNull(stats.segmentIndexInternalStats);
             internalStats = admin.topics().getInternalStats(
-                    TopicName.get(topic2).getNamespace() + "/" +
-                            SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
+                    TopicName.get(topic2).getNamespace() + "/"
+                            + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
             verifyManagedLedgerInternalStats(stats.segmentIndexInternalStats.managedLedgerInternalStats, internalStats);
             assertTrue(stats.segmentIndexInternalStats.managedLedgerName
                     .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES));
@@ -726,8 +733,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
         pulsarClient.close();
         pulsarClient = null;
-        Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService().getStores().size() ==
-                        coordinatorSize * 2);
+        Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService().getStores().size()
+                        == coordinatorSize * 2);
         pulsar.getConfiguration().setAuthenticationEnabled(true);
         pulsar.getConfiguration().setAuthorizationEnabled(true);
         Set<String> proxyRoles = spy(Set.class);
@@ -859,7 +866,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .isAckReceiptEnabled(true)
                 .topic(topic)
@@ -1036,8 +1042,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             MessageImpl peekMsgImpl = (MessageImpl) peekMsg;
             MessageMetadata metadata = peekMsgImpl.getMessageBuilder();
             if (metadata.hasMarkerType()) {
-                assertTrue(metadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE ||
-                        metadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE);
+                assertTrue(metadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE
+                        || metadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE);
             } else {
                 String value = new String(peekMsg.getValue());
                 assertTrue(value.equals("msg") || value.equals("msg-aborted"));
@@ -1047,6 +1053,63 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> peekMsg = peekMsgs.get(i);
             assertEquals(new String(peekMsg.getValue()), "msg-uncommitted");
         }
+    }
+
+    @Test
+    public void testAnalyzeSubscriptionBacklogWithTransactionMarker() throws Exception {
+        initTransaction(1);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/analyze-subscription-backlog");
+        String transactionSubName = "analyze-subscription-backlog-topic-sub";
+
+        // Init subscription and then close the consumer. If consumer is connected and has available permits,
+        // AbstractBaseDispatcher#filterEntriesForConsumer will auto ack marker messages
+        pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(transactionSubName).subscribe().close();
+        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        int numMessages = 10;
+        List<MessageId> committedMsgIds = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            MessageId messageId = producer.newMessage(txn).value("commited-msg" + i).send();
+            committedMsgIds.add(messageId);
+            txn.commit().get();
+        }
+
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages);
+
+        MessageId committedMiddleMsgId = committedMsgIds.get(numMessages / 2);
+        backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(committedMiddleMsgId));
+        assertEquals(backlogResult.getMessages(), numMessages / 2);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
+
+        List<MessageId> abortedMsgIds = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            MessageId messageId = producer.newMessage(txn).value("aborted-msg" + i).send();
+            abortedMsgIds.add(messageId);
+            txn.abort().get();
+        }
+        backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages * 2);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages * 2);
+
+        MessageId abortedMiddleMsgId = abortedMsgIds.get(numMessages / 2);
+        backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(abortedMiddleMsgId));
+        assertEquals(backlogResult.getMessages(), numMessages / 2);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
+
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage(txn).value("uncommitted-msg-" + i).send();
+        }
+        backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages * 3);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages * 2);
     }
 
     private static void verifyCoordinatorStats(String state,
@@ -1099,12 +1162,41 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(persistentTopicStats.totalSize, internalStats.totalSize);
         assertEquals(persistentTopicStats.currentLedgerEntries, internalStats.currentLedgerEntries);
         assertEquals(persistentTopicStats.currentLedgerSize, internalStats.currentLedgerSize);
-        assertEquals(persistentTopicStats.lastLedgerCreationFailureTimestamp, internalStats.lastLedgerCreationFailureTimestamp);
+        assertEquals(persistentTopicStats.lastLedgerCreationFailureTimestamp,
+                internalStats.lastLedgerCreationFailureTimestamp);
         assertEquals(persistentTopicStats.waitingCursorsCount, internalStats.waitingCursorsCount);
         assertEquals(persistentTopicStats.pendingAddEntriesCount, internalStats.pendingAddEntriesCount);
         assertEquals(persistentTopicStats.lastConfirmedEntry, internalStats.lastConfirmedEntry);
         assertNotNull(internalStats.ledgers.get(0).metadata);
         assertEquals(persistentTopicStats.ledgers.size(), internalStats.ledgers.size());
         assertEquals(persistentTopicStats.cursors.size(), internalStats.cursors.size());
+    }
+
+    @Test
+    public void testRetryDeleteTopicAfterFailedDeleteLedger() throws Exception {
+        // Create a topic.
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(tpName);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(tpName).create();
+        producer.send("1");
+        producer.close();
+        // The first deleting should fail, since we injected an error.
+        pulsarTestContext.getMockZooKeeper().failConditional(KeeperException.Code.BADVERSION, (op, path) -> {
+            if ("DELETE".equals(op.toString())
+                    && path.endsWith(TopicName.get(tpName).getPersistenceNamingEncoding())) {
+                return true;
+            }
+            return false;
+        });
+        try {
+            admin.topics().delete(tpName);
+            fail("The deleting should fail because we injected an error");
+        } catch (Throwable ex) {
+            // expected
+            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+            assertTrue(actEx.getMessage().contains("BadVersionException"));
+        }
+        // The second deleting should succeed.
+        admin.topics().delete(tpName);
     }
 }

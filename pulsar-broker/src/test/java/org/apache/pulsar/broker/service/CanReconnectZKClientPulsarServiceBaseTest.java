@@ -25,6 +25,7 @@ import java.net.URL;
 import java.nio.channels.SelectionKey;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
@@ -34,23 +35,25 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.apache.zookeeper.ClientCnxn;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 
 @Slf4j
 public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetrySupport {
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
-    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+    private static final String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
             .getPath();
-    final static String brokerCertPath =
+    private static final String brokerCertPath =
             Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    final static String brokerKeyPath =
+    private static final String brokerKeyPath =
             Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
     protected int numberOfBookies = 3;
     protected final String clusterName = "r1";
@@ -64,8 +67,10 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
     protected PulsarAdmin admin;
     protected PulsarClient client;
     protected ZooKeeper localZkOfBroker;
+    protected volatile SessionEvent sessionEvent;
     protected Object localMetaDataStoreClientCnx;
-    protected final AtomicBoolean LocalMetadataStoreInReconnectFinishSignal = new AtomicBoolean();
+    protected final AtomicBoolean connectionTerminationThreadKeepRunning = new AtomicBoolean();
+    private volatile Thread connectionTerminationThread;
 
     protected void startZKAndBK() throws Exception {
         // Start ZK.
@@ -85,6 +90,10 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         broker = pulsar.getBrokerService();
         ZKMetadataStore zkMetadataStore = (ZKMetadataStore) pulsar.getLocalMetadataStore();
         localZkOfBroker = zkMetadataStore.getZkClient();
+        zkMetadataStore.registerSessionListener(n -> {
+            log.info("Received session event: {}", n);
+            sessionEvent = n;
+        });
         ClientCnxn cnxn = WhiteboxImpl.getInternalState(localZkOfBroker, "cnxn");
         Object sendThread = WhiteboxImpl.getInternalState(cnxn, "sendThread");
         localMetaDataStoreClientCnx = WhiteboxImpl.getInternalState(sendThread, "clientCnxnSocket");
@@ -95,25 +104,29 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         client = PulsarClient.builder().serviceUrl(url.toString()).build();
     }
 
-    protected void makeLocalMetadataStoreKeepReconnect() throws Exception {
-        if (!LocalMetadataStoreInReconnectFinishSignal.compareAndSet(false, true)) {
-            throw new RuntimeException("Local metadata store is already keeping reconnect");
+    protected void startLocalMetadataStoreConnectionTermination() throws Exception {
+        if (!connectionTerminationThreadKeepRunning.compareAndSet(false, true)) {
+            throw new RuntimeException("Local metadata store connection is already being terminated");
         }
+        CompletableFuture<Void> future = new CompletableFuture<>();
         if (localMetaDataStoreClientCnx.getClass().getSimpleName().equals("ClientCnxnSocketNIO")) {
-            makeLocalMetadataStoreKeepReconnectNIO();
+            startNIOImplTermination(future);
         } else {
             // ClientCnxnSocketNetty.
-            makeLocalMetadataStoreKeepReconnectNetty();
+            startNettyImplTermination(future);
         }
+        // wait until connection is closed at least once
+        future.get();
     }
 
-    protected void makeLocalMetadataStoreKeepReconnectNIO() {
-        new Thread(() -> {
-            while (LocalMetadataStoreInReconnectFinishSignal.get()) {
+    private void startNIOImplTermination(CompletableFuture<Void> future) {
+        connectionTerminationThread = new Thread(() -> {
+            while (connectionTerminationThreadKeepRunning.get()) {
                 try {
                     SelectionKey sockKey = WhiteboxImpl.getInternalState(localMetaDataStoreClientCnx, "sockKey");
                     if (sockKey != null) {
                         sockKey.channel().close();
+                        future.complete(null);
                     }
                     // Prevents high cpu usage.
                     Thread.sleep(5);
@@ -121,16 +134,18 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
                     log.error("Try close the ZK connection of local metadata store failed: {}", e.toString());
                 }
             }
-        }).start();
+        });
+        connectionTerminationThread.start();
     }
 
-    protected void makeLocalMetadataStoreKeepReconnectNetty() {
-        new Thread(() -> {
-            while (LocalMetadataStoreInReconnectFinishSignal.get()) {
+    private void startNettyImplTermination(CompletableFuture<Void> future) {
+        connectionTerminationThread = new Thread(() -> {
+            while (connectionTerminationThreadKeepRunning.get()) {
                 try {
                     Channel channel = WhiteboxImpl.getInternalState(localMetaDataStoreClientCnx, "channel");
                     if (channel != null) {
                         channel.close();
+                        future.complete(null);
                     }
                     // Prevents high cpu usage.
                     Thread.sleep(5);
@@ -138,11 +153,18 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
                     log.error("Try close the ZK connection of local metadata store failed: {}", e.toString());
                 }
             }
-        }).start();
+        });
+        connectionTerminationThread.start();
     }
 
-    protected void stopLocalMetadataStoreAlwaysReconnect() {
-        LocalMetadataStoreInReconnectFinishSignal.set(false);
+    protected void stopLocalMetadataStoreConnectionTermination() throws InterruptedException {
+        connectionTerminationThreadKeepRunning.set(false);
+        if (connectionTerminationThread != null) {
+            // Wait for the reconnect thread to finish.
+            connectionTerminationThread.join();
+            connectionTerminationThread = null;
+        }
+        Awaitility.await().until(() -> SessionEvent.Reconnected.equals(sessionEvent));
     }
 
     protected void createDefaultTenantsAndClustersAndNamespace() throws Exception {
@@ -176,7 +198,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         log.info("--- OneWayReplicatorTestBase::setup completed ---");
     }
 
-    private void setConfigDefaults(ServiceConfiguration config, String clusterName,
+    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                    LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
@@ -204,8 +226,6 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
     protected void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
-
-        stopLocalMetadataStoreAlwaysReconnect();
 
         // Stop brokers.
         if (client != null) {

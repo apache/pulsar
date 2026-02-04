@@ -38,11 +38,13 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
+import org.apache.pulsar.client.api.TraceableMessage;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
@@ -55,10 +57,11 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaIdUtil;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 
-public class MessageImpl<T> implements Message<T> {
+public class MessageImpl<T> implements TraceableMessage, Message<T> {
 
     protected MessageId messageId;
     private final MessageMetadata msgMetadata;
@@ -82,6 +85,13 @@ public class MessageImpl<T> implements Message<T> {
     private boolean poolMessage;
     @Getter
     private long consumerEpoch;
+
+    /**
+     * OpenTelemetry tracing span associated with this message.
+     * Used for distributed tracing support via the TraceableMessage interface.
+     */
+    private transient io.opentelemetry.api.trace.Span tracingSpan;
+
     // Constructor for out-going message
     public static <T> MessageImpl<T> create(MessageMetadata msgMetadata, ByteBuffer payload, Schema<T> schema,
             String topic) {
@@ -423,6 +433,15 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    @Override
+    public Optional<byte[]> getSchemaId() {
+        if (msgMetadata.hasSchemaId()) {
+            byte[] schemaId = msgMetadata.getSchemaId();
+            return (schemaId.length == 0) ? Optional.empty() : Optional.of(schemaId);
+        }
+        return Optional.empty();
+    }
+
     private void ensureSchemaIsLoaded() {
         if (schema instanceof AutoConsumeSchema) {
             ((AutoConsumeSchema) schema).fetchSchemaIfNeeded(BytesSchemaVersion.of(getSchemaVersion()));
@@ -463,7 +482,12 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public T getValue() {
         SchemaInfo schemaInfo = getSchemaInfo();
+        var schemaIdOp = getSchemaId();
+        var schemaId = schemaIdOp.map(SchemaIdUtil::removeMagicHeader).orElse(null);
         if (schemaInfo != null && SchemaType.KEY_VALUE == schemaInfo.getType()) {
+            if (schemaIdOp.isPresent()) {
+                return getKeyValueBySchemaId(schemaId);
+            }
             if (schema.supportSchemaVersioning()) {
                 return getKeyValueBySchemaVersion();
             } else {
@@ -472,6 +496,9 @@ public class MessageImpl<T> implements Message<T> {
         } else {
             if (msgMetadata.isNullValue()) {
                 return null;
+            }
+            if (schemaIdOp.isPresent()) {
+                return decodeBySchemaId(schemaId);
             }
             // check if the schema passed in from client supports schema versioning or not
             // this is an optimization to only get schema version when necessary
@@ -513,6 +540,15 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    private T decodeBySchemaId(byte[] schemaId) {
+        try {
+            return schema.decode(topic, getByteBuffer(), schemaId);
+        } catch (Exception e) {
+            throw new SchemaSerializationException("Failed to decode message from topic " + topic
+                    + " with schemaId " + Base64.getEncoder().encodeToString(schemaId), e);
+        }
+    }
+
     private ByteBuffer getByteBuffer() {
         if (msgMetadata.isNullValue()) {
             return null;
@@ -534,6 +570,20 @@ public class MessageImpl<T> implements Message<T> {
             }
         } else {
             return decode(schemaVersion);
+        }
+    }
+
+    private T getKeyValueBySchemaId(byte[] schemaId) {
+        if (schema instanceof AutoConsumeSchema) {
+            throw new UnsupportedOperationException("AutoConsumeSchema is not supported with schemaId");
+        }
+        if (!(schema instanceof KeyValueSchemaImpl<?, ?> kvSchema)) {
+            throw new IllegalStateException("The schema is not a KeyValueSchema");
+        }
+        if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+            return (T) kvSchema.decode(topic, getKeyBytes(), getData(), schemaId);
+        } else {
+            return decodeBySchemaId(schemaId);
         }
     }
 
@@ -780,6 +830,10 @@ public class MessageImpl<T> implements Message<T> {
         return uncompressedSize;
     }
 
+    CompressionType getCompressionType() {
+        return CompressionType.valueOf(msgMetadata.getCompression().name());
+    }
+
     SchemaState getSchemaState() {
         return schemaState;
     }
@@ -796,6 +850,18 @@ public class MessageImpl<T> implements Message<T> {
     @VisibleForTesting
     ByteBuf getPayload() {
         return payload;
+    }
+
+    // TraceableMessage implementation for OpenTelemetry support
+
+    @Override
+    public void setTracingSpan(io.opentelemetry.api.trace.Span span) {
+        this.tracingSpan = span;
+    }
+
+    @Override
+    public io.opentelemetry.api.trace.Span getTracingSpan() {
+        return this.tracingSpan;
     }
 
     enum SchemaState {

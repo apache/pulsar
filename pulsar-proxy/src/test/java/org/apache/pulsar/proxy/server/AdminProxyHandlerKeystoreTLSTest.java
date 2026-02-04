@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -32,17 +37,10 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 
 public class AdminProxyHandlerKeystoreTLSTest extends MockedPulsarServiceBaseTest {
 
@@ -103,7 +101,8 @@ public class AdminProxyHandlerKeystoreTLSTest extends MockedPulsarServiceBaseTes
         providers.add(AuthenticationProviderTls.class.getName());
         proxyConfig.setAuthenticationProviders(providers);
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationKeyStoreTls.class.getName());
-        proxyConfig.setBrokerClientAuthenticationParameters(String.format("keyStoreType:%s,keyStorePath:%s,keyStorePassword:%s",
+        proxyConfig.setBrokerClientAuthenticationParameters(
+                String.format("keyStoreType:%s,keyStorePath:%s,keyStorePassword:%s",
                 KEYSTORE_TYPE, BROKER_KEYSTORE_FILE_PATH, BROKER_KEYSTORE_PW));
         proxyConfig.setClusterName(configClusterName);
 
@@ -118,7 +117,8 @@ public class AdminProxyHandlerKeystoreTLSTest extends MockedPulsarServiceBaseTes
         discoveryProvider = spy(registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
         LoadManagerReport report = new LoadReport(brokerUrl.toString(), brokerUrlTls.toString(), null, null);
         doReturn(report).when(discoveryProvider).nextBroker();
-        ServletHolder servletHolder = new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider, proxyClientAuthentication));
+        ServletHolder servletHolder =
+                new ServletHolder(new AdminProxyHandler(proxyConfig, discoveryProvider, proxyClientAuthentication));
         webServer.addServlet("/admin", servletHolder);
         webServer.addServlet("/lookup", servletHolder);
         webServer.start();
@@ -151,7 +151,8 @@ public class AdminProxyHandlerKeystoreTLSTest extends MockedPulsarServiceBaseTes
     public void testAdmin() throws Exception {
         @Cleanup
         PulsarAdmin admin = getAdminClient();
-        admin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster(configClusterName, ClusterData.builder()
+                .serviceUrl(brokerUrl.toString()).build());
     }
 
 }

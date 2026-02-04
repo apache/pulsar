@@ -316,7 +316,10 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Command(description = "Set replication clusters for a namespace")
+    @Command(description = "Set replication clusters for a namespace. "
+            + "When removing a cluster:"
+            + " with shared configuration store, data will be deleted from the removed cluster; "
+            + "with separate configuration store, only replication stops but data is preserved.")
     private class SetReplicationClusters extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
         private String namespaceName;
@@ -1376,8 +1379,9 @@ public class CmdNamespaces extends CmdBase {
 
         @Option(names = { "-r",
                 "--ml-mark-delete-max-rate" },
-                description = "Throttling rate of mark-delete operation (0 means no throttle)")
-        private double managedLedgerMaxMarkDeleteRate = 0;
+                description = "Throttling rate of mark-delete operation "
+                        + "(0 means no throttle, -1 means unset which will use the default configuration from broker)")
+        private double managedLedgerMaxMarkDeleteRate = -1;
 
         @Option(names = { "-c",
                 "--ml-storage-class" },
@@ -1390,9 +1394,6 @@ public class CmdNamespaces extends CmdBase {
             if (bookkeeperEnsemble <= 0 || bookkeeperWriteQuorum <= 0 || bookkeeperAckQuorum <= 0) {
                 throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
                         + "and [--bookkeeper-ack-quorum] must greater than 0.");
-            }
-            if (managedLedgerMaxMarkDeleteRate < 0) {
-                throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
             }
             getAdmin().namespaces().setPersistence(namespace, new PersistencePolicies(bookkeeperEnsemble,
                     bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,

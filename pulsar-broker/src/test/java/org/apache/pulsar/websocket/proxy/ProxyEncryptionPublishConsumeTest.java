@@ -118,15 +118,15 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
         try {
             consumeClient1.start();
             consumeClient2.start();
-            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest();
-            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest();
-            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
-            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
+            ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest(consumeUri);
+            ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
+            Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeRequest2);
             log.info("Connecting to : {}", consumeUri);
 
             readClient.start();
-            ClientUpgradeRequest readRequest = new ClientUpgradeRequest();
-            Future<Session> readerFuture = readClient.connect(readSocket, readUri, readRequest);
+            ClientUpgradeRequest readRequest = new ClientUpgradeRequest(readUri);
+            Future<Session> readerFuture = readClient.connect(readSocket, readRequest);
             log.info("Connecting to : {}", readUri);
 
             // let it connect
@@ -137,9 +137,9 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
             // Also make sure subscriptions and reader are already created
             Thread.sleep(500);
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             assertTrue(producerFuture.get().isOpen());
 
             Awaitility.await().untilAsserted(() -> {
@@ -183,32 +183,32 @@ public class ProxyEncryptionPublishConsumeTest extends ProducerConsumerBase {
 
         @Override
         public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-            String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+            String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+            if (Files.isReadable(Paths.get(certFilePath))) {
                 try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                     return keyInfo;
                 } catch (IOException e) {
-                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    Assert.fail("Failed to read certificate from " + certFilePath);
                 }
             } else {
-                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
             }
             return null;
         }
 
         @Override
         public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-            String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+            String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+            if (Files.isReadable(Paths.get(certFilePath))) {
                 try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                     return keyInfo;
                 } catch (IOException e) {
-                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    Assert.fail("Failed to read certificate from " + certFilePath);
                 }
             } else {
-                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
             }
             return null;
         }

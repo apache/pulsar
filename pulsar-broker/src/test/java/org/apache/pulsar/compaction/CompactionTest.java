@@ -18,15 +18,23 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
+import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.buffer.ByteBuf;
@@ -43,12 +51,13 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -56,13 +65,14 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
@@ -98,8 +108,10 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -111,15 +123,23 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     protected BookKeeper bk;
     private PublishingOrderCompactor compactor;
 
-    @BeforeMethod
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setDispatcherMaxReadBatchSize(1);
+    }
+
+    @BeforeClass
     @Override
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+        admin.clusters().createCluster(configClusterName,
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+
+        admin.tenants().createTenant("my-tenant",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Set.of(configClusterName)));
+        admin.namespaces().createNamespace("my-tenant/my-ns");
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
@@ -127,7 +147,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -135,6 +155,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         if (compactionScheduler != null) {
             compactionScheduler.shutdownNow();
         }
+    }
+
+    @BeforeMethod(alwaysRun = true)
+    public void beforeMethod() throws Exception {
+        admin.namespaces().removeRetention("my-tenant/my-ns");
+        AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
     }
 
     protected long compact(String topic) throws ExecutionException, InterruptedException {
@@ -153,7 +179,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compaction";
         final int numMessages = 20;
         final int maxKeys = 10;
 
@@ -182,21 +208,21 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
         // Compacted topic ledger should have same number of entry equals to number of unique key.
-        Assert.assertEquals(expected.size(), internalStats.compactedLedger.entries);
-        Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);
-        Assert.assertFalse(internalStats.compactedLedger.offloaded);
+        assertEquals(expected.size(), internalStats.compactedLedger.entries);
+        assertTrue(internalStats.compactedLedger.ledgerId > -1);
+        assertFalse(internalStats.compactedLedger.offloaded);
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             while (true) {
                 Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
-                Assert.assertEquals(expected.remove(m.getKey()), m.getData());
+                assertEquals(expected.remove(m.getKey()), m.getData());
                 if (expected.isEmpty()) {
                     break;
                 }
             }
-            Assert.assertTrue(expected.isEmpty());
+            assertTrue(expected.isEmpty());
         }
 
         // can get full backlog if read compacted disabled
@@ -205,24 +231,24 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             while (true) {
                 Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
                 Pair<String, byte[]> expectedMessage = all.remove(0);
-                Assert.assertEquals(expectedMessage.getLeft(), m.getKey());
-                Assert.assertEquals(expectedMessage.getRight(), m.getData());
+                assertEquals(expectedMessage.getLeft(), m.getKey());
+                assertEquals(expectedMessage.getRight(), m.getData());
                 if (all.isEmpty()) {
                     break;
                 }
             }
-            Assert.assertTrue(all.isEmpty());
+            assertTrue(all.isEmpty());
         }
     }
 
     @Test
     public void testCompactionWithReader() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compaction-with-reader";
         final int numMessages = 20;
         final int maxKeys = 10;
 
         // Configure retention to ensue data is retained for reader
-        admin.namespaces().setRetention("my-property/use/my-ns", new RetentionPolicies(-1, -1));
+        admin.namespaces().setRetention("my-tenant/my-ns", new RetentionPolicies(-1, -1));
 
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
@@ -251,12 +277,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .startMessageId(MessageId.earliest).create()) {
             while (true) {
                 Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
-                Assert.assertEquals(expected.remove(m.getKey()), new String(m.getData()));
+                assertEquals(expected.remove(m.getKey()), new String(m.getData()));
                 if (expected.isEmpty()) {
                     break;
                 }
             }
-            Assert.assertTrue(expected.isEmpty());
+            assertTrue(expected.isEmpty());
         }
 
         // can get full backlog if read compacted disabled
@@ -265,20 +291,20 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             while (true) {
                 Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
                 Pair<String, String> expectedMessage = all.remove(0);
-                Assert.assertEquals(expectedMessage.getLeft(), m.getKey());
-                Assert.assertEquals(expectedMessage.getRight(), new String(m.getData()));
+                assertEquals(expectedMessage.getLeft(), m.getKey());
+                assertEquals(expectedMessage.getRight(), new String(m.getData()));
                 if (all.isEmpty()) {
                     break;
                 }
             }
-            Assert.assertTrue(all.isEmpty());
+            assertTrue(all.isEmpty());
         }
     }
 
 
     @Test
     public void testReadCompactedBeforeCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/read-compacted-before-compaction";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
@@ -294,16 +320,16 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<byte[]> m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content0".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content0".getBytes());
 
             m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content1".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content1".getBytes());
 
             m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content2".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content2".getBytes());
         }
 
         compact(topic);
@@ -311,14 +337,14 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<byte[]> m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content2".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content2".getBytes());
         }
     }
 
     @Test
     public void testReadEntriesAfterCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/read-entries-after-compaction";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
@@ -338,18 +364,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<byte[]> m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content2".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content2".getBytes());
 
             m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content3".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content3".getBytes());
         }
     }
 
     @Test
     public void testSeekEarliestAfterCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/seek-earliest-after-compaction";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
@@ -366,8 +392,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .readCompacted(true).subscribe()) {
             consumer.seek(MessageId.earliest);
             Message<byte[]> m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content2".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content2".getBytes());
         }
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -375,22 +401,22 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             consumer.seek(MessageId.earliest);
 
             Message<byte[]> m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content0".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content0".getBytes());
 
             m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content1".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content1".getBytes());
 
             m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content2".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content2".getBytes());
         }
     }
 
     @Test
     public void testBrokerRestartAfterCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/test-restart-after-compaction";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
@@ -408,15 +434,15 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<byte[]> m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content2".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content2".getBytes());
         }
 
         stopBroker();
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             consumer.receive();
-            Assert.fail("Shouldn't have been able to receive anything");
+            fail("Shouldn't have been able to receive anything");
         } catch (PulsarClientException e) {
             // correct behaviour
         }
@@ -425,14 +451,14 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<byte[]> m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content2".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content2".getBytes());
         }
     }
 
     @Test
     public void testCompactEmptyTopic() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compact-empty-topic";
 
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
@@ -448,14 +474,14 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             Message<byte[]> m = consumer.receive();
-            Assert.assertEquals(m.getKey(), "key0");
-            Assert.assertEquals(m.getData(), "content0".getBytes());
+            assertEquals(m.getKey(), "key0");
+            assertEquals(m.getData(), "content0".getBytes());
         }
     }
 
     @Test
     public void testFirstMessageRetained() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/first-message-retained";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -483,20 +509,20 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key1");
-            Assert.assertEquals(new String(message1.getData()), "my-message-1");
-            Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
+            assertEquals(message1.getKey(), "key1");
+            assertEquals(new String(message1.getData()), "my-message-1");
+            assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
 
             Message<byte[]> message2 = consumer.receive();
-            Assert.assertEquals(message2.getKey(), "key2");
-            Assert.assertEquals(new String(message2.getData()), "my-message-3");
-            Assert.assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
+            assertEquals(message2.getKey(), "key2");
+            assertEquals(new String(message2.getData()), "my-message-3");
+            assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
         }
     }
 
     @Test
     public void testBatchMessageIdsDontChange() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/batch-message-ids-dont-change";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -525,14 +551,14 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
 
         // Ensure all messages are in same batch
-        Assert.assertEquals(((BatchMessageIdImpl)messages.get(0).getMessageId()).getLedgerId(),
-                            ((BatchMessageIdImpl)messages.get(1).getMessageId()).getLedgerId());
-        Assert.assertEquals(((BatchMessageIdImpl)messages.get(0).getMessageId()).getLedgerId(),
-                            ((BatchMessageIdImpl)messages.get(2).getMessageId()).getLedgerId());
-        Assert.assertEquals(((BatchMessageIdImpl)messages.get(0).getMessageId()).getEntryId(),
-                            ((BatchMessageIdImpl)messages.get(1).getMessageId()).getEntryId());
-        Assert.assertEquals(((BatchMessageIdImpl)messages.get(0).getMessageId()).getEntryId(),
-                            ((BatchMessageIdImpl)messages.get(2).getMessageId()).getEntryId());
+        assertEquals(((BatchMessageIdImpl) messages.get(0).getMessageId()).getLedgerId(),
+                            ((BatchMessageIdImpl) messages.get(1).getMessageId()).getLedgerId());
+        assertEquals(((BatchMessageIdImpl) messages.get(0).getMessageId()).getLedgerId(),
+                            ((BatchMessageIdImpl) messages.get(2).getMessageId()).getLedgerId());
+        assertEquals(((BatchMessageIdImpl) messages.get(0).getMessageId()).getEntryId(),
+                            ((BatchMessageIdImpl) messages.get(1).getMessageId()).getEntryId());
+        assertEquals(((BatchMessageIdImpl) messages.get(0).getMessageId()).getEntryId(),
+                            ((BatchMessageIdImpl) messages.get(2).getMessageId()).getEntryId());
 
         // compact the topic
         compact(topic);
@@ -541,25 +567,25 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key1");
-            Assert.assertEquals(new String(message1.getData()), "my-message-1");
+            assertEquals(message1.getKey(), "key1");
+            assertEquals(new String(message1.getData()), "my-message-1");
 
             Message<byte[]> message2 = consumer.receive();
-            Assert.assertEquals(message2.getKey(), "key2");
-            Assert.assertEquals(new String(message2.getData()), "my-message-3");
+            assertEquals(message2.getKey(), "key2");
+            assertEquals(new String(message2.getData()), "my-message-3");
             if (getCompactor() instanceof StrategicTwoPhaseCompactor) {
-                Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
-                Assert.assertEquals(message2.getMessageId(), messages.get(1).getMessageId());
+                assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
+                assertEquals(message2.getMessageId(), messages.get(1).getMessageId());
             } else {
-                Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
-                Assert.assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
+                assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
+                assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
             }
         }
     }
 
     @Test
     public void testBatchMessageWithNullValue() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/batch-message-with-null-value";
 
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
                 .receiverQueueSize(1).readCompacted(true).subscribe().close();
@@ -613,7 +639,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testWholeBatchCompactedOut() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/whole-batch-compacted-out";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -642,8 +668,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message<byte[]> message = consumer.receive();
-            Assert.assertEquals(message.getKey(), "key1");
-            Assert.assertEquals(new String(message.getData()), "my-message-4");
+            assertEquals(message.getKey(), "key1");
+            assertEquals(new String(message.getData()), "my-message-4");
         }
     }
 
@@ -658,7 +684,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         restartBroker();
         FieldUtils.writeField(compactor, "topicCompactionRetainNullKey", retainNullKey, true);
 
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/key-less-messages-pass-through-" + retainNullKey;
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -688,12 +714,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             if (getCompactor() instanceof StrategicTwoPhaseCompactor) {
                 Message<byte[]> message3 = consumer.receive();
-                Assert.assertEquals(message3.getKey(), "key1");
-                Assert.assertEquals(new String(message3.getData()), "my-message-4");
+                assertEquals(message3.getKey(), "key1");
+                assertEquals(new String(message3.getData()), "my-message-4");
 
                 Message<byte[]> message4 = consumer.receive();
-                Assert.assertEquals(message4.getKey(), "key2");
-                Assert.assertEquals(new String(message4.getData()), "my-message-6");
+                assertEquals(message4.getKey(), "key2");
+                assertEquals(new String(message4.getData()), "my-message-6");
 
                 Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
                 assertNull(m);
@@ -704,7 +730,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                     if (message == null) {
                         break;
                     }
-                    result.add(Pair.of(message.getKey(), message.getData() == null ? null : new String(message.getData())));
+                    result.add(Pair.of(message.getKey(),
+                            message.getData() == null ? null : new String(message.getData())));
                 }
 
                 List<Pair<String, String>> expectList;
@@ -716,7 +743,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 } else {
                     expectList = List.of(Pair.of("key1", "my-message-4"), Pair.of("key2", "my-message-6"));
                 }
-                Assert.assertEquals(result, expectList);
+                assertEquals(result, expectList);
             }
         }
     }
@@ -724,7 +751,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testEmptyPayloadDeletes() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/empty-payload-deletes";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -795,18 +822,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key0");
-            Assert.assertEquals(new String(message1.getData()), "my-message-0");
+            assertEquals(message1.getKey(), "key0");
+            assertEquals(new String(message1.getData()), "my-message-0");
 
             Message<byte[]> message2 = consumer.receive();
-            Assert.assertEquals(message2.getKey(), "key4");
-            Assert.assertEquals(new String(message2.getData()), "my-message-4");
+            assertEquals(message2.getKey(), "key4");
+            assertEquals(new String(message2.getData()), "my-message-4");
         }
     }
 
     @Test
     public void testEmptyPayloadDeletesWhenCompressed() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/empty-payload-deletes-when-compressed";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -874,12 +901,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key0");
-            Assert.assertEquals(new String(message1.getData()), "my-message-0");
+            assertEquals(message1.getKey(), "key0");
+            assertEquals(new String(message1.getData()), "my-message-0");
 
             Message<byte[]> message2 = consumer.receive();
-            Assert.assertEquals(message2.getKey(), "key4");
-            Assert.assertEquals(new String(message2.getData()), "my-message-4");
+            assertEquals(message2.getKey(), "key4");
+            assertEquals(new String(message2.getData()), "my-message-4");
         }
     }
 
@@ -887,16 +914,16 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactorReadsCompacted() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compactor-reads-compacted";
 
         // capture opened ledgers
         Set<Long> ledgersOpened = Sets.newConcurrentHashSet();
         when(pulsarTestContext.getBookKeeperClient().newOpenLedgerOp()).thenAnswer(
                 (invocation) -> {
-                    OpenBuilder builder = (OpenBuilder)spy(invocation.callRealMethod());
+                    OpenBuilder builder = (OpenBuilder) spyWithoutRecordingInvocations(invocation.callRealMethod());
                     when(builder.withLedgerId(anyLong())).thenAnswer(
                             (invocation2) -> {
-                                ledgersOpened.add((Long)invocation2.getArguments()[0]);
+                                ledgersOpened.add((Long) invocation2.getArguments()[0]);
                                 return invocation2.callRealMethod();
                             });
                     return builder;
@@ -925,20 +952,26 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
 
         // verify second ledger created
-        String managedLedgerName = ((PersistentTopic)pulsar.getBrokerService().getTopicReference(topic).get())
+        String managedLedgerName = ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get())
             .getManagedLedger().getName();
         ManagedLedgerInfo info = pulsar.getDefaultManagedLedgerFactory().getManagedLedgerInfo(managedLedgerName);
-        Assert.assertEquals(info.ledgers.size(), 2);
-        Assert.assertTrue(ledgersOpened.isEmpty()); // no ledgers should have been opened
+        assertEquals(info.ledgers.size(), 2);
+        assertTrue(ledgersOpened.isEmpty()); // no ledgers should have been opened
 
         // compact the topic
         compact(topic);
 
         // should have opened all except last to read
-        Assert.assertTrue(ledgersOpened.contains(info.ledgers.get(0).ledgerId));
-        Assert.assertFalse(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
+        assertTrue(ledgersOpened.contains(info.ledgers.get(0).ledgerId));
+        assertFalse(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
         ledgersOpened.clear();
 
+        try (Producer<byte[]> producerNormal = pulsarClient.newProducer().topic(topic).create()) {
+            producerNormal.newMessage()
+                    .key("key2")
+                    .value("my-message".getBytes())
+                    .send();
+        }
         // force broker to close resources for topic
         pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
 
@@ -951,12 +984,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
 
         info = pulsar.getDefaultManagedLedgerFactory().getManagedLedgerInfo(managedLedgerName);
-        Assert.assertEquals(info.ledgers.size(), 3);
+        assertEquals(info.ledgers.size(), 3);
 
         // should only have opened the penultimate ledger to get stat
-        Assert.assertFalse(ledgersOpened.contains(info.ledgers.get(0).ledgerId));
-        Assert.assertFalse(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
-        Assert.assertFalse(ledgersOpened.contains(info.ledgers.get(2).ledgerId));
+        assertFalse(ledgersOpened.contains(info.ledgers.get(0).ledgerId));
+        assertFalse(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
+        assertFalse(ledgersOpened.contains(info.ledgers.get(2).ledgerId));
         ledgersOpened.clear();
 
         // compact the topic again
@@ -964,30 +997,30 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // shouldn't have opened first ledger (already compacted), penultimate would have some uncompacted data.
         // last ledger already open for writing
-        Assert.assertFalse(ledgersOpened.contains(info.ledgers.get(0).ledgerId));
-        Assert.assertTrue(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
-        Assert.assertFalse(ledgersOpened.contains(info.ledgers.get(2).ledgerId));
+        assertFalse(ledgersOpened.contains(info.ledgers.get(0).ledgerId));
+        assertTrue(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
+        assertFalse(ledgersOpened.contains(info.ledgers.get(2).ledgerId));
 
         // all three messages should be there when we read compacted
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key0");
-            Assert.assertEquals(new String(message1.getData()), "my-message-0");
+            assertEquals(message1.getKey(), "key0");
+            assertEquals(new String(message1.getData()), "my-message-0");
 
             Message<byte[]> message2 = consumer.receive();
-            Assert.assertEquals(message2.getKey(), "key1");
-            Assert.assertEquals(new String(message2.getData()), "my-message-1");
+            assertEquals(message2.getKey(), "key1");
+            assertEquals(new String(message2.getData()), "my-message-1");
 
             Message<byte[]> message3 = consumer.receive();
-            Assert.assertEquals(message3.getKey(), "key2");
-            Assert.assertEquals(new String(message3.getData()), "my-message-2");
+            assertEquals(message3.getKey(), "key2");
+            assertEquals(new String(message3.getData()), "my-message-2");
         }
     }
 
     @Test
     public void testCompactCompressedNoBatch() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compact-compressed-no-batch";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1015,18 +1048,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key1");
-            Assert.assertEquals(new String(message1.getData()), "my-message-1");
+            assertEquals(message1.getKey(), "key1");
+            assertEquals(new String(message1.getData()), "my-message-1");
 
             Message<byte[]> message2 = consumer.receive();
-            Assert.assertEquals(message2.getKey(), "key2");
-            Assert.assertEquals(new String(message2.getData()), "my-message-3");
+            assertEquals(message2.getKey(), "key2");
+            assertEquals(new String(message2.getData()), "my-message-3");
         }
     }
 
     @Test
     public void testCompactCompressedBatching() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compact-compressed-batching";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1058,12 +1091,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key1");
-            Assert.assertEquals(new String(message1.getData()), "my-message-1");
+            assertEquals(message1.getKey(), "key1");
+            assertEquals(new String(message1.getData()), "my-message-1");
 
             Message<byte[]> message2 = consumer.receive();
-            Assert.assertEquals(message2.getKey(), "key2");
-            Assert.assertEquals(new String(message2.getData()), "my-message-3");
+            assertEquals(message2.getKey(), "key2");
+            assertEquals(new String(message2.getData()), "my-message-3");
         }
     }
 
@@ -1072,32 +1105,32 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         @Override
         public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-            String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+            String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+            if (Files.isReadable(Paths.get(certFilePath))) {
                 try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                     return keyInfo;
                 } catch (IOException e) {
-                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    fail("Failed to read certificate from " + certFilePath);
                 }
             } else {
-                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                fail("Certificate file " + certFilePath + " is not present or not readable.");
             }
             return null;
         }
 
         @Override
         public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-            String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-            if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+            String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+            if (Files.isReadable(Paths.get(certFilePath))) {
                 try {
-                    keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                    keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                     return keyInfo;
                 } catch (IOException e) {
-                    Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                    fail("Failed to read certificate from " + certFilePath);
                 }
             } else {
-                Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                fail("Certificate file " + certFilePath + " is not present or not readable.");
             }
             return null;
         }
@@ -1105,7 +1138,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactEncryptedNoBatch() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compact-encrypted-no-batch";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1136,18 +1169,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName("sub1").cryptoKeyReader(new EncKeyReader())
                 .readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key1");
-            Assert.assertEquals(new String(message1.getData()), "my-message-1");
+            assertEquals(message1.getKey(), "key1");
+            assertEquals(new String(message1.getData()), "my-message-1");
 
             Message<byte[]> message2 = consumer.receive();
-            Assert.assertEquals(message2.getKey(), "key2");
-            Assert.assertEquals(new String(message2.getData()), "my-message-3");
+            assertEquals(message2.getKey(), "key2");
+            assertEquals(new String(message2.getData()), "my-message-3");
         }
     }
 
     @Test
     public void testCompactEncryptedBatching() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compact-encrypted-batching";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1180,30 +1213,30 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName("sub1").cryptoKeyReader(new EncKeyReader())
                 .readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key1");
-            Assert.assertEquals(new String(message1.getData()), "my-message-1");
+            assertEquals(message1.getKey(), "key1");
+            assertEquals(new String(message1.getData()), "my-message-1");
 
             if (getCompactor() instanceof StrategicTwoPhaseCompactor) {
                 Message<byte[]> message3 = consumer.receive();
-                Assert.assertEquals(message3.getKey(), "key2");
-                Assert.assertEquals(new String(message3.getData()), "my-message-3");
+                assertEquals(message3.getKey(), "key2");
+                assertEquals(new String(message3.getData()), "my-message-3");
             } else {
                 // with encryption, all messages are passed through compaction as it doesn't
                 // have the keys to decrypt the batch payload
                 Message<byte[]> message2 = consumer.receive();
-                Assert.assertEquals(message2.getKey(), "key2");
-                Assert.assertEquals(new String(message2.getData()), "my-message-2");
+                assertEquals(message2.getKey(), "key2");
+                assertEquals(new String(message2.getData()), "my-message-2");
 
                 Message<byte[]> message3 = consumer.receive();
-                Assert.assertEquals(message3.getKey(), "key2");
-                Assert.assertEquals(new String(message3.getData()), "my-message-3");
+                assertEquals(message3.getKey(), "key2");
+                assertEquals(new String(message3.getData()), "my-message-3");
             }
         }
     }
 
     @Test
     public void testCompactEncryptedAndCompressedNoBatch() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compact-encrypted-and-compressed-no-batch";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1235,18 +1268,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName("sub1").cryptoKeyReader(new EncKeyReader())
                 .readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key1");
-            Assert.assertEquals(new String(message1.getData()), "my-message-1");
+            assertEquals(message1.getKey(), "key1");
+            assertEquals(new String(message1.getData()), "my-message-1");
 
             Message<byte[]> message2 = consumer.receive();
-            Assert.assertEquals(message2.getKey(), "key2");
-            Assert.assertEquals(new String(message2.getData()), "my-message-3");
+            assertEquals(message2.getKey(), "key2");
+            assertEquals(new String(message2.getData()), "my-message-3");
         }
     }
 
     @Test
     public void testCompactEncryptedAndCompressedBatching() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compact-encrypted-and-compressed-batching";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1282,29 +1315,29 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionName("sub1").cryptoKeyReader(new EncKeyReader())
                 .readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key1");
-            Assert.assertEquals(new String(message1.getData()), "my-message-1");
+            assertEquals(message1.getKey(), "key1");
+            assertEquals(new String(message1.getData()), "my-message-1");
 
 
             if (getCompactor() instanceof StrategicTwoPhaseCompactor) {
                 Message<byte[]> message3 = consumer.receive();
-                Assert.assertEquals(message3.getKey(), "key2");
-                Assert.assertEquals(new String(message3.getData()), "my-message-3");
+                assertEquals(message3.getKey(), "key2");
+                assertEquals(new String(message3.getData()), "my-message-3");
             } else {
                 Message<byte[]> message2 = consumer.receive();
-                Assert.assertEquals(message2.getKey(), "key2");
-                Assert.assertEquals(new String(message2.getData()), "my-message-2");
+                assertEquals(message2.getKey(), "key2");
+                assertEquals(new String(message2.getData()), "my-message-2");
 
                 Message<byte[]> message3 = consumer.receive();
-                Assert.assertEquals(message3.getKey(), "key2");
-                Assert.assertEquals(new String(message3.getData()), "my-message-3");
+                assertEquals(message3.getKey(), "key2");
+                assertEquals(new String(message3.getData()), "my-message-3");
             }
         }
     }
 
     @Test
     public void testEmptyPayloadDeletesWhenEncrypted() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/empty-payload-deletes-when-encrypted";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
@@ -1361,34 +1394,34 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .cryptoKeyReader(new EncKeyReader())
                 .subscriptionName("sub1").readCompacted(true).subscribe()){
             Message<byte[]> message1 = consumer.receive();
-            Assert.assertEquals(message1.getKey(), "key0");
-            Assert.assertEquals(new String(message1.getData()), "my-message-0");
+            assertEquals(message1.getKey(), "key0");
+            assertEquals(new String(message1.getData()), "my-message-0");
 
             if (getCompactor() instanceof StrategicTwoPhaseCompactor) {
                 Message<byte[]> message3 = consumer.receive();
-                Assert.assertEquals(message3.getKey(), "key3");
-                Assert.assertEquals(new String(message3.getData()), "my-message-3");
+                assertEquals(message3.getKey(), "key3");
+                assertEquals(new String(message3.getData()), "my-message-3");
 
                 Message<byte[]> message5 = consumer.receive();
-                Assert.assertEquals(message5.getKey(), "key4");
-                Assert.assertEquals(new String(message5.getData()), "my-message-4");
+                assertEquals(message5.getKey(), "key4");
+                assertEquals(new String(message5.getData()), "my-message-4");
             } else {
                 // see all messages from batch
                 Message<byte[]> message2 = consumer.receive();
-                Assert.assertEquals(message2.getKey(), "key2");
-                Assert.assertEquals(new String(message2.getData()), "my-message-2");
+                assertEquals(message2.getKey(), "key2");
+                assertEquals(new String(message2.getData()), "my-message-2");
 
                 Message<byte[]> message3 = consumer.receive();
-                Assert.assertEquals(message3.getKey(), "key3");
-                Assert.assertEquals(new String(message3.getData()), "my-message-3");
+                assertEquals(message3.getKey(), "key3");
+                assertEquals(new String(message3.getData()), "my-message-3");
 
                 Message<byte[]> message4 = consumer.receive();
-                Assert.assertEquals(message4.getKey(), "key2");
+                assertEquals(message4.getKey(), "key2");
                 assertNull(message4.getData());
 
                 Message<byte[]> message5 = consumer.receive();
-                Assert.assertEquals(message5.getKey(), "key4");
-                Assert.assertEquals(new String(message5.getData()), "my-message-4");
+                assertEquals(message5.getKey(), "key4");
+                assertEquals(new String(message5.getData()), "my-message-4");
             }
         }
     }
@@ -1400,7 +1433,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
     public void testCompactionWithLastDeletedKey(boolean batching) throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/compaction-with-last-deleted-key-" + batching;
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(batching)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
@@ -1426,7 +1459,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
     public void testEmptyCompactionLedger(boolean batching) throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-tenant/my-ns/empty-compaction-ledger-" + batching;
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(batching)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
@@ -1450,7 +1483,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
     public void testAllEmptyCompactionLedger(boolean batchEnabled) throws Exception {
-        final String topic = "persistent://my-property/use/my-ns/testAllEmptyCompactionLedger" + UUID.randomUUID().toString();
+        final String topic = "persistent://my-tenant/my-ns/testAllEmptyCompactionLedger" + UUID.randomUUID().toString();
 
         final int messages = 10;
 
@@ -1483,8 +1516,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
-    public void testBatchAndNonBatchWithoutEmptyPayload() throws PulsarClientException, ExecutionException, InterruptedException {
-        final String topic = "persistent://my-property/use/my-ns/testBatchAndNonBatchWithoutEmptyPayload" + UUID.randomUUID().toString();
+    public void testBatchAndNonBatchWithoutEmptyPayload()
+            throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-tenant/my-ns/testBatchAndNonBatchWithoutEmptyPayload"
+                + UUID.randomUUID().toString();
 
         // 1.create producer and publish message to the topic.
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1520,7 +1555,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
-                .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
             Message<byte[]> m1 = consumer.receive(2, TimeUnit.SECONDS);
             Message<byte[]> m2 = consumer.receive(2, TimeUnit.SECONDS);
             assertNotNull(m1);
@@ -1534,8 +1570,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
     @Test(timeOut = 20000)
-    public void testBatchAndNonBatchWithEmptyPayload() throws PulsarClientException, ExecutionException, InterruptedException {
-        final String topic = "persistent://my-property/use/my-ns/testBatchAndNonBatchWithEmptyPayload" + UUID.randomUUID().toString();
+    public void testBatchAndNonBatchWithEmptyPayload()
+            throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-tenant/my-ns/testBatchAndNonBatchWithEmptyPayload"
+                + UUID.randomUUID().toString();
 
         // 1.create producer and publish message to the topic.
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1575,7 +1613,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
-                .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
             Message<byte[]> m1 = consumer.receive();
             Message<byte[]> m2 = consumer.receive();
             assertNotNull(m1);
@@ -1590,8 +1629,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
-    public void testBatchAndNonBatchEndOfEmptyPayload() throws PulsarClientException, ExecutionException, InterruptedException {
-        final String topic = "persistent://my-property/use/my-ns/testBatchAndNonBatchWithEmptyPayload" + UUID.randomUUID().toString();
+    public void testBatchAndNonBatchEndOfEmptyPayload()
+            throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-tenant/my-ns/testBatchAndNonBatchWithEmptyPayload"
+                + UUID.randomUUID().toString();
 
         // 1.create producer and publish message to the topic.
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1628,7 +1669,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // consumer with readCompacted enabled only get compacted entries
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
-                .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
             Message<byte[]> m1 = consumer.receive();
             assertNotNull(m1);
             assertEquals(m1.getKey(), k1);
@@ -1639,8 +1681,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000, dataProvider = "lastDeletedBatching")
-    public void testCompactMultipleTimesWithoutEmptyMessage(boolean batchEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
-        final String topic = "persistent://my-property/use/my-ns/testCompactMultipleTimesWithoutEmptyMessage" + UUID.randomUUID().toString();
+    public void testCompactMultipleTimesWithoutEmptyMessage(boolean batchEnabled)
+            throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-tenant/my-ns/testCompactMultipleTimesWithoutEmptyMessage"
+                + UUID.randomUUID().toString();
 
         final int messages = 10;
         final String key = "1";
@@ -1676,7 +1720,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         compactor.compact(topic).get();
 
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
-                .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
             Message<byte[]> m1 = consumer.receive();
             assertNotNull(m1);
             assertEquals(m1.getKey(), key);
@@ -1687,8 +1732,10 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 2000000, dataProvider = "lastDeletedBatching")
-    public void testReadUnCompacted(boolean batchEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
-        final String topic = "persistent://my-property/use/my-ns/testReadUnCompacted" + UUID.randomUUID().toString();
+    public void testReadUnCompacted(boolean batchEnabled)
+            throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topic = "persistent://my-tenant/my-ns/testReadUnCompacted"
+                + UUID.randomUUID().toString();
 
         final int messages = 10;
         final String key = "1";
@@ -1778,25 +1825,27 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @SneakyThrows
     @Test
     public void testHealthCheckTopicNotCompacted() {
-        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), pulsar.getConfiguration());
+        NamespaceName heartbeatNamespaceV1 =
+                NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), pulsar.getConfiguration());
         String topicV1 = "persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck";
-        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(), pulsar.getConfiguration());
+        NamespaceName heartbeatNamespaceV2 =
+                NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(), pulsar.getConfiguration());
         String topicV2 = heartbeatNamespaceV2.toString() + "/healthcheck";
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicV1).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicV2).create();
         Optional<Topic> topicReferenceV1 = pulsar.getBrokerService().getTopic(topicV1, false).join();
         Optional<Topic> topicReferenceV2 = pulsar.getBrokerService().getTopic(topicV2, false).join();
-        assertFalse(((SystemTopic)topicReferenceV1.get()).isCompactionEnabled());
-        assertFalse(((SystemTopic)topicReferenceV2.get()).isCompactionEnabled());
+        assertFalse(((SystemTopic) topicReferenceV1.get()).isCompactionEnabled());
+        assertFalse(((SystemTopic) topicReferenceV2.get()).isCompactionEnabled());
         producer1.close();
         producer2.close();
     }
 
     @Test(timeOut = 60000)
     public void testCompactionWithMarker() throws Exception {
-        String namespace = "my-property/use/my-ns";
+        String namespace = "my-tenant/my-ns";
         final TopicName dest = TopicName.get(
-                BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWriteMarker"));
+                newUniqueName("persistent://" + namespace + "/testWriteMarker"));
         admin.topics().createNonPartitionedTopic(dest.toString());
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -1814,7 +1863,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .create();
         producer.send("msg-1".getBytes(StandardCharsets.UTF_8));
         Optional<Topic> topic = pulsar.getBrokerService().getTopic(dest.toString(), true).join();
-        Assert.assertTrue(topic.isPresent());
+        assertTrue(topic.isPresent());
         PersistentTopic persistentTopic = (PersistentTopic) topic.get();
         Random random = new Random();
         for (int i = 0; i < 100; i++) {
@@ -1847,13 +1896,13 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .pollInterval(1, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     long ledgerId = admin.topics().getInternalStats(dest.toString()).compactedLedger.ledgerId;
-                    Assert.assertNotEquals(ledgerId, -1L);
+                    assertNotEquals(ledgerId, -1L);
                 });
     }
 
     @Test(timeOut = 100000)
     public void testReceiverQueueSize() throws Exception {
-        final String topicName = "persistent://my-property/use/my-ns/testReceiverQueueSize" + UUID.randomUUID();
+        final String topicName = newUniqueName("persistent://my-tenant/my-ns/testReceiverQueueSize");
         final String subName = "my-sub";
         final int receiveQueueSize = 1;
         @Cleanup
@@ -1880,7 +1929,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         //Give some time to consume
         Awaitility.await()
-                .untilAsserted(() -> Assert.assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(),
+                .untilAsserted(() -> assertEquals(consumer.getStats().getMsgNumInReceiverQueue().intValue(),
                         receiveQueueSize));
         consumer.close();
         producer.close();
@@ -1889,7 +1938,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testDispatcherMaxReadSizeBytes() throws Exception {
         final String topicName =
-                "persistent://my-property/use/my-ns/testDispatcherMaxReadSizeBytes" + UUID.randomUUID();
+                newUniqueName("persistent://my-tenant/my-ns/testDispatcherMaxReadSizeBytes");
         final String subName = "my-sub";
         final int receiveQueueSize = 1;
         @Cleanup
@@ -1897,8 +1946,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
                 .topic(topicName).create();
 
-        for (int i = 0; i < 10; i+=2) {
-            producer.newMessage().key(UUID.randomUUID().toString()).value(new byte[4*1024*1024]).send();
+        for (int i = 0; i < 10; i += 2) {
+            producer.newMessage().key(UUID.randomUUID().toString()).value(new byte[4 * 1024 * 1024]).send();
         }
         producer.flush();
 
@@ -1914,7 +1963,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         PersistentTopic topic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, true, Map.of()).get().get();
-        TopicCompactionService topicCompactionService = Mockito.spy(topic.getTopicCompactionService());
+        TopicCompactionService topicCompactionService = spy(topic.getTopicCompactionService());
         FieldUtils.writeDeclaredField(topic, "topicCompactionService", topicCompactionService, true);
 
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) client.newConsumer(Schema.BYTES)
@@ -1935,7 +1984,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactionDuplicate() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testCompactionDuplicate";
+        String topic = "persistent://my-tenant/my-ns/testCompactionDuplicate";
         final int numMessages = 1000;
         final int maxKeys = 800;
 
@@ -1976,7 +2025,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(500);
 
         Optional<Topic> previousTopicRef = pulsar.getBrokerService().getTopicIfExists(topic).get();
-        Assert.assertTrue(previousTopicRef.isPresent());
+        assertTrue(previousTopicRef.isPresent());
         PersistentTopic previousPersistentTopic = (PersistentTopic) previousTopicRef.get();
 
         // Unload topic make reader of compaction reconnect
@@ -1986,7 +2035,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             LongRunningProcessStatus previousLongRunningProcessStatus = previousPersistentTopic.compactionStatus();
 
             Optional<Topic> currentTopicReference = pulsar.getBrokerService().getTopicReference(topic);
-            Assert.assertTrue(currentTopicReference.isPresent());
+            assertTrue(currentTopicReference.isPresent());
             PersistentTopic currentPersistentTopic = (PersistentTopic) currentTopicReference.get();
             LongRunningProcessStatus currentLongRunningProcessStatus = currentPersistentTopic.compactionStatus();
 
@@ -1995,18 +2044,18 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                     || currentLongRunningProcessStatus.status == LongRunningProcessStatus.Status.ERROR)) {
                 // trigger compaction again
                 admin.topics().triggerCompaction(topic);
-                Assert.assertEquals(currentLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
+                assertEquals(currentLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
             } else if (previousLongRunningProcessStatus.status == LongRunningProcessStatus.Status.RUNNING) {
-                Assert.assertEquals(previousLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
+                assertEquals(previousLongRunningProcessStatus.status, LongRunningProcessStatus.Status.SUCCESS);
             }
         });
 
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topic, false);
             // Compacted topic ledger should have same number of entry equals to number of unique key.
-            Assert.assertEquals(internalStats.compactedLedger.entries, expected.size());
-            Assert.assertTrue(internalStats.compactedLedger.ledgerId > -1);
-            Assert.assertFalse(internalStats.compactedLedger.offloaded);
+            assertEquals(internalStats.compactedLedger.entries, expected.size());
+            assertTrue(internalStats.compactedLedger.ledgerId > -1);
+            assertFalse(internalStats.compactedLedger.offloaded);
         });
 
         // consumer with readCompacted enabled only get compacted entries
@@ -2014,7 +2063,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .readCompacted(true).subscribe()) {
             while (true) {
                 Message<byte[]> m = consumer.receive(2, TimeUnit.SECONDS);
-                Assert.assertEquals(expected.remove(m.getKey()), m.getData());
+                assertEquals(expected.remove(m.getKey()), m.getData());
                 if (expected.isEmpty()) {
                     break;
                 }
@@ -2024,7 +2073,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testDeleteCompactedLedger() throws Exception {
-        String topicName = "persistent://my-property/use/my-ns/testDeleteCompactedLedger";
+        String topicName = "persistent://my-tenant/my-ns/testDeleteCompactedLedger";
 
         final String subName = "my-sub";
         @Cleanup
@@ -2043,9 +2092,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         MutableLong compactedLedgerId = new MutableLong(-1);
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
-            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1L);
+            assertNotEquals(stats.compactedLedger.ledgerId, -1L);
             compactedLedgerId.setValue(stats.compactedLedger.ledgerId);
-            Assert.assertEquals(stats.compactedLedger.entries, 2L);
+            assertEquals(stats.compactedLedger.entries, 2L);
         });
 
         // delete compacted ledger
@@ -2053,8 +2102,8 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
-            Assert.assertEquals(stats.compactedLedger.ledgerId, -1L);
-            Assert.assertEquals(stats.compactedLedger.entries, -1L);
+            assertEquals(stats.compactedLedger.ledgerId, -1L);
+            assertEquals(stats.compactedLedger.entries, -1L);
             assertThrows(BKException.BKNoSuchLedgerExistsException.class, () -> pulsarTestContext.getBookKeeperClient()
                         .openLedger(compactedLedgerId.getValue(), BookKeeper.DigestType.CRC32C, new byte[]{}));
         });
@@ -2064,9 +2113,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         MutableLong compactedLedgerId2 = new MutableLong(-1);
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
-            Assert.assertNotEquals(stats.compactedLedger.ledgerId, -1L);
+            assertNotEquals(stats.compactedLedger.ledgerId, -1L);
             compactedLedgerId2.setValue(stats.compactedLedger.ledgerId);
-            Assert.assertEquals(stats.compactedLedger.entries, 2L);
+            assertEquals(stats.compactedLedger.entries, 2L);
         });
 
         producer.close();
@@ -2077,77 +2126,85 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                         compactedLedgerId2.getValue(), BookKeeper.DigestType.CRC32, new byte[]{})));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testDeleteCompactedLedgerWithSlowAck() throws Exception {
-        // Disable topic level policies, since block ack thread may also block thread of delete topic policies.
-        conf.setTopicLevelPoliciesEnabled(false);
-        restartBroker();
+        String topicName = newUniqueName("persistent://my-tenant/my-ns/testDeleteCompactedLedgerWithSlowAck");
+        admin.topics().createNonPartitionedTopic(topicName);
+        // minimum compaction threshold
+        admin.topicPolicies().setCompactionThreshold(topicName, 1);
+        // infinite retention
+        admin.topicPolicies().setRetention(topicName, new RetentionPolicies(-1, -1));
 
-        String topicName = "persistent://my-property/use/my-ns/testDeleteCompactedLedgerWithSlowAck";
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .enableBatching(false).topic(topicName).create();
 
-        pulsarClient.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Exclusive)
-                .subscriptionName(Compactor.COMPACTION_SUBSCRIPTION)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).readCompacted(true).subscribe()
-                .close();
+        // send a single message
+        producer.newMessage().key(String.valueOf(0)).value("0").send();
+        // trigger compaction once to create __compaction subscription
+        triggerCompactionAndWait(topicName);
 
-        for (int i = 0; i < 10; i++) {
+        int numberOfMessages = 10;
+        for (int i = 0; i < numberOfMessages; i++) {
             producer.newMessage().key(String.valueOf(i % 2)).value(String.valueOf(i)).sendAsync();
         }
         producer.flush();
 
+        // replace the PersistentSubscription with a spy
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        PersistentSubscription subscription = spy(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
+        PersistentSubscription subscription =
+                spyWithoutRecordingInvocations(topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION));
         topic.getSubscriptions().put(Compactor.COMPACTION_SUBSCRIPTION, subscription);
 
+        // delay the ack of compaction
+        CountDownLatch compactionAckedLatch = new CountDownLatch(1);
         AtomicLong compactedLedgerId = new AtomicLong(-1);
-        AtomicBoolean pauseAck = new AtomicBoolean();
         Mockito.doAnswer(invocationOnMock -> {
-            Map<String, Long> properties = (Map<String, Long>) invocationOnMock.getArguments()[2];
-            log.info("acknowledgeMessage properties: {}", properties);
+            List<Position> positions = invocationOnMock.getArgument(0);
+            Map<String, Long> properties = invocationOnMock.getArgument(2);
+            log.info("acknowledgeMessage positions: {} properties: {}", positions, properties);
             compactedLedgerId.set(properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));
-            pauseAck.set(true);
-            while (pauseAck.get()) {
-                Thread.sleep(200);
+            try {
+                return invocationOnMock.callRealMethod();
+            } finally {
+                log.info("acknowledgeMessage completed {}", positions);
+                compactionAckedLatch.countDown();
+                // add delay here to introduce possible races with deletion
+                Thread.sleep(500);
             }
-            return invocationOnMock.callRealMethod();
         }).when(subscription).acknowledgeMessage(Mockito.any(), Mockito.eq(
                 CommandAck.AckType.Cumulative), Mockito.any());
 
+        // trigger compaction
         admin.topics().triggerCompaction(topicName);
 
-        while (!pauseAck.get()) {
-            Thread.sleep(100);
-        }
+        // wait for compaction to acknowledge
+        compactionAckedLatch.await(9, TimeUnit.SECONDS);
 
-        CompletableFuture<Long> currentCompaction =
-                (CompletableFuture<Long>) FieldUtils.readDeclaredField(topic, "currentCompaction", true);
-        CompletableFuture<Long> spyCurrentCompaction = spy(currentCompaction);
-        FieldUtils.writeDeclaredField(topic, "currentCompaction", spyCurrentCompaction, true);
-        currentCompaction.whenComplete((obj, throwable) -> {
-            if (throwable != null) {
-                spyCurrentCompaction.completeExceptionally(throwable);
-            } else {
-                spyCurrentCompaction.complete(obj);
-            }
-        });
-        Mockito.doAnswer(invocationOnMock -> {
-            pauseAck.set(false);
-            return invocationOnMock.callRealMethod();
-        }).when(spyCurrentCompaction).handle(Mockito.any());
+        // close the producer
+        producer.close();
 
+        // delete compacted ledger
         admin.topics().delete(topicName, true);
 
+        // ensure that the compacted ledger is deleted
         Awaitility.await().untilAsserted(() -> assertThrows(BKException.BKNoSuchLedgerExistsException.class,
                 () -> pulsarTestContext.getBookKeeperClient().openLedger(
                         compactedLedgerId.get(), BookKeeper.DigestType.CRC32, new byte[]{})));
     }
 
+    private void triggerCompactionAndWait(String topicName) throws Exception {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+        persistentTopic.triggerCompactionWithCheckHasMoreMessages().join();
+        CompletableFuture<Long> currentCompaction =
+                (CompletableFuture<Long>) FieldUtils.readDeclaredField(persistentTopic, "currentCompaction", true);
+        currentCompaction.get(10, TimeUnit.SECONDS);
+    }
+
     @Test
     public void testCompactionWithTTL() throws Exception {
-        String topicName = "persistent://my-property/use/my-ns/testCompactionWithTTL";
+        String topicName = "persistent://my-tenant/my-ns/testCompactionWithTTL";
         String subName = "sub";
         pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName(subName).readCompacted(true)
                 .subscribe().close();
@@ -2208,12 +2265,12 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             result.add(receive.getValue());
         }
 
-        Assert.assertEquals(result, List.of("V3", "V4", "V5"));
+        assertEquals(result, List.of("V3", "V4", "V5"));
     }
 
     @Test
     public void testAcknowledgeWithReconnection() throws Exception {
-        final String topicName = "persistent://my-property/use/my-ns/testAcknowledge" + UUID.randomUUID();
+        final String topicName = newUniqueName("persistent://my-tenant/my-ns/testAcknowledge");
         final String subName = "my-sub";
         @Cleanup
         PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
@@ -2260,7 +2317,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await().untilAsserted(() ->
                 assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
-                        5));
+                        0));
 
         // Make consumer reconnect to broker
         admin.topics().unload(topicName);
@@ -2268,7 +2325,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // Wait for consumer to reconnect and clear incomingMessages
         consumer.pause();
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(consumer.numMessagesInQueue(), 0);
+            assertEquals(consumer.numMessagesInQueue(), 0);
         });
         consumer.resume();
 
@@ -2285,22 +2342,22 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(subName).getMsgBacklog(),
                         0));
 
-        Assert.assertEquals(results, expected);
+        assertEquals(results, expected);
 
         Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNull(message);
 
         // Make consumer reconnect to broker
         admin.topics().unload(topicName);
 
         producer.newMessage().key("K").value("V").send();
         Message<String> message2 = consumer.receive(3, TimeUnit.SECONDS);
-        Assert.assertEquals(message2.getValue(), "V");
+        assertEquals(message2.getValue(), "V");
         consumer.acknowledge(message2);
 
         Awaitility.await().untilAsserted(() -> {
             PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicName);
-            Assert.assertEquals(internalStats.lastConfirmedEntry,
+            assertEquals(internalStats.lastConfirmedEntry,
                     internalStats.cursors.get(subName).markDeletePosition);
         });
 
@@ -2308,9 +2365,68 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
+    @Test(timeOut = 120 * 1000)
+    public void testConcurrentCompactionAndTopicDelete() throws Exception {
+        final String topicName = newUniqueName("persistent://my-tenant/my-ns/concurrent-compaction-topic-delete");
+        admin.topics().createNonPartitionedTopic(topicName);
+        // Load up the topic.
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+        // Inject a reading delay to the compaction task,
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        ManagedCursor compactionCursor = ml.openCursor(COMPACTION_SUBSCRIPTION);
+        ManagedCursor spyCompactionCursor = spy(compactionCursor);
+        CountDownLatch delayReadSignal = new CountDownLatch(1);
+        Answer answer = new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                delayReadSignal.await();
+                return invocationOnMock.callRealMethod();
+            }
+        };
+        doAnswer(answer).when(spyCompactionCursor).asyncReadEntries(anyInt(),
+                any(AsyncCallbacks.ReadEntriesCallback.class), any(), any(Position.class));
+        doAnswer(answer).when(spyCompactionCursor).asyncReadEntries(anyInt(), anyLong(),
+                any(AsyncCallbacks.ReadEntriesCallback.class), any(), any(Position.class));
+        doAnswer(answer).when(spyCompactionCursor).asyncReadEntriesOrWait(anyInt(), anyLong(),
+                any(AsyncCallbacks.ReadEntriesCallback.class), any(), any(Position.class));
+        ml.getCursors().removeCursor(COMPACTION_SUBSCRIPTION);
+        ml.getCursors().add(spyCompactionCursor, ml.getLastConfirmedEntry());
+
+        // Trigger a compaction task.
+        for (int i = 0; i < 2000; i++) {
+            producer.newMessage().key(String.valueOf(i)).value(String.valueOf(i)).send();
+        }
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).readCompacted(true).subscriptionName("s1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        persistentTopic.triggerCompactionWithCheckHasMoreMessages().join();
+        Awaitility.await().untilAsserted(() -> {
+           assertEquals(persistentTopic.getSubscriptions().get(COMPACTION_SUBSCRIPTION).getConsumers().size(), 1);
+        });
+
+        // Since we injected a delay reading, the compaction task started and not finish yet.
+        // Call topic deletion, they two tasks are concurrently executed.
+        producer.close();
+        consumer.close();
+        CompletableFuture<Void> deleteTopicFuture = persistentTopic.deleteForcefully();
+
+        // Remove the injection after 3s.
+        Thread.sleep(3000);
+        delayReadSignal.countDown();
+
+        // Verify: topic deletion is successfully executed.
+        Awaitility.await().atMost(15, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertTrue(deleteTopicFuture.isDone());
+        });
+    }
+
     @Test
     public void testEarliestSubsAfterRollover() throws Exception {
-        final String topicName = "persistent://my-property/use/my-ns/testEarliestSubsAfterRollover" + UUID.randomUUID();
+        final String topicName = newUniqueName("persistent://my-tenant/my-ns/testEarliestSubsAfterRollover");
         final String subName = "my-sub";
         @Cleanup
         PulsarClient client = newPulsarClient(lookupUrl.toString(), 100);
@@ -2362,6 +2478,70 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(message);
         }
 
-        Assert.assertEquals(results, expected);
+        assertEquals(results, expected);
+    }
+
+    @Test
+    public void testPhaseTwoInterruption() throws Exception {
+        // Set infinite retention to retain all original ledgers
+        admin.namespaces().setRetention("my-tenant/my-ns", new RetentionPolicies(-1, -1));
+        final var topic = "persistent://my-tenant/my-ns/phase-two-interruption";
+        @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        final BiConsumer<String, String> send = (key, value) -> {
+            final var msgId = producer.newMessage().key(key).value(value).sendAsync().join();
+            log.info("Sent {} => {} to {}", key, value, msgId);
+        };
+
+        send.accept("key-0", "value");
+        for (int i = 0; i < 3; i++) {
+            send.accept("key-1", "value-" + i);
+        }
+
+        triggerAndWaitCompaction(topic); // update the compaction horizon
+
+        AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {
+            // Simulate the case when the topic is closed during compaction phase two
+            CompletableFuture.runAsync(() -> {
+                final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).join()
+                        .orElseThrow();
+                persistentTopic.close().join();
+            });
+        };
+        // Send a new message so that the compaction won't be skipped
+        send.accept("key-2", "value-0");
+        send.accept("key-2", "value-1");
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> assertFalse(pulsar.getBrokerService().getTopics()
+                .containsKey(TopicName.get(topic).toString())));
+
+        AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
+
+        // Messages of "key-2" are not compacted due to the injected failure, but the previous messages are read from
+        // the compacted ledger rather than the original ledger.
+        verifyReadKeyValues(topic, true, List.of("key-0", "value", "key-1", "value-2", "key-2", "value-0", "key-2",
+                "value-1"));
+        // The original ledger still exists so old values of "key-1" can be read
+        verifyReadKeyValues(topic, false, List.of("key-0", "value", "key-1", "value-0", "key-1", "value-1", "key-1",
+                "value-2", "key-2", "value-0", "key-2", "value-1"));
+    }
+
+    private void verifyReadKeyValues(String topic, boolean readCompacted, List<String> expectedKeyValues)
+            throws Exception {
+        @Cleanup final var reader = pulsarClient.newReader(Schema.STRING).topic(topic).readCompacted(readCompacted)
+                .startMessageId(MessageId.earliest).create();
+        final var keyValues = new ArrayList<String>();
+        while (reader.hasMessageAvailable()) {
+            final var msg = reader.readNext();
+            keyValues.add(msg.getKey());
+            keyValues.add(msg.getValue());
+        }
+        assertEquals(keyValues, expectedKeyValues,
+                readCompacted + " " + String.join(",", keyValues.toArray(new String[0])));
+    }
+
+    private void triggerAndWaitCompaction(String topic) throws Exception {
+        admin.topics().triggerCompaction(topic);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().compactionStatus(topic).status, LongRunningProcessStatus.Status.SUCCESS));
     }
 }

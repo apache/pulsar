@@ -19,12 +19,16 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.NameResolver;
+import io.netty.util.Timer;
 import io.opentelemetry.api.common.Attributes;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang3.StringUtils;
@@ -65,10 +69,17 @@ public class HttpLookupService implements LookupService {
     private final LatencyHistogram histoGetSchema;
     private final LatencyHistogram histoListTopics;
 
+    @Deprecated
     public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
-                             EventLoopGroup eventLoopGroup)
+                             EventLoopGroup eventLoopGroup) throws PulsarClientException {
+        this(instrumentProvider, conf, eventLoopGroup, null, null);
+    }
+
+    public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                             EventLoopGroup eventLoopGroup, Timer timer,
+                             NameResolver<InetAddress> nameResolver)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(conf, eventLoopGroup);
+        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver);
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
 
@@ -95,7 +106,14 @@ public class HttpLookupService implements LookupService {
      */
     @Override
     @SuppressWarnings("deprecation")
-    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName) {
+    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties) {
+        if (lookupProperties == null) {
+            lookupProperties = httpClient.clientConf.getLookupProperties();
+        }
+        if (lookupProperties != null && !lookupProperties.isEmpty()) {
+            log.warn("Lookup properties aren't supported for http lookup service. lookupProperties: {}",
+                    lookupProperties);
+        }
         String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
         String path = basePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
@@ -201,8 +219,8 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
-        return getSchema(topicName, null);
+    public boolean isBinaryProtoLookupService() {
+        return false;
     }
 
     @Override

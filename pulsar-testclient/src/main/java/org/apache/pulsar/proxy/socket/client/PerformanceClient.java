@@ -54,6 +54,7 @@ import org.apache.pulsar.testclient.IMessageFormatter;
 import org.apache.pulsar.testclient.PerfClientUtils;
 import org.apache.pulsar.testclient.PositiveNumberParameterConvert;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
+import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
@@ -239,19 +240,21 @@ public class PerformanceClient extends CmdBase {
         String restPath = TopicName.get(topicName).getRestPath();
         String produceBaseEndPoint = TopicName.get(topicName).isV2()
                 ? this.proxyURL + "ws/v2/producer/" + restPath : this.proxyURL + "ws/producer/" + restPath;
+        HttpClient httpClient = new HttpClient();
+        httpClient.setSslContextFactory(new SslContextFactory.Client(true));
         for (int i = 0; i < this.numTopics; i++) {
             String topic = this.numTopics > 1 ? produceBaseEndPoint + i : produceBaseEndPoint;
             URI produceUri = URI.create(topic);
 
-            WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            WebSocketClient produceClient = new WebSocketClient(httpClient);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
 
             if (StringUtils.isNotBlank(this.authPluginClassName) && StringUtils.isNotBlank(this.authParams)) {
                 try {
                     Authentication auth = AuthenticationFactory.create(this.authPluginClassName,
                             this.authParams);
                     auth.start();
-                    AuthenticationDataProvider authData = auth.getAuthData();
+                    AuthenticationDataProvider authData = auth.getAuthData(produceUri.getHost());
                     if (authData.hasDataForHttp()) {
                         for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
                             produceRequest.setHeader(kv.getKey(), kv.getValue());
@@ -259,6 +262,9 @@ public class PerformanceClient extends CmdBase {
                     }
                 } catch (Exception e) {
                     log.error("Authentication plugin error: " + e.getMessage());
+                    if (PerfClientUtils.hasInterruptedException(e)) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
 
@@ -266,12 +272,15 @@ public class PerformanceClient extends CmdBase {
 
             try {
                 produceClient.start();
-                produceClient.connect(produceSocket, produceUri, produceRequest);
+                produceClient.connect(produceSocket, produceRequest);
             } catch (IOException e1) {
                 log.error("Fail in connecting: [{}]", e1.getMessage());
                 return;
             } catch (Exception e1) {
                 log.error("Fail in starting client[{}]", e1.getMessage());
+                if (PerfClientUtils.hasInterruptedException(e1)) {
+                    Thread.currentThread().interrupt();
+                }
                 return;
             }
 
@@ -288,7 +297,7 @@ public class PerformanceClient extends CmdBase {
                 long testEndTime = startTime + (long) (this.testTime * 1e9);
                 // Send messages on all topics/producers
                 long totalSent = 0;
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     for (String topic : producersMap.keySet()) {
                         if (this.testTime > 0 && System.nanoTime() > testEndTime) {
                             log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) "
@@ -352,10 +361,11 @@ public class PerformanceClient extends CmdBase {
         histogramLogWriter.outputLogFormatVersion();
         histogramLogWriter.outputLegend();
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
 
@@ -399,6 +409,9 @@ public class PerformanceClient extends CmdBase {
             Class clz = classLoader.loadClass(formatterClass);
             return (IMessageFormatter) clz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
+            if (PerfClientUtils.hasInterruptedException(e)) {
+                Thread.currentThread().interrupt();
+            }
             return null;
         }
     }
@@ -408,11 +421,12 @@ public class PerformanceClient extends CmdBase {
         loadArguments();
         PerfClientUtils.printJVMInformation(log);
         long start = System.nanoTime();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        Thread shutdownHookThread = PerfClientUtils.addShutdownHook(() -> {
             printAggregatedThroughput(start);
             printAggregatedStats();
-        }));
+        });
         runPerformanceTest();
+        PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
 
     private class Tuple {

@@ -39,10 +39,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -50,6 +52,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.awaitility.core.ThrowingRunnable;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 /**
@@ -110,7 +113,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Uses Jackson to create a JSON string for the given object
+     * Uses Jackson to create a JSON string for the given object.
      * @param object to convert to JSON
      * @return JSON string
      */
@@ -126,15 +129,17 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Logs the topic stats and internal stats for the given topic
-     * @param logger logger to use
+     * Logs the topic stats and internal stats for the given topic.
+     *
+     * @param logger      logger to use
      * @param pulsarAdmin PulsarAdmin client to use
-     * @param topic topic name
+     * @param topic       topic name
+     * @param description
      */
-    public static void logTopicStats(Logger logger, PulsarAdmin pulsarAdmin, String topic) {
+    public static void logTopicStats(Logger logger, PulsarAdmin pulsarAdmin, String topic, String description) {
         try {
-            logger.info("[{}] stats: {}", topic, toJson(pulsarAdmin.topics().getStats(topic)));
-            logger.info("[{}] internalStats: {}", topic,
+            logger.info("[{}] {} stats: {}", topic, description, toJson(pulsarAdmin.topics().getStats(topic)));
+            logger.info("[{}] {} internalStats: {}", topic, description,
                     toJson(pulsarAdmin.topics().getInternalStats(topic, true)));
         } catch (PulsarAdminException e) {
             logger.warn("Failed to get stats for topic {}", topic, e);
@@ -142,7 +147,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Logs the topic stats and internal stats for the given topic
+     * Logs the topic stats and internal stats for the given topic.
      * @param logger logger to use
      * @param baseUrl Pulsar service URL
      * @param topic topic name
@@ -152,7 +157,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Logs the topic stats and internal stats for the given topic
+     * Logs the topic stats and internal stats for the given topic.
      * @param logger logger to use
      * @param baseUrl Pulsar service URL
      * @param tenant tenant name
@@ -169,7 +174,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Pretty print the given JSON string
+     * Pretty print the given JSON string.
      * @param jsonString JSON string to pretty print
      * @return pretty printed JSON string
      */
@@ -185,7 +190,7 @@ public class BrokerTestUtil {
     }
 
     /**
-     * Get the resource as a string from the given URI
+     * Get the resource as a string from the given URI.
      */
     @SneakyThrows
     public static String getJsonResourceAsString(String uri) {
@@ -224,33 +229,61 @@ public class BrokerTestUtil {
     public static <T> void receiveMessages(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
                                        Duration quietTimeout,
                                        Consumer<T>... consumers) {
-        FutureUtil.waitForAll(Arrays.stream(consumers)
-                .map(consumer -> receiveMessagesAsync(consumer, quietTimeout, messageHandler)).toList()).join();
+        receiveMessages(messageHandler, quietTimeout, Arrays.stream(consumers));
+    }
+
+    /**
+     * Receive messages concurrently from multiple consumers and handles them using the provided message handler.
+     * The message handler should return true if it wants to continue receiving more messages, false otherwise.
+     *
+     * @param messageHandler the message handler
+     * @param quietTimeout the duration of quiet time after which the method will stop waiting for more messages
+     * @param consumers the consumers to receive messages from
+     * @param <T> the message value type
+     */
+    public static <T> void receiveMessages(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
+                                           Duration quietTimeout,
+                                           Stream<Consumer<T>> consumers) {
+        long quietTimeoutNanos = quietTimeout.toNanos();
+        AtomicLong lastMessageReceivedNanos = new AtomicLong(System.nanoTime());
+        FutureUtil.waitForAll(consumers
+                .map(consumer -> receiveMessagesAsync(consumer, quietTimeoutNanos, quietTimeoutNanos, messageHandler,
+                        lastMessageReceivedNanos)).toList()).join();
     }
 
     // asynchronously receive messages from a consumer and handle them using the provided message handler
     // the benefit is that multiple consumers can be concurrently consumed without the need to have multiple threads
     // this is useful in tests where multiple consumers are needed to test the functionality
-    private static <T> CompletableFuture<Void> receiveMessagesAsync(Consumer<T> consumer, Duration quietTimeout,
-                                                             BiFunction<Consumer<T>, Message<T>, Boolean>
-                                                                     messageHandler) {
-        CompletableFuture<Message<T>> receiveFuture = consumer.receiveAsync();
-        return receiveFuture
-                .orTimeout(quietTimeout.toMillis(), TimeUnit.MILLISECONDS)
+    private static <T> CompletableFuture<Void> receiveMessagesAsync(Consumer<T> consumer,
+                                                                    long quietTimeoutNanos,
+                                                                    long receiveTimeoutNanos,
+                                                                    BiFunction<Consumer<T>, Message<T>, Boolean>
+                                                                            messageHandler,
+                                                                    AtomicLong lastMessageReceivedNanos) {
+        return consumer.receiveAsync()
+                .orTimeout(receiveTimeoutNanos, TimeUnit.NANOSECONDS)
                 .handle((msg, t) -> {
+                    long currentNanos = System.nanoTime();
                     if (t != null) {
                         if (t instanceof TimeoutException) {
-                            // cancel the receive future so that Pulsar client can clean up the resources
-                            receiveFuture.cancel(false);
-                            return false;
+                            long sinceLastMessageReceivedNanos = currentNanos - lastMessageReceivedNanos.get();
+                            if (sinceLastMessageReceivedNanos > quietTimeoutNanos) {
+                                return Pair.of(false, 0L);
+                            } else {
+                                return Pair.of(true, quietTimeoutNanos - sinceLastMessageReceivedNanos);
+                            }
                         } else {
                             throw FutureUtil.wrapToCompletionException(t);
                         }
                     }
-                    return messageHandler.apply(consumer, msg);
-                }).thenComposeAsync(receiveMore -> {
+                    lastMessageReceivedNanos.set(currentNanos);
+                    return Pair.of(messageHandler.apply(consumer, msg), quietTimeoutNanos);
+                }).thenComposeAsync(receiveMoreAndNextTimeout -> {
+                    boolean receiveMore = receiveMoreAndNextTimeout.getLeft();
                     if (receiveMore) {
-                        return receiveMessagesAsync(consumer, quietTimeout, messageHandler);
+                        Long nextReceiveTimeoutNanos = receiveMoreAndNextTimeout.getRight();
+                        return receiveMessagesAsync(consumer, quietTimeoutNanos, nextReceiveTimeoutNanos,
+                                messageHandler, lastMessageReceivedNanos);
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }
@@ -335,7 +368,8 @@ public class BrokerTestUtil {
         return createMockConsumer(consumerName, consumerName + " consumerId:" + consumerId, consumerId);
     }
 
-    public static org.apache.pulsar.broker.service.Consumer createMockConsumer(String consumerName, String toString, long consumerId) {
+    public static org.apache.pulsar.broker.service.Consumer createMockConsumer(String consumerName,
+                                                                               String toString, long consumerId) {
         // without stubOnly, the mock will record method invocations and could run into OOME
         org.apache.pulsar.broker.service.Consumer
                 consumer = mock(org.apache.pulsar.broker.service.Consumer.class, Mockito.withSettings().stubOnly());
@@ -343,5 +377,21 @@ public class BrokerTestUtil {
         when(consumer.toString()).thenReturn(consumerName + " consumerId:" + consumerId);
         when(consumer.consumerId()).thenReturn(consumerId);
         return consumer;
+    }
+
+    /**
+     * Utility method to log failed assertions happening inside an Awaitility.await().untilAsserted block.
+     * This can be used to debug failing tests.
+     * @param log Logger to use for logging the failure.
+     * @param runnable The runnable to run.
+     * @throws Throwable If the runnable throws an exception.
+     */
+    public static void logAssertionErrors(Logger log, ThrowingRunnable runnable) throws Throwable {
+        try {
+            runnable.run();
+        } catch (AssertionError e) {
+            log.error("Assertion failed", e);
+            throw e;
+        }
     }
 }

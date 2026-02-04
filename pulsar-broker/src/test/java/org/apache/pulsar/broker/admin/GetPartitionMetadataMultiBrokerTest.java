@@ -253,6 +253,10 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
                                                   boolean isUsingHttpLookup) throws Exception {
         modifyTopicAutoCreation(configAllowAutoTopicCreation, TopicType.PARTITIONED, 3);
 
+        // Verify: the method "getPartitionsForTopic(topic, false, true)" will fallback
+        //   to "getPartitionsForTopic(topic, true)" behavior.
+        int lookupPermitsBefore = getLookupRequestPermits();
+
         // Initialize the connections of internal Pulsar Client.
         PulsarClientImpl client1 = (PulsarClientImpl) pulsar1.getClient();
         PulsarClientImpl client2 = (PulsarClientImpl) pulsar2.getClient();
@@ -270,9 +274,6 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
                 field.set(clientCnx, false);
             }
         }
-        // Verify: the method "getPartitionsForTopic(topic, false, true)" will fallback
-        //   to "getPartitionsForTopic(topic, true)" behavior.
-        int lookupPermitsBefore = getLookupRequestPermits();
 
         // Verify: we will not get an un-support error.
         PulsarClientImpl[] clientArray = getClientsToTest(isUsingHttpLookup);

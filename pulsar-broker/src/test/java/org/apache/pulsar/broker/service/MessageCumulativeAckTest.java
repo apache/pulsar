@@ -36,17 +36,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.util.Codec;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -71,15 +73,18 @@ public class MessageCumulativeAckTest {
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getValue());
         when(serverCnx.ctx()).thenReturn(mock(ChannelHandlerContext.class));
-        doReturn(new PulsarCommandSenderImpl(null, serverCnx))
+        AsyncDualMemoryLimiter maxTopicListInFlightLimiter = mock(AsyncDualMemoryLimiter.class);
+        doReturn(new PulsarCommandSenderImpl(null, serverCnx, maxTopicListInFlightLimiter))
                 .when(serverCnx).getCommandSender();
 
         String topicName = TopicName.get("MessageCumulativeAckTest").toString();
         var mockManagedLedger = mock(ManagedLedger.class);
         when(mockManagedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
         var persistentTopic = new PersistentTopic(topicName, mockManagedLedger, pulsarTestContext.getBrokerService());
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn(Codec.encode("sub-1")).when(cursor).getName();
         sub = spy(new PersistentSubscription(persistentTopic, "sub-1",
-            mock(ManagedCursorImpl.class), false));
+            cursor, false));
         doNothing().when(sub).acknowledgeMessage(any(), any(), any());
     }
 

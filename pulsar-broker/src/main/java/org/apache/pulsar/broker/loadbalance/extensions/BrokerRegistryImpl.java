@@ -45,6 +45,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 /**
  * The broker registry impl, base on the LockManager.
@@ -112,6 +113,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             throw new PulsarServerException("Cannot start the broker registry in state " + state.get());
         }
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
+        pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
         try {
             this.registerAsync().get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
@@ -206,6 +208,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         return brokerLookupDataMetadataCache.get(keyPath(broker));
     }
 
+    @Override
     public CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync() {
         this.checkState();
         return this.getAvailableBrokersAsync().thenCompose(availableBrokers -> {
@@ -224,6 +227,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         });
     }
 
+    @Override
     public synchronized void addListener(BiConsumer<String, NotificationType> listener) {
         this.checkState();
         this.listeners.add(listener);
@@ -277,6 +281,18 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
         } catch (RejectedExecutionException e) {
             // Executor is shutting down
+        }
+    }
+
+    private void handleMetadataSessionEvent(SessionEvent event) {
+        if (!this.isStarted()) {
+            return;
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("Handle metadata session event: [{}]", event);
+        }
+        if (event == SessionEvent.SessionReestablished || event == SessionEvent.Reconnected) {
+            this.registerAsyncWithRetries();
         }
     }
 

@@ -125,7 +125,8 @@ public class HttpTopicLookupv2Test {
         config.setAuthorizationEnabled(true);
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
-        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false, null, null);
+        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), "myprop",
+                "usc", "ns2", "topic1", false, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse).resume(arg.capture());
@@ -152,13 +153,14 @@ public class HttpTopicLookupv2Test {
         NamespaceService namespaceService = pulsar.getNamespaceService();
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.newTopicNotExists());
-        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+        doReturn(future).when(namespaceService).checkTopicExistsAsync(any(TopicName.class));
         CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
         booleanFuture.complete(false);
         doReturn(booleanFuture).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class));
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
-        destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic_not_exist", false, null, null);
+        destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop",
+                "usc", "ns2", "topic_not_exist", false, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse1).resume(arg.capture());
@@ -197,7 +199,8 @@ public class HttpTopicLookupv2Test {
         config.setAuthorizationEnabled(true);
 
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
-        destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic1", false,null, null);
+        destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop",
+                "usc", "ns2", "topic1", false, null, null);
 
         ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
         verify(asyncResponse1).resume(arg.capture());
@@ -231,7 +234,8 @@ public class HttpTopicLookupv2Test {
         CompletableFuture<Optional<Policies>> nullPolicies = new CompletableFuture<>();
         nullPolicies.complete(Optional.empty());
         doReturn(nullPolicies).when(namespaceResources).getPoliciesAsync(namespaceName1);
-        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns1, "empty-cluster", false, null, null);
+        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster,
+                ns1, "empty-cluster", false, null, null);
         verify(asyncResponse).resume(arg.capture());
         assertEquals(arg.getValue().getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         // Test empty cluster
@@ -240,7 +244,8 @@ public class HttpTopicLookupv2Test {
         doReturn(emptyPolicies).when(namespaceResources).getPoliciesAsync(namespaceName1);
         asyncResponse = mock(AsyncResponse.class);
         arg = ArgumentCaptor.forClass(RestException.class);
-        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns1, "empty-cluster", false, null, null);
+        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster,
+                ns1, "empty-cluster", false, null, null);
         verify(asyncResponse).resume(arg.capture());
         assertEquals(arg.getValue().getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         // Test get peer replication cluster
@@ -266,14 +271,14 @@ public class HttpTopicLookupv2Test {
         NamespaceService namespaceService = pulsar.getNamespaceService();
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.newTopicNotExists());
-        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+        doReturn(future).when(namespaceService).checkTopicExistsAsync(any(TopicName.class));
         CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
         booleanFuture.complete(false);
         doReturn(future).when(namespaceService).checkNonPartitionedTopicExists(any(TopicName.class));
         destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), property, cluster, ns2,
                 "invalid-localCluster", false, null, null);
         verify(asyncResponse).resume(arg.capture());
-        assertEquals(arg.getValue().getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+        assertEquals(arg.getValue().getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
     }
 
     @Test
@@ -290,7 +295,7 @@ public class HttpTopicLookupv2Test {
         MockTopicLookup destLookup = spy(MockTopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         BrokerService brokerService = pulsar.getBrokerService();
-        doReturn(new Semaphore(1000,true)).when(brokerService).getLookupRequestSemaphore();
+        doReturn(new Semaphore(1000, true)).when(brokerService).getLookupRequestSemaphore();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
@@ -303,13 +308,14 @@ public class HttpTopicLookupv2Test {
         NamespaceService namespaceService = pulsar.getNamespaceService();
         CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
         future.complete(TopicExistsInfo.newTopicNotExists());
-        doReturn(future).when(namespaceService).checkTopicExists(any(TopicName.class));
+        doReturn(future).when(namespaceService).checkTopicExistsAsync(any(TopicName.class));
 
         // Get the current semaphore first
         Integer state1 = pulsar.getBrokerService().getLookupRequestSemaphore().availablePermits();
         AsyncResponse asyncResponse1 = mock(AsyncResponse.class);
         // We used a nonexistent topic to test
-        destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop", "usc", "ns2", "topic2", false, null, null);
+        destLookup.lookupTopicAsync(asyncResponse1, TopicDomain.persistent.value(), "myprop",
+                "usc", "ns2", "topic2", false, null, null);
         // Gets semaphore status
         Integer state2 = pulsar.getBrokerService().getLookupRequestSemaphore().availablePermits();
         // If it is successfully released, it should be equal

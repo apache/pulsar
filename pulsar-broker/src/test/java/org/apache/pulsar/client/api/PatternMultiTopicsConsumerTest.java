@@ -109,7 +109,8 @@ public class PatternMultiTopicsConsumerTest extends ProducerConsumerBase {
         admin.topics().createNonPartitionedTopic(topicName3);
 
         // Register a exclusive consumer to makes the pattern consumer failed to subscribe.
-        Consumer c1 = pulsarClient.newConsumer(Schema.STRING).topic(topicName3).subscriptionType(SubscriptionType.Exclusive)
+        Consumer c1 = pulsarClient.newConsumer(Schema.STRING).topic(topicName3)
+                .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName(subName).subscribe();
 
         try {

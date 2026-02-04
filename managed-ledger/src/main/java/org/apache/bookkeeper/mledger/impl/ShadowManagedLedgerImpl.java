@@ -407,4 +407,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     protected void updateLastLedgerCreatedTimeAndScheduleRolloverTask() {
         this.lastLedgerCreatedTimestamp = clock.millis();
     }
+
+    @Override
+    boolean shouldCacheAddedEntry() {
+        return false;
+    }
 }

@@ -23,6 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
@@ -61,6 +63,8 @@ public class ManagedLedgerConfig {
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
+    private Semaphore ledgerDeletionSemaphore;
+    private ExecutorService ledgerDeleteExecutor;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
@@ -80,9 +84,15 @@ public class ManagedLedgerConfig {
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
+    private long inactiveOffloadedLedgerEvictionTimeMs = 0;
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
+    @Getter
+    @Setter
+    private boolean cacheEvictionByExpectedReadCount = true;
+    @Getter
+    private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
@@ -93,6 +103,8 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private String shadowSourceName;
+    @Getter
+    private boolean persistIndividualAckAsLongArray;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -100,6 +112,11 @@ public class ManagedLedgerConfig {
 
     public ManagedLedgerConfig setCreateIfMissing(boolean createIfMissing) {
         this.createIfMissing = createIfMissing;
+        return this;
+    }
+
+    public ManagedLedgerConfig setPersistIndividualAckAsLongArray(boolean persistIndividualAckAsLongArray) {
+        this.persistIndividualAckAsLongArray = persistIndividualAckAsLongArray;
         return this;
     }
 
@@ -398,6 +415,30 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * @return the semaphore used to limit concurrent ledger deletions
+     */
+    public Semaphore getLedgerDeletionSemaphore() {
+        return ledgerDeletionSemaphore;
+    }
+
+    public ManagedLedgerConfig setLedgerDeletionSemaphore(Semaphore semaphore) {
+        this.ledgerDeletionSemaphore = semaphore;
+        return this;
+    }
+
+    /**
+     * @return the executor service to be used for deleting ledgers
+     */
+    public ExecutorService getLedgerDeleteExecutor() {
+        return ledgerDeleteExecutor;
+    }
+
+    public ManagedLedgerConfig setLedgerDeleteExecutor(ExecutorService executor) {
+        this.ledgerDeleteExecutor = executor;
+        return this;
+    }
+
+    /**
      * Set the retention time for the ManagedLedger.
      * <p>
      * Retention time and retention size ({@link #setRetentionSizeInMB(long)}) are together used to retain the
@@ -492,6 +533,16 @@ public class ManagedLedgerConfig {
      */
     public int getMaxBatchDeletedIndexToPersist() {
         return maxBatchDeletedIndexToPersist;
+    }
+
+    /**
+     * Set max batch deleted index that will be persisted and recovered.
+     *
+     * @param maxBatchDeletedIndexToPersist
+     *            max batch deleted index that will be persisted and recovered.
+     */
+    public void setMaxBatchDeletedIndexToPersist(int maxBatchDeletedIndexToPersist) {
+        this.maxBatchDeletedIndexToPersist = maxBatchDeletedIndexToPersist;
     }
 
     public boolean isPersistentUnackedRangesWithMultipleEntriesEnabled() {
@@ -706,6 +757,14 @@ public class ManagedLedgerConfig {
      */
     public void setInactiveLedgerRollOverTime(int inactiveLedgerRollOverTimeMs, TimeUnit unit) {
         this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
+    }
+
+    public long getInactiveOffloadedLedgerEvictionTimeMs() {
+        return inactiveOffloadedLedgerEvictionTimeMs;
+    }
+
+    public void setInactiveOffloadedLedgerEvictionTime(long inactiveOffloadedLedgerEvictionTime, TimeUnit unit) {
+        this.inactiveOffloadedLedgerEvictionTimeMs = unit.toMillis(inactiveOffloadedLedgerEvictionTime);
     }
 
     /**

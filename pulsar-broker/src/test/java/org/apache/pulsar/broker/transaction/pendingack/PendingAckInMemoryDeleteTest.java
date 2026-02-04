@@ -25,7 +25,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +44,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -59,8 +57,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
     private static final int NUM_PARTITIONS = 16;
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
-        setUpBase(1, NUM_PARTITIONS, NAMESPACE1 +"/test", 0);
+        setUpBase(1, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -78,7 +75,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                 .topic(normalTopic)
                 .isAckReceiptEnabled(true)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(2, TimeUnit.SECONDS)
                 .acknowledgmentGroupTime(0, TimeUnit.MICROSECONDS)
@@ -126,7 +122,8 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                                 .getSubscription(subscriptionName);
                         var field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
                         field.setAccessible(true);
-                        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
+                        PendingAckHandleImpl pendingAckHandle =
+                                (PendingAckHandleImpl) field.get(persistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
                         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
@@ -157,7 +154,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -223,10 +219,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                                 (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
                         assertTrue(individualAckOfTransaction.isEmpty());
                         managedCursor = (ManagedCursorImpl) testPersistentSubscription.getCursor();
-                        field = ManagedCursorImpl.class.getDeclaredField("batchDeletedIndexes");
-                        field.setAccessible(true);
-                        final ConcurrentSkipListMap<Position, BitSetRecyclable> batchDeletedIndexes =
-                                (ConcurrentSkipListMap<Position, BitSetRecyclable>) field.get(managedCursor);
+                        final var batchDeletedIndexes = managedCursor.getBatchDeletedIndexes();
                         if (retryCnt == 0) {
                             //one message are not ack
                             Awaitility.await().until(() -> {
@@ -256,7 +249,8 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             assertEquals(batchDeletedIndexes.size(), 1);
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
 
-                            // the messages has been produced were all acked, the memory in broker for the messages has been cleared.
+                            // the messages has been produced were all acked,
+                            // the memory in broker for the messages has been cleared.
                             commitTwice.commit().get();
                             assertEquals(batchDeletedIndexes.size(), 0);
                             assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0);
@@ -278,7 +272,6 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(normalTopic)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 

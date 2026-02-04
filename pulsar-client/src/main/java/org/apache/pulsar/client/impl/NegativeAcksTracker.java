@@ -22,50 +22,54 @@ import static org.apache.pulsar.client.impl.UnAckedMessageTracker.addChunkedMess
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.opentelemetry.api.trace.Span;
+import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
+import it.unimi.dsi.fastutil.longs.LongBidirectionalIterator;
 import java.io.Closeable;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
+import org.apache.pulsar.client.api.TraceableMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
+import org.roaringbitmap.longlong.Roaring64Bitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class NegativeAcksTracker implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(NegativeAcksTracker.class);
 
-    private ConcurrentLongLongPairHashMap nackedMessages = null;
+    // timestamp -> ledgerId -> entryId, no need to batch index, if different messages have
+    // different timestamp, there will be multiple entries in the map
+    // RB Tree -> LongOpenHashMap -> Roaring64Bitmap
+    private Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>> nackedMessages = null;
+    private final Long2ObjectMap<Long2ObjectMap<MessageId>> nackedMessageIds = new Long2ObjectOpenHashMap<>();
 
     private final ConsumerBase<?> consumer;
     private final Timer timer;
-    private final long nackDelayNanos;
-    private final long timerIntervalNanos;
+    private final long nackDelayMs;
     private final RedeliveryBackoff negativeAckRedeliveryBackoff;
+    private final int negativeAckPrecisionBitCnt;
 
     private Timeout timeout;
 
     // Set a min delay to allow for grouping nacks within a single batch
-    private static final long MIN_NACK_DELAY_NANOS = TimeUnit.MILLISECONDS.toNanos(100);
-    private static final long NON_PARTITIONED_TOPIC_PARTITION_INDEX = Long.MAX_VALUE;
+    private static final long MIN_NACK_DELAY_MS = 100;
+    private static final int DUMMY_PARTITION_INDEX = -2;
 
     public NegativeAcksTracker(ConsumerBase<?> consumer, ConsumerConfigurationData<?> conf) {
         this.consumer = consumer;
         this.timer = consumer.getClient().timer();
-        this.nackDelayNanos = Math.max(TimeUnit.MICROSECONDS.toNanos(conf.getNegativeAckRedeliveryDelayMicros()),
-                MIN_NACK_DELAY_NANOS);
+        this.nackDelayMs = Math.max(TimeUnit.MICROSECONDS.toMillis(conf.getNegativeAckRedeliveryDelayMicros()),
+                MIN_NACK_DELAY_MS);
         this.negativeAckRedeliveryBackoff = conf.getNegativeAckRedeliveryBackoff();
-        if (negativeAckRedeliveryBackoff != null) {
-            this.timerIntervalNanos = Math.max(
-                    TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.next(0)),
-                    MIN_NACK_DELAY_NANOS) / 3;
-        } else {
-            this.timerIntervalNanos = nackDelayNanos / 3;
-        }
+        this.negativeAckPrecisionBitCnt = conf.getNegativeAckPrecisionBitCnt();
     }
 
     private void triggerRedelivery(Timeout t) {
@@ -76,21 +80,58 @@ class NegativeAcksTracker implements Closeable {
                 return;
             }
 
-            long now = System.nanoTime();
-            nackedMessages.forEach((ledgerId, entryId, partitionIndex, timestamp) -> {
-                if (timestamp < now) {
-                    MessageId msgId = new MessageIdImpl(ledgerId, entryId,
-                            // need to covert non-partitioned topic partition index to -1
-                            (int) (partitionIndex == NON_PARTITIONED_TOPIC_PARTITION_INDEX ? -1 : partitionIndex));
-                    addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
-                    messagesToRedeliver.add(msgId);
+            long currentTimestamp = System.currentTimeMillis();
+            for (long timestamp : nackedMessages.keySet()) {
+                if (timestamp > currentTimestamp) {
+                    // We are done with all the messages that need to be redelivered
+                    break;
                 }
-            });
-            for (MessageId messageId : messagesToRedeliver) {
-                nackedMessages.remove(((MessageIdImpl) messageId).getLedgerId(),
-                        ((MessageIdImpl) messageId).getEntryId());
+
+                Long2ObjectMap<Roaring64Bitmap> ledgerMap = nackedMessages.get(timestamp);
+                for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
+                    long ledgerId = ledgerEntry.getLongKey();
+                    Roaring64Bitmap entrySet = ledgerEntry.getValue();
+                    entrySet.forEach(entryId -> {
+                        MessageId msgId = null;
+                        Long2ObjectMap<MessageId> entryMap = nackedMessageIds.get(ledgerId);
+                        if (entryMap != null) {
+                            msgId = entryMap.remove(entryId);
+                            if (entryMap.isEmpty()) {
+                                nackedMessageIds.remove(ledgerId);
+                            }
+                        }
+                        if (msgId == null) {
+                            msgId = new MessageIdImpl(ledgerId, entryId, DUMMY_PARTITION_INDEX);
+                        }
+                        addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
+                        messagesToRedeliver.add(msgId);
+                    });
+                }
             }
-            this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
+
+            // remove entries from the nackedMessages map
+            LongBidirectionalIterator iterator = nackedMessages.keySet().iterator();
+            while (iterator.hasNext()) {
+                long timestamp = iterator.nextLong();
+                if (timestamp <= currentTimestamp) {
+                    iterator.remove();
+                } else {
+                    break;
+                }
+            }
+
+            // Schedule the next redelivery if there are still messages to redeliver
+            if (!nackedMessages.isEmpty()) {
+                long nextTriggerTimestamp = nackedMessages.firstLongKey();
+                long delayMs = Math.max(nextTriggerTimestamp - currentTimestamp, 0);
+                if (delayMs > 0) {
+                    this.timeout = timer.newTimeout(this::triggerRedelivery, delayMs, TimeUnit.MILLISECONDS);
+                } else {
+                    this.timeout = timer.newTimeout(this::triggerRedelivery, 0, TimeUnit.MILLISECONDS);
+                }
+            } else {
+                this.timeout = null;
+            }
         }
 
         // release the lock of NegativeAcksTracker before calling consumer.redeliverUnacknowledgedMessages,
@@ -110,39 +151,65 @@ class NegativeAcksTracker implements Closeable {
         add(message.getMessageId(), message.getRedeliveryCount());
     }
 
+    static long trimLowerBit(long timestamp, int bits) {
+        return timestamp & (-1L << bits);
+    }
+
     private synchronized void add(MessageId messageId, int redeliveryCount) {
-        if (nackedMessages == null) {
-            nackedMessages = ConcurrentLongLongPairHashMap.newBuilder()
-                    .autoShrink(true)
-                    .concurrencyLevel(1)
-                    .build();
+        if (messageId instanceof TraceableMessageId) {
+            Span span = ((TraceableMessageId) messageId).getTracingSpan();
+            if (span != null) {
+                MessageIdAdv msgId = (MessageIdAdv) messageId;
+                nackedMessageIds.computeIfAbsent(msgId.getLedgerId(), k -> new Long2ObjectOpenHashMap<>())
+                        .put(msgId.getEntryId(), messageId);
+            }
         }
 
-        long backoffNs;
-        if (negativeAckRedeliveryBackoff != null) {
-            backoffNs = TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.next(redeliveryCount));
-        } else {
-            backoffNs = nackDelayNanos;
+        if (nackedMessages == null) {
+            nackedMessages = new Long2ObjectAVLTreeMap<>();
         }
-        MessageIdAdv messageIdAdv = MessageIdAdvUtils.discardBatch(messageId);
-        // ConcurrentLongLongPairHashMap requires the key and value >=0.
-        // partitionIndex is -1 if the message is from a non-partitioned topic, but we don't use
-        // partitionIndex actually, so we can set it to Long.MAX_VALUE in the case of non-partitioned topic to
-        // avoid exception from ConcurrentLongLongPairHashMap.
-        nackedMessages.put(messageIdAdv.getLedgerId(), messageIdAdv.getEntryId(),
-                messageIdAdv.getPartitionIndex() >= 0 ? messageIdAdv.getPartitionIndex() :
-                        NON_PARTITIONED_TOPIC_PARTITION_INDEX, System.nanoTime() + backoffNs);
+
+        long backoffMs;
+        if (negativeAckRedeliveryBackoff != null) {
+            backoffMs = TimeUnit.MILLISECONDS.toMillis(negativeAckRedeliveryBackoff.next(redeliveryCount));
+        } else {
+            backoffMs = nackDelayMs;
+        }
+        MessageIdAdv messageIdAdv = (MessageIdAdv) messageId;
+        long timestamp = trimLowerBit(System.currentTimeMillis() + backoffMs, negativeAckPrecisionBitCnt);
+        nackedMessages.computeIfAbsent(timestamp, k -> new Long2ObjectOpenHashMap<>())
+                .computeIfAbsent(messageIdAdv.getLedgerId(), k -> new Roaring64Bitmap())
+                .add(messageIdAdv.getEntryId());
 
         if (this.timeout == null) {
             // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
             // nack immediately following the current one will be batched into the same redeliver request.
-            this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
+            this.timeout = timer.newTimeout(this::triggerRedelivery, backoffMs, TimeUnit.MILLISECONDS);
         }
     }
 
+    /**
+     * Discard the batch index and partition index from the message id.
+     *
+     * @param messageId
+     * @return
+     */
+    public static MessageIdAdv discardBatchAndPartitionIndex(MessageId messageId) {
+        if (messageId instanceof ChunkMessageIdImpl) {
+            return (MessageIdAdv) messageId;
+        }
+        MessageIdAdv msgId = (MessageIdAdv) messageId;
+        return new MessageIdImpl(msgId.getLedgerId(), msgId.getEntryId(), DUMMY_PARTITION_INDEX);
+    }
+
     @VisibleForTesting
-    Optional<Long> getNackedMessagesCount() {
-        return Optional.ofNullable(nackedMessages).map(ConcurrentLongLongPairHashMap::size);
+    synchronized long getNackedMessagesCount() {
+        if (nackedMessages == null) {
+            return 0;
+        }
+        return nackedMessages.values().stream().mapToLong(
+                ledgerMap -> ledgerMap.values().stream().mapToLong(
+                        Roaring64Bitmap::getLongCardinality).sum()).sum();
     }
 
     @Override
@@ -155,6 +222,9 @@ class NegativeAcksTracker implements Closeable {
         if (nackedMessages != null) {
             nackedMessages.clear();
             nackedMessages = null;
+        }
+        if (nackedMessageIds != null) {
+            nackedMessageIds.clear();
         }
     }
 }

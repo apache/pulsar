@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
@@ -62,6 +64,7 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
+@Slf4j
 @Getter(AccessLevel.PUBLIC)
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
@@ -99,7 +102,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public Consumer<T> subscribe() throws PulsarClientException {
         try {
-            return subscribeAsync().get();
+            return FutureUtil.getAndCleanupOnInterrupt(subscribeAsync(), Consumer::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
@@ -146,6 +149,17 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
+        if (conf.getDecryptFailListener() != null && conf.getMessageListener() == null) {
+            return FutureUtil.failedFuture(
+                    new InvalidConfigurationException("decryptFailListener must be set with messageListener"));
+        }
+        if (conf.getDecryptFailListener() != null && conf.getCryptoFailureAction() != null) {
+            return FutureUtil.failedFuture(
+                    new InvalidConfigurationException("decryptFailListener can't be set with cryptoFailureAction"));
+        }
+        if (conf.getDecryptFailListener() == null && conf.getCryptoFailureAction() == null) {
+            conf.setCryptoFailureAction(ConsumerCryptoFailureAction.FAIL);
+        }
         if (conf.getBatchReceivePolicy() != null) {
             conf.setReceiverQueueSize(
                     Math.max(conf.getBatchReceivePolicy().getMaxNumMessages(), conf.getReceiverQueueSize()));
@@ -165,10 +179,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                 CompletableFuture<Boolean> deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
-                            String retryLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
-                            String deadLetterTopic = topicFirst + "-" + conf.getSubscriptionName()
-                                    + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
+                            String retryLetterTopic = RetryMessageUtil.getRetryTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
+                            String deadLetterTopic = RetryMessageUtil.getDLQTopic(topicFirst.toString(),
+                                    conf.getSubscriptionName());
                             if (retryLetterTopicMetadata.join()) {
                                 retryLetterTopic = oldRetryLetterTopic;
                             }
@@ -199,10 +213,22 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             applyDLQConfig = CompletableFuture.completedFuture(null);
         }
         return applyDLQConfig.thenCompose(__ -> {
-            if (interceptorList == null || interceptorList.size() == 0) {
+            // Automatically add tracing interceptor if tracing is enabled
+            List<ConsumerInterceptor<T>> effectiveInterceptors = interceptorList;
+            if (client.getConfiguration().isTracingEnabled()) {
+                if (effectiveInterceptors == null) {
+                    effectiveInterceptors = new java.util.ArrayList<>();
+                } else {
+                    effectiveInterceptors = new java.util.ArrayList<>(effectiveInterceptors);
+                }
+                effectiveInterceptors.add(
+                        new org.apache.pulsar.client.impl.tracing.OpenTelemetryConsumerInterceptor<>());
+            }
+
+            if (effectiveInterceptors == null || effectiveInterceptors.size() == 0) {
                 return client.subscribeAsync(conf, schema, null);
             } else {
-                return client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
+                return client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(effectiveInterceptors));
             }
         });
     }
@@ -282,6 +308,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> negativeAckRedeliveryDelayPrecision(int negativeAckPrecisionBitCount) {
+        checkArgument(negativeAckPrecisionBitCount >= 0, "negativeAckPrecisionBitCount needs to be >= 0");
+        conf.setNegativeAckPrecisionBitCnt(negativeAckPrecisionBitCount);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> subscriptionType(@NonNull SubscriptionType subscriptionType) {
         conf.setSubscriptionType(subscriptionType);
         return this;
@@ -297,6 +330,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> messageListener(@NonNull MessageListener<T> messageListener) {
         conf.setMessageListener(messageListener);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> decryptFailListener(@NonNull DecryptFailListener<T> messageListener) {
+        conf.setDecryptFailListener(messageListener);
         return this;
     }
 

@@ -68,12 +68,10 @@ import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.SharedConsumerAssignor;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -165,7 +163,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded();
-        this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addEntryToReplay);
+        this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addEntryToReplay, subscription);
         ServiceConfiguration serviceConfiguration = topic.getBrokerService().pulsar().getConfiguration();
         this.readFailureBackoff = new Backoff(
                 serviceConfiguration.getDispatcherReadFailureBackoffInitialTimeInMs(),
@@ -384,7 +382,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             }
 
             Set<Position> messagesToReplayNow =
-                    canReplayMessages() ? getMessagesToReplayNow(messagesToRead) : Collections.emptySet();
+                    canReplayMessages() ? getMessagesToReplayNow(messagesToRead, bytesToRead) : Collections.emptySet();
             if (!messagesToReplayNow.isEmpty()) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule replay of {} messages for {} consumers", name,
@@ -563,54 +561,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
         // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
-                DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
+            if (hasAnyDispatchRateLimiter()) {
                 Pair<Integer, Long> calculateToRead =
-                        updateMessagesToRead(brokerRateLimiter, messagesToRead, bytesToRead);
-                messagesToRead = calculateToRead.getLeft();
-                bytesToRead = calculateToRead.getRight();
-                if (messagesToRead == 0 || bytesToRead == 0) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded broker message-rate {}/{}, schedule after a {}", name,
-                                brokerRateLimiter.getDispatchRateOnMsg(), brokerRateLimiter.getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                    }
-                    reScheduleRead();
-                    return Pair.of(-1, -1L);
-                }
-            }
-
-            if (topic.getDispatchRateLimiter().isPresent()) {
-                DispatchRateLimiter topicRateLimiter = topic.getDispatchRateLimiter().get();
-                Pair<Integer, Long> calculateToRead =
-                        updateMessagesToRead(topicRateLimiter, messagesToRead, bytesToRead);
-                messagesToRead = calculateToRead.getLeft();
-                bytesToRead = calculateToRead.getRight();
-                if (messagesToRead == 0 || bytesToRead == 0) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded topic message-rate {}/{}, schedule after a {}", name,
-                                topicRateLimiter.getDispatchRateOnMsg(), topicRateLimiter.getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                    }
-                    reScheduleRead();
-                    return Pair.of(-1, -1L);
-                }
-            }
-
-            if (dispatchRateLimiter.isPresent()) {
-                Pair<Integer, Long> calculateToRead =
-                        updateMessagesToRead(dispatchRateLimiter.get(), messagesToRead, bytesToRead);
-                messagesToRead = calculateToRead.getLeft();
-                bytesToRead = calculateToRead.getRight();
-                if (messagesToRead == 0 || bytesToRead == 0) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] message-read exceeded subscription message-rate {}/{}, schedule after a {}",
-                                name, dispatchRateLimiter.get().getDispatchRateOnMsg(),
-                                dispatchRateLimiter.get().getDispatchRateOnByte(),
-                                MESSAGE_RATE_BACKOFF_MS);
-                    }
-                    reScheduleRead();
-                    return Pair.of(-1, -1L);
+                        applyRateLimitsToMessagesAndBytesToRead(messagesToRead, bytesToRead);
+                if (calculateToRead.getLeft() == -1 && calculateToRead.getRight() == -1) {
+                    return calculateToRead;
+                } else {
+                    messagesToRead = calculateToRead.getLeft();
+                    bytesToRead = calculateToRead.getRight();
                 }
             }
         }
@@ -687,9 +645,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     protected void cancelPendingRead() {
-        if ((havePendingRead || havePendingReplayRead) && cursor.cancelPendingReadRequest()) {
+        if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;
-            havePendingReplayRead = false;
         }
     }
 
@@ -840,10 +797,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             if (entry instanceof EntryAndMetadata) {
                 metadata = ((EntryAndMetadata) entry).getMetadata();
             } else {
-                metadata = Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
                 // cache the metadata in the entry with EntryAndMetadata for later use to avoid re-parsing the metadata
                 // and to carry the metadata and calculated stickyKeyHash with the entry
-                entries.set(i, EntryAndMetadata.create(entry, metadata));
+                EntryAndMetadata entryAndMetadata = EntryAndMetadata.create(entry);
+                metadata = entryAndMetadata.getMetadata();
+                entries.set(i, entryAndMetadata);
             }
             if (metadata != null) {
                 remainingMessages += metadata.getNumMessagesInBatch();
@@ -876,7 +834,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
                 return false;
             }
-
             // round-robin dispatch batch size for this consumer
             int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
             if (log.isDebugEnabled() && !c.isWritable()) {
@@ -885,20 +842,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         c, c.getAvailablePermits());
             }
 
-            int maxMessagesInThisBatch =
-                    Math.max(remainingMessages, serviceConfig.getDispatcherMaxRoundRobinBatchSize());
-            if (c.getMaxUnackedMessages() > 0) {
-                // Calculate the maximum number of additional unacked messages allowed
-                int maxAdditionalUnackedMessages = Math.max(c.getMaxUnackedMessages() - c.getUnackedMessages(), 0);
-                maxMessagesInThisBatch = Math.min(maxMessagesInThisBatch, maxAdditionalUnackedMessages);
-            }
-            int maxEntriesInThisBatch = Math.min(availablePermits,
-                            // use the average batch size per message to calculate the number of entries to
-                            // dispatch. round up to the next integer without using floating point arithmetic.
-                            (maxMessagesInThisBatch + avgBatchSizePerMsg - 1) / avgBatchSizePerMsg);
-            // pick at least one entry to dispatch
-            maxEntriesInThisBatch = Math.max(maxEntriesInThisBatch, 1);
-
+            int maxEntriesInThisBatch = getMaxEntriesInThisBatch(
+                    remainingMessages, c.getMaxUnackedMessages(), c.getUnackedMessages(), avgBatchSizePerMsg,
+                    availablePermits, serviceConfig.getDispatcherMaxRoundRobinBatchSize()
+            );
             int end = Math.min(start + maxEntriesInThisBatch, entries.size());
             List<Entry> entriesForThisConsumer = entries.subList(start, end);
 
@@ -949,6 +896,29 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
 
         return true;
+    }
+
+
+    @VisibleForTesting
+    static int getMaxEntriesInThisBatch(int remainingMessages,
+                                        int maxUnackedMessages,
+                                        int unackedMessages,
+                                        int avgBatchSizePerMsg,
+                                        int availablePermits,
+                                        int dispatcherMaxRoundRobinBatchSize) {
+        int maxMessagesInThisBatch = Math.min(remainingMessages, availablePermits);
+        if (maxUnackedMessages > 0) {
+            // Calculate the maximum number of additional unacked messages allowed
+            int maxAdditionalUnackedMessages = Math.max(maxUnackedMessages - unackedMessages, 0);
+            maxMessagesInThisBatch = Math.min(maxMessagesInThisBatch, maxAdditionalUnackedMessages);
+        }
+        int maxEntriesInThisBatch = Math.min(dispatcherMaxRoundRobinBatchSize,
+                // use the average batch size per message to calculate the number of entries to
+                // dispatch. round up to the next integer without using floating point arithmetic.
+                (maxMessagesInThisBatch + avgBatchSizePerMsg - 1) / avgBatchSizePerMsg);
+        // pick at least one entry to dispatch
+        maxEntriesInThisBatch = Math.max(maxEntriesInThisBatch, 1);
+        return maxEntriesInThisBatch;
     }
 
     protected boolean addEntryToReplay(Entry entry) {
@@ -1312,7 +1282,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter.isDispatchRateEnabled(
                 topic.getSubscriptionDispatchRate(getSubscriptionName()))) {
             this.dispatchRateLimiter =
-                    Optional.of(new DispatchRateLimiter(topic, getSubscriptionName(), Type.SUBSCRIPTION));
+                    Optional.of(topic.getBrokerService().getDispatchRateLimiterFactory()
+                            .createSubscriptionDispatchRateLimiter(topic, getSubscriptionName()));
             return true;
         }
         return false;
@@ -1344,15 +1315,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
-    protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead) {
+    protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead, long bytesToRead) {
+        int cappedMaxMessagesToRead = cursor.applyMaxSizeCap(maxMessagesToRead, bytesToRead);
+        if (cappedMaxMessagesToRead < maxMessagesToRead && log.isDebugEnabled()) {
+            log.debug("[{}] Capped max messages to read from redelivery list to {} (max was {})",
+                    name, cappedMaxMessagesToRead, maxMessagesToRead);
+        }
         if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
             NavigableSet<Position> messagesAvailableNow =
-                    delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
+                    delayedDeliveryTracker.get().getScheduledMessages(cappedMaxMessagesToRead);
             messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
         }
         if (!redeliveryMessages.isEmpty()) {
-            return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead, createFilterForReplay());
+            return redeliveryMessages.getMessagesToReplayNow(cappedMaxMessagesToRead, createFilterForReplay());
         } else {
             return Collections.emptyNavigableSet();
         }
@@ -1423,6 +1399,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     protected boolean addMessageToReplay(long ledgerId, long entryId, long stickyKeyHash) {
         if (checkIfMessageIsUnacked(ledgerId, entryId)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Adding message to replay for {}:{} hash: {}", name, ledgerId, entryId, stickyKeyHash);
+            }
             redeliveryMessages.add(ledgerId, entryId, stickyKeyHash);
             return true;
         } else {
@@ -1458,7 +1437,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return false;
         }
         // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
-        if (totalAvailablePermits > 0 && !havePendingReplayRead && !havePendingRead
+        if (isAtleastOneConsumerAvailable() && !havePendingReplayRead && !havePendingRead
                 && cursor.getNumberOfEntriesInBacklog(false) > 0) {
             log.warn("{}-{} Dispatcher is stuck and unblocking by issuing reads", topic.getName(), name);
             readMoreEntriesAsync();

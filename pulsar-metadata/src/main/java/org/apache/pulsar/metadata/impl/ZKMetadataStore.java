@@ -19,7 +19,6 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.io.File;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
@@ -32,6 +31,7 @@ import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -54,6 +54,7 @@ import org.apache.pulsar.metadata.impl.batching.OpDelete;
 import org.apache.pulsar.metadata.impl.batching.OpGet;
 import org.apache.pulsar.metadata.impl.batching.OpGetChildren;
 import org.apache.pulsar.metadata.impl.batching.OpPut;
+import org.apache.pulsar.metadata.impl.batching.ZKMetadataStoreBatchStrategy;
 import org.apache.zookeeper.AddWatchMode;
 import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
@@ -70,9 +71,10 @@ import org.apache.zookeeper.client.ConnectStringParser;
 @Slf4j
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
-
     public static final String ZK_SCHEME = "zk";
     public static final String ZK_SCHEME_IDENTIFIER = "zk:";
+    // ephemeralOwner value for persistent nodes
+    private static final long NOT_EPHEMERAL = 0L;
 
     private final String zkConnectString;
     private final String rootPath;
@@ -80,6 +82,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     private final boolean isZkManaged;
     private final ZooKeeper zkc;
     private final ZKSessionWatcher sessionWatcher;
+    private final Watcher eventWatcher = this::handleWatchEvent;
 
     public ZKMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig, boolean enableSessionWatcher)
             throws MetadataStoreException {
@@ -107,7 +110,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             } else {
                 sessionWatcher = null;
             }
-            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
+            zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
+            initBatchStrategy();
         } catch (Throwable t) {
             throw new MetadataStoreException(t);
         }
@@ -128,22 +132,35 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     @VisibleForTesting
     @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config) {
-        super(config);
+        this(zkc, config, false);
+    }
 
+    @VisibleForTesting
+    @SneakyThrows
+    public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config, boolean isZkManaged) {
+        super(config);
         this.zkConnectString = null;
         this.rootPath = null;
         this.metadataStoreConfig = null;
-        this.isZkManaged = false;
+        this.isZkManaged = isZkManaged;
         this.zkc = zkc;
         this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
-        zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE);
+        zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
+        initBatchStrategy();
+    }
+
+    private void initBatchStrategy() {
+        ZKMetadataStoreBatchStrategy batchStrategy =
+                new ZKMetadataStoreBatchStrategy(nodeSizeStats, maxOperations, maxSize, zkc);
+        this.maxSize = batchStrategy.maxSize();
+        super.metadataStoreBatchStrategy = batchStrategy;
     }
 
     @Override
     protected void receivedSessionEvent(SessionEvent event) {
         if (event == SessionEvent.SessionReestablished) {
             // Recreate the persistent watch on the new session
-            zkc.addWatch("/", this::handleWatchEvent, AddWatchMode.PERSISTENT_RECURSIVE,
+            zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE,
                     (rc, path, ctx) -> {
                         if (rc == Code.OK.intValue()) {
                             super.receivedSessionEvent(event);
@@ -197,14 +214,35 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
                         // Build the log warning message
                         // summarize the operations by type
+                        final int logThresholdPut = maxSize >> 4;
+                        final int logThresholdGet = maxSize >> 4;
                         String countsByType = ops.stream().collect(
                                         Collectors.groupingBy(MetadataOp::getType, Collectors.summingInt(op -> 1)))
-                                .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name() + " entries")
+                                .entrySet().stream().map(e -> e.getValue() + " " + e.getKey().name())
                                 .collect(Collectors.joining(", "));
+                        boolean shouldLimitLogLen = ops.size() > 16;
+                        List<Triple<String, String, Integer>> opsForLog = ops.stream()
+                                .filter(item -> {
+                                    if (!shouldLimitLogLen) {
+                                        return true;
+                                    }
+                                    return switch (item.getType()) {
+                                        case PUT -> item.asPut().getData().length > logThresholdPut;
+                                        case GET -> nodeSizeStats
+                                                .getMaxSizeOfSameResourceType(item.getPath()) > logThresholdGet;
+                                        case GET_CHILDREN -> nodeSizeStats
+                                                .getMaxChildrenCountOfSameResourceType(item.getPath()) > 512;
+                                        default -> false;
+                                    };
+                                })
+                                .map(op -> Triple.of(op.getPath(), op.getType().toString(), op.size()))
+                                .collect(Collectors.toList());
                         Long totalSize = ops.stream().collect(Collectors.summingLong(MetadataOp::size));
                         log.warn("Connection loss while executing batch operation of {} "
-                                + "of total data size of {}. "
-                                + "Retrying individual operations one-by-one.", countsByType, totalSize);
+                                + "of total requested data size of {}. "
+                                + "Retrying individual operations one-by-one."
+                                + " ops that maybe large: {}",
+                                countsByType, totalSize, opsForLog);
 
                         // Retry with the individual operations
                         executor.schedule(() -> {
@@ -433,8 +471,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                 future.completeExceptionally(getException(Code.BADVERSION, opPut.getPath()));
                             } else {
                                 // The z-node does not exist, let's create it first
-                                put(opPut.getPath(), opPut.getData(), Optional.of(-1L)).thenAccept(
-                                                s -> future.complete(s))
+                                put(opPut.getPath(), opPut.getData(), Optional.of(-1L), opPut.getOptions())
+                                        .thenAccept(s -> future.complete(s))
                                         .exceptionally(ex -> {
                                             if (ex.getCause() instanceof BadVersionException) {
                                                 // The z-node exist now, let's overwrite it
@@ -472,7 +510,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
         return new Stat(path, zkStat.getVersion(), zkStat.getCtime(), zkStat.getMtime(),
-                zkStat.getEphemeralOwner() != -1,
+                zkStat.getEphemeralOwner() != NOT_EPHEMERAL,
                 zkStat.getEphemeralOwner() == zkc.getSessionId());
     }
 
@@ -598,8 +636,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             if (rc != Code.NONODE.intValue()) {
                 callback.processResult(rc, path, ctx, name);
             } else {
-                String parent = (new File(originalPath)).getParent().replace("\\", "/");
-
+                String parent = parent(originalPath);
+                if (parent == null) {
+                    parent = "/";
+                }
                 // Create parent nodes as "CONTAINER" so that ZK will automatically delete them when they're empty
                 asyncCreateFullPathOptimistic(zk, parent, new byte[0], CreateMode.CONTAINER,
                         (rc1, path1, ctx1, name1) -> {

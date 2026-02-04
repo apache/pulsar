@@ -89,8 +89,8 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
 
         List<CompletableFuture<MessageId>> handles = new ArrayList<>();
         for (int i = 0; i < numMessages; i++) {
-            CompletableFuture<MessageId> handle
-                    = p.sendAsync(("test-" + i).getBytes());
+            CompletableFuture<MessageId> handle =
+                    p.sendAsync(("test-" + i).getBytes());
             handles.add(handle);
         }
         FutureUtil.waitForAll(handles).get();
@@ -140,19 +140,19 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
             verifyBacklog(topic, subName, numEntries - (5 / batchSize), numMessages - 5);
 
             int count = numMessages - 5;
-            while (count -- > 0) {
+            while (count-- > 0) {
                 Message m = consumer.receive();
                 consumer.acknowledge(m);
             }
 
-            verifyBacklog(topic, subName, 0,0);
+            verifyBacklog(topic, subName, 0, 0);
         }
 
     }
 
     private void verifyBacklog(String topic, String subscription, int numEntries, int numMessages) throws Exception {
-        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult
-                = admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
+        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
 
         assertEquals(analyzeSubscriptionBacklogResult.getEntries(), numEntries);
         assertEquals(analyzeSubscriptionBacklogResult.getFilterAcceptedEntries(), numEntries);
@@ -161,6 +161,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         assertEquals(analyzeSubscriptionBacklogResult.getFilterRescheduledEntries(), 0);
 
         assertEquals(analyzeSubscriptionBacklogResult.getMessages(), numMessages);
+        assertEquals(analyzeSubscriptionBacklogResult.getMarkerMessages(), 0);
         assertEquals(analyzeSubscriptionBacklogResult.getFilterAcceptedMessages(), numMessages);
         assertEquals(analyzeSubscriptionBacklogResult.getFilterRejectedMessages(), 0);
 
@@ -183,8 +184,8 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         });
 
         // you can access single partitions
-        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult
-                = admin.topics().analyzeSubscriptionBacklog(topic + "-partition-0", "sub-1", Optional.empty());
+        AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic + "-partition-0", "sub-1", Optional.empty());
         assertEquals(0, analyzeSubscriptionBacklogResult.getEntries());
     }
 

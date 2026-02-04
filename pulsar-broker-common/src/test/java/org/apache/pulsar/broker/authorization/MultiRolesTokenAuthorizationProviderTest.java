@@ -21,20 +21,23 @@ package org.apache.pulsar.broker.authorization;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
+import javax.crypto.SecretKey;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.Test;
-import javax.crypto.SecretKey;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 public class MultiRolesTokenAuthorizationProviderTest {
 
@@ -43,7 +46,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String userA = "user-a";
         String userB = "user-b";
-        String token = Jwts.builder().claim("sub", new String[]{userA, userB}).signWith(secretKey).compact();
+        String token = Jwts.builder().claim("roles", new String[]{userA, userB}).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -84,7 +87,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
     @Test
     public void testMultiRolesAuthzWithEmptyRoles() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-        String token = Jwts.builder().claim("sub", new String[]{}).signWith(secretKey).compact();
+        String token = Jwts.builder().claim("roles", new String[]{}).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -113,7 +116,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
     public void testMultiRolesAuthzWithSingleRole() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String testRole = "test-role";
-        String token = Jwts.builder().claim("sub", testRole).signWith(secretKey).compact();
+        String token = Jwts.builder().claim("roles", testRole).signWith(secretKey).compact();
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -147,7 +150,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
     public void testMultiRolesAuthzWithoutClaim() throws Exception {
         final SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         final String testRole = "test-role";
-        // broker will use "sub" as the claim by default.
+        // broker will use "roles" as the claim by default.
         final String token = Jwts.builder()
                 .claim("whatever", testRole).signWith(secretKey).compact();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -193,7 +196,8 @@ public class MultiRolesTokenAuthorizationProviderTest {
         };
         assertTrue(provider.authorize("test-role", null, authorizeFunc).get());
         assertFalse(provider.authorize("test-role-x", null, authorizeFunc).get());
-        assertTrue(provider.authorize("test-role", new AuthenticationDataSubscription(null, "test-sub"), authorizeFunc).get());
+        assertTrue(provider.authorize("test-role",
+                new AuthenticationDataSubscription(null, "test-sub"), authorizeFunc).get());
     }
 
     @Test
@@ -267,7 +271,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
     public void testMultiRolesAuthzWithSuperUser() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String testAdminRole = "admin";
-        String token = Jwts.builder().claim("sub", testAdminRole).signWith(secretKey).compact();
+        String token = Jwts.builder().claim("roles", testAdminRole).signWith(secretKey).compact();
 
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setSuperUserRoles(Set.of(testAdminRole));
@@ -298,8 +302,113 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
             return CompletableFuture.completedFuture(false);
         };
-        assertTrue(provider.authorize(testAdminRole, ads, (String role) -> CompletableFuture.completedFuture(false)).get());
+        assertTrue(provider.authorize(testAdminRole, ads,
+                (String role) -> CompletableFuture.completedFuture(false)).get());
         assertTrue(provider.authorize("admin1", null, authorizeFunc).get());
         assertFalse(provider.authorize("admin2", null, authorizeFunc).get());
+    }
+
+    /**
+     * Test subscription prefix mismatch exception handling.
+     * <p>
+     * Scenario 1: One role authorization succeeds, another role throws subscription prefix mismatch exception
+     * -> Returns true (exception is swallowed)
+     * Scenario 2: All roles throw subscription prefix mismatch exception -> Returns false
+     */
+    @Test
+    public void testMultiRolesAuthzWithSubscriptionPrefixMismatchException() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+        String userA = "user-a";
+        String userB = "user-b";
+        String token = Jwts.builder()
+                .claim(MultiRolesTokenAuthorizationProvider.DEFAULT_ROLE_CLAIM, new String[]{userA, userB})
+                .signWith(secretKey).compact();
+
+        MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
+
+        AuthenticationDataSource ads = new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+
+            @Override
+            public String getHttpHeader(String name) {
+                if (name.equals("Authorization")) {
+                    return "Bearer " + token;
+                } else {
+                    throw new IllegalArgumentException("Wrong HTTP header");
+                }
+            }
+        };
+
+        // userA throws subscription prefix mismatch exception, userB returns true -> result should be true
+        assertTrue(provider.authorize("test", ads, role -> {
+            if (role.equals(userA)) {
+                CompletableFuture<Boolean> future = new CompletableFuture<>();
+                future.completeExceptionally(new PulsarServerException(
+                        "The subscription name needs to be prefixed by the authentication role"));
+                return future;
+            }
+            return CompletableFuture.completedFuture(true);
+        }).get());
+
+        // All roles throw subscription prefix mismatch exception -> result should be false
+        assertFalse(provider.authorize("test", ads, role -> {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            future.completeExceptionally(new PulsarServerException(
+                    "The subscription name needs to be prefixed by the authentication role"));
+            return future;
+        }).get());
+    }
+
+    /**
+     * Test single role with subscription prefix mismatch exception.
+     * <p>
+     * Single role throws subscription prefix mismatch exception -> Should throw the original exception
+     * (Single role keeps original behavior, does not swallow exception)
+     */
+    @Test
+    public void testSingleRoleAuthzWithSubscriptionPrefixMismatchException() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+        String userA = "user-a";
+        String token = Jwts.builder()
+                .claim(MultiRolesTokenAuthorizationProvider.DEFAULT_ROLE_CLAIM, userA)
+                .signWith(secretKey).compact();
+
+        MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        provider.initialize(conf, mock(PulsarResources.class));
+
+        AuthenticationDataSource ads = new AuthenticationDataSource() {
+            @Override
+            public boolean hasDataFromHttp() {
+                return true;
+            }
+
+            @Override
+            public String getHttpHeader(String name) {
+                if (name.equals("Authorization")) {
+                    return "Bearer " + token;
+                } else {
+                    throw new IllegalArgumentException("Wrong HTTP header");
+                }
+            }
+        };
+
+        // Single role throws subscription prefix mismatch exception -> should propagate exception
+        ExecutionException ex = expectThrows(ExecutionException.class, () -> {
+            provider.authorize("test", ads, role -> {
+                CompletableFuture<Boolean> future = new CompletableFuture<>();
+                future.completeExceptionally(new PulsarServerException(
+                        "The subscription name needs to be prefixed by the authentication role"));
+                return future;
+            }).get();
+        });
+        assertTrue(ex.getCause() instanceof PulsarServerException);
+        assertTrue(ex.getCause().getMessage().contains(
+                "The subscription name needs to be prefixed by the authentication role"));
     }
 }

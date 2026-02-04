@@ -273,7 +273,13 @@ OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 # Ensure we can read bigger content from ZK. (It might be
 # rarely needed when trying to list many z-nodes under a
 # directory)
-OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
+OPTS="-Djava.net.preferIPv4Stack=true $OPTS -Djute.maxbuffer=10485760"
+# Required to allow sun.misc.Unsafe on JDK 24 without warnings
+# Also required for enabling unsafe memory access for Netty since 4.1.121.Final
+if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
+  OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
+fi
+
 # Enable TCP keepalive for all Zookeeper client connections
 OPTS="$OPTS -Dzookeeper.clientTcpKeepAlive=true"
 
@@ -292,6 +298,8 @@ OPTS="$OPTS -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
 OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 # Required by LinuxInfoUtils
 OPTS="$OPTS --add-opens java.base/jdk.internal.platform=ALL-UNNAMED"
+# Required by RocksDB java.lang.System::loadLibrary call
+OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
@@ -303,8 +311,7 @@ else
 fi
 
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
-PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
-PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"${PULSAR_LOG_LEVEL}"}
+PULSAR_LOG_CONSOLE_JSON_TEMPLATE=${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
 if [ ! -d "$PULSAR_LOG_DIR" ]; then
   mkdir -p "$PULSAR_LOG_DIR"
@@ -313,9 +320,16 @@ PULSAR_LOG_IMMEDIATE_FLUSH="${PULSAR_LOG_IMMEDIATE_FLUSH:-"false"}"
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
+OPTS="$OPTS -Dpulsar.log.console.json.template=$PULSAR_LOG_CONSOLE_JSON_TEMPLATE"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
-OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
-OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
+if [ -n "$PULSAR_LOG_LEVEL" ]; then
+  OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
+fi
+if [ -n "$PULSAR_LOG_ROOT_LEVEL" ]; then
+  OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
+elif [ -n "$PULSAR_LOG_LEVEL" ]; then
+  OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_LEVEL"
+fi
 OPTS="$OPTS -Dpulsar.log.immediateFlush=$PULSAR_LOG_IMMEDIATE_FLUSH"
 OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
 # Configure log4j2 to disable servlet webapp detection so that Garbage free logging can be used

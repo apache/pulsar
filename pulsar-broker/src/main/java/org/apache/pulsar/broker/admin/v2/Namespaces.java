@@ -47,6 +47,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
 import org.apache.pulsar.broker.web.RestException;
@@ -130,7 +131,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceOperationAsync(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_TOPICS)
                 // Validate that namespace exists, throws 404 if it doesn't exist
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(policies -> internalGetListOfTopics(policies, mode))
+                .thenCompose(policies -> internalGetListOfTopics(response, policies, mode))
                 .thenApply(topics -> filterSystemTopic(topics, includeSystemTopic))
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
@@ -154,7 +155,11 @@ public class Namespaces extends NamespacesBase {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    log.error("Failed to get policies for namespace {}", namespaceName, ex);
+                    if (AdminResource.isNotFoundOrConflictException(ex)) {
+                        log.info("Failed to get policies for namespace {}: {}", namespaceName, ex.getMessage());
+                    } else {
+                        log.error("Failed to get policies for namespace {}", namespaceName, ex);
+                    }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
@@ -451,7 +456,10 @@ public class Namespaces extends NamespacesBase {
 
     @POST
     @Path("/{tenant}/{namespace}/replication")
-    @ApiOperation(value = "Set the replication clusters for a namespace.")
+    @ApiOperation(value = "Set the replication clusters for a namespace. "
+            + "When removing a cluster: "
+            + "with shared configuration store, data will be deleted from the removed cluster; "
+            + "with separate configuration store, only replication stops but data is preserved.")
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1158,7 +1166,7 @@ public class Namespaces extends NamespacesBase {
         internalDeleteSubscriptionDispatchRateAsync()
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("Failed to delete the subscription dispatchRate for cluster on namespace {}",
+                    log.error("[{}] Failed to delete the subscription dispatchRate for cluster on namespace {}",
                             clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1416,11 +1424,19 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
-    public void setBookieAffinityGroup(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void setBookieAffinityGroup(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace,
                                        @ApiParam(value = "Bookie affinity group for the specified namespace")
-                                               BookieAffinityGroupData bookieAffinityGroup) {
+                                       BookieAffinityGroupData bookieAffinityGroup) {
         validateNamespaceName(tenant, namespace);
-        internalSetBookieAffinityGroup(bookieAffinityGroup);
+        internalSetBookieAffinityGroupAsync(bookieAffinityGroup)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set bookie affinity group for namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -1432,10 +1448,17 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public BookieAffinityGroupData getBookieAffinityGroup(@PathParam("property") String property,
-            @PathParam("namespace") String namespace) {
+    public void getBookieAffinityGroup(@Suspended AsyncResponse asyncResponse, @PathParam("property") String property,
+                                       @PathParam("namespace") String namespace) {
         validateNamespaceName(property, namespace);
-        return internalGetBookieAffinityGroup();
+        internalGetBookieAffinityGroupAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get bookie affinity group for namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -1446,10 +1469,18 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void deleteBookieAffinityGroup(@PathParam("property") String property,
-            @PathParam("namespace") String namespace) {
+    public void deleteBookieAffinityGroup(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("property") String property,
+                                          @PathParam("namespace") String namespace) {
         validateNamespaceName(property, namespace);
-        internalDeleteBookieAffinityGroup();
+        internalDeleteBookieAffinityGroupAsync()
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to delete bookie affinity group for namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -2107,13 +2138,21 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid antiAffinityGroup")})
-    public void setNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
+    public void setNamespaceAntiAffinityGroup(@Suspended AsyncResponse asyncResponse,
+                                              @PathParam("tenant") String tenant,
                                               @PathParam("namespace") String namespace,
                                               @ApiParam(value = "Anti-affinity group for the specified namespace",
                                                       required = true)
-                                                          String antiAffinityGroup) {
+                                              String antiAffinityGroup) {
         validateNamespaceName(tenant, namespace);
-        internalSetNamespaceAntiAffinityGroup(antiAffinityGroup);
+        internalSetNamespaceAntiAffinityGroupAsync(antiAffinityGroup)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set namespace anti-affinity group, tenant: {}, namespace: {}, "
+                            + "antiAffinityGroup: {}", clientAppId(), tenant, namespace, antiAffinityGroup, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -2121,10 +2160,18 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get anti-affinity group of a namespace.", response = String.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public String getNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    public void getNamespaceAntiAffinityGroup(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("tenant") String tenant,
+                                                @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetNamespaceAntiAffinityGroup();
+        internalGetNamespaceAntiAffinityGroupAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get namespace anti-affinity group, tenant: {}, namespace: {}",
+                            clientAppId(), tenant, namespace, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -2135,10 +2182,18 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void removeNamespaceAntiAffinityGroup(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    public void removeNamespaceAntiAffinityGroup(@Suspended AsyncResponse asyncResponse,
+                                                 @PathParam("tenant") String tenant,
+                                                 @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalRemoveNamespaceAntiAffinityGroup();
+        internalRemoveNamespaceAntiAffinityGroupAsync()
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to remove namespace anti-affinity group, tenant: {}, namespace: {}",
+                            clientAppId(), tenant, namespace, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -2148,9 +2203,19 @@ public class Namespaces extends NamespacesBase {
             response = String.class, responseContainer = "List")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 412, message = "Cluster not exist/Anti-affinity group can't be empty.")})
-    public List<String> getAntiAffinityNamespaces(@PathParam("cluster") String cluster,
-            @PathParam("group") String antiAffinityGroup, @QueryParam("tenant") String tenant) {
-        return internalGetAntiAffinityNamespaces(cluster, antiAffinityGroup, tenant);
+    public void getAntiAffinityNamespaces(@Suspended AsyncResponse asyncResponse,
+                                                  @PathParam("cluster") String cluster,
+                                                  @PathParam("group") String antiAffinityGroup,
+                                                  @QueryParam("tenant") String tenant) {
+        internalGetAntiAffinityNamespacesAsync(cluster, antiAffinityGroup, tenant)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get all namespaces in cluster of given anti-affinity group, cluster: {}, "
+                            + "tenant: {}, antiAffinityGroup: {}", clientAppId(), cluster, tenant, antiAffinityGroup,
+                            ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET

@@ -24,16 +24,16 @@
 <!-- Enable Gradle Develocity extension when GRADLE_ENTERPRISE_ACCESS_KEY/DEVELOCITY_ACCESS_KEY is set and the build isn't
        a pull request from a branch or forked repository with a name that indicates it's a work in progress. -->
   <enabled>#{(env['GRADLE_ENTERPRISE_ACCESS_KEY']?.trim() > '' or env['DEVELOCITY_ACCESS_KEY']?.trim() > '') and !(env['GITHUB_HEAD_REF']?.matches('(?i).*(experiment|wip|private).*') or env['GITHUB_REPOSITORY']?.matches('(?i).*(experiment|wip|private).*'))}</enabled>
+  <projectId>pulsar</projectId>
   <server>
-    <url>https://ge.apache.org</url>
+    <url>https://develocity.apache.org</url>
     <allowUntrusted>false</allowUntrusted>
   </server>
   <buildScan>
-    <capture>
-      <buildLogging>true</buildLogging>
-      <testLogging>true</testLogging>
-    </capture>
     <backgroundBuildScanUpload>#{isFalse(env['GITHUB_ACTIONS'])}</backgroundBuildScanUpload>
+    <publishing>
+      <onlyIf>authenticated</onlyIf>
+    </publishing>
     <obfuscation>
       <ipAddresses>#{{'0.0.0.0'}}</ipAddresses>
     </obfuscation>

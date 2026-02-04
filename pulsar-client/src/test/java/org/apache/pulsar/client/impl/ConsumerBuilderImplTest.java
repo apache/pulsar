@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -101,9 +103,9 @@ public class ConsumerBuilderImplTest {
     @Test
     public void testConsumerBuilderImpl() throws PulsarClientException {
         Consumer consumer = mock(Consumer.class);
-        when(consumerBuilderImpl.subscribeAsync())
-                .thenReturn(CompletableFuture.completedFuture(consumer));
-        assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
+        ConsumerBuilderImpl spyBuilder = spy(consumerBuilderImpl);
+        doReturn(CompletableFuture.completedFuture(consumer)).when(spyBuilder).subscribeAsync();
+        assertNotNull(spyBuilder.topic(TOPIC_NAME).subscribe());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -387,7 +389,8 @@ public class ConsumerBuilderImplTest {
         List<TopicConsumerConfigurationData> topicConsumerConfigurationDataList = new ArrayList<>();
         when(consumerBuilderImpl.getConf().getTopicConfigurations()).thenReturn(topicConsumerConfigurationDataList);
 
-        ConsumerBuilder<?> consumerBuilder = consumerBuilderImpl.topicConfiguration(Pattern.compile("foo")).priorityLevel(1).build();
+        ConsumerBuilder<?> consumerBuilder = consumerBuilderImpl.topicConfiguration(Pattern
+                .compile("foo")).priorityLevel(1).build();
 
         assertThat(consumerBuilder).isSameAs(consumerBuilderImpl);
         assertThat(topicConsumerConfigurationDataList).hasSize(1);
@@ -447,7 +450,8 @@ public class ConsumerBuilderImplTest {
             + "    'autoScaledReceiverQueueSizeEnabled' : true\n"
             + "  }").replace("'", "\"");
 
-        Map<String, Object> conf = new ObjectMapper().readValue(jsonConf, new TypeReference<HashMap<String,Object>>() {});
+        Map<String, Object> conf = new ObjectMapper().readValue(jsonConf,
+                new TypeReference<HashMap<String, Object>>() {});
 
         MessageListener<byte[]> messageListener = (consumer, message) -> {};
         conf.put("messageListener", messageListener);
@@ -455,7 +459,7 @@ public class ConsumerBuilderImplTest {
         conf.put("consumerEventListener", consumerEventListener);
         RedeliveryBackoff negativeAckRedeliveryBackoff = MultiplierRedeliveryBackoff.builder().build();
         conf.put("negativeAckRedeliveryBackoff", negativeAckRedeliveryBackoff);
-        RedeliveryBackoff ackTimeoutRedeliveryBackoff = MultiplierRedeliveryBackoff.builder().build();;
+        RedeliveryBackoff ackTimeoutRedeliveryBackoff = MultiplierRedeliveryBackoff.builder().build();
         conf.put("ackTimeoutRedeliveryBackoff", ackTimeoutRedeliveryBackoff);
         CryptoKeyReader cryptoKeyReader = DefaultCryptoKeyReader.builder().build();
         conf.put("cryptoKeyReader", cryptoKeyReader);
@@ -550,7 +554,7 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getMaxPendingChunkedMessage(), 10);
         assertFalse(configurationData.isAutoAckOldestChunkedMessageOnQueueFull());
         assertEquals(configurationData.getExpireTimeOfIncompleteChunkedMessageMillis(), TimeUnit.MINUTES.toMillis(1));
-        assertEquals(configurationData.getCryptoFailureAction(), ConsumerCryptoFailureAction.FAIL);
+        assertNull(configurationData.getCryptoFailureAction());
         assertThat(configurationData.getProperties()).hasSize(1)
             .hasFieldOrPropertyWithValue("prop", "prop-value");
         assertFalse(configurationData.isReadCompacted());
@@ -566,7 +570,7 @@ public class ConsumerBuilderImplTest {
         assertEquals(configurationData.getAutoUpdatePartitionsIntervalSeconds(), 60);
         assertNull(configurationData.getReplicateSubscriptionState());
         assertFalse(configurationData.isResetIncludeHead());
-        assertFalse(configurationData.isBatchIndexAckEnabled());
+        assertTrue(configurationData.isBatchIndexAckEnabled());
         assertFalse(configurationData.isAckReceiptEnabled());
         assertFalse(configurationData.isPoolMessages());
         assertFalse(configurationData.isStartPaused());
@@ -635,7 +639,9 @@ public class ConsumerBuilderImplTest {
             .cryptoKeyReader(DefaultCryptoKeyReader.builder().build())
             .messageCrypto(new MessageCryptoBc("ctx1", true))
             .properties(properties)
-            .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic("dlq").retryLetterTopic("retry").initialSubscriptionName("dlq-sub").maxRedeliverCount(1).build())
+            .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic("dlq")
+                    .retryLetterTopic("retry").initialSubscriptionName("dlq-sub")
+                    .maxRedeliverCount(1).build())
             .batchReceivePolicy(BatchReceivePolicy.builder().maxNumBytes(1).build())
             .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
             .messagePayloadProcessor(createMockMessagePayloadProcessor());

@@ -26,7 +26,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
@@ -117,12 +116,11 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
             if (lastEntryOptional.isPresent()) {
                 Entry lastEntry = lastEntryOptional.get();
                 try {
-                    BrokerEntryMetadata brokerEntryMetadata =
-                            Commands.parseBrokerEntryMetadataIfExist(lastEntry.getDataBuffer());
-                    if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-                        appendIndexMetadataInterceptor.recoveryIndexGenerator(
-                                brokerEntryMetadata.getIndex());
-                    }
+                    Commands.peekBrokerEntryMetadataAndConsume(lastEntry.getDataBuffer(), brokerEntryMetadata -> {
+                        if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
+                            appendIndexMetadataInterceptor.recoveryIndexGenerator(brokerEntryMetadata.getIndex());
+                        }
+                    });
                 } finally {
                     lastEntry.release();
                 }

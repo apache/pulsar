@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -57,10 +58,13 @@ public abstract class AbstractReplicator implements Replicator {
     protected final String remoteCluster;
     protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
+    protected final PulsarAdmin replicationAdmin;
+    protected final PulsarAdmin admin;
     protected String replicatorId;
     @Getter
     protected final Topic localTopic;
-
+    @VisibleForTesting
+    @Getter
     protected volatile ProducerImpl producer;
     public static final String REPL_PRODUCER_NAME_DELIMITER = "-->";
 
@@ -106,7 +110,8 @@ public abstract class AbstractReplicator implements Replicator {
     }
 
     public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
-                              String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient)
+                              String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient,
+                              PulsarAdmin replicationAdmin)
             throws PulsarServerException {
         this.brokerService = brokerService;
         this.localTopic = localTopic;
@@ -116,7 +121,9 @@ public abstract class AbstractReplicator implements Replicator {
         this.remoteTopicName = remoteTopicName;
         this.remoteCluster = StringInterner.intern(remoteCluster);
         this.replicationClient = replicationClient;
+        this.replicationAdmin = replicationAdmin;
         this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
+        this.admin = brokerService.pulsar().getAdminClient();
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
         this.replicatorId = String.format("%s | %s",
@@ -195,6 +202,7 @@ public abstract class AbstractReplicator implements Replicator {
         prepareCreateProducer().thenCompose(ignore -> {
             ProducerBuilderImpl builderImpl = (ProducerBuilderImpl) producerBuilder;
             builderImpl.getConf().setNonPartitionedTopicExpected(true);
+            builderImpl.getConf().setReplProducer(true);
             return producerBuilder.createAsync().thenAccept(producer -> {
                 setProducerAndTriggerReadEntries(producer);
             });
@@ -304,9 +312,10 @@ public abstract class AbstractReplicator implements Replicator {
     /**
      * This method only be used by {@link PersistentTopic#checkGC} now.
      */
-    public CompletableFuture<Void> disconnect(boolean failIfHasBacklog, boolean closeTheStartingProducer) {
+    @Override
+    public CompletableFuture<Void> disconnect() {
         long backlog = getNumberOfEntriesInBacklog();
-        if (failIfHasBacklog && backlog > 0) {
+        if (backlog > 0) {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
             if (log.isDebugEnabled()) {
@@ -316,8 +325,29 @@ public abstract class AbstractReplicator implements Replicator {
         }
         log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
                 getReplicatorReadPosition(), backlog);
-        return closeProducerAsync(closeTheStartingProducer);
+        return beforeDisconnect()
+            .thenCompose(__ -> closeProducerAsync(true))
+            .thenApply(__ -> {
+                afterDisconnected();
+                return null;
+            });
     }
+
+    /**
+     * This method and {@link #afterDisconnected()} are used to solve the following race condition:
+     * - Thread 1: calling disconnect.
+     *             passed the check: no backlog.
+     * - Thread 2: published a message, then the cursor.pendingRead completes.
+     * - Thread 1: continue to disconnect.
+     * - Thread 2: read entries from the cursor, and try to send messages, but the messages will be discarded because
+     *             the producer is closed.
+     * Issue: the pending reading's read position is not correct.
+     */
+    protected CompletableFuture<Void> beforeDisconnect() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    protected void afterDisconnected() {}
 
     /**
      * This method only be used by {@link PersistentTopic#checkGC} now.
@@ -397,12 +427,15 @@ public abstract class AbstractReplicator implements Replicator {
         });
     }
 
+    protected abstract void beforeTerminate();
+
     public CompletableFuture<Void> terminate() {
         if (!tryChangeStatusToTerminating()) {
             log.info("[{}] Skip current termination since other thread is doing termination, state : {}", replicatorId,
                     state);
             return CompletableFuture.completedFuture(null);
         }
+        beforeTerminate();
         return doCloseProducerAsync(producer, () -> {
             STATE_UPDATER.set(this, State.Terminated);
             this.producer = null;

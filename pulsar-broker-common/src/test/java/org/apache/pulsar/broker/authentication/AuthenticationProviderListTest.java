@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.authentication;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
@@ -35,13 +37,17 @@ import io.jsonwebtoken.security.Keys;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.assertj.core.util.Lists;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -260,4 +266,125 @@ public class AuthenticationProviderListTest {
         verify(requestBB).setAttribute(eq(AuthenticatedDataAttributeName), isA(AuthenticationDataSource.class));
     }
 
+    @Test
+    public void testAuthenticateWithMultipleProviders() throws Exception {
+        HttpServletRequest httpRequest = mock(HttpServletRequest.class);
+        AuthenticationDataSource authenticationDataSource = mock(AuthenticationDataSource.class);
+
+        AuthenticationProvider failingProvider = mock(AuthenticationProvider.class);
+        List<AuthenticationProvider> providers = Lists.newArrayList(
+                failingProvider
+        );
+        try (AuthenticationProvider provider = new AuthenticationProviderList(providers)) {
+            provider.initialize(new ServiceConfiguration());
+            RuntimeException authenticateException = new RuntimeException("authenticateException");
+
+            when(failingProvider.authenticateAsync(authenticationDataSource))
+                    .thenReturn(FutureUtil.failedFuture(authenticateException));
+            when(failingProvider.authenticate(authenticationDataSource))
+                    .thenThrow(authenticateException);
+            assertThat(provider.authenticateAsync(authenticationDataSource))
+                    .failsWithin(3, TimeUnit.SECONDS)
+                    .withThrowableThat().withCause(authenticateException);
+            assertThatThrownBy(() -> provider.authenticate(authenticationDataSource))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasCause(authenticateException);
+
+            RuntimeException authenticateHttpRequestException = new RuntimeException("authenticateHttpRequestAsync");
+            when(failingProvider.authenticateHttpRequestAsync(httpRequest, null))
+                    .thenReturn(FutureUtil.failedFuture(authenticateHttpRequestException));
+            when(failingProvider.authenticateHttpRequest(httpRequest, null))
+                    .thenThrow(authenticateHttpRequestException);
+            assertThat(provider.authenticateHttpRequestAsync(httpRequest, null))
+                    .failsWithin(3, TimeUnit.SECONDS)
+                    .withThrowableThat()
+                    .havingCause()
+                    .withCause(authenticateHttpRequestException);
+            assertThatThrownBy(() -> provider.authenticateHttpRequest(httpRequest, null))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasCause(authenticateHttpRequestException);
+
+            RuntimeException newAuthStateException = new RuntimeException("newAuthState");
+            when(failingProvider.newAuthState(null, null, null))
+                    .thenThrow(newAuthStateException);
+            assertThatThrownBy(() -> provider.newAuthState(null, null, null))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasCause(newAuthStateException);
+
+            RuntimeException newHttpAuthStateException = new RuntimeException("newHttpAuthState");
+            when(failingProvider.newHttpAuthState(httpRequest))
+                    .thenThrow(newHttpAuthStateException);
+            assertThatThrownBy(() -> provider.newHttpAuthState(httpRequest))
+                    .isInstanceOf(AuthenticationException.class)
+                    .hasCause(newHttpAuthStateException);
+        }
+
+        AuthenticationProvider successfulProvider = mock(AuthenticationProvider.class);
+        providers.add(successfulProvider);
+        String subject = "test-role";
+
+        try (AuthenticationProvider provider = new AuthenticationProviderList(providers)) {
+            provider.initialize(new ServiceConfiguration());
+
+            when(successfulProvider.authenticateAsync(authenticationDataSource))
+                    .thenReturn(CompletableFuture.completedFuture(subject));
+            when(successfulProvider.authenticate(authenticationDataSource))
+                    .thenReturn(subject);
+            assertThat(provider.authenticateAsync(authenticationDataSource))
+                    .succeedsWithin(3, TimeUnit.SECONDS)
+                    .matches(subject::equals);
+            assertThat(provider.authenticate(authenticationDataSource))
+                    .isEqualTo(subject);
+
+            when(successfulProvider.authenticateHttpRequestAsync(httpRequest, null))
+                    .thenReturn(CompletableFuture.completedFuture(true));
+            when(successfulProvider.authenticateHttpRequest(httpRequest, null))
+                    .thenReturn(true);
+            assertThat(provider.authenticateHttpRequestAsync(httpRequest, null))
+                    .succeedsWithin(3, TimeUnit.SECONDS)
+                    .isEqualTo(true);
+            assertThat(provider.authenticateHttpRequest(httpRequest, null))
+                    .isEqualTo(true);
+
+            AuthenticationState authenticationState = new AuthenticationState() {
+                @Override
+                public String getAuthRole() {
+                    return subject;
+                }
+
+                @Override
+                public AuthData authenticate(AuthData authData) {
+                    return null;
+                }
+
+                @Override
+                public AuthenticationDataSource getAuthDataSource() {
+                    return null;
+                }
+
+                @Override
+                public boolean isComplete() {
+                    return false;
+                }
+            };
+            when(successfulProvider.newAuthState(null, null, null))
+                    .thenReturn(authenticationState);
+            when(successfulProvider.newHttpAuthState(httpRequest)).thenReturn(authenticationState);
+            verifyAuthenticationStateSuccess(provider.newAuthState(null, null, null), true, subject);
+            verifyAuthenticationStateSuccess(provider.newAuthState(null, null, null), false, subject);
+            verifyAuthenticationStateSuccess(provider.newHttpAuthState(httpRequest), true, subject);
+            verifyAuthenticationStateSuccess(provider.newHttpAuthState(httpRequest), false, subject);
+        }
+    }
+
+    private void verifyAuthenticationStateSuccess(AuthenticationState authState, boolean isAsync, String expectedRole)
+            throws Exception {
+        assertThat(authState).isNotNull();
+        if (isAsync) {
+            assertThat(authState.authenticateAsync(null)).succeedsWithin(3, TimeUnit.SECONDS);
+        } else {
+            assertThat(authState.authenticate(null)).isNull();
+        }
+        assertThat(authState.getAuthRole()).isEqualTo(expectedRole);
+    }
 }

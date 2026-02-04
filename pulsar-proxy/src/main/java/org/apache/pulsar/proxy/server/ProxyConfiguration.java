@@ -266,6 +266,15 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private String advertisedAddress;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specifies the interval (in seconds) for sending ping messages to the client. Set to 0 to disable "
+                    + "ping messages. This setting applies to client connections used for topic lookups and "
+                    + "partition metadata requests. When a client establishes a broker connection via the proxy, "
+                    + "the client and broker will communicate directly without the proxy intercepting the messages. "
+                    + "In that case, the broker's keepAliveIntervalSeconds configuration becomes relevant.")
+    private int keepAliveIntervalSeconds = 30;
+
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
@@ -285,6 +294,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
                     + "is enabled.")
     private Boolean webServiceLogDetailedAddresses;
+
+    @FieldContext(category = CATEGORY_SERVER, doc =
+            "Defines how the broker will anonymize the role and originalAuthRole before logging. "
+                    + "Possible values are: NONE (no anonymization), REDACTED (replaces with '[REDACTED]'), "
+                    + "hash:SHA256 (hashes using SHA-256), and hash:MD5 (hashes using MD5). Default is NONE."
+    )
+    private String authenticationRoleLoggingAnonymizer = "NONE";
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enables zero-copy transport of data across network interfaces using the spice. "
@@ -463,6 +479,42 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "Max concurrent lookup requests. The proxy will reject requests beyond that"
     )
     private int maxConcurrentLookupRequests = 50000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum heap memory for inflight topic list operations (MB).\n"
+                    + "Default: 100 MB (supports ~1M topic names assuming 100 bytes each)")
+    private int maxTopicListInFlightHeapMemSizeMB = 100;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum direct memory for inflight topic list responses (MB).\n"
+                    + "Default: 100 MB (network buffers for serialized responses)")
+    private int maxTopicListInFlightDirectMemSizeMB = 100;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Timeout for acquiring heap memory permits (milliseconds).\n"
+                    + "Default: 25000 (25 seconds)")
+    private int maxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis = 25000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum queue size for heap memory permit requests.\n"
+                    + "Default: 10000 (prevent unbounded queueing)")
+    private int maxTopicListInFlightHeapMemSizePermitsAcquireQueueSize = 10000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Timeout for acquiring direct memory permits (milliseconds).\n"
+                    + "Default: 25000 (25 seconds)")
+    private int maxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis = 25000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum queue size for direct memory permit requests.\n"
+                    + "Default: 10000 (prevent unbounded queueing)")
+    private int maxTopicListInFlightDirectMemSizePermitsAcquireQueueSize = 10000;
 
     @FieldContext(
         category = CATEGORY_CLIENT_AUTHENTICATION,
@@ -817,6 +869,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "List of proxy additional servlet to load, which is a list of proxy additional servlet names"
     )
     private Set<String> proxyAdditionalServlets = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_PLUGIN,
+            doc = "Default http header map to add into http-proxy for the any security requirements "
+                    + "eg: { \"header1\": \"val1\", \"header2\": \"val2\" }"
+    )
+    private String proxyHttpResponseHeadersJson;
 
     @FieldContext(
             category = CATEGORY_PLUGIN,

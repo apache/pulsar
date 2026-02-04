@@ -25,15 +25,28 @@
     <parent>
         <artifactId>pulsar-io</artifactId>
         <groupId>org.apache.pulsar</groupId>
-        <version>4.1.0-SNAPSHOT</version>
+        <version>4.2.0-SNAPSHOT</version>
     </parent>
 
     <properties>
-        <solr.version>8.11.3</solr.version>
+        <solr.version>9.8.0</solr.version>
+        <jetty10.version>10.0.24</jetty10.version>
     </properties>
 
     <artifactId>pulsar-io-solr</artifactId>
     <name>Pulsar IO :: Solr</name>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.eclipse.jetty</groupId>
+                <artifactId>jetty-bom</artifactId>
+                <version>${jetty10.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>
@@ -63,6 +76,12 @@
         </dependency>
         <dependency>
             <groupId>org.apache.solr</groupId>
+            <artifactId>solr-test-framework</artifactId>
+            <version>${solr.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.solr</groupId>
             <artifactId>solr-core</artifactId>
             <version>${solr.version}</version>
             <exclusions>
@@ -89,6 +108,13 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <configuration>
+                    <skip>${skipDeployConnector}</skip>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.nifi</groupId>
                 <artifactId>nifi-nar-maven-plugin</artifactId>
