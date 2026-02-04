@@ -214,6 +214,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         assertTrue(offloaderStats.getOffloadBytes(topic) > 0);
         assertTrue(offloaderStats.getReadLedgerLatency(topic).count > 0);
         assertEquals(offloaderStats.getWriteStorageError(topic), 0);
+        assertTrue(offloaderStats.getOffloadDataLatency(topic).count > 0);
 
         Map<String, String> map = new HashMap<>();
         map.putAll(offloader.getOffloadDriverMetadata());
