@@ -24,7 +24,10 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -34,6 +37,7 @@ import javax.net.ssl.SSLContext;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
@@ -323,6 +327,20 @@ class AdminProxyHandler extends ProxyServlet {
     }
 
     @Override
+    protected void service(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        if (expects100Continue(request)) {
+            // The client sent "Expect: 100-continue".
+            // Based on curl verbose output, it seems Jetty responds with "100 Continue" automatically.
+            // To avoid forwarding the Expect header to the broker (which could cause Early EOF),
+            // we wrap the request to ignore it.
+            request = new NoExpectRequestWrapper(request);
+        }
+
+        super.service(request, response);
+    }
+
+    @Override
     protected String rewriteTarget(HttpServletRequest request) {
         StringBuilder url = new StringBuilder();
 
@@ -452,6 +470,35 @@ class AdminProxyHandler extends ProxyServlet {
         super.destroy();
         if (this.sslContextRefresher != null) {
             this.sslContextRefresher.shutdownNow();
+        }
+    }
+
+    static class NoExpectRequestWrapper extends HttpServletRequestWrapper {
+        public NoExpectRequestWrapper(HttpServletRequest request) {
+            super(request);
+        }
+
+        @Override
+        public String getHeader(String name) {
+            if (HttpHeader.EXPECT.is(name)) {
+                return null;
+            }
+            return super.getHeader(name);
+        }
+
+        @Override
+        public Enumeration<String> getHeaders(String name) {
+            if (HttpHeader.EXPECT.is(name)) {
+                return Collections.emptyEnumeration();
+            }
+            return super.getHeaders(name);
+        }
+
+        @Override
+        public Enumeration<String> getHeaderNames() {
+            List<String> names = Collections.list(super.getHeaderNames());
+            names.removeIf(HttpHeader.EXPECT::is);
+            return Collections.enumeration(names);
         }
     }
 }
