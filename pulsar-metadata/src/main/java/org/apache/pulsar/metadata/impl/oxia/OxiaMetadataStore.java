@@ -61,7 +61,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private Optional<MetadataEventSynchronizer> synchronizer;
 
     public OxiaMetadataStore(AsyncOxiaClient oxia, String identity) {
-        super("oxia-metadata", OpenTelemetry.noop(), null);
+        super("oxia-metadata", OpenTelemetry.noop(), null, 1);
         this.client = oxia;
         this.identity = identity;
         this.synchronizer = Optional.empty();
@@ -75,7 +75,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             boolean enableSessionWatcher)
             throws Exception {
         super("oxia-metadata", Objects.requireNonNull(metadataStoreConfig).getOpenTelemetry(),
-                metadataStoreConfig.getNodeSizeStats());
+                metadataStoreConfig.getNodeSizeStats(), metadataStoreConfig.getNumSerDesThreads());
 
         var linger = metadataStoreConfig.getBatchingMaxDelayMillis();
         if (!metadataStoreConfig.isBatchingEnabled()) {
