@@ -105,7 +105,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 
 @UtilityClass
 @Slf4j
@@ -981,7 +981,7 @@ public class Commands {
     }
 
     public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
-            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+            List<Triple<Long, Long, ConcurrentBitSet>> entries) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
         cmd.getAck()
                 .setConsumerId(consumerId)
@@ -991,14 +991,14 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSet>> entries) {
         BaseCommand cmd = localCmd(Type.ACK);
         CommandAck ack = cmd.setAck();
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
             long entryId = entries.get(i).getMiddle();
-            ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
+            ConcurrentBitSet bitSet = entries.get(i).getRight();
             MessageIdData msgId = ack.addMessageId()
                     .setLedgerId(ledgerId)
                     .setEntryId(entryId);
@@ -1007,7 +1007,6 @@ public class Commands {
                 for (int j = 0; j < ackSet.length; j++) {
                     msgId.addAckSet(ackSet[j]);
                 }
-                bitSet.recycle();
             }
         }
 
@@ -1015,7 +1014,7 @@ public class Commands {
     }
 
     public static ByteBuf newMultiMessageAck(long consumerId,
-                                             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries,
+                                             List<Triple<Long, Long, ConcurrentBitSet>> entries,
                                              long requestId) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
         cmd.getAck()
