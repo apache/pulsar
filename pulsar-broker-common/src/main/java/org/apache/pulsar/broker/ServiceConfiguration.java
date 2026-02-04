@@ -484,6 +484,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean metadataStoreAllowReadOnlyOperations;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The number of threads used for serializing and deserializing data to and from the metadata store"
+    )
+    private int metadataStoreSerDesThreads = 1;
+
     @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
