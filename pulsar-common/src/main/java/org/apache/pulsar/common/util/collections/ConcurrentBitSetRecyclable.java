@@ -27,6 +27,7 @@ import java.util.BitSet;
 /**
  * Safe multithreaded version of {@code BitSet} and leverage netty recycler.
  */
+@Deprecated
 @EqualsAndHashCode(callSuper = true)
 public class ConcurrentBitSetRecyclable extends ConcurrentBitSet {
 
