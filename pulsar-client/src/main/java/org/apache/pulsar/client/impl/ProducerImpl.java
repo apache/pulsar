@@ -2296,8 +2296,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     /**
-     * This fails and clears the pending messages with the given exception. This method should be called from within the
-     * ProducerImpl object mutex.
+     * This fails the pending messages at the start of the call, without dropping newly enqueued
+     * retry messages. This method should be called from within the ProducerImpl object mutex.
      */
     @VisibleForTesting
     synchronized void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
