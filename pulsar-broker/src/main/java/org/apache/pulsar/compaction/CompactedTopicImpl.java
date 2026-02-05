@@ -184,7 +184,7 @@ public class CompactedTopicImpl implements CompactedTopic {
                                } else {
                                    promise.complete(ledger);
                                }
-                           }, null);
+                           }, null, true);
         return promise.thenApply((ledger) -> new CompactedTopicContext(
                                          ledger, createCache(ledger, DEFAULT_MAX_CACHE_SIZE)));
     }
