@@ -1648,23 +1648,13 @@ public class TopicsImpl extends BaseResource implements Topics {
                     return;
                 }
 
-                // To avoid infinite loops, we ensure the entry count is incremented after each loop.
-                // Should never happen.
-                if (currentResult.getEntries() <= 0) {
-                    log.warn("[{}][{}] Scanned total entry count is zero or negative, abort analyze backlog, start "
-                            + "position is: {}", topic, subscriptionName, startPositionRef.get());
-                    future.completeExceptionally(
-                            new PulsarAdminException("Incorrect total entry count returned from server"));
-                    return;
-                }
-
-                // In analyze-backlog, lastMessageId is null only when: total entries is 0, with false aborted flag
-                // returned. Should never happen.
-                if (StringUtils.isBlank(mergedResult.getLastMessageId())) {
-                    log.warn("[{}][{}] Scanned last message id is blank, abort analyze backlog, start position is: {}",
-                            topic, subscriptionName, startPositionRef.get());
-                    future.completeExceptionally(
-                            new PulsarAdminException("Incorrect last message id returned from server"));
+                // In analyze-backlog, we treat 0 entries or null lastMessageId as scan completed for mere safety.
+                // 0 entries or a null lastMessageId indicates no entries were scanned.
+                if (currentResult.getEntries() <= 0 || StringUtils.isBlank(currentResult.getLastMessageId())) {
+                    log.info("[{}][{}] complete scan due total entry <= 0 or last message id is blank, "
+                            + "start position is: {}, current result: {}", topic, subscriptionName,
+                            startPositionRef.get(), currentResult);
+                    future.complete(mergedResult);
                     return;
                 }
 
@@ -1705,7 +1695,10 @@ public class TopicsImpl extends BaseResource implements Topics {
 
         mergedRes.setAborted(current.isAborted());
         mergedRes.setFirstMessageId(previous.getFirstMessageId());
-        mergedRes.setLastMessageId(current.getLastMessageId());
+        String lastMessageId = current.getLastMessageId();
+        if (StringUtils.isNotBlank(lastMessageId)) {
+            mergedRes.setLastMessageId(lastMessageId);
+        }
 
         return mergedRes;
     }
