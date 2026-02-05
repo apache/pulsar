@@ -71,12 +71,12 @@ class OpScan implements ReadEntriesCallback {
             lastSeenPosition = lastPositionForBatch;
             for (Entry entry : entries) {
                 if (remainingEntries.getAndDecrement() <= 0) {
-                    log.warn("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
+                    log.info("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
                     callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
                     return;
                 }
                 if (!condition.test(entry)) {
-                    log.warn("[{}] Scan abort due to user code", OpScan.this.cursor);
+                    log.info("[{}] Scan abort due to user code", OpScan.this.cursor);
                     callback.scanComplete(lastSeenPosition, ScanOutcome.USER_INTERRUPTED, OpScan.this.ctx);
                     return;
                 }
@@ -111,12 +111,12 @@ class OpScan implements ReadEntriesCallback {
 
     public void find() {
         if (remainingEntries.get() <= 0) {
-            log.warn("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
+            log.info("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
             callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
             return;
         }
         if (System.currentTimeMillis() - startTime > timeOutMs) {
-            log.warn("[{}] Scan abort after hitting the deadline", OpScan.this.cursor);
+            log.info("[{}] Scan abort after hitting the deadline", OpScan.this.cursor);
             callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
             return;
         }
