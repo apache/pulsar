@@ -249,12 +249,6 @@ class AdminProxyHandler extends ProxyServlet {
     }
 
     @Override
-    protected void service(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        super.service(request, response);
-    }
-
-    @Override
     protected String rewriteTarget(HttpServletRequest request) {
         StringBuilder url = new StringBuilder();
 
