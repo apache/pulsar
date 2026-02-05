@@ -80,8 +80,12 @@ public class ProxyPackagesUploadTest extends MockedPulsarServiceBaseTest {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        if (proxyAdmin != null) proxyAdmin.close();
-        if (webServer != null) webServer.stop();
+        if (proxyAdmin != null) {
+            proxyAdmin.close();
+        }
+        if (webServer != null) {
+            webServer.stop();
+        }
         super.internalCleanup();
     }
 
