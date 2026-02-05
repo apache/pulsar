@@ -22,11 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.UUID;
-
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
