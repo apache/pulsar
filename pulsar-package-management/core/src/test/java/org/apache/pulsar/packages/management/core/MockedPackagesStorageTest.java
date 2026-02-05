@@ -37,7 +37,7 @@ public class MockedPackagesStorageTest {
         byte[] testBytes = new byte[1 * 1024 * 1024];
 
         // Write
-        storage.writeAsync("test/path", new ByteArrayInputStream(testBytes));
+        storage.writeAsync("test/path", new ByteArrayInputStream(testBytes)).get();
 
         // Read
         @Cleanup
