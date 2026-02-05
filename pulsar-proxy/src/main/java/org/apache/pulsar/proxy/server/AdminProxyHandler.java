@@ -24,20 +24,14 @@ import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
-import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
@@ -48,20 +42,17 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.eclipse.jetty.client.ContinueProtocolHandler;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.transport.HttpClientTransportOverHTTP;
 import org.eclipse.jetty.ee8.proxy.ProxyServlet;
-import org.eclipse.jetty.http.HttpCookieStore;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,83 +112,16 @@ class AdminProxyHandler extends ProxyServlet {
 
     @Override
     protected HttpClient createHttpClient() throws ServletException {
-        ServletConfig config = getServletConfig();
-
-        HttpClient client = newHttpClient();
-
-        client.setFollowRedirects(true);
-
-        // Must not store cookies, otherwise cookies of different clients will mix.
-        client.setHttpCookieStore(new HttpCookieStore.Empty());
-
-        Executor executor;
-        String value = config.getInitParameter("maxThreads");
-        if (value == null || "-".equals(value)) {
-            executor = (Executor) getServletContext().getAttribute("org.eclipse.jetty.server.Executor");
-            if (executor == null) {
-                throw new IllegalStateException("No server executor for proxy");
-            }
-        } else {
-            QueuedThreadPool qtp = new QueuedThreadPool(Integer.parseInt(value));
-            String servletName = config.getServletName();
-            int dot = servletName.lastIndexOf('.');
-            if (dot >= 0) {
-                servletName = servletName.substring(dot + 1);
-            }
-            qtp.setName(servletName);
-            executor = qtp;
-        }
-
-        client.setExecutor(executor);
-
-        value = config.getInitParameter("maxConnections");
-        if (value == null) {
-            value = "256";
-        }
-        client.setMaxConnectionsPerDestination(Integer.parseInt(value));
-
-        value = config.getInitParameter("idleTimeout");
-        if (value == null) {
-            value = "30000";
-        }
-        client.setIdleTimeout(Long.parseLong(value));
-
-        value = config.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE);
-        if (value != null) {
-            client.setRequestBufferSize(Integer.parseInt(value));
-        }
-
-        value = config.getInitParameter("responseBufferSize");
-        if (value != null){
-            client.setResponseBufferSize(Integer.parseInt(value));
-        }
-
         try {
-            client.start();
-
-            // Content must not be decoded, otherwise the client gets confused.
-            // Allow encoded content, such as "Content-Encoding: gzip", to pass through without decoding it.
-            client.getContentDecoderFactories().clear();
-
-            // Pass traffic to the client, only intercept what's necessary.
+            HttpClient client = super.createHttpClient();
+            // Follow 307 redirects
+            client.setFollowRedirects(true);
             ProtocolHandlers protocolHandlers = client.getProtocolHandlers();
-            protocolHandlers.clear();
             protocolHandlers.put(new RedirectProtocolHandler(client));
-            protocolHandlers.put(new ProxyContinueProtocolHandler());
 
             return client;
         } catch (Exception x) {
             throw new ServletException(x);
-        }
-    }
-
-    class ProxyContinueProtocolHandler extends ContinueProtocolHandler {
-
-        @Override
-        protected Runnable onContinue(Request request) {
-            HttpServletRequest clientRequest =
-                    (HttpServletRequest) request.getAttributes().get(CLIENT_REQUEST_ATTRIBUTE);
-            return AdminProxyHandler.this.onContinue(clientRequest, request);
         }
     }
 
@@ -329,14 +253,6 @@ class AdminProxyHandler extends ProxyServlet {
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        if (expects100Continue(request)) {
-            // The client sent "Expect: 100-continue".
-            // Based on curl verbose output, it seems Jetty responds with "100 Continue" automatically.
-            // To avoid forwarding the Expect header to the broker (which could cause Early EOF),
-            // we wrap the request to ignore it.
-            request = new NoExpectRequestWrapper(request);
-        }
-
         super.service(request, response);
     }
 
@@ -470,35 +386,6 @@ class AdminProxyHandler extends ProxyServlet {
         super.destroy();
         if (this.sslContextRefresher != null) {
             this.sslContextRefresher.shutdownNow();
-        }
-    }
-
-    static class NoExpectRequestWrapper extends HttpServletRequestWrapper {
-        public NoExpectRequestWrapper(HttpServletRequest request) {
-            super(request);
-        }
-
-        @Override
-        public String getHeader(String name) {
-            if (HttpHeader.EXPECT.is(name)) {
-                return null;
-            }
-            return super.getHeader(name);
-        }
-
-        @Override
-        public Enumeration<String> getHeaders(String name) {
-            if (HttpHeader.EXPECT.is(name)) {
-                return Collections.emptyEnumeration();
-            }
-            return super.getHeaders(name);
-        }
-
-        @Override
-        public Enumeration<String> getHeaderNames() {
-            List<String> names = Collections.list(super.getHeaderNames());
-            names.removeIf(HttpHeader.EXPECT::is);
-            return Collections.enumeration(names);
         }
     }
 }
