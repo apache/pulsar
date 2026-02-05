@@ -89,9 +89,10 @@ public class ProxyPackagesUploadTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUploadPackageThroughProxy() throws Exception {
         Path packageFile = Files.createTempFile("pkg-sdk", ".nar");
+        packageFile.toFile().deleteOnExit();
         Files.write(packageFile, new byte[FILE_SIZE]);
 
-        String pkgName = "function://public/default/large-pkg-sdk@v1";
+        String pkgName = "function://public/default/pkg-sdk@v1";
         PackageMetadata meta = PackageMetadata.builder().description("sdk-test").build();
 
         proxyAdmin.packages().upload(meta, pkgName, packageFile.toString());
@@ -104,6 +105,7 @@ public class ProxyPackagesUploadTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUploadWithExpect100Continue() throws Exception {
         Path packageFile = Files.createTempFile("pkg-ahc", ".nar");
+        packageFile.toFile().deleteOnExit();
         Files.write(packageFile, new byte[FILE_SIZE]);
 
         String pkgName = "function://public/default/expect-test@v1";
@@ -124,17 +126,17 @@ public class ProxyPackagesUploadTest extends MockedPulsarServiceBaseTest {
         assertThat(response.getStatusCode()).isEqualTo(204);
 
         verifyDownload(pkgName, FILE_SIZE);
-
-        Files.deleteIfExists(packageFile);
     }
 
     private void verifyDownload(String packageName, int expectedSize) throws Exception {
         Path fromBroker = Files.createTempFile("from-broker", ".nar");
+        fromBroker.toFile().deleteOnExit();
         admin.packages().download(packageName, fromBroker.toString());
         assertThat(Files.size(fromBroker)).isEqualTo(expectedSize);
         Files.deleteIfExists(fromBroker);
 
         Path fromProxy = Files.createTempFile("from-proxy", ".nar");
+        fromProxy.toFile().deleteOnExit();
         proxyAdmin.packages().download(packageName, fromProxy.toString());
         assertThat(Files.size(fromProxy)).isEqualTo(expectedSize);
         Files.deleteIfExists(fromProxy);

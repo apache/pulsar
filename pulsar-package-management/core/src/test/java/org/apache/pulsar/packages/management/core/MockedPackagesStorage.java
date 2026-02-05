@@ -46,11 +46,13 @@ public class MockedPackagesStorage implements PackagesStorage {
         CompletableFuture<Void> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
             try {
-                ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 byte[] buffer = new byte[8192];
                 int read;
-                while ((read = inputStream.read(buffer)) > 0) {
-                    baos.write(buffer, 0, read);
+                while ((read = inputStream.read(buffer)) != -1) {
+                    if (read > 0) {
+                        baos.write(buffer, 0, read);
+                    }
                 }
                 byte[] bytes = baos.toByteArray();
                 storage.put(path, bytes);
