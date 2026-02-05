@@ -75,6 +75,7 @@ public class ProducerSyncRetryTest extends ProducerConsumerBase {
 
         // First send is expected to fail
         CompletableFuture<MessageId> firstSend = producer.sendAsync(message);
+        producer.triggerSendTimer();
 
         // Waits until firstSend returns timeout exception
         CompletableFuture<MessageId> retrySend =
