@@ -112,17 +112,15 @@ class AdminProxyHandler extends ProxyServlet {
 
     @Override
     protected HttpClient createHttpClient() throws ServletException {
-        try {
-            HttpClient client = super.createHttpClient();
-            // Follow 307 redirects
-            client.setFollowRedirects(true);
-            ProtocolHandlers protocolHandlers = client.getProtocolHandlers();
-            protocolHandlers.put(new RedirectProtocolHandler(client));
+        HttpClient httpClient = super.createHttpClient();
+        customizeHttpClient(httpClient);
+        return httpClient;
+    }
 
-            return client;
-        } catch (Exception x) {
-            throw new ServletException(x);
-        }
+    private void customizeHttpClient(HttpClient httpClient) {
+        httpClient.setFollowRedirects(true);
+        ProtocolHandlers protocolHandlers = httpClient.getProtocolHandlers();
+        protocolHandlers.put(new RedirectProtocolHandler(httpClient));
     }
 
     // This class allows the request body to be replayed, the default implementation
