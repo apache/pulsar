@@ -6045,6 +6045,15 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
             }
         }
+
+        public void asyncOpenLedger(final long lId, final DigestType digestType, final byte[] passwd,
+                final OpenCallback cb, final Object ctx, boolean keepMetadataUpdate) {
+            if (ledgerErrors.containsKey(lId)) {
+                cb.openComplete(ledgerErrors.get(lId), null, ctx);
+            } else {
+                super.asyncOpenLedger(lId, digestType, passwd, cb, ctx, keepMetadataUpdate);
+            }
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
