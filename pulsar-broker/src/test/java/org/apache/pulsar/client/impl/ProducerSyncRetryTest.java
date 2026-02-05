@@ -71,7 +71,7 @@ public class ProducerSyncRetryTest extends ProducerConsumerBase {
 
         MessageMetadata retryMessageMetadata = new MessageMetadata();
         retryMessageMetadata.setUncompressedSize(1);
-        MessageImpl<byte[]> retryMessage = MessageImpl.create(messageMetadata, payload, Schema.BYTES, topic);
+        MessageImpl<byte[]> retryMessage = MessageImpl.create(retryMessageMetadata, payload, Schema.BYTES, topic);
 
         // First send is expected to fail
         CompletableFuture<MessageId> firstSend = producer.sendAsync(message);
