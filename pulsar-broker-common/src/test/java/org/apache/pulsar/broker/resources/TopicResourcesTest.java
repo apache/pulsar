@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import java.util.function.BiConsumer;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -158,5 +159,18 @@ public class TopicResourcesTest {
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/name.pace/persistent/topic"));
         verify(listener).onTopicEvent("persistent://tenant/name.pace/topic", NotificationType.Created);
+    }
+
+    @Test
+    public void testBiConsumerListenerNotInvokedAfterDeregistered() {
+        BiConsumer listener = mock(BiConsumer.class);
+        topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace/persistent/topic"));
+        verify(listener).accept("persistent://tenant/namespace/topic", NotificationType.Created);
+        topicResources.deregisterPersistentTopicListener(listener);
+        topicResources.handleNotification(new Notification(NotificationType.Created,
+                "/managed-ledgers/tenant/namespace/persistent/topic2"));
+        verifyNoMoreInteractions(listener);
     }
 }

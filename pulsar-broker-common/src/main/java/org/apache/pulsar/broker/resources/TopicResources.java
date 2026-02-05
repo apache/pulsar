@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -148,5 +149,59 @@ public class TopicResources {
                 log.warn("Failed to handle session event {} for listener {}", sessionEvent, listener, e);
             }
         });
+    }
+
+    @Deprecated
+    public void registerPersistentTopicListener(
+            NamespaceName namespaceName, BiConsumer<String, NotificationType> listener) {
+        topicListeners.put(new BiConsumerTopicListener(listener, namespaceName),
+                namespaceNameToTopicNamePattern(namespaceName));
+    }
+
+    @Deprecated
+    public void deregisterPersistentTopicListener(BiConsumer<String, NotificationType> listener) {
+        topicListeners.remove(new BiConsumerTopicListener(listener, null));
+    }
+
+    // for backwards compatibility with broker plugins that could be using the BiConsumer based methods
+    @Deprecated
+    static class BiConsumerTopicListener implements TopicListener {
+        private final BiConsumer<String, NotificationType> listener;
+        private final NamespaceName namespaceName;
+
+        BiConsumerTopicListener(BiConsumer<String, NotificationType> listener, NamespaceName namespaceName) {
+            this.listener = listener;
+            this.namespaceName = namespaceName;
+        }
+
+        @Override
+        public NamespaceName getNamespaceName() {
+            return namespaceName;
+        }
+
+        @Override
+        public void onTopicEvent(String topicName, NotificationType notificationType) {
+            listener.accept(topicName, notificationType);
+        }
+
+        @Override
+        public void onSessionEvent(SessionEvent sessionEvent) {
+            // ignore
+        }
+
+        @Override
+        public String toString() {
+            return "BiConsumerTopicListener [listener=" + listener + ", namespaceName=" + namespaceName + "]";
+        }
+
+        @Override
+        public int hashCode() {
+            return listener.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof BiConsumerTopicListener && listener.equals(((BiConsumerTopicListener) obj).listener);
+        }
     }
 }
