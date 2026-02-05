@@ -385,6 +385,26 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test
+    public void testParticipantRegistrationWithChroot() throws Exception {
+        // Test with chroot path to ensure participant registration works
+        String chrootPath = "/test-chroot-" + UUID.randomUUID().toString().substring(0, 8);
+        String zkConnectString = zks.getConnectionString() + chrootPath;
+
+        @Cleanup
+        MetadataStore sourceStore = MetadataStoreFactory.create(zkConnectString,
+                MetadataStoreConfig.builder().build());
+
+        // Verify participant registration node exists under chroot
+        List<String> participants = sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join();
+        log.info("Participants in chroot {}: {}", chrootPath, participants);
+        assertEquals(participants.size(), 1);
+        assertTrue(participants.get(0).startsWith("id-"));
+
+        // Verify the parent path was created
+        assertTrue(sourceStore.exists(MigrationState.PARTICIPANTS_PATH).join());
+    }
+
+    @Test
     public void testExistsOperationRouting() throws Exception {
         String prefix = newKey();
         @Cleanup

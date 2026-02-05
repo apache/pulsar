@@ -31,6 +31,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
@@ -44,6 +45,7 @@ import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
@@ -63,6 +65,8 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
  */
 @Slf4j
 public class DualMetadataStore implements MetadataStoreExtended {
+
+    @Getter
     final MetadataStoreExtended sourceStore;
     volatile MetadataStoreExtended targetStore = null;
 
@@ -93,6 +97,10 @@ public class DualMetadataStore implements MetadataStoreExtended {
                 new DefaultThreadFactory("pulsar-dual-metadata-store", true));
         this.migrationStateCache = sourceStore.getMetadataCache(MigrationState.class);
 
+        if (sourceStore instanceof MetadataStoreLifecycle msl) {
+            msl.initializeCluster();
+        }
+
         readCurrentState();
         registerAsParticipant();
 
@@ -117,15 +125,12 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
     private void registerAsParticipant() throws MetadataStoreException {
         try {
-            if (migrationState.getPhase() == MigrationPhase.NOT_STARTED) {
-                // Register ourselves as participant in an eventual migration
-                Stat stat =
-                        this.sourceStore.put(MigrationState.PARTICIPANTS_PATH + "/id-", new byte[0], Optional.empty(),
-                                EnumSet.of(CreateOption.Sequential, CreateOption.Ephemeral)).get();
-                participantId = stat.getPath();
-                log.info("Participant metadata store created: {}", participantId);
-            }
-        } catch (Exception e) {
+            // Register ourselves as participant in an eventual migration
+            Stat stat = this.sourceStore.put(MigrationState.PARTICIPANTS_PATH + "/id-", new byte[0],
+                    Optional.empty(), EnumSet.of(CreateOption.Sequential, CreateOption.Ephemeral)).get();
+            participantId = stat.getPath();
+            log.info("Participant metadata store created: {}", participantId);
+        } catch (Throwable e) {
             throw new MetadataStoreException(e);
         }
     }
