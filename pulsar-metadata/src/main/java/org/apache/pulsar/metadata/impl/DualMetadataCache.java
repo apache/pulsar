@@ -51,8 +51,8 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
         this.serde = serde;
         this.cacheConfig = cacheConfig;
 
-        var store = dualMetadataStore.targetStore != null ?
-                dualMetadataStore.targetStore : dualMetadataStore.sourceStore;
+        var store = dualMetadataStore.targetStore != null
+                ? dualMetadataStore.targetStore : dualMetadataStore.sourceStore;
 
         if (clazz != null) {
             this.metadataCache.set(store.getMetadataCache(clazz, cacheConfig));

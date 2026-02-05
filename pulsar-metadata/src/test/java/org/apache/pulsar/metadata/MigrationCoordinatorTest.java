@@ -19,17 +19,12 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.migration.MigrationPhase;
@@ -42,8 +37,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.MigrationCoordinator;
-import org.awaitility.Awaitility;
-import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
