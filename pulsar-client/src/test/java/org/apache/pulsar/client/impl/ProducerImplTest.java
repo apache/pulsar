@@ -25,8 +25,8 @@ import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
@@ -76,26 +76,25 @@ public class ProducerImplTest {
             throws Exception {
         ProducerImpl<byte[]> producer =
                 Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
-        Mockito.doNothing()
-                .when(producer)
-                .semaphoreRelease(Mockito.anyInt());
+        // Disable batching
         Mockito.doReturn(false)
                 .when(producer)
                 .isBatchMessagingEnabled();
 
-        // Real pending queue
-        ProducerImpl.OpSendMsgQueue pendingQueue = new ProducerImpl.OpSendMsgQueue();
-        Field pendingField = ProducerImpl.class.getDeclaredField("pendingMessages");
-        pendingField.setAccessible(true);
-        pendingField.set(producer, pendingQueue);
+        // Stub semaphore release (not under test)
+        Mockito.doNothing()
+                .when(producer)
+                .semaphoreRelease(Mockito.anyInt());
 
         // Stub client cleanup path (not under test)
         PulsarClientImpl client = Mockito.mock(PulsarClientImpl.class);
         Mockito.when(client.getMemoryLimitController())
                 .thenReturn(Mockito.mock(MemoryLimitController.class));
-        Field clientField = HandlerState.class.getDeclaredField("client");
-        clientField.setAccessible(true);
-        clientField.set(producer, client);
+        FieldUtils.writeField(producer, "client", client, true);
+
+        // Real pending queue
+        ProducerImpl.OpSendMsgQueue pendingQueue = new ProducerImpl.OpSendMsgQueue();
+        FieldUtils.writeField(producer, "pendingMessages", pendingQueue, true);
 
         // OpSendMsg that retries reentrantly
         MessageImpl<?> msg = Mockito.mock(MessageImpl.class);
