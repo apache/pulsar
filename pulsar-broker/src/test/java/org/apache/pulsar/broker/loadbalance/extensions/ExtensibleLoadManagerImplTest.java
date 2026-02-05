@@ -1819,7 +1819,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 .get(3, TimeUnit.SECONDS);
     }
 
-    @Test
+    @Test(priority = Integer.MIN_VALUE)
     public void testGetMetrics() throws Exception {
         {
             ServiceConfiguration conf = getDefaultConf();
@@ -2009,7 +2009,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                         dimensions=[{broker=localhost, metric=sunitStateChn, result=Cancel}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=7}]
                         dimensions=[{broker=localhost, metric=sunitStateChn, result=Schedule}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=5}]
                         dimensions=[{broker=localhost, metric=sunitStateChn, result=Success}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=1}]
-                        dimensions=[{broker=localhost, metric=sunitStateChn}], metrics=[{brk_sunit_state_chn_orphan_su_cleanup_ops_total=3, brk_sunit_state_chn_owned_su_total=10, brk_sunit_state_chn_su_tombstone_cleanup_ops_total=2}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn}], metrics=[{brk_sunit_state_chn_last_metadata_session_event_age_seconds=-1, brk_sunit_state_chn_last_metadata_session_event_is_reestablished=1, brk_sunit_state_chn_last_metadata_session_event_timestamp_ms=0, brk_sunit_state_chn_metadata_state=0, brk_sunit_state_chn_orphan_su_cleanup_ops_total=3, brk_sunit_state_chn_owned_su_total=10, brk_sunit_state_chn_su_tombstone_cleanup_ops_total=2}]
                         dimensions=[{broker=localhost, metric=bundleUnloading}], metrics=[{brk_lb_ignored_ack_total=3, brk_lb_ignored_send_total=2}]
                         """.split("\n"));
         var actual = primaryLoadManager.getMetrics().stream().map(Metrics::toString).collect(Collectors.toSet());
