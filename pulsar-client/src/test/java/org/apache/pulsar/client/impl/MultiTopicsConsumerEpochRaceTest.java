@@ -22,7 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
@@ -37,7 +37,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -94,8 +93,7 @@ public class MultiTopicsConsumerEpochRaceTest {
      * unblocks. Second message is validated with new epoch and filtered. Outcome: exactly one
      * message delivered. Assertion: totalDelivered must not be 1.
      */
-    @Test(timeOut = 30000, description = "Issue 25204: batch must not have exactly one message "
-            + "delivered when epoch changes mid-batch (deterministic race)")
+    @Test(timeOut = 15000, description = "Issue 25204: redeliver blocked by lock during batch; acceptedByEpochCount == 2")
     @SuppressWarnings("unchecked")
     public void testEpochConsistencyWhenRedeliverRunsMidBatch() throws Exception {
         CountDownLatch afterFirstValidationLatch = new CountDownLatch(1);
@@ -103,7 +101,6 @@ public class MultiTopicsConsumerEpochRaceTest {
         CountDownLatch redeliverDoneLatch = new CountDownLatch(1);
         CountDownLatch forEachCompleteLatch = new CountDownLatch(1);
         AtomicInteger validationCallCount = new AtomicInteger(0);
-        AtomicInteger listenerInvocationCount = new AtomicInteger(0);
         AtomicInteger acceptedByEpochCount = new AtomicInteger(0);
 
         ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
@@ -111,8 +108,7 @@ public class MultiTopicsConsumerEpochRaceTest {
         conf.setSubscriptionName("sub-25204");
         conf.setSubscriptionType(SubscriptionType.Exclusive);
         conf.setReceiverQueueSize(10);
-        MessageListener<byte[]> listener = (consumer, msg) -> listenerInvocationCount.incrementAndGet();
-        conf.setMessageListener(listener);
+        conf.setMessageListener((consumer, msg) -> { });
 
         CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
         TestableMultiTopicsConsumerImpl multiConsumer = new TestableMultiTopicsConsumerImpl(
@@ -158,21 +154,23 @@ public class MultiTopicsConsumerEpochRaceTest {
 
         assertTrue(afterFirstValidationLatch.await(AWAIT_SECONDS, TimeUnit.SECONDS),
                 "Receive thread should block after first validation");
-        Thread.sleep(200);
 
-        multiConsumer.redeliverUnacknowledgedMessages();
-        assertTrue(redeliverDoneLatch.await(AWAIT_SECONDS, TimeUnit.SECONDS),
-                "Redeliver runnable should complete");
+        Thread redeliverThread = new Thread(multiConsumer::redeliverUnacknowledgedMessages, "redeliver-caller");
+        redeliverThread.start();
+        Thread.sleep(500);
+        assertFalse(redeliverDoneLatch.await(100, TimeUnit.MILLISECONDS),
+                "Redeliver runnable must still be blocked (waiting for incomingQueueLock)");
+
         releaseValidationLatch.countDown();
 
         assertTrue(forEachCompleteLatch.await(AWAIT_SECONDS, TimeUnit.SECONDS),
                 "Receive callback forEach should complete");
 
-        int acceptedByEpoch = acceptedByEpochCount.get();
-        assertNotEquals(acceptedByEpoch, 1,
-                "Bug 25204: batch must not have exactly one message accepted by epoch when "
-                        + "epoch changes mid-batch (acceptedByEpoch=" + acceptedByEpoch
-                        + "; expected 0 or 2, not 1)");
+        assertTrue(acceptedByEpochCount.get() == 2,
+                "Both messages accepted under stable epoch (acceptedByEpochCount == 2)");
+        assertTrue(redeliverDoneLatch.await(5, TimeUnit.SECONDS),
+                "Redeliver runnable should complete shortly after batch releases lock");
+        redeliverThread.join(TimeUnit.SECONDS.toMillis(5));
     }
 
     private static MessageImpl<byte[]> createMessageWithEpoch(long consumerEpoch) throws Exception {
