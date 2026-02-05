@@ -50,9 +50,7 @@ public class MockedPackagesStorage implements PackagesStorage {
                 byte[] buffer = new byte[8192];
                 int read;
                 while ((read = inputStream.read(buffer)) != -1) {
-                    if (read > 0) {
-                        baos.write(buffer, 0, read);
-                    }
+                    baos.write(buffer, 0, read);
                 }
                 byte[] bytes = baos.toByteArray();
                 storage.put(path, bytes);
