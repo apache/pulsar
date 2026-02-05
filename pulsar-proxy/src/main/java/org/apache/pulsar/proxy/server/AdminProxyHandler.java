@@ -26,12 +26,10 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
-import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -44,20 +42,17 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.eclipse.jetty.client.ContinueProtocolHandler;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.Request;
 import org.eclipse.jetty.client.transport.HttpClientTransportOverHTTP;
 import org.eclipse.jetty.ee8.proxy.ProxyServlet;
-import org.eclipse.jetty.http.HttpCookieStore;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -117,84 +112,15 @@ class AdminProxyHandler extends ProxyServlet {
 
     @Override
     protected HttpClient createHttpClient() throws ServletException {
-        ServletConfig config = getServletConfig();
-
-        HttpClient client = newHttpClient();
-
-        client.setFollowRedirects(true);
-
-        // Must not store cookies, otherwise cookies of different clients will mix.
-        client.setHttpCookieStore(new HttpCookieStore.Empty());
-
-        Executor executor;
-        String value = config.getInitParameter("maxThreads");
-        if (value == null || "-".equals(value)) {
-            executor = (Executor) getServletContext().getAttribute("org.eclipse.jetty.server.Executor");
-            if (executor == null) {
-                throw new IllegalStateException("No server executor for proxy");
-            }
-        } else {
-            QueuedThreadPool qtp = new QueuedThreadPool(Integer.parseInt(value));
-            String servletName = config.getServletName();
-            int dot = servletName.lastIndexOf('.');
-            if (dot >= 0) {
-                servletName = servletName.substring(dot + 1);
-            }
-            qtp.setName(servletName);
-            executor = qtp;
-        }
-
-        client.setExecutor(executor);
-
-        value = config.getInitParameter("maxConnections");
-        if (value == null) {
-            value = "256";
-        }
-        client.setMaxConnectionsPerDestination(Integer.parseInt(value));
-
-        value = config.getInitParameter("idleTimeout");
-        if (value == null) {
-            value = "30000";
-        }
-        client.setIdleTimeout(Long.parseLong(value));
-
-        value = config.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE);
-        if (value != null) {
-            client.setRequestBufferSize(Integer.parseInt(value));
-        }
-
-        value = config.getInitParameter("responseBufferSize");
-        if (value != null){
-            client.setResponseBufferSize(Integer.parseInt(value));
-        }
-
-        try {
-            client.start();
-
-            // Content must not be decoded, otherwise the client gets confused.
-            // Allow encoded content, such as "Content-Encoding: gzip", to pass through without decoding it.
-            client.getContentDecoderFactories().clear();
-
-            // Pass traffic to the client, only intercept what's necessary.
-            ProtocolHandlers protocolHandlers = client.getProtocolHandlers();
-            protocolHandlers.clear();
-            protocolHandlers.put(new RedirectProtocolHandler(client));
-            protocolHandlers.put(new ProxyContinueProtocolHandler());
-
-            return client;
-        } catch (Exception x) {
-            throw new ServletException(x);
-        }
+        HttpClient httpClient = super.createHttpClient();
+        customizeHttpClient(httpClient);
+        return httpClient;
     }
 
-    class ProxyContinueProtocolHandler extends ContinueProtocolHandler {
-
-        @Override
-        protected Runnable onContinue(Request request) {
-            HttpServletRequest clientRequest =
-                    (HttpServletRequest) request.getAttributes().get(CLIENT_REQUEST_ATTRIBUTE);
-            return AdminProxyHandler.this.onContinue(clientRequest, request);
-        }
+    private void customizeHttpClient(HttpClient httpClient) {
+        httpClient.setFollowRedirects(true);
+        ProtocolHandlers protocolHandlers = httpClient.getProtocolHandlers();
+        protocolHandlers.put(new RedirectProtocolHandler(httpClient));
     }
 
     // This class allows the request body to be replayed, the default implementation
