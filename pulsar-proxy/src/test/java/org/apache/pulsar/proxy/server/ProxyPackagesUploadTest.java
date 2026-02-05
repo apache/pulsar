@@ -25,7 +25,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -98,8 +97,6 @@ public class ProxyPackagesUploadTest extends MockedPulsarServiceBaseTest {
         proxyAdmin.packages().upload(meta, pkgName, packageFile.toString());
 
         verifyDownload(pkgName, FILE_SIZE);
-
-        Files.deleteIfExists(packageFile);
     }
 
     @Test
@@ -139,6 +136,5 @@ public class ProxyPackagesUploadTest extends MockedPulsarServiceBaseTest {
         fromProxy.toFile().deleteOnExit();
         proxyAdmin.packages().download(packageName, fromProxy.toString());
         assertThat(Files.size(fromProxy)).isEqualTo(expectedSize);
-        Files.deleteIfExists(fromProxy);
     }
 }
