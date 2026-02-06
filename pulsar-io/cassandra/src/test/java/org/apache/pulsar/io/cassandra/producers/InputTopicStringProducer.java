@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.io.cassandra.producers;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import java.lang.reflect.Type;
-import java.util.HashMap;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.UncheckedIOException;
 import java.util.Random;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -59,9 +58,12 @@ public class InputTopicStringProducer extends InputTopicProducerThread<String> {
         elements.put("latitude", 40.021f);
         elements.put("longitude", -122.33f);
 
-        Gson gson = new Gson();
-        Type gsonType = new TypeToken<HashMap>(){}.getType();
-        return gson.toJson(elements, gsonType);
+        ObjectMapper objectMapper = new ObjectMapper();
+        try {
+            return objectMapper.writeValueAsString(elements);
+        } catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Override

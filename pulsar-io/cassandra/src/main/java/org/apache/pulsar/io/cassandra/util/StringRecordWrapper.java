@@ -18,20 +18,22 @@
  */
 package org.apache.pulsar.io.cassandra.util;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import java.util.HashMap;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.Map;
 
 public class StringRecordWrapper extends RecordWrapper<String> {
-
-    private static final Gson gson = new Gson();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private Map<String, Object> valuesMap;
 
     public StringRecordWrapper(String jsonString) {
         super(jsonString);
-        valuesMap = gson.fromJson(jsonString,
-                new TypeToken<HashMap<String, Object>>() {}.getType());
+        try {
+            valuesMap = MAPPER.readValue(jsonString, Map.class);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Override
