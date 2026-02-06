@@ -126,7 +126,7 @@ public class WebServer {
         }
         httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
         httpConfig.setRequestHeaderSize(config.getHttpMaxRequestHeaderSize());
-        httpConfig.setIdleTimeout(config.getHttpIdleTimeout());
+        httpConfig.setIdleTimeout(config.getHttpServerIdleTimeout());
 
         HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
         if (config.getWebServicePort().isPresent()) {
@@ -175,7 +175,6 @@ public class WebServer {
                 connectorTls = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
                 connectorTls.setPort(config.getWebServicePortTls().get());
                 connectorTls.setHost(config.getBindAddress());
-                connectorTls.setIdleTimeout(config.getHttpIdleTimeout());
                 connectors.add(connectorTls);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -185,7 +184,7 @@ public class WebServer {
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
         connectors.stream().forEach(c -> {
             c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize());
-            c.setIdleTimeout(config.getHttpIdleTimeout());
+            c.setIdleTimeout(config.getHttpServerIdleTimeout());
         });
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
 
