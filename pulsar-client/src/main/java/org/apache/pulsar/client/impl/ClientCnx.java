@@ -121,10 +121,12 @@ public class ClientCnx extends PulsarHandler {
     protected final Authentication authentication;
     protected State state;
 
-    private AtomicLong duplicatedResponseCounter = new AtomicLong(0);
+    @VisibleForTesting
+    protected AtomicLong duplicatedResponseCounter = new AtomicLong(0);
 
+    @VisibleForTesting
     @Getter
-    private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
+    protected final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
             ConcurrentLongHashMap.<TimedCompletableFuture<? extends Object>>newBuilder()
                     .expectedItems(16)
                     .concurrencyLevel(1)
@@ -189,9 +191,14 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
+    @Getter
     private boolean supportsTopicWatchers;
     @Getter
     private boolean supportsGetPartitionedMetadataWithoutAutoCreation;
+    @Getter
+    private boolean brokerSupportsReplDedupByLidAndEid;
+    @Getter
+    private boolean supportsTopicWatcherReconcile;
 
     /** Idle stat. **/
     @Getter
@@ -200,7 +207,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     private long lastDisconnectedTimestamp;
 
-    private final String clientVersion;
+    protected final String clientVersion;
     protected final String originalPrincipal;
 
     protected enum State {
@@ -405,6 +412,10 @@ public class ClientCnx extends PulsarHandler {
         supportsGetPartitionedMetadataWithoutAutoCreation =
             connected.hasFeatureFlags()
                     && connected.getFeatureFlags().isSupportsGetPartitionedMetadataWithoutAutoCreation();
+        brokerSupportsReplDedupByLidAndEid =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsReplDedupByLidAndEid();
+        supportsTopicWatcherReconcile =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatcherReconcile();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
@@ -477,16 +488,18 @@ public class ClientCnx extends PulsarHandler {
         ProducerImpl<?> producer = producers.get(producerId);
         if (ledgerId == -1 && entryId == -1) {
             if (producer == null) {
-                log.warn("{} Message with sequence-id {} published by producer {} has been dropped", ctx.channel(),
-                        sequenceId, producerId);
+                log.warn("{} Message with sequence-id {}-{} published by producer [id:{}, name:{}] has been dropped",
+                        ctx.channel(), sequenceId, highestSequenceId, producerId, "null");
             } else {
                 producer.printWarnLogWhenCanNotDetermineDeduplication(ctx.channel(), sequenceId, highestSequenceId);
             }
-        }
 
-        if (log.isDebugEnabled()) {
-            log.debug("{} Got receipt for producer: {} -- msg: {} -- id: {}:{}", ctx.channel(), producerId, sequenceId,
-                    ledgerId, entryId);
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("{} Got receipt for producer: [id:{}, name:{}] -- sequence-id: {}-{} -- entry-id: {}:{}",
+                        ctx.channel(), producerId, producer.getProducerName(), sequenceId, highestSequenceId,
+                        ledgerId, entryId);
+            }
         }
 
         if (producer != null) {
@@ -1213,6 +1226,16 @@ public class ClientCnx extends PulsarHandler {
         }
         return sendRequestAndHandleTimeout(Commands.serializeWithSize(commandWatchTopicList), requestId,
                 RequestType.Command, true);
+    }
+
+    /**
+     * Create and send a WatchTopicList request including the topics-hash.
+     * Delegates to the existing BaseCommand-based method after building the command.
+     */
+    public CompletableFuture<CommandWatchTopicListSuccess> newWatchTopicList(
+            long requestId, long watcherId, String namespace, String topicsPattern, String topicsHash) {
+        BaseCommand cmd = Commands.newWatchTopicList(requestId, watcherId, namespace, topicsPattern, topicsHash);
+        return newWatchTopicList(cmd, requestId);
     }
 
     public CompletableFuture<CommandSuccess> newWatchTopicListClose(
