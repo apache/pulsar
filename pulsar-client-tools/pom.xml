@@ -24,8 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-client-tools</artifactId>
@@ -34,8 +33,13 @@
 
   <dependencies>
     <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli-shell-jline3</artifactId>
       <scope>compile</scope>
     </dependency>
     <dependency>
@@ -51,6 +55,11 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-admin-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-cli-utils</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -101,12 +110,16 @@
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty.websocket</groupId>
-      <artifactId>javax-websocket-client-impl</artifactId>
-      <version>${jetty.version}</version>
+      <artifactId>jetty-websocket-jetty-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.websocket</groupId>
+      <artifactId>jetty-websocket-jetty-client</artifactId>
     </dependency>
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <!-- functions related dependencies (begin) -->
@@ -146,7 +159,7 @@
         <artifactId>modernizer-maven-plugin</artifactId>
         <configuration>
           <failOnViolations>true</failOnViolations>
-          <javaVersion>8</javaVersion>
+          <javaVersion>17</javaVersion>
         </configuration>
         <executions>
           <execution>

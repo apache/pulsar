@@ -46,12 +46,12 @@ public class InfluxDBGenericRecordSink implements Sink<GenericRecord> {
     @Override
     public void open(Map<String, Object> map, SinkContext sinkContext) throws Exception {
         try {
-            val configV2 = InfluxDBSinkConfig.load(map);
+            val configV2 = InfluxDBSinkConfig.load(map, sinkContext);
             configV2.validate();
             sink = new InfluxDBSink();
         } catch (Exception e) {
             try {
-                val configV1 = org.apache.pulsar.io.influxdb.v1.InfluxDBSinkConfig.load(map);
+                val configV1 = org.apache.pulsar.io.influxdb.v1.InfluxDBSinkConfig.load(map, sinkContext);
                 configV1.validate();
                 sink = new org.apache.pulsar.io.influxdb.v1.InfluxDBGenericRecordSink();
             } catch (Exception e1) {

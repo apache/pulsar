@@ -22,7 +22,10 @@ import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.ssl.SslCloseCompletionEvent;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
@@ -84,11 +87,18 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Basic implementation of the channel handler to process inbound Pulsar data.
+ * <p>
+ * Please be aware that the decoded protocol command instance passed to a handle* method is cleared and reused for the
+ * next protocol command after the method completes. This is done in order to minimize object allocations for
+ * performance reasons. <b>It is not allowed to retain a reference to the handle* method parameter command instance
+ * after the method returns.</b> If you need to pass an instance of the command instance to another thread or retain a
+ * reference to it after the handle* method completes, you must make a deep copy of the command instance.
  */
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
@@ -114,9 +124,9 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             cmd.parseFrom(buffer, cmdSize);
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Received cmd {}", ctx.channel().remoteAddress(), cmd.getType());
+                log.debug("[{}] Received cmd {}", ctx.channel(), cmd.getType());
             }
-            messageReceived();
+            messageReceived(cmd);
 
             switch (cmd.getType()) {
             case PARTITIONED_METADATA:
@@ -125,7 +135,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handlePartitionMetadataRequest(cmd.getPartitionMetadata());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(getServerError(e.getErrorCode()),
+                    writeAndFlush(ctx,
+                            Commands.newPartitionMetadataResponse(getServerError(e.getErrorCode()),
                             e.getMessage(), cmd.getPartitionMetadata().getRequestId()));
                 }
                 break;
@@ -199,7 +210,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleProducer(cmd.getProducer());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getProducer().getRequestId(),
+                    writeAndFlush(ctx, Commands.newError(cmd.getProducer().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -212,7 +223,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     ByteBuf headersAndPayload = buffer.markReaderIndex();
                     handleSend(cmd.getSend(), headersAndPayload);
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newSendError(cmd.getSend().getProducerId(),
+                    writeAndFlush(ctx, Commands.newSendError(cmd.getSend().getProducerId(),
                             cmd.getSend().getSequenceId(), getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -233,7 +244,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleSubscribe(cmd.getSubscribe());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getSubscribe().getRequestId(),
+                    writeAndFlush(ctx, Commands.newError(cmd.getSubscribe().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -260,8 +271,13 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleSeek(cmd.getSeek());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getSeek().getRequestId(), getServerError(e.getErrorCode()),
-                            e.getMessage()));
+                    writeAndFlush(ctx,
+                            Commands.newError(
+                                    cmd.getSeek().getRequestId(),
+                                    getServerError(e.getErrorCode()),
+                                    e.getMessage()
+                            )
+                    );
                 }
                 break;
 
@@ -277,6 +293,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
             case REDELIVER_UNACKNOWLEDGED_MESSAGES:
                 checkArgument(cmd.hasRedeliverUnacknowledgedMessages());
+                safeInterceptCommand(cmd);
                 handleRedeliverUnacknowledged(cmd.getRedeliverUnacknowledgedMessages());
                 break;
 
@@ -320,7 +337,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleGetTopicsOfNamespace(cmd.getGetTopicsOfNamespace());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getGetTopicsOfNamespace().getRequestId(),
+                    writeAndFlush(ctx, Commands.newError(cmd.getGetTopicsOfNamespace().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -336,7 +353,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleGetSchema(cmd.getGetSchema());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newGetSchemaResponseError(cmd.getGetSchema().getRequestId(),
+                    writeAndFlush(ctx, Commands.newGetSchemaResponseError(cmd.getGetSchema().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -352,7 +369,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleGetOrCreateSchema(cmd.getGetOrCreateSchema());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
+                    writeAndFlush(ctx, Commands.newGetOrCreateSchemaResponseError(
                             cmd.getGetOrCreateSchema().getRequestId(), getServerError(e.getErrorCode()),
                             e.getMessage()));
                 }
@@ -468,10 +485,15 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             }
         } finally {
             buffer.release();
+            // Clear the fields in cmd to release memory.
+            // The clear() call below also helps prevent misuse of holding references to command objects after
+            // handle* methods complete, as per the class javadoc requirement.
+            // While this doesn't completely prevent such misuse, it makes tests more likely to catch violations.
+            cmd.clear();
         }
     }
 
-    protected abstract void messageReceived();
+    protected abstract void messageReceived(BaseCommand cmd);
 
     private ServerError getServerError(int errorCode) {
         ServerError serverError = ServerError.valueOf(errorCode);
@@ -725,4 +747,30 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     private static final Logger log = LoggerFactory.getLogger(PulsarDecoder.class);
+
+    private void writeAndFlush(ChannelOutboundInvoker ctx, ByteBuf cmd) {
+        NettyChannelUtil.writeAndFlushWithVoidPromise(ctx, cmd);
+    }
+
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+        if (evt instanceof SslHandshakeCompletionEvent) {
+            // log handshake failures
+            SslHandshakeCompletionEvent sslHandshakeCompletionEvent = (SslHandshakeCompletionEvent) evt;
+            if (!sslHandshakeCompletionEvent.isSuccess()) {
+                log.warn("[{}] TLS handshake failed. {}", ctx.channel(), sslHandshakeCompletionEvent);
+            }
+        } else if (evt instanceof SslCloseCompletionEvent) {
+            // handle TLS close_notify event and immediately close the channel
+            // this is not handled by Netty by default
+            // See https://datatracker.ietf.org/doc/html/rfc8446#section-6.1 for more details
+            SslCloseCompletionEvent sslCloseCompletionEvent = (SslCloseCompletionEvent) evt;
+            if (sslCloseCompletionEvent.isSuccess() && ctx.channel().isActive()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Received a TLS close_notify, closing the channel.", ctx.channel());
+                }
+                ctx.close();
+            }
+        }
+        ctx.fireUserEventTriggered(evt);
+    }
 }

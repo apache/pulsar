@@ -56,7 +56,7 @@ public class WorkerStats extends AdminResource {
     })
     @Produces(MediaType.APPLICATION_JSON)
     public Collection<Metrics> getMetrics() throws Exception {
-        return workers().getWorkerMetrics(clientAppId());
+        return workers().getWorkerMetrics(authParams());
     }
 
     @GET
@@ -72,6 +72,6 @@ public class WorkerStats extends AdminResource {
     })
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerFunctionInstanceStats> getStats() throws IOException {
-        return workers().getFunctionsMetrics(clientAppId());
+        return workers().getFunctionsMetrics(authParams());
     }
 }

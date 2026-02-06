@@ -41,6 +41,14 @@ enum SubscriptionPosition {
     EARLIEST = 1;
 }
 
+enum CompressionType {
+    LZ4 = 0;
+    NONE = 1;
+    ZLIB = 2;
+    ZSTD = 3;
+    SNAPPY = 4;
+}
+
 message Resources {
     double cpu = 1;
     int64 ram = 2;
@@ -104,6 +112,7 @@ message ConsumerSpec {
     map<string, string> consumerProperties = 6;
     CryptoSpec cryptoSpec = 7;
     bool poolMessages = 8;
+    MessagePayloadProcessorSpec messagePayloadProcessorSpec = 9;
 }
 
 message ProducerSpec {
@@ -112,6 +121,8 @@ message ProducerSpec {
     bool useThreadLocalProducers = 3;
     CryptoSpec cryptoSpec = 4;
     string batchBuilder = 5;
+    CompressionType compressionType = 6;
+    BatchingSpec batchingSpec = 7;
 }
 
 message CryptoSpec {
@@ -136,6 +147,20 @@ message CryptoSpec {
     // define the action if consumer fail to decrypt data
     // one of FAIL, DISCARD, CONSUME
     FailureAction consumerCryptoFailureAction = 5;
+}
+
+message MessagePayloadProcessorSpec {
+    string className = 1;
+    string configs = 2;
+}
+
+message BatchingSpec {
+    bool enabled = 1;
+    int32 batchingMaxPublishDelayMs = 2;
+    int32 roundRobinRouterBatchingPartitionSwitchFrequency = 3;
+    int32 batchingMaxMessages = 4;
+    int32 batchingMaxBytes = 5;
+    string batchBuilder = 6;
 }
 
 message SourceSpec {
@@ -165,6 +190,7 @@ message SourceSpec {
     bool cleanupSubscription = 11;
     SubscriptionPosition subscriptionPosition = 12;
     uint64 negativeAckRedeliveryDelayMs = 13;
+    bool skipToLatest = 14;
 }
 
 message SinkSpec {

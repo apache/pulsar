@@ -19,7 +19,8 @@
 package org.apache.pulsar.broker.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.broker.stats.PrometheusMetricsTest.parseMetrics;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -37,9 +38,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -73,6 +74,15 @@ public class TransactionMetricsTest extends BrokerTestBase {
         super.baseSetup(serviceConfiguration);
     }
 
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
+    }
+
     protected void afterSetup() throws Exception {
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 TenantInfo.builder()
@@ -102,16 +112,16 @@ public class TransactionMetricsTest extends BrokerTestBase {
         Awaitility.await().until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
         pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDOne).newTransaction(timeout).get();
+                .get(transactionCoordinatorIDOne).newTransaction(timeout, null).get();
         pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDTwo).newTransaction(timeout).get();
+                .get(transactionCoordinatorIDTwo).newTransaction(timeout, null).get();
         pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDTwo).newTransaction(timeout).get();
+                .get(transactionCoordinatorIDTwo).newTransaction(timeout, null).get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
-        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_txn_active_count");
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        Collection<Metric> metric = metrics.get("pulsar_txn_active_count");
         assertEquals(metric.size(), 2);
         metric.forEach(item -> {
             if ("0".equals(item.tags.get("coordinator_id"))) {
@@ -176,11 +186,11 @@ public class TransactionMetricsTest extends BrokerTestBase {
         pulsar.getBrokerService().updateRates();
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_txn_created_total");
+        Collection<Metric> metric = metrics.get("pulsar_txn_created_total");
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, txnCount));
 
@@ -193,7 +203,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         metric.forEach(item -> assertEquals(item.value, txnCount / 2));
 
         TxnID txnID = pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDOne).newTransaction(1000).get();
+                .get(transactionCoordinatorIDOne).newTransaction(1000, null).get();
 
         Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
             try {
@@ -206,7 +216,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         });
 
         statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         metricsStr = statsOut.toString();
         metrics = parseMetrics(metricsStr);
 
@@ -262,12 +272,12 @@ public class TransactionMetricsTest extends BrokerTestBase {
         producer.send("hello pulsar".getBytes());
         consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
 
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_storage_size");
+        Collection<Metric> metric = metrics.get("pulsar_storage_size");
         checkManagedLedgerMetrics(subName, 32, metric);
         checkManagedLedgerMetrics(MLTransactionLogImpl.TRANSACTION_SUBSCRIPTION_NAME, 252, metric);
 
@@ -280,13 +290,13 @@ public class TransactionMetricsTest extends BrokerTestBase {
         checkManagedLedgerMetrics(MLTransactionLogImpl.TRANSACTION_SUBSCRIPTION_NAME, 126, metric);
 
         statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         metricsStr = statsOut.toString();
         metrics = parseMetrics(metricsStr);
         metric = metrics.get("pulsar_storage_size");
-        assertEquals(metric.size(), 3);
+        assertEquals(metric.size(), 2);
         metric = metrics.get("pulsar_storage_logical_size");
-        assertEquals(metric.size(), 3);
+        assertEquals(metric.size(), 2);
         metric = metrics.get("pulsar_storage_backlog_size");
         assertEquals(metric.size(), 2);
     }
@@ -324,15 +334,15 @@ public class TransactionMetricsTest extends BrokerTestBase {
         producer.send("hello pulsar".getBytes());
         consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
 
-        Multimap<String, PrometheusMetricsTest.Metric> metrics = parseMetrics(metricsStr);
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> metric = metrics.get("pulsar_storage_size");
+        Collection<Metric> metric = metrics.get("pulsar_storage_size");
         checkManagedLedgerMetrics(subName, 32, metric);
         //No statistics of the pendingAck are generated when the pendingAck is not initialized.
-        for (PrometheusMetricsTest.Metric metric1 : metric) {
+        for (Metric metric1 : metric) {
             if (metric1.tags.containsValue(subName2)) {
                 Assert.fail();
             }
@@ -349,7 +359,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
 
         statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
         metricsStr = statsOut.toString();
         metrics = parseMetrics(metricsStr);
         metric = metrics.get("pulsar_storage_size");
@@ -383,7 +393,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
                     .send();
         }
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
         String metricsStr = statsOut.toString();
 
         Map<String, String> typeDefs = new HashMap<>();
@@ -422,9 +432,9 @@ public class TransactionMetricsTest extends BrokerTestBase {
 
     }
 
-    private void checkManagedLedgerMetrics(String tag, double value, Collection<PrometheusMetricsTest.Metric> metrics) {
+    private void checkManagedLedgerMetrics(String tag, double value, Collection<Metric> metrics) {
         boolean exist = false;
-        for (PrometheusMetricsTest.Metric metric1 : metrics) {
+        for (Metric metric1 : metrics) {
             if (metric1.tags.containsValue(tag)) {
                 assertEquals(metric1.value, value);
                 exist = true;

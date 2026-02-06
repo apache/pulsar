@@ -21,10 +21,10 @@ package org.apache.pulsar.client.impl;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.Objects;
-import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 
-public class ChunkMessageIdImpl extends MessageIdImpl implements MessageId {
+public class ChunkMessageIdImpl extends MessageIdImpl {
     private final MessageIdImpl firstChunkMsgId;
 
     public ChunkMessageIdImpl(MessageIdImpl firstChunkMsgId, MessageIdImpl lastChunkMsgId) {
@@ -32,11 +32,12 @@ public class ChunkMessageIdImpl extends MessageIdImpl implements MessageId {
         this.firstChunkMsgId = firstChunkMsgId;
     }
 
-    public MessageIdImpl getFirstChunkMessageId() {
+    @Override
+    public MessageIdAdv getFirstChunkMessageId() {
         return firstChunkMsgId;
     }
 
-    public MessageIdImpl getLastChunkMessageId() {
+    public MessageIdAdv getLastChunkMessageId() {
         return this;
     }
 

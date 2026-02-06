@@ -40,8 +40,8 @@ public abstract class Compactor {
 
     protected final ServiceConfiguration conf;
     protected final ScheduledExecutorService scheduler;
-    private final PulsarClient pulsar;
-    private final BookKeeper bk;
+    protected final PulsarClient pulsar;
+    protected final BookKeeper bk;
     protected final CompactorMXBeanImpl mxBean;
 
     public Compactor(ServiceConfiguration conf,
@@ -56,7 +56,7 @@ public abstract class Compactor {
     }
 
     public CompletableFuture<Long> compact(String topic) {
-        return RawReader.create(pulsar, topic, COMPACTION_SUBSCRIPTION).thenComposeAsync(
+        return RawReader.create(pulsar, topic, COMPACTION_SUBSCRIPTION, false, false).thenComposeAsync(
                 this::compactAndCloseReader, scheduler);
     }
 

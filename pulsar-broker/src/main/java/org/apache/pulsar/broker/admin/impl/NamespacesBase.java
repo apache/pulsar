@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
@@ -27,7 +25,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -38,12 +35,17 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.CompletionCallback;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
@@ -51,19 +53,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
-import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamedEntity;
@@ -106,11 +114,15 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.zookeeper.KeeperException;
+import org.jspecify.annotations.NonNull;
 
 @Slf4j
 public abstract class NamespacesBase extends AdminResource {
@@ -158,8 +170,66 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenAccept(__ -> log.info("[{}] Created namespace {}", clientAppId(), namespaceName));
     }
 
-    protected CompletableFuture<List<String>> internalGetListOfTopics(Policies policies,
+    protected CompletableFuture<List<String>> internalGetListOfTopics(AsyncResponse response, Policies policies,
                                                                       CommandGetTopicsOfNamespace.Mode mode) {
+        // Use maxTopicListInFlightLimiter to limit inflight get topic listing responses
+        // to avoid OOME caused by a lot of clients using HTTP service lookups to list topics
+        AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter =
+                pulsar().getBrokerService().getMaxTopicListInFlightLimiter();
+        TopicListSizeResultCache.ResultHolder listSizeHolder = pulsar().getBrokerService().getTopicListSizeResultCache()
+                .getTopicListSize(namespaceName.toString(), mode);
+        // setup the permit cancellation function
+        AtomicBoolean permitRequestCancelled = new AtomicBoolean(false);
+        BooleanSupplier isPermitRequestCancelled = permitRequestCancelled::get;
+        // add callback that releases permits when the response completes
+        AtomicReference<AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit> initialPermitsRef =
+                new AtomicReference<>();
+        AtomicReference<AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit> permitsRef = new AtomicReference<>();
+        response.register(new CompletionCallback() {
+            @Override
+            public void onComplete(Throwable throwable) {
+                if (throwable != null) {
+                    // for failed request
+                    // handle resetting the TopicListSizeResultCache.ResultHolder
+                    listSizeHolder.resetIfInitializing();
+                    // cancel any pending permit request
+                    permitRequestCancelled.set(true);
+                }
+                AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit initialPermit = initialPermitsRef.get();
+                if (initialPermit != null) {
+                    maxTopicListInFlightLimiter.release(initialPermit);
+                }
+                AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit permits = permitsRef.get();
+                if (permits != null) {
+                    maxTopicListInFlightLimiter.release(permits);
+                }
+            }
+        });
+        return listSizeHolder.getSizeAsync().thenCompose(initialSize -> maxTopicListInFlightLimiter.acquire(initialSize,
+                AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled).exceptionally(t -> {
+            throw new CompletionException(
+                    new RestException(Status.TOO_MANY_REQUESTS, "Failed due to heap memory limit exceeded"));
+        }).thenCompose(initialPermits -> {
+            initialPermitsRef.set(initialPermits);
+            // perform the actual get list of topics operation
+            return doInternalGetListOfTopics(policies, mode).thenCompose(topicList -> {
+                long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topicList);
+                listSizeHolder.updateSize(actualSize);
+                return maxTopicListInFlightLimiter.update(initialPermits, actualSize, isPermitRequestCancelled)
+                        .exceptionally(t -> {
+                            throw new CompletionException(new RestException(Status.TOO_MANY_REQUESTS,
+                                    "Failed due to heap memory limit exceeded"));
+                        }).thenApply(permits -> {
+                            permitsRef.set(permits);
+                            initialPermitsRef.set(null);
+                            return topicList;
+                        });
+            });
+        }));
+    }
+
+    private CompletableFuture<List<String>> doInternalGetListOfTopics(Policies policies,
+                                                                     CommandGetTopicsOfNamespace.Mode mode) {
         switch (mode) {
             case ALL:
                 return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
@@ -200,87 +270,104 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
-    @SuppressWarnings("unchecked")
-    protected CompletableFuture<Void> internalDeleteNamespaceAsync(boolean force) {
-        CompletableFuture<Policies> preconditionCheck = precheckWhenDeleteNamespace(namespaceName, force);
-        return preconditionCheck
+    /**
+     * Delete the namespace and retry to resolve some topics that were not created successfully(in metadata)
+     * during the deletion.
+     */
+    protected @NonNull CompletableFuture<Void> internalDeleteNamespaceAsync(boolean force) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        internalRetryableDeleteNamespaceAsync0(force, 5, future);
+        return future;
+    }
+    private void internalRetryableDeleteNamespaceAsync0(boolean force, int retryTimes,
+                                                        @NonNull CompletableFuture<Void> callback) {
+        precheckWhenDeleteNamespace(namespaceName, force)
                 .thenCompose(policies -> {
-                    if (policies == null || CollectionUtils.isEmpty(policies.replication_clusters)){
-                        return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+                    final CompletableFuture<List<String>> topicsFuture;
+                    if (policies == null || !pulsar().getBrokerService()
+                            .isCurrentClusterAllowed(namespaceName, policies)) {
+                        topicsFuture = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+                    } else {
+                        topicsFuture = pulsar().getNamespaceService().getFullListOfTopics(namespaceName);
                     }
-                    return pulsar().getNamespaceService().getFullListOfTopics(namespaceName);
-                })
-                .thenCompose(allTopics -> pulsar().getNamespaceService().getFullListOfPartitionedTopic(namespaceName)
-                         .thenCompose(allPartitionedTopics -> {
-                             List<List<String>> topicsSum = new ArrayList<>(2);
-                             topicsSum.add(allTopics);
-                             topicsSum.add(allPartitionedTopics);
-                             return CompletableFuture.completedFuture(topicsSum);
-                         }))
-                .thenCompose(topics -> {
-                    List<String> allTopics = topics.get(0);
-                    ArrayList<String> allUserCreatedTopics = new ArrayList<>();
-                    List<String> allPartitionedTopics = topics.get(1);
-                    ArrayList<String> allUserCreatedPartitionTopics = new ArrayList<>();
-                    boolean hasNonSystemTopic = false;
-                    List<String> allSystemTopics = new ArrayList<>();
-                    List<String> allPartitionedSystemTopics = new ArrayList<>();
-                    List<String> topicPolicy = new ArrayList<>();
-                    List<String> partitionedTopicPolicy = new ArrayList<>();
-                    for (String topic : allTopics) {
-                        if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
-                            hasNonSystemTopic = true;
-                            allUserCreatedTopics.add(topic);
-                        } else {
-                            if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
-                                topicPolicy.add(topic);
-                            } else {
-                                allSystemTopics.add(topic);
-                            }
-                        }
-                    }
-                    for (String topic : allPartitionedTopics) {
-                        if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
-                            hasNonSystemTopic = true;
-                            allUserCreatedPartitionTopics.add(topic);
-                        } else {
-                            if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
-                                partitionedTopicPolicy.add(topic);
-                            } else {
-                                allPartitionedSystemTopics.add(topic);
-                            }
-                        }
-                    }
-                    if (!force) {
-                        if (hasNonSystemTopic) {
-                            throw new RestException(Status.CONFLICT, "Cannot delete non empty namespace");
-                        }
-                    }
-                    return namespaceResources().setPoliciesAsync(namespaceName, old -> {
-                        old.deleted = true;
-                        return  old;
-                    }).thenCompose(ignore -> {
-                        return internalDeleteTopicsAsync(allUserCreatedTopics);
-                    }).thenCompose(ignore -> {
-                        return internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics);
-                    }).thenCompose(ignore -> {
-                        return internalDeleteTopicsAsync(allSystemTopics);
-                    }).thenCompose(ignore__ -> {
-                        return internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics);
-                    }).thenCompose(ignore -> {
-                        return internalDeleteTopicsAsync(topicPolicy);
-                    }).thenCompose(ignore__ -> {
-                        return internalDeletePartitionedTopicsAsync(partitionedTopicPolicy);
-                    });
+                    return topicsFuture.thenCompose(allTopics ->
+                            pulsar().getNamespaceService().getFullListOfPartitionedTopic(namespaceName)
+                                    .thenCompose(allPartitionedTopics -> {
+                                        List<List<String>> topicsSum = new ArrayList<>(2);
+                                        topicsSum.add(allTopics);
+                                        topicsSum.add(allPartitionedTopics);
+                                        return CompletableFuture.completedFuture(topicsSum);
+                                    }))
+                            .thenCompose(topics -> {
+                                List<String> allTopics = topics.get(0);
+                                Set<String> allUserCreatedTopics = new HashSet<>();
+                                List<String> allPartitionedTopics = topics.get(1);
+                                Set<String> allUserCreatedPartitionTopics = new HashSet<>();
+                                boolean hasNonSystemTopic = false;
+                                Set<String> allSystemTopics = new HashSet<>();
+                                Set<String> allPartitionedSystemTopics = new HashSet<>();
+                                Set<String> topicPolicy = new HashSet<>();
+                                Set<String> partitionedTopicPolicy = new HashSet<>();
+                                for (String topic : allTopics) {
+                                    if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
+                                        hasNonSystemTopic = true;
+                                        allUserCreatedTopics.add(topic);
+                                    } else {
+                                        if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
+                                            topicPolicy.add(topic);
+                                        } else if (!isDeletedAlongWithUserCreatedTopic(topic)) {
+                                            allSystemTopics.add(topic);
+                                        }
+                                    }
+                                }
+                                for (String topic : allPartitionedTopics) {
+                                    if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
+                                        hasNonSystemTopic = true;
+                                        allUserCreatedPartitionTopics.add(topic);
+                                    } else {
+                                        if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
+                                            partitionedTopicPolicy.add(topic);
+                                        } else {
+                                            allPartitionedSystemTopics.add(topic);
+                                        }
+                                    }
+                                }
+                                if (!force) {
+                                    if (hasNonSystemTopic) {
+                                        throw new RestException(Status.CONFLICT, "Cannot delete non empty namespace");
+                                    }
+                                }
+                                final CompletableFuture<Void> markDeleteFuture;
+                                if (policies != null && policies.deleted) {
+                                    markDeleteFuture = CompletableFuture.completedFuture(null);
+                                } else {
+                                    markDeleteFuture = namespaceResources().setPoliciesAsync(namespaceName, old -> {
+                                        old.deleted = true;
+                                        return old;
+                                    });
+                                }
+                                return markDeleteFuture.thenCompose(__ ->
+                                                internalDeleteTopicsAsync(allUserCreatedTopics))
+                                        .thenCompose(ignore ->
+                                                internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics))
+                                        .thenCompose(ignore ->
+                                                internalDeleteTopicsAsync(allSystemTopics))
+                                        .thenCompose(ignore ->
+                                                internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
+                                        .thenCompose(ignore ->
+                                                internalDeleteTopicsAsync(topicPolicy))
+                                        .thenCompose(ignore ->
+                                                internalDeletePartitionedTopicsAsync(partitionedTopicPolicy));
+                            });
                 })
                 .thenCompose(ignore -> pulsar().getNamespaceService()
                         .getNamespaceBundleFactory().getBundlesAsync(namespaceName))
                 .thenCompose(bundles -> FutureUtil.waitForAll(bundles.getBundles().stream()
-                        .map(bundle -> pulsar().getNamespaceService().getOwnerAsync(bundle)
-                                .thenCompose(owner -> {
+                        .map(bundle -> pulsar().getNamespaceService().checkOwnershipPresentAsync(bundle)
+                                .thenCompose(present -> {
                                     // check if the bundle is owned by any broker,
                                     // if not then we do not need to delete the bundle
-                                    if (owner.isPresent()) {
+                                    if (present) {
                                         PulsarAdmin admin;
                                         try {
                                             admin = pulsar().getAdminClient();
@@ -289,16 +376,56 @@ public abstract class NamespacesBase extends AdminResource {
                                                     clientAppId(), ex);
                                             return FutureUtil.failedFuture(ex);
                                         }
+                                        log.info("[{}] Deleting namespace bundle {}/{}", clientAppId(),
+                                                namespaceName, bundle.getBundleRange());
                                         return admin.namespaces().deleteNamespaceBundleAsync(namespaceName.toString(),
                                                 bundle.getBundleRange(), force);
+                                    } else {
+                                        log.warn("[{}] Skipping deleting namespace bundle {}/{} "
+                                                        + "as it's not owned by any broker",
+                                                clientAppId(), namespaceName, bundle.getBundleRange());
                                     }
                                     return CompletableFuture.completedFuture(null);
                                 })
                         ).collect(Collectors.toList())))
-                .thenCompose(ignore -> internalClearZkSources());
+                .thenCompose(ignore -> internalClearZkSources())
+                .whenComplete((result, error) -> {
+                    if (error != null) {
+                        final Throwable rc = FutureUtil.unwrapCompletionException(error);
+                        if (rc instanceof MetadataStoreException) {
+                            if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
+                                KeeperException.NotEmptyException ne =
+                                        (KeeperException.NotEmptyException) rc.getCause();
+                                log.info("[{}] There are in-flight topics created during the namespace deletion, "
+                                        + "retry to delete the namespace again. (path {} is not empty on metadata)",
+                                        namespaceName, ne.getPath());
+                                final int next = retryTimes - 1;
+                                if (next > 0) {
+                                    // async recursive
+                                    internalRetryableDeleteNamespaceAsync0(force, next, callback);
+                                } else {
+                                    callback.completeExceptionally(
+                                            new RestException(Status.CONFLICT, "The broker still have in-flight topics"
+                                                    + " created during namespace deletion (path " + ne.getPath() + ") "
+                                                    + "is not empty on metadata store, please try again."));
+                                    // drop out recursive
+                                }
+                                return;
+                            }
+                        }
+                        callback.completeExceptionally(error);
+                        return;
+                    }
+                    callback.complete(result);
+                });
     }
 
-    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
+    private boolean isDeletedAlongWithUserCreatedTopic(String topic) {
+        // The transaction pending ack topic will be deleted while topic unsubscribe corresponding subscription.
+        return topic.endsWith(SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
+    }
+
+    private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(Set<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -312,7 +439,7 @@ public abstract class NamespacesBase extends AdminResource {
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> internalDeleteTopicsAsync(List<String> topicNames) {
+    private CompletableFuture<Void> internalDeleteTopicsAsync(Set<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -355,25 +482,28 @@ public abstract class NamespacesBase extends AdminResource {
                                 return CompletableFuture.completedFuture(null);
                             }
                             Policies policies = policiesOpt.get();
-                            Set<String> replicationClusters = policies.replication_clusters;
-                            if (replicationClusters.size() > 1) {
+                            // Just keep the behavior of V1 namespace being the same as before.
+                            if (!nsName.isV2() && policies.replication_clusters.isEmpty()
+                                    && policies.allowed_clusters.isEmpty()) {
+                                return CompletableFuture.completedFuture(policies);
+                            }
+                            String cluster = policies.getClusterThatCanDeleteNamespace();
+                            if (cluster == null) {
                                 // There are still more than one clusters configured for the global namespace
                                 throw new RestException(Status.PRECONDITION_FAILED,
-                                        "Cannot delete the global namespace " + nsName + ". There are still more than "
-                                        + "one replication clusters configured.");
+                                    "Cannot delete the global namespace " + nsName + ". There are still more than "
+                                    + "one replication clusters configured.");
                             }
-                            if (replicationClusters.size() == 1
-                                    && !policies.replication_clusters.contains(config().getClusterName())) {
+                            if (!cluster.equals(config().getClusterName())) {
                                 // the only replication cluster is other cluster, redirect
-                                String replCluster = new ArrayList<>(policies.replication_clusters).get(0);
-                                return clusterResources().getClusterAsync(replCluster)
+                                return clusterResources().getClusterAsync(cluster)
                                         .thenCompose(replClusterDataOpt -> {
                                             ClusterData replClusterData = replClusterDataOpt
                                                     .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                                                            "Cluster " + replCluster + " does not exist"));
+                                                            "Cluster " + cluster + " does not exist"));
                                             URL replClusterUrl;
                                             try {
-                                                if (!config().isTlsEnabled() || !isRequestHttps()) {
+                                                if (!replClusterData.isBrokerClientTlsEnabled()) {
                                                     replClusterUrl = new URL(replClusterData.getServiceUrl());
                                                 } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                                                     replClusterUrl = new URL(replClusterData.getServiceUrlTls());
@@ -390,7 +520,7 @@ public abstract class NamespacesBase extends AdminResource {
                                                     .replaceQueryParam("authoritative", false).build();
                                             if (log.isDebugEnabled()) {
                                                 log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                                        clientAppId(), redirect, replCluster);
+                                                        clientAppId(), redirect, cluster);
                                             }
                                             throw new WebApplicationException(
                                                     Response.temporaryRedirect(redirect).build());
@@ -418,13 +548,16 @@ public abstract class NamespacesBase extends AdminResource {
                 // clear z-node of local policies
                 .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
                 // clear /loadbalance/bundle-data
-                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName));
+                .thenCompose(ignore ->
+                        loadBalanceResources().getBundleDataResources().deleteBundleDataAsync(namespaceName));
 
     }
 
     @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalDeleteNamespaceBundleAsync(String bundleRange, boolean authoritative,
                                                                          boolean force) {
+        log.info("[{}] Deleting namespace bundle {}/{} authoritative:{} force:{}",
+                clientAppId(), namespaceName, bundleRange, authoritative, force);
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_BUNDLE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
@@ -437,22 +570,25 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(policies -> {
                     CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
                     if (namespaceName.isGlobal()) {
-
-                        if (policies.replication_clusters.size() > 1) {
+                        // Just keep the behavior of V1 namespace being the same as before.
+                        if (!namespaceName.isV2() && policies.replication_clusters.isEmpty()
+                                && policies.allowed_clusters.isEmpty()) {
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        String cluster = policies.getClusterThatCanDeleteNamespace();
+                        if (cluster == null) {
                             // There are still more than one clusters configured for the global namespace
                             throw new RestException(Status.PRECONDITION_FAILED, "Cannot delete the global namespace "
                                     + namespaceName
                                     + ". There are still more than one replication clusters configured.");
                         }
-                        if (policies.replication_clusters.size() == 1
-                                && !policies.replication_clusters.contains(config().getClusterName())) {
+                        if (!cluster.equals(config().getClusterName())) { // No need to change.
                             // the only replication cluster is other cluster, redirect
-                            String replCluster = new ArrayList<>(policies.replication_clusters).get(0);
-                            future = clusterResources().getClusterAsync(replCluster)
+                            future = clusterResources().getClusterAsync(cluster)
                                     .thenCompose(clusterData -> {
                                         if (clusterData.isEmpty()) {
                                             throw new RestException(Status.NOT_FOUND,
-                                                    "Cluster " + replCluster + " does not exist");
+                                                    "Cluster " + cluster + " does not exist");
                                         }
                                         ClusterData replClusterData = clusterData.get();
                                         URL replClusterUrl;
@@ -476,151 +612,206 @@ public abstract class NamespacesBase extends AdminResource {
                                                         .replaceQueryParam("authoritative", false).build();
                                         if (log.isDebugEnabled()) {
                                             log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                                    clientAppId(), redirect, replCluster);
+                                                    clientAppId(), redirect, cluster);
                                         }
                                         throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
                                     });
                         }
                     }
-                    return future.thenCompose(__ -> {
-                        NamespaceBundle bundle =
-                                validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                                        authoritative, true);
-                        return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
-                                .thenCompose(topics -> {
-                                    CompletableFuture<Void> deleteTopicsFuture =
-                                            CompletableFuture.completedFuture(null);
-                                    if (!force) {
-                                        List<CompletableFuture<NamespaceBundle>> futures = new ArrayList<>();
-                                        for (String topic : topics) {
-                                            futures.add(pulsar().getNamespaceService()
-                                                    .getBundleAsync(TopicName.get(topic))
-                                                    .thenCompose(topicBundle -> {
-                                                        if (bundle.equals(topicBundle)) {
-                                                            throw new RestException(Status.CONFLICT,
-                                                                    "Cannot delete non empty bundle");
-                                                        }
-                                                        return CompletableFuture.completedFuture(null);
-                                                    }));
+                    return future
+                            .thenCompose(__ ->
+                                    validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles,
+                                            bundleRange,
+                                            authoritative, true))
+                            .thenCompose(bundle -> {
+                                return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                                        .thenCompose(topics -> {
+                                            CompletableFuture<Void> deleteTopicsFuture =
+                                                    CompletableFuture.completedFuture(null);
+                                            if (!force) {
+                                                List<CompletableFuture<NamespaceBundle>> futures = new ArrayList<>();
+                                                for (String topic : topics) {
+                                                    futures.add(pulsar().getNamespaceService()
+                                                            .getBundleAsync(TopicName.get(topic))
+                                                            .thenCompose(topicBundle -> {
+                                                                if (bundle.equals(topicBundle)) {
+                                                                    throw new RestException(Status.CONFLICT,
+                                                                            "Cannot delete non empty bundle");
+                                                                }
+                                                                return CompletableFuture.completedFuture(null);
+                                                            }));
 
-                                        }
-                                        deleteTopicsFuture = FutureUtil.waitForAll(futures);
-                                    }
-                                    return deleteTopicsFuture.thenCompose(
-                                            ___ -> pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle))
-                                            .thenRun(() -> pulsar().getBrokerService().getBundleStats()
-                                                    .remove(bundle.toString()));
-                                });
-                    });
+                                                }
+                                                deleteTopicsFuture = FutureUtil.waitForAll(futures);
+                                            }
+                                            return deleteTopicsFuture.thenCompose(
+                                                            ___ -> pulsar().getNamespaceService()
+                                                                    .removeOwnedServiceUnitAsync(bundle))
+                                                    .thenRun(() -> pulsar().getBrokerService().getBundleStats()
+                                                            .remove(bundle.toString()));
+                                        });
+                            });
                 });
     }
 
     protected CompletableFuture<Void> internalGrantPermissionOnNamespaceAsync(String role, Set<AuthAction> actions) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(role, "Role should not be null");
-                        checkNotNull(actions, "Actions should not be null");
-                    }).thenCompose(__ ->
-                            authService.grantPermissionAsync(namespaceName, actions, role, null))
-                    .thenAccept(unused ->
-                            log.info("[{}] Successfully granted access for role {}: {} - namespaceName {}",
-                                    clientAppId(), role, actions, namespaceName))
-                    .exceptionally(ex -> {
-                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                        //The IllegalArgumentException and the IllegalStateException were historically thrown by the
-                        // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
-                        if (realCause instanceof MetadataStoreException.NotFoundException
-                                || realCause instanceof IllegalArgumentException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
-                                    namespaceName, ex);
-                            throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
-                        } else if (realCause instanceof MetadataStoreException.BadVersionException
-                                || realCause instanceof IllegalStateException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: {}",
-                                    clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
-                            throw new RestException(Status.CONFLICT, "Concurrent modification");
-                        } else {
-                            log.error("[{}] Failed to get permissions for namespace {}",
-                                    clientAppId(), namespaceName, ex);
-                            throw new RestException(realCause);
-                        }
-                    });
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(role, "Role should not be null");
+                    checkNotNull(actions, "Actions should not be null");
+                }).thenCompose(__ ->
+                        getAuthorizationService().grantPermissionAsync(namespaceName, actions, role, null))
+                .thenAccept(unused ->
+                        log.info("[{}] Successfully granted access for role {}: {} - namespaceName {}",
+                                clientAppId(), role, actions, namespaceName))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause instanceof MetadataStoreException.NotFoundException
+                            || realCause instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName, ex);
+                        throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+                    } else if (realCause instanceof MetadataStoreException.BadVersionException
+                            || realCause instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: {}",
+                                clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to get permissions for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                        throw new RestException(realCause);
+                    }
+                });
     }
 
+    protected CompletableFuture<Void> internalGrantPermissionOnTopicsAsync(List<GrantTopicPermissionOptions> options) {
+        return checkNamespace(options.stream().map(o -> TopicName.get(o.getTopic()).getNamespace()))
+                .thenCompose(__ -> validateAdminAccessForTenantAsync(
+                        TopicName.get(options.get(0).getTopic()).getTenant())
+                ).thenCompose(__ -> internalCheckTopicExists(options.stream().map(o -> TopicName.get(o.getTopic()))))
+                .thenCompose(__ -> getAuthorizationService().grantPermissionAsync(options))
+                .thenAccept(unused -> log.info("[{}] Successfully granted access for {}", clientAppId(), options))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause instanceof MetadataStoreException.NotFoundException
+                            || realCause instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to grant permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName, ex);
+                        throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+                    } else if (realCause instanceof MetadataStoreException.BadVersionException
+                            || realCause instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to grant permissions for namespace {}: {}",
+                                clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to grant permissions for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                        throw new RestException(realCause);
+                    }
+                });
+    }
+
+    protected CompletableFuture<Void> internalRevokePermissionOnTopicsAsync(
+            List<RevokeTopicPermissionOptions> options) {
+        return checkNamespace(options.stream().map(o -> TopicName.get(o.getTopic()).getNamespace()))
+                .thenCompose(__ -> validateAdminAccessForTenantAsync(
+                        TopicName.get(options.get(0).getTopic()).getTenant()))
+                .thenCompose(__ -> internalCheckTopicExists(options.stream().map(o -> TopicName.get(o.getTopic()))))
+                .thenCompose(__ -> getAuthorizationService().revokePermissionAsync(options))
+                .thenAccept(unused -> log.info("[{}] Successfully revoke access for {}", clientAppId(), options))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause instanceof MetadataStoreException.NotFoundException
+                            || realCause instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to revoke permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName, ex);
+                        throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
+                    } else if (realCause instanceof MetadataStoreException.BadVersionException
+                            || realCause instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to revoke permissions for namespace {}: {}",
+                                clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to revoke permissions for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                        throw new RestException(realCause);
+                    }
+                });
+    }
+
+    private CompletableFuture<Void> checkNamespace(Stream<String> namespaces) {
+        boolean sameNamespace = namespaces.distinct().count() == 1;
+        if (!sameNamespace) {
+            throw new RestException(Status.BAD_REQUEST, "The namespace should be the same");
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private CompletableFuture<Void> internalCheckTopicExists(Stream<TopicName> topicNameStream) {
+        List<TopicName> topicNames = topicNameStream.collect(Collectors.toList());
+        return CompletableFuture.allOf(topicNames.stream().map(topic -> internalCheckTopicExists(topic))
+                .toArray(CompletableFuture[]::new));
+    }
 
     protected CompletableFuture<Void> internalGrantPermissionOnSubscriptionAsync(String subscription,
                                                                                 Set<String> roles) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(subscription, "Subscription should not be null");
-                        checkNotNull(roles, "Roles should not be null");
-                    })
-                    .thenCompose(__ -> authService.grantSubscriptionPermissionAsync(namespaceName, subscription,
-                            roles, null))
-                    .thenAccept(unused -> {
-                        log.info("[{}] Successfully granted permission on subscription for role {}:{} - "
-                                + "namespaceName {}", clientAppId(), roles, subscription, namespaceName);
-                    })
-                    .exceptionally(ex -> {
-                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                        //The IllegalArgumentException and the IllegalStateException were historically thrown by the
-                        // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
-                        if (realCause.getCause() instanceof IllegalArgumentException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
-                                    namespaceName);
-                            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-                        } else if (realCause.getCause() instanceof IllegalStateException) {
-                            log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification",
-                                    clientAppId(), namespaceName);
-                            throw new RestException(Status.CONFLICT, "Concurrent modification");
-                        } else {
-                            log.error("[{}] Failed to get permissions for namespace {}",
-                                    clientAppId(), namespaceName, realCause);
-                            throw new RestException(realCause);
-                        }
-                    });
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(subscription, "Subscription should not be null");
+                    checkNotNull(roles, "Roles should not be null");
+                })
+                .thenCompose(__ -> getAuthorizationService()
+                        .grantSubscriptionPermissionAsync(namespaceName, subscription, roles, null))
+                .thenAccept(unused -> {
+                    log.info("[{}] Successfully granted permission on subscription for role {}:{} - "
+                            + "namespaceName {}", clientAppId(), roles, subscription, namespaceName);
+                })
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    //The IllegalArgumentException and the IllegalStateException were historically thrown by the
+                    // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
+                    if (realCause.getCause() instanceof IllegalArgumentException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
+                                namespaceName);
+                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                    } else if (realCause.getCause() instanceof IllegalStateException) {
+                        log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification",
+                                clientAppId(), namespaceName);
+                        throw new RestException(Status.CONFLICT, "Concurrent modification");
+                    } else {
+                        log.error("[{}] Failed to get permissions for namespace {}",
+                                clientAppId(), namespaceName, realCause);
+                        throw new RestException(realCause);
+                    }
+                });
     }
 
     protected CompletableFuture<Void> internalRevokePermissionsOnNamespaceAsync(String role) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
                 .thenAccept(__ -> checkNotNull(role, "Role should not be null"))
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
-                    policies.auth_policies.getNamespaceAuthentication().remove(role);
-                    return policies;
-                }));
+                .thenCompose(__ -> getAuthorizationService().revokePermissionAsync(namespaceName, role));
     }
 
     protected CompletableFuture<Void> internalRevokePermissionsOnSubscriptionAsync(String subscriptionName,
                                                                                   String role) {
-        AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
-        if (null != authService) {
-            return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
-                    .thenAccept(__ -> {
-                        checkNotNull(subscriptionName, "SubscriptionName should not be null");
-                        checkNotNull(role, "Role should not be null");
-                    })
-                    .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                    .thenCompose(__ -> authService.revokeSubscriptionPermissionAsync(namespaceName,
-                            subscriptionName, role, null/* additional auth-data json */));
-        } else {
-            String msg = "Authorization is not enabled";
-            return FutureUtil.failedFuture(new RestException(Status.NOT_IMPLEMENTED, msg));
-        }
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION)
+                .thenAccept(__ -> {
+                    checkNotNull(subscriptionName, "SubscriptionName should not be null");
+                    checkNotNull(role, "Role should not be null");
+                })
+                .thenCompose(__ -> getAuthorizationService().revokeSubscriptionPermissionAsync(namespaceName,
+                        subscriptionName, role, null/* additional auth-data json */));
     }
 
+    /**
+     * Directly get the replication clusters for a namespace, without checking allowed clusters.
+     */
     protected CompletableFuture<Set<String>> internalGetNamespaceReplicationClustersAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.READ)
                 .thenAccept(__ -> {
@@ -637,10 +828,13 @@ public abstract class NamespacesBase extends AdminResource {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenApply(__ -> {
-                    checkNotNull(clusterIds, "ClusterIds should not be null");
-                    if (!namespaceName.isGlobal()) {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Cannot set replication on a non-global namespace");
+                    if (CollectionUtils.isEmpty(clusterIds)) {
+                        throw new RestException(Status.PRECONDITION_FAILED, "ClusterIds should not be null or empty");
+                    }
+                    if (!namespaceName.isGlobal() && !(clusterIds.size() == 1
+                            && clusterIds.get(0).equals(pulsar().getConfiguration().getClusterName()))) {
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Cannot set replication on a non-global namespace");
                     }
                     Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
                     if (replicationClusterSet.contains("global")) {
@@ -657,9 +851,19 @@ public abstract class NamespacesBase extends AdminResource {
                                                     "Invalid cluster id: " + clusterId);
                                         }
                                         return validatePeerClusterConflictAsync(clusterId, replicationClusterSet)
-                                                .thenCompose(__ ->
-                                                        validateClusterForTenantAsync(
-                                                                namespaceName.getTenant(), clusterId));
+                                            .thenCompose(__ -> getNamespacePoliciesAsync(this.namespaceName)
+                                                .thenCompose(nsPolicies -> {
+                                                    if (!Policies.checkNewReplicationClusters(nsPolicies,
+                                                            replicationClusterSet)) {
+                                                        String msg = String.format("Cluster [%s] is not in the "
+                                                                + "list of allowed clusters list for namespace "
+                                                                + "[%s]", clusterId, namespaceName.toString());
+                                                        log.info(msg);
+                                                        throw new RestException(Status.BAD_REQUEST, msg);
+                                                    }
+                                                    return validateClusterForTenantAsync(
+                                                            namespaceName.getTenant(), clusterId);
+                                                }));
                                     }).collect(Collectors.toList());
                             return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);
                         }))
@@ -808,78 +1012,124 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
-
-    protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
-        validateSuperUserAccess();
-        log.info("[{}] Setting bookie-affinity-group {} for namespace {}", clientAppId(), bookieAffinityGroup,
-                this.namespaceName);
-
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-
-        try {
-            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, oldPolicies -> {
-                LocalPolicies localPolicies = oldPolicies.map(
-                        policies -> new LocalPolicies(policies.bundles,
-                                bookieAffinityGroup,
-                                policies.namespaceAntiAffinityGroup))
-                        .orElseGet(() -> new LocalPolicies(defaultBundle(),
-                                bookieAffinityGroup,
-                                null));
-                log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
-                        namespaceName, localPolicies);
-                return localPolicies;
-            });
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to update local-policy configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalSetBookieAffinityGroupAsync(BookieAffinityGroupData bookieAffinityGroup) {
+        return validateSuperUserAccessAsync().thenCompose(__ -> {
+            log.info("[{}] Setting bookie affinity group {} for namespace {}", clientAppId(), bookieAffinityGroup,
+                    this.namespaceName);
+            if (namespaceName.isGlobal()) {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            } else {
+                return validateClusterOwnershipAsync(namespaceName.getCluster()).thenCompose(
+                        unused -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
+            }
+        }).thenCompose(__ -> getDefaultBundleDataAsync().thenCompose(
+                defaultBundleData -> getLocalPolicies().setLocalPoliciesWithCreateAsync(namespaceName, oldPolicies ->
+                        oldPolicies.map(policies -> new LocalPolicies(policies.bundles, bookieAffinityGroup,
+                                        policies.namespaceAntiAffinityGroup, policies.migrated))
+                                .orElseGet(() -> new LocalPolicies(defaultBundleData, bookieAffinityGroup, null)))))
+        .thenAccept(__ -> log.info(
+                "[{}] Successfully updated bookie affinity group: namespace={}, bookieAffinityGroup={}", clientAppId(),
+                namespaceName, bookieAffinityGroup));
     }
 
-    protected void internalDeleteBookieAffinityGroup() {
-        internalSetBookieAffinityGroup(null);
+    protected CompletableFuture<Void> internalDeleteBookieAffinityGroupAsync() {
+        return internalSetBookieAffinityGroupAsync(null);
     }
 
-    protected BookieAffinityGroupData internalGetBookieAffinityGroup() {
-        validateSuperUserAccess();
-
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-        try {
-            final BookieAffinityGroupData bookkeeperAffinityGroup = getLocalPolicies().getLocalPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                            "Namespace local-policies does not exist")).bookieAffinityGroup;
-            return bookkeeperAffinityGroup;
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to get local-policy configuration for namespace {}: does not exist",
-                    clientAppId(), namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace policies does not exist");
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get local-policy configuration for namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<BookieAffinityGroupData> internalGetBookieAffinityGroupAsync() {
+        return validateSuperUserAccessAsync().thenCompose(__ -> {
+            if (namespaceName.isGlobal()) {
+                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            } else {
+                return validateClusterOwnershipAsync(namespaceName.getCluster()).thenCompose(
+                        unused -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
+            }
+        }).thenCompose(__ -> getLocalPolicies().getLocalPoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.orElseThrow(() -> new RestException(Status.NOT_FOUND,
+                        "Namespace local-policies does not exist")).bookieAffinityGroup);
     }
 
-    public CompletableFuture<Void> internalUnloadNamespaceBundleAsync(String bundleRange, boolean authoritative) {
+    private CompletableFuture<Void> validateLeaderBrokerAsync() {
+        if (this.isLeaderBroker()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        Optional<LeaderBroker> currentLeaderOpt = pulsar().getLeaderElectionService().getCurrentLeader();
+        if (currentLeaderOpt.isEmpty()) {
+            String errorStr = "The current leader is empty.";
+            log.error(errorStr);
+            return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED, errorStr));
+        }
+        LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
+        String leaderBrokerId = leaderBroker.getBrokerId();
+        return pulsar().getNamespaceService()
+                .createLookupResult(leaderBrokerId, false, null)
+                .thenCompose(lookupResult -> {
+                    String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
+                            : lookupResult.getLookupData().getHttpUrl();
+                    if (redirectUrl == null) {
+                        log.error("Redirected broker's service url is not configured");
+                        return FutureUtil.failedFuture(new RestException(Response.Status.PRECONDITION_FAILED,
+                                "Redirected broker's service url is not configured."));
+                    }
+
+                    try {
+                        URL url = new URL(redirectUrl);
+                        URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(url.getHost())
+                                .port(url.getPort())
+                                .replaceQueryParam("authoritative",
+                                        false).build();
+                        // Redirect
+                        if (log.isDebugEnabled()) {
+                            log.debug("Redirecting the request call to leader - {}", redirect);
+                        }
+                        return FutureUtil.failedFuture((
+                                new WebApplicationException(Response.temporaryRedirect(redirect).build())));
+                    } catch (MalformedURLException exception) {
+                        log.error("The redirect url is malformed - {}", redirectUrl);
+                        return FutureUtil.failedFuture(new RestException(exception));
+                    }
+                });
+    }
+
+    public CompletableFuture<Void> setNamespaceBundleAffinityAsync(String bundleRange, String destinationBroker) {
+        if (StringUtils.isBlank(destinationBroker)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return pulsar().getLoadManager().get().getAvailableBrokersAsync()
+                .thenCompose(brokers -> {
+                    if (!brokers.contains(destinationBroker)) {
+                        log.warn("[{}] Failed to unload namespace bundle {}/{} to inactive broker {}.",
+                                clientAppId(), namespaceName, bundleRange, destinationBroker);
+                        return FutureUtil.failedFuture(new BrokerServiceException.NotAllowedException(
+                                "Not allowed unload namespace bundle to inactive destination broker"));
+                    }
+                    return CompletableFuture.completedFuture(null);
+                })
+                .thenCompose(__ -> {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar())) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return validateLeaderBrokerAsync();
+                })
+                .thenAccept(__ -> {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar())) {
+                        return;
+                    }
+                    // For ExtensibleLoadManager, this operation will be ignored.
+                    pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleRange, destinationBroker);
+                });
+    }
+
+    public CompletableFuture<Void> internalUnloadNamespaceBundleAsync(String bundleRange,
+                                                                      String destinationBrokerParam,
+                                                                      boolean authoritative) {
+        String destinationBroker = StringUtils.isBlank(destinationBrokerParam) ? null :
+                // ensure backward compatibility: strip the possible http:// or https:// prefix
+                destinationBrokerParam.replaceFirst("http[s]?://", "");
         return validateSuperUserAccessAsync()
+                .thenCompose(__ -> setNamespaceBundleAffinityAsync(bundleRange, destinationBroker))
                 .thenAccept(__ -> {
                     checkNotNull(bundleRange, "BundleRange should not be null");
                     log.info("[{}] Unloading namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
@@ -922,10 +1172,11 @@ public abstract class NamespacesBase extends AdminResource {
                                         namespaceName, bundleRange);
                                 return CompletableFuture.completedFuture(null);
                             }
+                            Optional<String> destinationBrokerOpt = Optional.ofNullable(destinationBroker);
                             return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                                     authoritative, true)
-                                    .thenCompose(nsBundle ->
-                                            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle));
+                                    .thenCompose(nsBundle -> pulsar().getNamespaceService()
+                                            .unloadNamespaceBundle(nsBundle, destinationBrokerOpt));
                         }));
     }
 
@@ -973,7 +1224,9 @@ public abstract class NamespacesBase extends AdminResource {
                                     validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                                         authoritative, false))
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
-                                    getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries));
+                                    pulsar().getNamespaceService()
+                                            .getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName),
+                                    splitBoundaries));
                 });
     }
 
@@ -1054,18 +1307,6 @@ public abstract class NamespacesBase extends AdminResource {
                 .getBundleWithHighestThroughputAsync(namespaceName);
     }
 
-    private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
-        NamespaceBundleSplitAlgorithm algorithm = NamespaceBundleSplitAlgorithm.of(algorithmName);
-        if (algorithm == null) {
-            algorithm = NamespaceBundleSplitAlgorithm.of(
-                    pulsar().getConfig().getDefaultNamespaceBundleSplitAlgorithm());
-        }
-        if (algorithm == null) {
-            algorithm = NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO;
-        }
-        return algorithm;
-    }
-
     protected void internalSetPublishRate(PublishRate maxPublishMessageRate) {
         validateSuperUserAccess();
         log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, maxPublishMessageRate);
@@ -1079,7 +1320,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetPublishRateAsync(PublishRate maxPublishMessageRate) {
         log.info("[{}] Set namespace publish-rate {}/{}", clientAppId(), namespaceName, maxPublishMessageRate);
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.publishMaxMessageRate.put(pulsar().getConfiguration().getClusterName(), maxPublishMessageRate);
             log.info("[{}] Successfully updated the publish_max_message_rate for cluster on namespace {}",
                     clientAppId(), namespaceName);
@@ -1108,7 +1350,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalRemovePublishRateAsync() {
         log.info("[{}] Remove namespace publish-rate {}/{}", clientAppId(), namespaceName, topicName);
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             if (policies.publishMaxMessageRate != null) {
                 policies.publishMaxMessageRate.remove(pulsar().getConfiguration().getClusterName());
             }
@@ -1128,7 +1371,8 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalSetTopicDispatchRateAsync(DispatchRateImpl dispatchRate) {
         log.info("[{}] Set namespace dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.topicDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
             policies.clusterDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
             log.info("[{}] Successfully updated the dispatchRate for cluster on namespace {}", clientAppId(),
@@ -1138,7 +1382,8 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalDeleteTopicDispatchRateAsync() {
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
             policies.clusterDispatchRate.remove(pulsar().getConfiguration().getClusterName());
             log.info("[{}] Successfully delete the dispatchRate for cluster on namespace {}", clientAppId(),
@@ -1155,7 +1400,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetSubscriptionDispatchRateAsync(DispatchRateImpl dispatchRate) {
-        return validateSuperUserAccessAsync()
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
                 .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
                     log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
@@ -1165,7 +1410,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalDeleteSubscriptionDispatchRateAsync() {
-        return validateSuperUserAccessAsync()
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
                 .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.subscriptionDispatchRate.remove(pulsar().getConfiguration().getClusterName());
                     log.info("[{}] Successfully delete the subscriptionDispatchRate for cluster on namespace {}",
@@ -1183,7 +1428,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetSubscribeRateAsync(SubscribeRate subscribeRate) {
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
             log.info("[{}] Successfully updated the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
@@ -1192,7 +1438,8 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalDeleteSubscribeRateAsync() {
-        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
             policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
             log.info("[{}] Successfully delete the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
@@ -1208,6 +1455,13 @@ public abstract class NamespacesBase extends AdminResource {
     }
     protected CompletableFuture<Void> setBacklogQuotaAsync(BacklogQuotaType backlogQuotaType,
                                                            BacklogQuota quota) {
+        try {
+            quota.validate();
+        } catch (IllegalArgumentException e) {
+            RestException restException = new RestException(Status.BAD_REQUEST, String.format("Set namespace[%s]"
+                + " backlog quota failed because the data validation failed. %s", namespaceName, e.getMessage()));
+            return CompletableFuture.failedFuture(restException);
+        }
         return namespaceResources().setPoliciesAsync(namespaceName, policies -> {
             RetentionPolicies retentionPolicies = policies.retention_policies;
             final BacklogQuotaType quotaType = backlogQuotaType != null ? backlogQuotaType
@@ -1227,6 +1481,7 @@ public abstract class NamespacesBase extends AdminResource {
                         "Backlog Quota exceeds configured retention quota for namespace."
                                 + " Please increase retention quota and retry");
             }
+            policies.backlog_quota_map.put(quotaType, quota);
             return policies;
         });
     }
@@ -1250,7 +1505,7 @@ public abstract class NamespacesBase extends AdminResource {
             policies.retention_policies = retention;
             namespaceResources().setPolicies(namespaceName, p -> policies);
             log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(retention));
+                    namespaceName, objectWriter().writeValueAsString(retention));
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
@@ -1291,7 +1546,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .getBundles(namespaceName);
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then there is no backlog on this bundle to clear
-                if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
+                if (pulsar().getNamespaceService().checkOwnershipPresent(nsBundle)) {
                     futures.add(pulsar().getAdminClient().namespaces()
                             .clearNamespaceBundleBacklogAsync(namespaceName.toString(), nsBundle.getBundleRange()));
                 }
@@ -1356,7 +1611,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .getBundles(namespaceName);
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then there is no backlog on this bundle to clear
-                if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
+                if (pulsar().getNamespaceService().checkOwnershipPresent(nsBundle)) {
                     futures.add(pulsar().getAdminClient().namespaces().clearNamespaceBundleBacklogForSubscriptionAsync(
                             namespaceName.toString(), nsBundle.getBundleRange(), subscription));
                 }
@@ -1423,7 +1678,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .getBundles(namespaceName);
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then there are no subscriptions
-                if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
+                if (pulsar().getNamespaceService().checkOwnershipPresent(nsBundle)) {
                     futures.add(pulsar().getAdminClient().namespaces().unsubscribeNamespaceBundleAsync(
                             namespaceName.toString(), nsBundle.getBundleRange(), subscription));
                 }
@@ -1489,7 +1744,7 @@ public abstract class NamespacesBase extends AdminResource {
                 return policies;
             });
             log.info("[{}] Successfully updated subscription auth mode: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(authMode));
+                    namespaceName, objectWriter().writeValueAsString(authMode));
 
         } catch (RestException pfe) {
             throw pfe;
@@ -1524,7 +1779,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetInactiveTopic(InactiveTopicPolicies inactiveTopicPolicies) {
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.INACTIVE_TOPIC, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         internalSetPolicies("inactive_topic_policies", inactiveTopicPolicies);
     }
@@ -1539,7 +1794,7 @@ public abstract class NamespacesBase extends AdminResource {
             field.set(policies, value);
             namespaceResources().setPolicies(namespaceName, p -> policies);
             log.info("[{}] Successfully updated {} configuration: namespace={}, value={}", clientAppId(), fieldName,
-                    namespaceName, jsonMapper().writeValueAsString(value));
+                    namespaceName, objectWriter().writeValueAsString(value));
 
         } catch (RestException pfe) {
             throw pfe;
@@ -1556,98 +1811,69 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("delayed_delivery_policies", delayedDeliveryPolicies);
     }
 
-    protected void internalSetNamespaceAntiAffinityGroup(String antiAffinityGroup) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE);
-        checkNotNull(antiAffinityGroup, "AntiAffinityGroup should not be null");
-        validatePoliciesReadOnlyAccess();
-
-        log.info("[{}] Setting anti-affinity group {} for {}", clientAppId(), antiAffinityGroup, namespaceName);
-
-        if (isBlank(antiAffinityGroup)) {
-            throw new RestException(Status.PRECONDITION_FAILED, "antiAffinityGroup can't be empty");
-        }
-
-        try {
-            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, (lp)->
-                lp.map(policies -> new LocalPolicies(policies.bundles,
-                        policies.bookieAffinityGroup,
-                        antiAffinityGroup))
-                        .orElseGet(() -> new LocalPolicies(defaultBundle(),
-                                null, antiAffinityGroup))
-            );
-            log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, antiAffinityGroup);
-        } catch (Exception e) {
-            log.error("[{}] Failed to update local-policy configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalSetNamespaceAntiAffinityGroupAsync(String antiAffinityGroup) {
+        checkNotNull(antiAffinityGroup, "Anti-affinity group should not be null");
+        checkNotBlank(antiAffinityGroup, "Anti-affinity group can't be empty");
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync()).thenCompose(
+                        __ -> getDefaultBundleDataAsync().thenCompose(
+                                defaultBundleData -> getLocalPolicies().setLocalPoliciesWithCreateAsync(namespaceName,
+                                        oldPolicies -> oldPolicies.map(policies -> new LocalPolicies(policies.bundles,
+                                                        policies.bookieAffinityGroup, antiAffinityGroup,
+                                                        policies.migrated))
+                                                .orElseGet(() -> new LocalPolicies(defaultBundleData, null,
+                                                        antiAffinityGroup)))))
+                .thenAccept(__ -> log.info(
+                        "[{}] Successfully updated namespace anti-affinity group, namespace={}, anti-affinity"
+                                + " group={}", clientAppId(), namespaceName, antiAffinityGroup));
     }
 
-    protected String internalGetNamespaceAntiAffinityGroup() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
-
-        try {
-            return getLocalPolicies()
-                    .getLocalPolicies(namespaceName)
-                    .orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get the antiAffinityGroup of namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(Status.NOT_FOUND, "Couldn't find namespace policies");
-        }
+    protected CompletableFuture<String> internalGetNamespaceAntiAffinityGroupAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ)
+                .thenCompose(__ -> getLocalPolicies().getLocalPoliciesAsync(namespaceName)
+                .thenApply(policiesOpt -> policiesOpt.map(localPolicies -> localPolicies.namespaceAntiAffinityGroup)
+                        .orElse(null)));
     }
 
-    protected void internalRemoveNamespaceAntiAffinityGroup() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
-        log.info("[{}] Deleting anti-affinity group for {}", clientAppId(), namespaceName);
-
-        try {
-            getLocalPolicies().setLocalPolicies(namespaceName, (policies)->
-                new LocalPolicies(policies.bundles,
-                        policies.bookieAffinityGroup,
-                        null));
-            log.info("[{}] Successfully removed anti-affinity group for a namespace={}", clientAppId(), namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to remove anti-affinity group for namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalRemoveNamespaceAntiAffinityGroupAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> {
+                    log.info("[{}] Removing anti-affinity group for namespace: {}", clientAppId(), namespaceName);
+                    return getLocalPolicies().setLocalPoliciesAsync(namespaceName,
+                            (policies) -> new LocalPolicies(policies.bundles, policies.bookieAffinityGroup, null,
+                                    policies.migrated));
+                })
+                .thenAccept(__ -> log.info("[{}] Successfully removed anti-affinity group for namespace: {}",
+                        clientAppId(), namespaceName));
     }
 
-    protected List<String> internalGetAntiAffinityNamespaces(String cluster, String antiAffinityGroup,
-                                                             String tenant) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ);
+    protected CompletableFuture<List<String>> internalGetAntiAffinityNamespacesAsync(String cluster,
+                                                                                     String antiAffinityGroup,
+                                                                                     String tenant) {
         checkNotNull(cluster, "Cluster should not be null");
-        checkNotNull(antiAffinityGroup, "AntiAffinityGroup should not be null");
+        checkNotNull(antiAffinityGroup, "Anti-affinity group should not be null");
         checkNotNull(tenant, "Tenant should not be null");
+        checkNotBlank(antiAffinityGroup, "Anti-affinity group can't be empty");
 
-        log.info("[{}]-{} Finding namespaces for {} in {}", clientAppId(), tenant, antiAffinityGroup, cluster);
-
-        if (isBlank(antiAffinityGroup)) {
-            throw new RestException(Status.PRECONDITION_FAILED, "anti-affinity group can't be empty.");
-        }
-        validateClusterExists(cluster);
-
-        try {
-            List<String> namespaces = tenantResources().getListOfNamespaces(tenant);
-
-            return namespaces.stream().filter(ns -> {
-                Optional<LocalPolicies> policies;
-                try {
-                    policies = getLocalPolicies().getLocalPolicies(NamespaceName.get(ns));
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-
-                String storedAntiAffinityGroup = policies.orElse(new LocalPolicies()).namespaceAntiAffinityGroup;
-                return antiAffinityGroup.equalsIgnoreCase(storedAntiAffinityGroup);
-            }).collect(Collectors.toList());
-
-        } catch (Exception e) {
-            log.warn("Failed to list of properties/namespace from global-zk", e);
-            throw new RestException(e);
-        }
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ)
+                .thenCompose(__ -> validateClusterExistsAsync(cluster))
+                .thenCompose(__ -> {
+                    log.info("[{}]-{} Finding namespaces for {} in {}", clientAppId(), tenant, antiAffinityGroup,
+                            cluster);
+                    return tenantResources().getListOfNamespacesAsync(tenant).thenCompose(namespaces -> {
+                        List<CompletableFuture<String>> nsFutures = namespaces.stream()
+                                .map(ns -> getLocalPolicies().getLocalPoliciesAsync(NamespaceName.get(ns))
+                                        .thenApply(policiesOpt -> policiesOpt.map(
+                                                localPolicies -> localPolicies.namespaceAntiAffinityGroup).orElse(null))
+                                        .thenApply(antiAffinityGroup::equalsIgnoreCase)
+                                        .thenApply(equals -> equals ? ns : null)).toList();
+                        CompletableFuture<Void> allFuture = FutureUtil.waitForAll(nsFutures);
+                        return allFuture.thenApply(
+                                unused -> nsFutures.stream().map(CompletableFuture::join).filter(Objects::nonNull)
+                                        .toList());
+                    });
+                });
     }
 
     private boolean checkQuotas(Policies policies, RetentionPolicies retention) {
@@ -1746,13 +1972,17 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private CompletableFuture<Void> validatePoliciesAsync(NamespaceName ns, Policies policies) {
-        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
-            // Default to local cluster
-            policies.replication_clusters = Collections.singleton(config().getClusterName());
+        if (!policies.checkAllowedAndReplicationClusters()) {
+            String msg = String.format("[%s] All replication clusters should be included in allowed clusters."
+                    + " Repl clusters: %s, allowed clusters: %s",
+                    ns.toString(), policies.replication_clusters, policies.allowed_clusters);
+            log.info(msg);
+            throw new RestException(Status.BAD_REQUEST, msg);
         }
+        pulsar().getBrokerService().setCurrentClusterAllowedIfNoClusterIsAllowed(ns, policies);
 
         // Validate cluster names and permissions
-        return policies.replication_clusters.stream()
+        return Stream.concat(policies.replication_clusters.stream(), policies.allowed_clusters.stream())
                     .map(cluster -> validateClusterForTenantAsync(ns.getTenant(), cluster))
                     .reduce(CompletableFuture.completedFuture(null), (a, b) -> a.thenCompose(ignore -> b))
             .thenAccept(__ -> {
@@ -1779,21 +2009,6 @@ public abstract class NamespacesBase extends AdminResource {
                     validateRetentionPolicies(policies.retention_policies);
                 }
             });
-    }
-
-    protected void validateRetentionPolicies(RetentionPolicies retention) {
-        if (retention == null) {
-            return;
-        }
-        checkArgument(retention.getRetentionSizeInMB() >= -1,
-                "Invalid retention policy: size limit must be >= -1");
-        checkArgument(retention.getRetentionTimeInMinutes() >= -1,
-                "Invalid retention policy: time limit must be >= -1");
-        checkArgument((retention.getRetentionTimeInMinutes() != 0 && retention.getRetentionSizeInMB() != 0)
-                        || (retention.getRetentionTimeInMinutes() == 0 && retention.getRetentionSizeInMB() == 0),
-                "Invalid retention policy: Setting a single time or size limit to 0 is invalid when "
-                        + "one of the limits has a non-zero value. Use the value of -1 instead of 0 to ignore a "
-                        + "specific limit. To disable retention both limits must be set to 0.");
     }
 
     protected void internalSetDeduplicationSnapshotInterval(Integer interval) {
@@ -1907,7 +2122,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsPerTopic){
-        validateSuperUserAccess();
+        validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (maxSubscriptionsPerTopic != null && maxSubscriptionsPerTopic < 0) {
             throw new RestException(Status.PRECONDITION_FAILED,
@@ -1976,7 +2191,7 @@ public abstract class NamespacesBase extends AdminResource {
                     policies.offload_policies = new OffloadPoliciesImpl();
                 }
                 ((OffloadPoliciesImpl) policies.offload_policies).setManagedLedgerOffloadThresholdInBytes(newThreshold);
-                policies.offload_threshold = newThreshold;
+                mergeOffloadThresholdsForCompatibility(policies);
                 return policies;
             });
             log.info("[{}] Successfully updated offloadThreshold configuration: namespace={}, value={}",
@@ -1995,15 +2210,15 @@ public abstract class NamespacesBase extends AdminResource {
         CompletableFuture<Void> f = new CompletableFuture<>();
 
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE)
-                .thenApply(v -> validatePoliciesReadOnlyAccessAsync())
-                .thenApply(v -> updatePoliciesAsync(namespaceName,
+                .thenCompose(v -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(v -> updatePoliciesAsync(namespaceName,
                         policies -> {
                             if (policies.offload_policies == null) {
                                 policies.offload_policies = new OffloadPoliciesImpl();
                             }
                             ((OffloadPoliciesImpl) policies.offload_policies)
                                     .setManagedLedgerOffloadThresholdInSeconds(newThreshold);
-                            policies.offload_threshold_in_seconds = newThreshold;
+                            mergeOffloadThresholdsForCompatibility(policies);
                             return policies;
                         })
                 )
@@ -2013,9 +2228,10 @@ public abstract class NamespacesBase extends AdminResource {
                     f.complete(null);
                 })
                 .exceptionally(t -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
                     log.error("[{}] Failed to update offloadThresholdInSeconds configuration for namespace {}",
                             clientAppId(), namespaceName, t);
-                    f.completeExceptionally(new RestException(t));
+                    f.completeExceptionally(new RestException(cause));
                     return null;
                 });
 
@@ -2032,7 +2248,7 @@ public abstract class NamespacesBase extends AdminResource {
                 }
                 ((OffloadPoliciesImpl) policies.offload_policies)
                         .setManagedLedgerOffloadDeletionLagInMillis(newDeletionLagMs);
-                policies.offload_deletion_lag_ms = newDeletionLagMs;
+                mergeOffloadThresholdsForCompatibility(policies);
                 return policies;
             });
             log.info("[{}] Successfully updated offloadDeletionLagMs configuration: namespace={}, value={}",
@@ -2145,6 +2361,50 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    /**
+     * Before https://github.com/apache/pulsar/pull/6183, users can set broker level offload policies, and handle
+     * namespace-level thresholds by the following fields:
+     *   - {@link Policies#offload_deletion_lag_ms}
+     *   - {@link Policies#offload_threshold}
+     *   - {@link Policies#offload_threshold_in_seconds}
+     *
+     * After https://github.com/apache/pulsar/pull/6183, Pulsar supports namespace-level policies, which was
+     * supported by {@link Policies#offload_policies}. And the thresholds were moved to the following fields:
+     * - {@link Policies#offload_policies} -> {@link OffloadPoliciesImpl#getManagedLedgerOffloadDeletionLagInMillis}
+     * - {@link Policies#offload_policies} -> {@link OffloadPoliciesImpl#getManagedLedgerOffloadThresholdInBytes}
+     * - {@link Policies#offload_policies} -> {@link OffloadPoliciesImpl#getManagedLedgerOffloadThresholdInSeconds}
+     *
+     * To make the offload policies compatible with the old policies, uses the old policies if the new policies
+     * are not set. Once the new fields are set, the old fields will be ignored.
+     */
+    private void mergeOffloadThresholdsForCompatibility(Policies nsPolicies) {
+        Long oldOffloadDeletionLagMs = nsPolicies.offload_deletion_lag_ms;
+        Long oldOffloadThresholdInBytes = nsPolicies.offload_threshold;
+        Long odlOffloadThresholdInSeconds = nsPolicies.offload_threshold_in_seconds;
+        // If the old values are empty, skip.
+        if (oldOffloadDeletionLagMs == null && oldOffloadThresholdInBytes == -1 && odlOffloadThresholdInSeconds == -1) {
+            return;
+        }
+        // If the new values are empty, use the old values.
+        OffloadPoliciesImpl nsOffloadPolicies = (OffloadPoliciesImpl) nsPolicies.offload_policies;
+        if (Objects.equals(nsOffloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS) && oldOffloadDeletionLagMs != null) {
+            nsOffloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(oldOffloadDeletionLagMs);
+        }
+        if (Objects.equals(nsOffloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES) && oldOffloadThresholdInBytes != -1) {
+            nsOffloadPolicies.setManagedLedgerOffloadThresholdInBytes(oldOffloadThresholdInBytes);
+        }
+        if (Objects.equals(nsOffloadPolicies.getManagedLedgerOffloadThresholdInSeconds(),
+                OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS) && odlOffloadThresholdInSeconds != -1) {
+            nsOffloadPolicies.setManagedLedgerOffloadThresholdInSeconds(odlOffloadThresholdInSeconds);
+        }
+        // Since the thresholds are moved into "nsPolicies.offload_policies", remove the old fields.
+        nsPolicies.offload_deletion_lag_ms = null;
+        nsPolicies.offload_threshold = -1;
+        nsPolicies.offload_threshold_in_seconds = -1;
+    }
+
     protected void internalSetOffloadPolicies(AsyncResponse asyncResponse, OffloadPoliciesImpl offloadPolicies) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
@@ -2152,19 +2412,8 @@ public abstract class NamespacesBase extends AdminResource {
 
         try {
             namespaceResources().setPoliciesAsync(namespaceName, policies -> {
-                if (Objects.equals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
-                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
-                    offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(policies.offload_deletion_lag_ms);
-                } else {
-                    policies.offload_deletion_lag_ms = offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis();
-                }
-                if (Objects.equals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
-                        OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
-                    offloadPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
-                } else {
-                    policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();
-                }
                 policies.offload_policies = offloadPolicies;
+                mergeOffloadThresholdsForCompatibility(policies);
                 return policies;
             }).thenApply(r -> {
                 log.info("[{}] Successfully updated offload configuration: namespace={}, map={}", clientAppId(),
@@ -2190,7 +2439,12 @@ public abstract class NamespacesBase extends AdminResource {
         validatePoliciesReadOnlyAccess();
         try {
             namespaceResources().setPoliciesAsync(namespaceName, (policies) -> {
+                // Remove new offload policies.
                 policies.offload_policies = null;
+                // Remove the old offload policies thresholds.
+                policies.offload_deletion_lag_ms = null;
+                policies.offload_threshold = -1;
+                policies.offload_threshold_in_seconds = -1;
                 return policies;
             }).thenApply(r -> {
                 log.info("[{}] Successfully remove offload configuration: namespace={}", clientAppId(), namespaceName);
@@ -2207,28 +2461,6 @@ public abstract class NamespacesBase extends AdminResource {
         } catch (Exception e) {
             log.error("[{}] Failed to remove offload configuration for namespace {}", clientAppId(), namespaceName, e);
             asyncResponse.resume(new RestException(e));
-        }
-    }
-
-    private void validateOffloadPolicies(OffloadPoliciesImpl offloadPolicies) {
-        if (offloadPolicies == null) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: offloadPolicies is null",
-                    clientAppId(), namespaceName);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "The offloadPolicies must be specified for namespace offload.");
-        }
-        if (!offloadPolicies.driverSupported()) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: "
-                            + "driver is not supported, support value: {}",
-                    clientAppId(), namespaceName, OffloadPoliciesImpl.getSupportedDriverNames());
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "The driver is not supported, support value: " + OffloadPoliciesImpl.getSupportedDriverNames());
-        }
-        if (!offloadPolicies.bucketValid()) {
-            log.warn("[{}] Failed to update offload configuration for namespace {}: bucket must be specified",
-                    clientAppId(), namespaceName);
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "The bucket must be specified for namespace offload.");
         }
     }
 
@@ -2249,102 +2481,110 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalSetProperty(String key, String value, AsyncResponse asyncResponse) {
-       validatePoliciesReadOnlyAccess();
-       updatePoliciesAsync(namespaceName, policies -> {
-           policies.properties.put(key, value);
-           return policies;
-       }).thenAccept(v -> {
-           log.info("[{}] Successfully set property for key {} on namespace {}", clientAppId(), key,
-                   namespaceName);
-           asyncResponse.resume(Response.noContent().build());
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to set property for key {} on namespace {}", clientAppId(), key,
-                   namespaceName, cause);
-           asyncResponse.resume(cause);
-           return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+               .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                   policies.properties.put(key, value);
+                   return policies;
+               }))
+               .thenAccept(v -> {
+                   log.info("[{}] Successfully set property for key {} on namespace {}", clientAppId(), key,
+                           namespaceName);
+                   asyncResponse.resume(Response.noContent().build());
+               }).exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to set property for key {} on namespace {}", clientAppId(), key,
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalSetProperties(Map<String, String> properties, AsyncResponse asyncResponse) {
-       validatePoliciesReadOnlyAccess();
-       updatePoliciesAsync(namespaceName, policies -> {
-           policies.properties.putAll(properties);
-           return policies;
-       }).thenAccept(v -> {
-           log.info("[{}] Successfully set {} properties on namespace {}", clientAppId(), properties.size(),
-                   namespaceName);
-           asyncResponse.resume(Response.noContent().build());
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to set {} properties on namespace {}", clientAppId(), properties.size(),
-                   namespaceName, cause);
-           asyncResponse.resume(cause);
-           return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+               .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                   policies.properties.putAll(properties);
+                   return policies;
+               }))
+               .thenAccept(v -> {
+                   log.info("[{}] Successfully set {} properties on namespace {}", clientAppId(), properties.size(),
+                           namespaceName);
+                   asyncResponse.resume(Response.noContent().build());
+               }).exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to set {} properties on namespace {}", clientAppId(), properties.size(),
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalGetProperty(String key, AsyncResponse asyncResponse) {
-        getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
-            asyncResponse.resume(policies.properties.get(key));
-        }).exceptionally(ex -> {
-            Throwable cause = ex.getCause();
-            log.error("[{}] Failed to get property for key {} of namespace {}", clientAppId(), key,
-                    namespaceName, cause);
-            asyncResponse.resume(cause);
-            return null;
-        });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+               .thenAccept(policies -> asyncResponse.resume(policies.properties.get(key)))
+               .exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to get property for key {} of namespace {}", clientAppId(), key,
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalGetProperties(AsyncResponse asyncResponse) {
-       getNamespacePoliciesAsync(namespaceName).thenAccept(policies -> {
-           asyncResponse.resume(policies.properties);
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to get properties of namespace {}", clientAppId(), namespaceName, cause);
-           asyncResponse.resume(cause);
-           return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+               .thenAccept(policies -> asyncResponse.resume(policies.properties))
+               .exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to get properties of namespace {}", clientAppId(), namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalRemoveProperty(String key, AsyncResponse asyncResponse) {
-       validatePoliciesReadOnlyAccess();
-
        AtomicReference<String> oldVal = new AtomicReference<>(null);
-       updatePoliciesAsync(namespaceName, policies -> {
-           oldVal.set(policies.properties.remove(key));
-           return policies;
-       }).thenAccept(v -> {
-           asyncResponse.resume(oldVal.get());
-           log.info("[{}] Successfully remove property for key {} on namespace {}", clientAppId(), key,
-                   namespaceName);
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to remove property for key {} on namespace {}", clientAppId(), key,
-                   namespaceName, cause);
-           asyncResponse.resume(cause);
-          return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+               .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                   oldVal.set(policies.properties.remove(key));
+                   return policies;
+               })).thenAccept(v -> {
+                   asyncResponse.resume(oldVal.get());
+                   log.info("[{}] Successfully remove property for key {} on namespace {}", clientAppId(), key,
+                           namespaceName);
+               }).exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to remove property for key {} on namespace {}", clientAppId(), key,
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    protected void internalClearProperties(AsyncResponse asyncResponse) {
-       validatePoliciesReadOnlyAccess();
        AtomicReference<Integer> clearedCount = new AtomicReference<>(0);
-       updatePoliciesAsync(namespaceName, policies -> {
-           clearedCount.set(policies.properties.size());
-           policies.properties.clear();
-           return policies;
-       }).thenAccept(v -> {
-           asyncResponse.resume(Response.noContent().build());
-           log.info("[{}] Successfully clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
-                   namespaceName);
-       }).exceptionally(ex -> {
-           Throwable cause = ex.getCause();
-           log.error("[{}] Failed to clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
-                   namespaceName, cause);
-           asyncResponse.resume(cause);
-           return null;
-       });
+       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+               .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+               .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                   clearedCount.set(policies.properties.size());
+                   policies.properties.clear();
+                   return policies;
+               }))
+               .thenAccept(v -> {
+                   asyncResponse.resume(Response.noContent().build());
+                   log.info("[{}] Successfully clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
+                           namespaceName);
+               }).exceptionally(ex -> {
+                   Throwable cause = ex.getCause();
+                   log.error("[{}] Failed to clear {} properties on namespace {}", clientAppId(), clearedCount.get(),
+                           namespaceName, cause);
+                   asyncResponse.resume(cause);
+                   return null;
+               });
    }
 
    private CompletableFuture<Void> updatePoliciesAsync(NamespaceName ns, Function<Policies, Policies> updateFunction) {
@@ -2417,25 +2657,27 @@ public abstract class NamespacesBase extends AdminResource {
         String localClusterName = pulsar().getConfiguration().getClusterName();
 
         OffloaderObjectsScannerUtils.scanOffloadedLedgers(managedLedgerOffloader,
-                localClusterName, pulsar().getManagedLedgerFactory(), sink);
+                localClusterName, pulsar().getDefaultManagedLedgerFactory(), sink);
 
     }
 
     protected CompletableFuture<Void> internalSetEntryFiltersPerTopicAsync(EntryFilters entryFilters) {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> validateEntryFilters(entryFilters))
                 .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.entryFilters = entryFilters;
                     return policies;
                 }));
     }
 
+
     /**
      * Base method for setReplicatorDispatchRate v1 and v2.
      * Notion: don't re-use this logic.
      */
     protected void internalSetReplicatorDispatchRate(AsyncResponse asyncResponse, DispatchRateImpl dispatchRate) {
-        validateSuperUserAccessAsync()
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)
                 .thenAccept(__ -> {
                     log.info("[{}] Set namespace replicator dispatch-rate {}/{}",
                             clientAppId(), namespaceName, dispatchRate);
@@ -2480,7 +2722,7 @@ public abstract class NamespacesBase extends AdminResource {
      * Notion: don't re-use this logic.
      */
     protected void internalRemoveReplicatorDispatchRate(AsyncResponse asyncResponse) {
-        validateSuperUserAccessAsync()
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION_RATE, PolicyOperation.WRITE)
                 .thenCompose(__ -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
                     String clusterName = pulsar().getConfiguration().getClusterName();
                     policies.replicatorDispatchRate.remove(clusterName);
@@ -2532,8 +2774,10 @@ public abstract class NamespacesBase extends AdminResource {
                             namespaceName, backlogQuota);
                 }).exceptionally(ex -> {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    log.error("[{}] Failed to update backlog quota map for namespace {}",
-                            clientAppId(), namespaceName, ex);
+                    if (isNot307And404And400Exception(ex)) {
+                        log.error("[{}] Failed to update backlog quota map for namespace {}",
+                                clientAppId(), namespaceName, ex);
+                    }
                     return null;
                 });
     }
@@ -2561,4 +2805,137 @@ public abstract class NamespacesBase extends AdminResource {
                     return null;
                 });
     }
+
+    protected void internalEnableMigration(boolean migrated) {
+        validateSuperUserAccess();
+        try {
+            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, oldPolicies -> oldPolicies.map(
+                    policies -> new LocalPolicies(policies.bundles,
+                            policies.bookieAffinityGroup,
+                            policies.namespaceAntiAffinityGroup,
+                            migrated))
+                    .orElseGet(() -> new LocalPolicies(getDefaultBundleData(), null, null, migrated)));
+            log.info("Successfully updated migration on namespace {}", namespaceName);
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.error("Failed to update migration on namespace {}", namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected Policies getDefaultPolicesIfNull(Policies policies) {
+        if (policies == null) {
+            policies = new Policies();
+        }
+        int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+        if (policies.bundles == null) {
+            policies.bundles = getBundles(defaultNumberOfBundles);
+        }
+        return policies;
+    }
+
+    protected CompletableFuture<Void> internalSetDispatcherPauseOnAckStatePersistentAsync(
+            boolean dispatcherPauseOnAckStatePersistentEnabled) {
+        return validateNamespacePolicyOperationAsync(namespaceName,
+                    PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.dispatcherPauseOnAckStatePersistentEnabled = dispatcherPauseOnAckStatePersistentEnabled;
+                    return policies;
+                }));
+    }
+
+    protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistentAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName,
+                    PolicyName.DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT, PolicyOperation.READ)
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName))
+                .thenApply(policiesOpt -> {
+                    if (!policiesOpt.isPresent()) {
+                        throw new RestException(Response.Status.NOT_FOUND, "Namespace policies does not exist");
+                    }
+                    return policiesOpt.map(p -> p.dispatcherPauseOnAckStatePersistentEnabled).orElse(false);
+                });
+    }
+
+    protected CompletableFuture<Void> internalSetNamespaceAllowedClusters(List<String> clusterIds) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                // Allowed clusters in the namespace policy should be included in the allowed clusters in the tenant
+                // policy.
+                .thenCompose(__ -> FutureUtil.waitForAll(clusterIds.stream().map(clusterId ->
+                        validateClusterForTenantAsync(namespaceName.getTenant(), clusterId))
+                        .collect(Collectors.toList())))
+                // Allowed clusters should include all the existed replication clusters and could not contain global
+                // cluster.
+                .thenCompose(__ -> {
+                    checkNotNull(clusterIds, "ClusterIds should not be null");
+                    if (clusterIds.contains("global")) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot specify global in the list of allowed clusters");
+                    }
+                    return getNamespacePoliciesAsync(this.namespaceName).thenApply(nsPolicies -> {
+                        Set<String> clusterSet = Sets.newHashSet(clusterIds);
+                        if (!Policies.checkNewAllowedClusters(nsPolicies, clusterSet)){
+                            throw new RestException(Status.BAD_REQUEST,
+                                    String.format("Allowed clusters do not contain the replication cluster %s. "
+                                        + "Please remove the replication cluster if the cluster is not allowed "
+                                        + "for this namespace", nsPolicies.replication_clusters));
+                        }
+                        return clusterSet;
+                    });
+                })
+                // Verify the allowed clusters are valid and they do not contain the peer clusters.
+                .thenCompose(allowedClusters -> clustersAsync()
+                        .thenCompose(clusters -> {
+                            List<CompletableFuture<Void>> futures =
+                                    allowedClusters.stream().map(clusterId -> {
+                                        if (!clusters.contains(clusterId)) {
+                                            throw new RestException(Status.FORBIDDEN,
+                                                    "Invalid cluster id: " + clusterId);
+                                        }
+                                        return validatePeerClusterConflictAsync(clusterId, allowedClusters);
+                                    }).collect(Collectors.toList());
+                            return FutureUtil.waitForAll(futures).thenApply(__ -> allowedClusters);
+                        }))
+                // Update allowed clusters into policies.
+                .thenCompose(allowedClusterSet -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.allowed_clusters = allowedClusterSet;
+                    return policies;
+                }));
+    }
+
+    /**
+     * Directly get the allowed clusters for a namespace, without checking replication clusters.
+     */
+    protected CompletableFuture<Set<String>> internalGetNamespaceAllowedClustersAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.READ)
+                .thenAccept(__ -> {
+                    if (!namespaceName.isGlobal()) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot get the allowed clusters for a non-global namespace");
+                    }
+                }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.allowed_clusters);
+    }
+
+    // TODO remove this sync method after async refactor
+    @Deprecated
+    private BundlesData getDefaultBundleData() {
+        try {
+            return getDefaultBundleDataAsync().get(config().getMetadataStoreOperationTimeoutSeconds(),
+                    TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace-policy configuration for namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    private CompletableFuture<BundlesData> getDefaultBundleDataAsync() {
+        return namespaceResources().getPoliciesAsync(namespaceName).thenApply(
+                optionalPolicies -> optionalPolicies.isPresent() ? optionalPolicies.get().bundles :
+                        getBundles(config().getDefaultNumberOfNamespaceBundles()));
+    }
+
 }

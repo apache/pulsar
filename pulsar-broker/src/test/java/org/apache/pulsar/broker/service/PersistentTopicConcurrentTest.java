@@ -22,7 +22,6 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -52,9 +51,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
@@ -78,7 +75,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     @BeforeMethod
     public void setup(Method m) throws Exception {
         super.setUp(m);
-        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
+        ServiceConfiguration svcConfig = new ServiceConfiguration();
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         @Cleanup
@@ -94,7 +91,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         cursorMock = ledger.openCursor("c1");
         ledgerMock = ledger;
         mlFactoryMock = factory;
-        doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
+        doReturn(mlFactoryMock).when(pulsar).getDefaultManagedLedgerFactory();
 
         brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
         doReturn(brokerService).when(pulsar).getBrokerService();
@@ -105,8 +102,8 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
-        doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
-        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
+        doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(nsSvc).getBundleAsync(any());
+        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkBundleOwnership(any(), any());
 
         final List<Position> addedEntries = new ArrayList<>();
 
@@ -120,6 +117,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        topic.initialize().join();
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
                 .setTopic(successTopicName)
@@ -154,7 +152,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
             try {
                 barrier.await();
                 // do subscription delete
-                ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
+                final var subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
                 // Thread.sleep(2,0);
                 log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
@@ -178,6 +176,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     public void testConcurrentTopicGCAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        topic.initialize().join();
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
                 .setTopic(successTopicName)
@@ -202,7 +201,8 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 log.info("{} forcing topic GC ", Thread.currentThread());
                 for (int i = 0; i < 2000; i++) {
                     topic.getInactiveTopicPolicies().setMaxInactiveDurationSeconds(0);
-                    topic.getInactiveTopicPolicies().setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+                    topic.getInactiveTopicPolicies()
+                            .setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
                     topic.checkGC();
                 }
                 log.info("GC done..");
@@ -218,7 +218,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
             try {
                 barrier.await();
                 // do subscription delete
-                ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
+                final var subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
                 // Thread.sleep(2,0);
                 log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
@@ -242,6 +242,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     public void testConcurrentTopicDeleteAndUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        topic.initialize().join();
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
                 .setTopic(successTopicName)
@@ -276,7 +277,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 barrier.await();
                 // Thread.sleep(2,0);
                 // assertTrue(topic.unsubscribe(successSubName).isDone());
-                ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
+                final var subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
                 log.info("unsubscribe result : {}", topic.unsubscribe(successSubName).get());
                 log.info("closing consumer..");
@@ -300,6 +301,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     public void testConcurrentTopicDeleteAndSubsUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+        topic.initialize().join();
         CommandSubscribe cmd = new CommandSubscribe()
                 .setConsumerId(1)
                 .setTopic(successTopicName)
@@ -336,7 +338,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 log.info("&&&&&&&&& UNSUBSCRIBER TH");
                 // Thread.sleep(2,0);
                 // assertTrue(topic.unsubscribe(successSubName).isDone());
-                ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
+                final var subscriptions = topic.getSubscriptions();
                 PersistentSubscription ps = subscriptions.get(successSubName);
                 log.info("unsubscribe result : " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
             } catch (Exception e) {

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 
 public class AggregatedSubscriptionStats {
 
@@ -41,6 +42,8 @@ public class AggregatedSubscriptionStats {
     public double msgThroughputOut;
 
     public long msgDelayed;
+
+    public long msgInReplay;
 
     long msgOutCounter;
 
@@ -72,5 +75,27 @@ public class AggregatedSubscriptionStats {
 
     long filterRescheduledMsgCount;
 
+    /** total number of times message dispatching was throttled on a subscription due to broker rate limits. */
+    long dispatchThrottledMsgEventsBySubscriptionLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to broker rate limits. */
+    long dispatchThrottledBytesEventsBySubscriptionLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to topic rate limits. */
+    long dispatchThrottledMsgEventsByTopicLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to topic rate limits. */
+    long dispatchThrottledBytesEventsByTopicLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to broker rate limits. */
+    long dispatchThrottledMsgEventsByBrokerLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to broker rate limits. */
+    long dispatchThrottledBytesEventsByBrokerLimit;
+
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
+
+    long delayedMessageIndexSizeInBytes;
+
+    public Map<String, TopicMetricBean> bucketDelayedIndexStats = new HashMap<>();
 }

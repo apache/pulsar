@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Serializable;
 import java.net.InetSocketAddress;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -119,6 +121,44 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
     /**
+     * Configure the service URL init quarantine duration.
+     * For single host serviceUrl, this setting has no effect.
+     *
+     * <p>When the client is unable to connect to an endpoint from serviceUrl with multiple hosts, that endpoint
+     *  will be quarantined for a specific duration that is determined in a certain exponential way.
+     * The init value of a single quarantine duration is set by
+     * @param serviceUrlQuarantineInitDuration. A successful usage of the endpoint will reset the
+     * duration to the initial value and move it back to the available addresses pool.
+     *
+     * <p>
+     * A value of 0 means don't quarantine any endpoints even if they fail.
+     * @param serviceUrlQuarantineInitDuration the initial quarantine duration
+     * for unavailable endpoint. Defaults to 60 seconds.
+     * @param unit the time unit for the quarantine duration
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration, TimeUnit unit);
+
+    /**
+     * Configure the service URL max quarantine duration.
+     * For single host serviceUrl, this setting has no effect.
+     *
+     * <p>When the client is unable to connect to an endpoint from serviceUrl with multiple hosts, that endpoint
+     * will be quarantined for a specific duration that is determined in a certain exponential way.
+     * The max value of a single quarantine duration is set by
+     * @param serviceUrlQuarantineMaxDuration. A successful usage of the endpoint will reset the
+     * duration to the initial value and move it back to the available addresses pool.
+     *
+     * <p>
+     * A value of 0 means don't quarantine any endpoints even if they fail.
+     * @param serviceUrlQuarantineMaxDuration the maximum quarantine duration for
+     * unavailable endpoint. Defaults to 1 day.
+     * @param unit the time unit for the quarantine duration
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration, TimeUnit unit);
+
+    /**
      * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
      *
      * @param name the listener name
@@ -128,6 +168,8 @@ public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * Defaults to 25 seconds.
+     *
      * @return the client builder instance
      */
     ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
@@ -227,23 +269,25 @@ public interface ClientBuilder extends Serializable, Cloneable {
     /**
      * Set lookup timeout <i>(default: matches operation timeout)</i>
      *
-     * Lookup operations have a different load pattern to other operations. They can be handled by any broker, are not
-     * proportional to throughput, and are harmless to retry. Given this, it makes sense to allow them to retry longer
-     * than normal operation, especially if they experience a timeout.
+     * <p>
+     * Lookup operations have a different load pattern to other operations.
+     * They can be handled by any broker, are not proportional to throughput,
+     * and are harmless to retry. Given this, it makes sense to allow them to
+     * retry longer than normal operation, especially if they experience a timeout.
      *
-     * By default this is set to match operation timeout. This is to maintain legacy behaviour. However, in practice
-     * it should be set to 5-10x the operation timeout.
+     * <p>
+     * By default, this is set to match operation timeout. This is to maintain legacy behaviour.
+     * However, in practice it should be set to 5-10x the operation timeout.
      *
-     * @param lookupTimeout
-     *            lookup timeout
-     * @param unit
-     *            time unit for {@code lookupTimeout}
+     * @param lookupTimeout lookup timeout
+     * @param unit time unit for {@code lookupTimeout}
      * @return the client builder instance
      */
     ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit);
 
     /**
-     * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for handling connections to brokers
+     * <i>(default: Runtime.getRuntime().availableProcessors())</i>.
      *
      * @param numIoThreads the number of IO threads
      * @return the client builder instance
@@ -251,11 +295,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder ioThreads(int numIoThreads);
 
     /**
-     * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for message listeners
+     * <i>(default: Runtime.getRuntime().availableProcessors())</i>.
      *
      * <p>The listener thread pool is shared across all the consumers and readers that are
-     * using a "listener" model to get messages. For a given consumer, the listener will be
-     * always invoked from the same thread, to ensure ordering.
+     * using a "listener" model to get messages. For a given consumer, the listener will
+     * always be invoked from the same thread, to ensure ordering.
      *
      * @param numListenerThreads the number of listener threads
      * @return the client builder instance
@@ -432,9 +477,8 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
-     * Configure a limit on the amount of direct memory that will be allocated by this client instance.
-     * <p>
-     * <b>Note: at this moment this is only limiting the memory for producers.</b>
+     * Configure a limit on the amount of direct memory that will be allocated by this client instance
+     * <i>(default: 64 MB)</i>.
      * <p>
      * Setting this to 0 will disable the limit.
      *
@@ -455,7 +499,10 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @param unit
      *            time unit for {@code statsInterval}
      * @return the client builder instance
+     *
+     * @deprecated @see {@link #openTelemetry(OpenTelemetry)}
      */
+    @Deprecated
     ClientBuilder statsInterval(long statsInterval, TimeUnit unit);
 
     /**
@@ -551,6 +598,62 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder enableBusyWait(boolean enableBusyWait);
 
     /**
+     * Configure OpenTelemetry for Pulsar Client
+     * <p>
+     * When you pass an OpenTelemetry instance, Pulsar client will emit metrics that can be exported in a variety
+     * of different methods.
+     * <p>
+     * Refer to <a href="https://opentelemetry.io/docs/languages/java/">OpenTelemetry Java SDK documentation</a> for
+     * how to configure OpenTelemetry and the metrics exporter.
+     * <p>
+     * By default, Pulsar client will use the {@link io.opentelemetry.api.GlobalOpenTelemetry} instance. If an
+     * OpenTelemetry JVM agent is configured, the metrics will be reported, otherwise the metrics will be
+     * completely disabled.
+     *
+     * @param openTelemetry the OpenTelemetry instance
+     * @return the client builder instance
+     */
+    ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
+
+    /**
+     * Enable OpenTelemetry distributed tracing.
+     *
+     * <p>When enabled, interceptors are automatically added to all producers and consumers
+     * to create spans for message publishing and consumption, and automatically propagate trace context
+     * via message properties.
+     *
+     * <p>This method is useful when OpenTelemetry is configured globally (e.g., via Java Agent or
+     * {@link io.opentelemetry.api.GlobalOpenTelemetry}) and you just want to enable tracing interceptors
+     * without explicitly setting an OpenTelemetry instance.
+     *
+     * <p>Example with Java Agent:
+     * <pre>{@code
+     * // When using -javaagent:opentelemetry-javaagent.jar
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)  // Use GlobalOpenTelemetry
+     *     .build();
+     * }</pre>
+     *
+     * <p>Example with GlobalOpenTelemetry:
+     * <pre>{@code
+     * // Configure GlobalOpenTelemetry elsewhere in your application
+     * GlobalOpenTelemetry.set(myOpenTelemetry);
+     *
+     * // Just enable tracing in the client
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)
+     *     .build();
+     * }</pre>
+     *
+     * @param tracingEnabled whether to enable tracing (default: false)
+     * @return the client builder instance
+     * @since 4.2.0
+     */
+    ClientBuilder enableTracing(boolean tracingEnabled);
+
+    /**
      * The clock used by the pulsar client.
      *
      * <p>The clock is currently used by producer for setting publish timestamps.
@@ -572,7 +675,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      *
      * @param proxyServiceUrl proxy service url
      * @param proxyProtocol   protocol to decide type of proxy routing eg: SNI-routing
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol);
 
@@ -580,7 +683,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * If enable transaction, start the transactionCoordinatorClient with pulsar client.
      *
      * @param enableTransaction whether enable transaction feature
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder enableTransaction(boolean enableTransaction);
 
@@ -588,28 +691,99 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * Set dns lookup bind address and port.
      * @param address dnsBindAddress
      * @param port dnsBindPort
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder dnsLookupBind(String address, int port);
 
     /**
+     * Set dns lookup server addresses.
+     * @param addresses dnsServerAddresses
+     * @return the client builder instance
+     */
+    ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses);
+
+    /**
      *  Set socks5 proxy address.
      * @param socks5ProxyAddress
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress);
 
     /**
      *  Set socks5 proxy username.
      * @param socks5ProxyUsername
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder socks5ProxyUsername(String socks5ProxyUsername);
 
     /**
      *  Set socks5 proxy password.
      * @param socks5ProxyPassword
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
+
+    /**
+     * Set the SSL Factory Plugin for custom implementation to create SSL Context and SSLEngine.
+     * @param sslFactoryPlugin ssl factory class name
+     * @return the client builder instance
+     */
+    ClientBuilder sslFactoryPlugin(String sslFactoryPlugin);
+
+    /**
+     * Set the SSL Factory Plugin params for the ssl factory plugin to use.
+     * @param sslFactoryPluginParams Params in String format that will be inputted to the SSL Factory Plugin
+     * @return the client builder instance
+     */
+    ClientBuilder sslFactoryPluginParams(String sslFactoryPluginParams);
+
+    /**
+     * Set Cert Refresh interval in seconds.
+     * @param autoCertRefreshSeconds
+     * @return the client builder instance
+     */
+    ClientBuilder autoCertRefreshSeconds(int autoCertRefreshSeconds);
+
+    /**
+     * Set the properties used for topic lookup.
+     * <p>
+     * When the broker performs topic lookup, these lookup properties will be taken into consideration in a customized
+     * load manager.
+     * <p>
+     * Note: The lookup properties are only used in topic lookup when:
+     * - The protocol is binary protocol, i.e. the service URL starts with "pulsar://" or "pulsar+ssl://"
+     * - The `loadManagerClassName` config in broker is a class that implements the `ExtensibleLoadManager` interface
+     */
+    ClientBuilder lookupProperties(Map<String, String> properties);
+
+    /**
+     * Set the description.
+     *
+     * <p> By default, when the client connects to the broker, a version string like "Pulsar-Java-v<x.y.z>" will be
+     * carried and saved by the broker. The client version string could be queried from the topic stats.
+     *
+     * <p> This method provides a way to add more description to a specific PulsarClient instance. If it's configured,
+     * the description will be appended to the original client version string, with '-' as the separator.
+     *
+     * <p>For example, if the client version is 3.0.0, and the description is "forked", the final client version string
+     * will be "Pulsar-Java-v3.0.0-forked".
+     *
+     * @param description the description of the current PulsarClient instance
+     * @throws IllegalArgumentException if the length of description exceeds 64
+     */
+    ClientBuilder description(String description);
+
+    /**
+     * Provide a set of shared client resources to be reused by this client.
+     * <p>
+     * Providing a shared resource instance allows PulsarClient instances to share resources
+     * (such as IO/event loops, timers, executors, DNS resolver/cache) with other PulsarClient
+     * instances, reducing memory footprint and thread usage when creating many clients in the same JVM.
+     *
+     * @param sharedResources the shared resources instance created with {@link PulsarClientSharedResources#builder()}
+     * @return the client builder instance
+     * @see PulsarClientSharedResources
+     * @see PulsarClientSharedResourcesBuilder
+     */
+    ClientBuilder sharedResources(PulsarClientSharedResources sharedResources);
 }

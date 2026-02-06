@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
@@ -187,8 +188,8 @@ public class PackagesManagementImpl implements PackagesManagement {
                 if (!exist) {
                     future.complete(null);
                 } else {
-                    future.completeExceptionally(
-                        new NotFoundException(String.format("Package '%s' metadata already exists", packageName)));
+                    future.completeExceptionally(new FileAlreadyExistsException(
+                            String.format("Package '%s' metadata already exists", packageName)));
                 }
             });
         return future;

@@ -19,20 +19,25 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
+import java.util.regex.Pattern;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -43,6 +48,8 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -101,8 +108,10 @@ public class ConsumerImplTest {
     public void testCorrectBackoffConfiguration() {
         final Backoff backoff = consumer.getConnectionHandler().backoff;
         ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
-        Assert.assertEquals(backoff.getMax(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
-        Assert.assertEquals(backoff.next(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
+        Assert.assertEquals(backoff.getMax(),
+                TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
+        Assert.assertEquals(backoff.next(),
+                TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 
     @Test(invocationTimeOut = 1000)
@@ -201,7 +210,7 @@ public class ConsumerImplTest {
         Exception checkException = null;
         try {
             if (consumer != null) {
-                consumer.negativeAcknowledge(new MessageIdImpl(-1, -1, -1));
+                consumer.negativeAcknowledge(new MessageIdImpl(0, 0, -1));
                 consumer.close();
             }
         } catch (Exception e) {
@@ -258,5 +267,41 @@ public class ConsumerImplTest {
         createConsumer(consumerConf);
 
         assertThat(consumer.getPriorityLevel()).isEqualTo(1);
+    }
+
+    @Test
+    public void testSeekAsyncInternal() {
+        // given
+        ClientCnx cnx = mock(ClientCnx.class);
+        CompletableFuture<ProducerResponse> clientReq = new CompletableFuture<>();
+        when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenReturn(clientReq);
+
+        ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
+        ScheduledExecutorService scheduledExecutorService = mock(ScheduledExecutorService.class);
+        when(provider.getExecutor()).thenReturn(scheduledExecutorService);
+        when(consumer.getClient().getScheduledExecutorProvider()).thenReturn(provider);
+
+        CompletableFuture<Void> result = consumer.seekAsync(1L);
+        verify(scheduledExecutorService, atLeast(1)).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+        consumer.setClientCnx(cnx);
+        consumer.setState(HandlerState.State.Ready);
+        consumer.seekStatus.set(ConsumerImpl.SeekStatus.NOT_STARTED);
+
+        // when
+        CompletableFuture<Void> firstResult = consumer.seekAsync(1L);
+        CompletableFuture<Void> secondResult = consumer.seekAsync(1L);
+
+        clientReq.complete(null);
+
+        assertTrue(firstResult.isDone());
+        assertTrue(secondResult.isCompletedExceptionally());
+        verify(cnx, times(1)).sendRequestWithId(any(ByteBuf.class), anyLong());
+    }
+
+    @Test(invocationTimeOut = 1000)
+    public void testAutoGenerateConsumerName() {
+        Pattern consumerNamePattern = Pattern.compile("[a-zA-Z0-9]{5}");
+        assertTrue(consumerNamePattern.matcher(consumer.getConsumerName()).matches());
     }
 }

@@ -22,11 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.HashSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -185,7 +183,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         }
         long size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, totalMessages);
-        log.info("Comulative Ack sent for " + new String(lastMessage.getData()));
+        log.info("Cumulative Ack sent for " + new String(lastMessage.getData()));
         log.info("Message ID details " + lastMessage.getMessageId().toString());
         consumer.acknowledgeCumulative(lastMessage);
         size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();

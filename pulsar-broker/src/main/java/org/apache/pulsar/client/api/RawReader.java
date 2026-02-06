@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.RawReaderImpl;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 /**
  * Topic reader which receives raw messages (i.e. as they are stored in the managed ledger).
@@ -32,10 +33,27 @@ public interface RawReader {
      */
 
     static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription) {
+        return create(client, topic, subscription, true, true);
+    }
+
+    static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription,
+                                               boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
         CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
-        RawReader r = new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future);
+        RawReader r =
+                new RawReaderImpl((PulsarClientImpl) client, topic, subscription, future, createTopicIfDoesNotExist,
+                        retryOnRecoverableErrors);
         return future.thenApply(__ -> r);
     }
+
+    static CompletableFuture<RawReader> create(PulsarClient client,
+                                               ConsumerConfigurationData<byte[]> consumerConfiguration,
+                                               boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
+        CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
+        RawReader r = new RawReaderImpl((PulsarClientImpl) client,
+                consumerConfiguration, future, createTopicIfDoesNotExist, retryOnRecoverableErrors);
+        return future.thenApply(__ -> r);
+    }
+
 
     /**
      * Get the topic for the reader.
@@ -83,4 +101,19 @@ public interface RawReader {
      * Close the raw reader.
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * Stop requesting new messages from the broker until {@link #resume()} is called. Note that this might cause
+     * {@link #readNextAsync()} to block until {@link #resume()} is called and new messages are pushed by the broker.
+     */
+    default void pause() {
+
+    }
+
+    /**
+     * Resume requesting messages from the broker.
+     */
+    default void resume() {
+
+    }
 }

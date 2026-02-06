@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,10 +31,12 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class AuthenticationUtil {
+    private static final ObjectReader HASHMAP_READER =
+            ObjectMapperFactory.getMapper().reader().forType(new TypeReference<HashMap<String, String>>() {
+            });
+
     public static Map<String, String> configureFromJsonString(String authParamsString) throws IOException {
-        ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        return jsonMapper.readValue(authParamsString, new TypeReference<HashMap<String, String>>() {
-        });
+        return HASHMAP_READER.readValue(authParamsString);
     }
 
     public static Map<String, String> configureFromPulsar1AuthParamString(String authParamsString) {

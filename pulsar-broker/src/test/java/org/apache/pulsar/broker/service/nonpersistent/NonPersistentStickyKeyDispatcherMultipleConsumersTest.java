@@ -31,6 +31,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -47,6 +48,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
@@ -62,6 +64,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     private ServiceConfiguration configMock;
 
     private NonPersistentStickyKeyDispatcherMultipleConsumers nonpersistentDispatcher;
+    private StickyKeyConsumerSelector selector;
 
     final String topicName = "non-persistent://public/default/testTopic";
 
@@ -88,10 +91,45 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(topicPolicies).when(topicMock).getHierarchyTopicPolicies();
 
         subscriptionMock = mock(NonPersistentSubscription.class);
-
+        selector = new HashRangeAutoSplitStickyKeyConsumerSelector();
         nonpersistentDispatcher = new NonPersistentStickyKeyDispatcherMultipleConsumers(
-            topicMock, subscriptionMock,
-            new HashRangeAutoSplitStickyKeyConsumerSelector());
+            topicMock, subscriptionMock, selector);
+    }
+
+    @Test(timeOut = 10000)
+    public void testAddConsumerWhenClosed() throws Exception {
+        nonpersistentDispatcher.close().get();
+        Consumer consumer = mock(Consumer.class);
+        nonpersistentDispatcher.addConsumer(consumer);
+        verify(consumer, times(1)).disconnect();
+        assertEquals(0, nonpersistentDispatcher.getConsumers().size());
+        assertTrue(selector.getConsumerKeyHashRanges().isEmpty());
+    }
+
+    @Test(timeOut = 10000)
+    public void testTotalAvailablePermitsWhenRemoveConsumer() throws Exception {
+        final int permits = 10;
+        // add 2 consumers to dispatcher
+        Consumer consumerMock = mock(Consumer.class);
+        when(consumerMock.getAvailablePermits()).thenReturn(permits);
+        nonpersistentDispatcher.addConsumer(consumerMock);
+        Consumer consumerMock2 = mock(Consumer.class);
+        when(consumerMock2.getAvailablePermits()).thenReturn(permits);
+        when(consumerMock2.isWritable()).thenReturn(true);
+        nonpersistentDispatcher.addConsumer(consumerMock2);
+
+        // add 10 flow permits to the dispatcher, so TOTAL_AVAILABLE_PERMITS_UPDATER will be 10
+        nonpersistentDispatcher.consumerFlow(consumerMock2, permits);
+        assertEquals(NonPersistentDispatcherMultipleConsumers
+                        .TOTAL_AVAILABLE_PERMITS_UPDATER.get(nonpersistentDispatcher), 10);
+        // add another 10 flow permits to the dispatcher, so TOTAL_AVAILABLE_PERMITS_UPDATER will be 20
+        nonpersistentDispatcher.consumerFlow(consumerMock, permits);
+        assertEquals(NonPersistentDispatcherMultipleConsumers.
+                        TOTAL_AVAILABLE_PERMITS_UPDATER.get(nonpersistentDispatcher), 20);
+        // remove one consumer, so the TOTAL_AVAILABLE_PERMITS_UPDATER of the dispatcher will be reduced to 10
+        nonpersistentDispatcher.removeConsumer(consumerMock);
+        assertEquals(NonPersistentDispatcherMultipleConsumers.
+                TOTAL_AVAILABLE_PERMITS_UPDATER.get(nonpersistentDispatcher), 10);
     }
 
     @Test(timeOut = 10000)
@@ -114,17 +152,17 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 ByteBuf byteBuf = entry.getDataBuffer();
                 MessageMetadata messageMetadata = Commands.parseMessageMetadata(byteBuf);
                 assertEquals(byteBuf.toString(UTF_8), "message" + index);
-            };
+            }
             return mockPromise;
-        }).when(consumerMock).sendMessages(any(List.class), any(EntryBatchSizes.class), any(),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+        }).when(consumerMock).sendMessages(any(List.class), any(List.class), any(EntryBatchSizes.class), any(),
+                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
         try {
             nonpersistentDispatcher.sendMessages(entries);
         } catch (Exception e) {
             fail("Failed to sendMessages.", e);
         }
-        verify(consumerMock, times(1)).sendMessages(any(List.class), any(EntryBatchSizes.class),
-                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+        verify(consumerMock, times(1)).sendMessages(any(List.class), any(List.class), any(EntryBatchSizes.class),
+                eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class), anyLong());
     }
 
     @Test(timeOut = 10000)
@@ -169,7 +207,8 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 .setPartitionKey(key)
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
+        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata,
+                Unpooled.copiedBuffer(message.getBytes(UTF_8)));
     }
 
 }

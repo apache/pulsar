@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
@@ -51,7 +52,8 @@ public class RawReaderImpl implements RawReader {
     private RawConsumerImpl consumer;
 
     public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
-                         CompletableFuture<Consumer<byte[]>> consumerFuture) {
+                         CompletableFuture<Consumer<byte[]>> consumerFuture,
+                         boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
         consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(topic);
         consumerConfiguration.setSubscriptionName(subscription);
@@ -59,10 +61,20 @@ public class RawReaderImpl implements RawReader {
         consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
         consumerConfiguration.setReadCompacted(true);
         consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+        consumerConfiguration.setAckReceiptEnabled(true);
 
-        consumer = new RawConsumerImpl(client, consumerConfiguration,
-                                       consumerFuture);
+        consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist,
+                retryOnRecoverableErrors);
     }
+
+    public RawReaderImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> consumerConfiguration,
+                         CompletableFuture<Consumer<byte[]>> consumerFuture,
+                         boolean createTopicIfDoesNotExist, boolean retryOnRecoverableErrors) {
+        this.consumerConfiguration = consumerConfiguration;
+        consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist,
+                retryOnRecoverableErrors);
+    }
+
 
     @Override
     public String getTopic() {
@@ -101,6 +113,16 @@ public class RawReaderImpl implements RawReader {
     }
 
     @Override
+    public void pause() {
+        consumer.pause();
+    }
+
+    @Override
+    public void resume() {
+        consumer.resume();
+    }
+
+    @Override
     public String toString() {
         return "RawReader(topic=" + getTopic() + ")";
     }
@@ -108,9 +130,11 @@ public class RawReaderImpl implements RawReader {
     static class RawConsumerImpl extends ConsumerImpl<byte[]> {
         final BlockingQueue<RawMessageAndCnx> incomingRawMessages;
         final Queue<CompletableFuture<RawMessage>> pendingRawReceives;
+        final boolean retryOnRecoverableErrors;
 
         RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> conf,
-                CompletableFuture<Consumer<byte[]>> consumerFuture) {
+                CompletableFuture<Consumer<byte[]>> consumerFuture, boolean createTopicIfDoesNotExist,
+                boolean retryOnRecoverableErrors) {
             super(client,
                     conf.getSingleTopic(),
                     conf,
@@ -122,10 +146,18 @@ public class RawReaderImpl implements RawReader {
                     MessageId.earliest,
                     0 /* startMessageRollbackDurationInSec */,
                     Schema.BYTES, null,
-                    true
+                    createTopicIfDoesNotExist
             );
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
+            this.retryOnRecoverableErrors = retryOnRecoverableErrors;
+        }
+
+        protected boolean isUnrecoverableError(Throwable t) {
+            if (!retryOnRecoverableErrors && (t instanceof PulsarClientException.ServiceNotReadyException)) {
+                return true;
+            }
+            return super.isUnrecoverableError(t);
         }
 
         void tryCompletePending() {
@@ -151,19 +183,47 @@ public class RawReaderImpl implements RawReader {
                     // TODO message validation
                     numMsg = 1;
                 }
+                MessageIdData messageId = messageAndCnx.msg.getMessageIdData();
+                lastDequeuedMessageId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
+                        messageId.getPartition(), numMsg - 1);
                 if (!future.complete(messageAndCnx.msg)) {
                     messageAndCnx.msg.close();
                     closeAsync();
                 }
-                MessageIdData messageId = messageAndCnx.msg.getMessageIdData();
-                lastDequeuedMessageId = new BatchMessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
-                    messageId.getPartition(), numMsg - 1);
-
                 ClientCnx currentCnx = cnx();
                 if (currentCnx == messageAndCnx.cnx) {
                     increaseAvailablePermits(currentCnx, numMsg);
                 }
             }
+        }
+
+        @Override
+        protected CompletableFuture<Void> failPendingReceive() {
+            if (internalPinnedExecutor.isShutdown()) {
+                failPendingRawReceives();
+                return CompletableFuture.completedFuture(null);
+            } else {
+                CompletableFuture<Void> future = new CompletableFuture<>();
+                internalPinnedExecutor.execute(() -> {
+                    try {
+                        failPendingRawReceives();
+                    } finally {
+                        future.complete(null);
+                    }
+                });
+                return future;
+            }
+        }
+
+        private void failPendingRawReceives() {
+            List<CompletableFuture<RawMessage>> toError = new ArrayList<>();
+            while (!pendingRawReceives.isEmpty()) {
+                final CompletableFuture<RawMessage> ret = pendingRawReceives.poll();
+                if (ret != null) {
+                    toError.add(ret);
+                }
+            }
+            toError.forEach((f) -> f.cancel(false));
         }
 
         CompletableFuture<RawMessage> receiveRawAsync() {
@@ -174,19 +234,22 @@ public class RawReaderImpl implements RawReader {
         }
 
         private void reset() {
-            List<CompletableFuture<RawMessage>> toError = new ArrayList<>();
-            synchronized (this) {
-                while (!pendingRawReceives.isEmpty()) {
-                    toError.add(pendingRawReceives.remove());
-                }
-                RawMessageAndCnx m = incomingRawMessages.poll();
-                while (m != null) {
-                    m.msg.close();
-                    m = incomingRawMessages.poll();
-                }
-                incomingRawMessages.clear();
+            failPendingRawReceives();
+            clearIncomingRawMessages();
+        }
+
+        private void clearIncomingRawMessages() {
+            RawMessageAndCnx m = incomingRawMessages.poll();
+            while (m != null) {
+                m.msg.close();
+                m = incomingRawMessages.poll();
             }
-            toError.forEach((f) -> f.cancel(false));
+        }
+
+        @Override
+        protected void clearIncomingMessages() {
+            super.clearIncomingMessages();
+            clearIncomingRawMessages();
         }
 
         @Override
@@ -203,12 +266,17 @@ public class RawReaderImpl implements RawReader {
 
         @Override
         public CompletableFuture<Void> closeAsync() {
+            CompletableFuture<Void> closeFuture = super.closeAsync();
             reset();
-            return super.closeAsync();
+            return closeFuture;
         }
 
         @Override
         void messageReceived(CommandMessage commandMessage, ByteBuf headersAndPayload, ClientCnx cnx) {
+            State state = getState();
+            if (state == State.Closing || state == State.Closed) {
+                return;
+            }
             MessageIdData messageId = commandMessage.getMessageId();
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Received raw message: {}/{}/{}", topic, subscription,

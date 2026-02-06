@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.Map;
+import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -28,7 +30,6 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
@@ -50,16 +51,20 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
 
     private final BrokerInterceptor interceptor;
-    private final NarClassLoader classLoader;
+    private final NarClassLoader narClassLoader;
 
     @Override
     public void beforeSendMessage(Subscription subscription,
                                   Entry entry,
                                   long[] ackSet,
                                   MessageMetadata msgMetadata) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.beforeSendMessage(
                     subscription, entry, ackSet, msgMetadata);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
@@ -69,25 +74,37 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
                                   long[] ackSet,
                                   MessageMetadata msgMetadata,
                                   Consumer consumer) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.beforeSendMessage(
                     subscription, entry, ackSet, msgMetadata, consumer);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void onMessagePublish(Producer producer, ByteBuf headersAndPayload,
                                  Topic.PublishContext publishContext) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.onMessagePublish(producer, headersAndPayload, publishContext);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void producerCreated(ServerCnx cnx, Producer producer,
                                 Map<String, String> metadata){
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.producerCreated(cnx, producer, metadata);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
@@ -95,8 +112,12 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     public void producerClosed(ServerCnx cnx,
                                Producer producer,
                                Map<String, String> metadata) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.producerClosed(cnx, producer, metadata);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
@@ -104,9 +125,12 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     public void consumerCreated(ServerCnx cnx,
                                 Consumer consumer,
                                 Map<String, String> metadata) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
-            this.interceptor.consumerCreated(
-                    cnx, consumer, metadata);
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
+            this.interceptor.consumerCreated(cnx, consumer, metadata);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
@@ -114,8 +138,12 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     public void consumerClosed(ServerCnx cnx,
                                Consumer consumer,
                                Map<String, String> metadata) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.consumerClosed(cnx, consumer, metadata);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
@@ -123,89 +151,159 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     @Override
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
                                 long entryId, Topic.PublishContext publishContext) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, publishContext);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public  void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
                                    long entryId, ByteBuf headersAndPayload) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.messageDispatched(cnx, consumer, ledgerId, entryId, headersAndPayload);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void messageAcked(ServerCnx cnx, Consumer consumer,
                              CommandAck ackCmd) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.messageAcked(cnx, consumer, ackCmd);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void txnOpened(long tcId, String txnID) {
-        this.interceptor.txnOpened(tcId, txnID);
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
+            this.interceptor.txnOpened(tcId, txnID);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
+        }
     }
 
     @Override
     public void txnEnded(String txnID, long txnAction) {
-        this.interceptor.txnEnded(txnID, txnAction);
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
+            this.interceptor.txnEnded(txnID, txnAction);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
+        }
     }
 
     @Override
     public void onConnectionCreated(ServerCnx cnx) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.onConnectionCreated(cnx);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) throws InterceptException {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.onPulsarCommand(command, cnx);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void onConnectionClosed(ServerCnx cnx) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.onConnectionClosed(cnx);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.onWebserviceRequest(request);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response)
             throws IOException, ServletException {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.onWebserviceResponse(request, response);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void initialize(PulsarService pulsarService) throws Exception {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.initialize(pulsarService);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
+        }
+    }
+
+    @Override
+    public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(narClassLoader);
+            this.interceptor.onFilter(request, response, chain);
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
         }
     }
 
     @Override
     public void close() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
-            interceptor.close();
-        }
+        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
         try {
-            classLoader.close();
+            Thread.currentThread().setContextClassLoader(narClassLoader);
+            interceptor.close();
+        } finally {
+            Thread.currentThread().setContextClassLoader(previousContext);
+        }
+
+        try {
+            narClassLoader.close();
         } catch (IOException e) {
             log.warn("Failed to close the broker interceptor class loader", e);
         }
+    }
+
+    @VisibleForTesting
+    public BrokerInterceptor getInterceptor() {
+        return interceptor;
     }
 }

@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil.acquireDirectMemoryPermitsAndWriteAndFlush;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -34,20 +38,24 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
-import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
+import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 
 @Slf4j
 public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     private final BrokerInterceptor interceptor;
     private final ServerCnx cnx;
+    private final AsyncDualMemoryLimiter maxTopicListInFlightLimiter;
 
-    public PulsarCommandSenderImpl(BrokerInterceptor interceptor, ServerCnx cnx) {
+    public PulsarCommandSenderImpl(BrokerInterceptor interceptor, ServerCnx cnx,
+                                   AsyncDualMemoryLimiter maxTopicListInFlightLimiter) {
         this.interceptor = interceptor;
         this.cnx = cnx;
+        this.maxTopicListInFlightLimiter = maxTopicListInFlightLimiter;
     }
 
     @Override
@@ -55,7 +63,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newPartitionMetadataResponseCommand(error, errorMsg, requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -63,7 +71,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newPartitionMetadataResponseCommand(partitions, requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -71,7 +79,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newSuccessCommand(requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -79,7 +87,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newErrorCommand(requestId, error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -87,7 +95,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newProducerSuccessCommand(requestId, producerName, schemaVersion);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -98,7 +106,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 schemaVersion, topicEpoch, isProducerReady);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -108,7 +116,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 entryId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -116,17 +124,20 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newSendErrorCommand(producerId, sequenceId, error, errorMsg);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
-    public void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
-                                                 boolean filtered, boolean changed, long requestId) {
+    public CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash,
+                                                                    boolean filtered, boolean changed, long requestId,
+                                                                    Function<Throwable,
+                                                                            CompletableFuture<Void>>
+                                                                                permitAcquireErrorHandler) {
         BaseCommand command = Commands.newGetTopicsOfNamespaceResponseCommand(topics, topicsHash,
                 filtered, changed, requestId);
         safeIntercept(command, cnx);
-        ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+                command, permitAcquireErrorHandler);
     }
 
     @Override
@@ -134,7 +145,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newGetSchemaResponseCommand(requestId, schema, version);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -142,7 +153,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newGetSchemaResponseErrorCommand(requestId, error, errorMessage);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -150,7 +161,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newGetOrCreateSchemaResponseCommand(requestId, schemaVersion);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -159,7 +170,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 Commands.newGetOrCreateSchemaResponseErrorCommand(requestId, error, errorMessage);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -168,7 +179,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 clientProtocolVersion, maxMessageSize, supportsTopicWatchers);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -179,7 +190,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 authoritative, response, requestId, proxyThroughServiceUrl);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -187,7 +198,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newLookupErrorResponseCommand(error, errorMsg, requestId);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -196,9 +207,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
             // if the client is older than `v12`, we don't need to send consumer group changes.
             return;
         }
-        cnx.ctx().writeAndFlush(
-                Commands.newActiveConsumerChange(consumerId, isActive),
-                cnx.ctx().voidPromise());
+        writeAndFlush(Commands.newActiveConsumerChange(consumerId, isActive));
     }
 
     @Override
@@ -206,7 +215,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         // Only send notification if the client understand the command
         if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v9.getValue()) {
             log.info("[{}] Notifying consumer that end of topic has been reached", this);
-            cnx.ctx().writeAndFlush(Commands.newReachedEndOfTopic(consumerId), cnx.ctx().voidPromise());
+            writeAndFlush(Commands.newReachedEndOfTopic(consumerId));
         }
     }
 
@@ -215,8 +224,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         // Only send notification if the client understand the command
         if (cnx.getRemoteEndpointProtocolVersion() >= ProtocolVersion.v20.getValue()) {
             log.info("[{}] Notifying {} that topic is migrated", type.name(), resourceId);
-            cnx.ctx().writeAndFlush(Commands.newTopicMigrated(type, resourceId, brokerUrl, brokerUrlTls),
-                    cnx.ctx().voidPromise());
+            writeAndFlush(Commands.newTopicMigrated(type, resourceId, brokerUrl, brokerUrlTls));
             return true;
         }
         return false;
@@ -310,7 +318,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         BaseCommand command = Commands.newTcClientConnectResponse(requestId, error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -324,18 +332,18 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 txnID.getMostSigBits());
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
         if (this.interceptor != null) {
             this.interceptor.txnOpened(tcID, txnID.toString());
         }
     }
 
     @Override
-    public void sendNewTxnErrorResponse(long requestId, long txnID, ServerError error, String message) {
-        BaseCommand command = Commands.newTxnResponse(requestId, txnID, error, message);
+    public void sendNewTxnErrorResponse(long requestId, long tcID, ServerError error, String message) {
+        BaseCommand command = Commands.newTxnResponse(requestId, tcID, error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
     }
 
     @Override
@@ -344,7 +352,7 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                 txnID.getMostSigBits());
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
+        writeAndFlush(outBuf);
         if (this.interceptor != null) {
             this.interceptor.txnEnded(txnID.toString(), txnAction);
         }
@@ -352,39 +360,54 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
 
     @Override
     public void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message) {
-        BaseCommand command = Commands.newEndTxnResponse(requestId, txnID.getMostSigBits(), error, message);
+        BaseCommand command = Commands.newEndTxnResponse(requestId, txnID.getLeastSigBits(),
+                txnID.getMostSigBits(), error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
-        if (this.interceptor != null) {
-            this.interceptor.txnEnded(txnID.toString(), TxnAction.ABORT_VALUE);
-        }
+        writeAndFlush(outBuf);
     }
 
+    /***
+     * @param topics topic names which are matching, the topic name contains the partition suffix.
+     * @return a CompletableFuture&lt;Void&gt; that completes when the operation finishes
+     */
     @Override
-    public void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics) {
+    public CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
+                                                             Collection<String> topics,
+                                                             Function<Throwable, CompletableFuture<Void>>
+                                                                         permitAcquireErrorHandler) {
         BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
-        interceptAndWriteCommand(command);
-    }
-
-    @Override
-    public void sendWatchTopicListUpdate(long watcherId,
-                                         List<String> newTopics, List<String> deletedTopics, String topicsHash) {
-        BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
-        interceptAndWriteCommand(command);
-    }
-
-    private void interceptAndWriteCommand(BaseCommand command) {
         safeIntercept(command, cnx);
-        ByteBuf outBuf = Commands.serializeWithSize(command);
-        cnx.ctx().writeAndFlush(outBuf);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+                command, permitAcquireErrorHandler);
+    }
+
+    /***
+     * {@inheritDoc}
+     * @return a CompletableFuture that completes when the watch topic list update operation finishes
+     */
+    @Override
+    public CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId, List<String> newTopics,
+                                                            List<String> deletedTopics, String topicsHash,
+                                                            Function<Throwable, CompletableFuture<Void>>
+                                                                        permitAcquireErrorHandler) {
+        BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
+        safeIntercept(command, cnx);
+        return acquireDirectMemoryPermitsAndWriteAndFlush(cnx.ctx(), maxTopicListInFlightLimiter, () -> !cnx.isActive(),
+                command, permitAcquireErrorHandler);
+    }
+
+    private void writeAndFlush(ByteBuf outBuf) {
+        NettyChannelUtil.writeAndFlushWithVoidPromise(cnx.ctx(), outBuf);
     }
 
     private void safeIntercept(BaseCommand command, ServerCnx cnx) {
-        try {
-            this.interceptor.onPulsarCommand(command, cnx);
-        } catch (Exception e) {
-            log.error("Failed to execute command {} on broker interceptor.", command.getType(), e);
+        if (this.interceptor != null) {
+            try {
+                this.interceptor.onPulsarCommand(command, cnx);
+            } catch (Exception e) {
+                log.error("Failed to execute command {} on broker interceptor.", command.getType(), e);
+            }
         }
     }
 }

@@ -46,7 +46,7 @@ import org.testcontainers.containers.Network;
 import org.testng.annotations.Test;
 
 /**
- * Test behaviour of sinks with a transform function
+ * Test behaviour of sinks with a transform function.
  */
 @Slf4j
 public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
@@ -190,7 +190,7 @@ public class SinkWithTransformFunctionTest extends PulsarStandaloneTestSuite {
             for (int i = 0; i < numRecords; i++) {
                 Message<String> receive = consumer.receive(5, TimeUnit.SECONDS);
                 assertNotNull(receive);
-                assertEquals(receive.getValue(), "AVRO - {\"name\": \"foo" + i + "\", \"phone\": \"bar"+ i + "\"}");
+                assertEquals(receive.getValue(), "AVRO - {\"name\": \"foo" + i + "\", \"phone\": \"bar" + i + "\"}");
             }
 
             for (int i = 0; i < numRecords; i++) {

@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service.schema.validator;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import java.io.IOException;
 import org.apache.avro.Schema;
@@ -42,6 +42,8 @@ class StructSchemaDataValidator implements SchemaDataValidator {
 
     private StructSchemaDataValidator() {}
 
+    private static final ObjectReader JSON_SCHEMA_READER =
+            ObjectMapperFactory.getMapper().reader().forType(JsonSchema.class);
     @Override
     public void validate(SchemaData schemaData) throws InvalidSchemaDataException {
         byte[] data = schemaData.getData();
@@ -49,24 +51,45 @@ class StructSchemaDataValidator implements SchemaDataValidator {
         try {
             Schema.Parser avroSchemaParser = new Schema.Parser();
             avroSchemaParser.setValidateDefaults(false);
-            avroSchemaParser.parse(new String(data, UTF_8));
+            Schema schema = avroSchemaParser.parse(new String(data, UTF_8));
+            if (SchemaType.AVRO.equals(schemaData.getType())) {
+                checkAvroSchemaTypeSupported(schema);
+            }
         } catch (SchemaParseException e) {
             if (schemaData.getType() == SchemaType.JSON) {
                 // we used JsonSchema for storing the definition of a JSON schema
                 // hence for backward compatibility consideration, we need to try
                 // to use JsonSchema to decode the schema data
-                ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
                 try {
-                    objectMapper.readValue(data, JsonSchema.class);
+                    JSON_SCHEMA_READER.readValue(data);
                 } catch (IOException ioe) {
                     throwInvalidSchemaDataException(schemaData, ioe);
                 }
             } else {
                 throwInvalidSchemaDataException(schemaData, e);
             }
+        } catch (InvalidSchemaDataException invalidSchemaDataException) {
+            throw invalidSchemaDataException;
         } catch (Exception e) {
             throwInvalidSchemaDataException(schemaData, e);
         }
+    }
+
+    static void checkAvroSchemaTypeSupported(Schema schema) throws InvalidSchemaDataException {
+            switch (schema.getType()) {
+                case RECORD: {
+                    break;
+                }
+                case UNION: {
+                    throw new InvalidSchemaDataException(
+                            "Avro schema typed [UNION] is not supported");
+                }
+                default: {
+                    // INT, LONG, FLOAT, DOUBLE, BOOLEAN, STRING, BYTES.
+                    // ARRAY, MAP, FIXED, NULL.
+                    LOGGER.info("Registering a special avro schema typed [{}]", schema.getType());
+                }
+            }
     }
 
     private static void throwInvalidSchemaDataException(SchemaData schemaData,

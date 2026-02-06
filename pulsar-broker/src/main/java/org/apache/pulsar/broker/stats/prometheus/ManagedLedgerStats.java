@@ -34,11 +34,13 @@ public class ManagedLedgerStats {
 
     double storageWriteRate;
     double storageReadRate;
+    double storageReadCacheMissesRate;
 
     public void reset() {
         storageSize = 0;
         storageWriteRate = 0;
         storageReadRate = 0;
+        storageReadCacheMissesRate = 0;
         backlogSize = 0;
         offloadedStorageUsed = 0;
         storageLogicalSize = 0;

@@ -36,6 +36,20 @@ import java.util.concurrent.locks.StampedLock;
  * no node allocations are required to store the keys and values, and no boxing is required.
  *
  * <p>Keys <strong>MUST</strong> be &gt;= 0.
+ * <br>
+ * <b>WARN: method forEach do not guarantee thread safety, nor do the keys, values and asMap method.</b>
+ * <br>
+ * The forEach method is specifically designed for single-threaded usage. When iterating over a map
+ * with concurrent writes, it becomes possible for new values to be either observed or not observed.
+ * There is no guarantee that if we write value1 and value2, and are able to see value2, then we will also see value1.
+ * In some cases, it is even possible to encounter two mappings with the same key,
+ * leading the keys method to return a List containing two identical keys.
+ *
+ * <br>
+ * It is crucial to understand that the results obtained from aggregate status methods such as keys, values, and asMap
+ * are typically reliable only when the map is not undergoing concurrent updates from other threads.
+ * When concurrent updates are involved, the results of these methods reflect transient states
+ * that may be suitable for monitoring or estimation purposes, but not for program control.
  */
 public class ConcurrentLongLongPairHashMap {
 
@@ -254,6 +268,12 @@ public class ConcurrentLongLongPairHashMap {
         }
     }
 
+    /**
+     * Iterate over all the entries in the map and apply the processor function to each of them.
+     * <p>
+     * <b>Warning: Do Not Guarantee Thread-Safety.</b>
+     * @param processor the processor to process the elements.
+     */
     public void forEach(BiConsumerLongPair processor) {
         for (Section s : sections) {
             s.forEach(processor);
@@ -284,6 +304,9 @@ public class ConcurrentLongLongPairHashMap {
     // A section is a portion of the hash map that is covered by a single
     @SuppressWarnings("serial")
     private static final class Section extends StampedLock {
+        // Each item take up 4 continuous array space.
+        private static final int ITEM_SIZE = 4;
+
         // Keys and values are stored interleaved in the table array
         private volatile long[] table;
 
@@ -306,7 +329,7 @@ public class ConcurrentLongLongPairHashMap {
                 float expandFactor, float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
             this.initCapacity = this.capacity;
-            this.table = new long[4 * this.capacity];
+            this.table = new long[ITEM_SIZE * this.capacity];
             this.size = 0;
             this.usedBuckets = 0;
             this.autoShrink = autoShrink;
@@ -322,7 +345,10 @@ public class ConcurrentLongLongPairHashMap {
         LongPair get(long key1, long key2, int keyHash) {
             long stamp = tryOptimisticRead();
             boolean acquiredLock = false;
-            int bucket = signSafeMod(keyHash, capacity);
+            // add local variable here, so OutOfBound won't happen
+            long[] table = this.table;
+            // calculate table.length / 4 as capacity to avoid rehash changing capacity
+            int bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
 
             try {
                 while (true) {
@@ -345,8 +371,9 @@ public class ConcurrentLongLongPairHashMap {
                         if (!acquiredLock) {
                             stamp = readLock();
                             acquiredLock = true;
-
-                            bucket = signSafeMod(keyHash, capacity);
+                            // update local variable
+                            table = this.table;
+                            bucket = signSafeMod(keyHash, table.length / ITEM_SIZE);
                             storedKey1 = table[bucket];
                             storedKey2 = table[bucket + 1];
                             storedValue1 = table[bucket + 2];
@@ -361,7 +388,7 @@ public class ConcurrentLongLongPairHashMap {
                         }
                     }
 
-                    bucket = (bucket + 4) & (table.length - 1);
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
             } finally {
                 if (acquiredLock) {
@@ -413,7 +440,7 @@ public class ConcurrentLongLongPairHashMap {
                         }
                     }
 
-                    bucket = (bucket + 4) & (table.length - 1);
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
             } finally {
                 if (usedBuckets > resizeThresholdUp) {
@@ -454,7 +481,7 @@ public class ConcurrentLongLongPairHashMap {
                         return false;
                     }
 
-                    bucket = (bucket + 4) & (table.length - 1);
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
 
             } finally {
@@ -480,7 +507,7 @@ public class ConcurrentLongLongPairHashMap {
         }
 
         private void cleanBucket(int bucket) {
-            int nextInArray = (bucket + 4) & (table.length - 1);
+            int nextInArray = (bucket + ITEM_SIZE) & (table.length - 1);
             if (table[nextInArray] == EmptyKey) {
                 table[bucket] = EmptyKey;
                 table[bucket + 1] = EmptyKey;
@@ -489,7 +516,7 @@ public class ConcurrentLongLongPairHashMap {
                 --usedBuckets;
 
                 // Cleanup all the buckets that were in `DeletedKey` state, so that we can reduce unnecessary expansions
-                bucket = (bucket - 4) & (table.length - 1);
+                bucket = (bucket - ITEM_SIZE) & (table.length - 1);
                 while (table[bucket] == DeletedKey) {
                     table[bucket] = EmptyKey;
                     table[bucket + 1] = EmptyKey;
@@ -497,7 +524,7 @@ public class ConcurrentLongLongPairHashMap {
                     table[bucket + 3] = ValueNotFound;
                     --usedBuckets;
 
-                    bucket = (bucket - 4) & (table.length - 1);
+                    bucket = (bucket - ITEM_SIZE) & (table.length - 1);
                 }
             } else {
                 table[bucket] = DeletedKey;
@@ -540,7 +567,7 @@ public class ConcurrentLongLongPairHashMap {
                 }
 
                 // Go through all the buckets for this section
-                for (int bucket = 0; bucket < table.length; bucket += 4) {
+                for (int bucket = 0; bucket < table.length; bucket += ITEM_SIZE) {
                     long storedKey1 = table[bucket];
                     long storedKey2 = table[bucket + 1];
                     long storedValue1 = table[bucket + 2];
@@ -569,11 +596,11 @@ public class ConcurrentLongLongPairHashMap {
         }
 
         private void rehash(int newCapacity) {
-            long[] newTable = new long[4 * newCapacity];
+            long[] newTable = new long[ITEM_SIZE * newCapacity];
             Arrays.fill(newTable, EmptyKey);
 
             // Re-hash table
-            for (int i = 0; i < table.length; i += 4) {
+            for (int i = 0; i < table.length; i += ITEM_SIZE) {
                 long storedKey1 = table[i];
                 long storedKey2 = table[i + 1];
                 long storedValue1 = table[i + 2];
@@ -593,7 +620,7 @@ public class ConcurrentLongLongPairHashMap {
         }
 
         private void shrinkToInitCapacity() {
-            long[] newTable = new long[4 * initCapacity];
+            long[] newTable = new long[ITEM_SIZE * initCapacity];
             Arrays.fill(newTable, EmptyKey);
 
             table = newTable;
@@ -622,7 +649,7 @@ public class ConcurrentLongLongPairHashMap {
                     return;
                 }
 
-                bucket = (bucket + 4) & (table.length - 1);
+                bucket = (bucket + ITEM_SIZE) & (table.length - 1);
             }
         }
     }
@@ -641,6 +668,8 @@ public class ConcurrentLongLongPairHashMap {
     }
 
     static final int signSafeMod(long n, int max) {
+        // as the ITEM_SIZE of Section is 4, so the index is the multiple of 4
+        // that is to left shift 2 bits
         return (int) (n & (max - 1)) << 2;
     }
 

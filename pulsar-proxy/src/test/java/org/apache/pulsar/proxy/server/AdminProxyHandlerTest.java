@@ -20,20 +20,22 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
-import java.util.Iterator;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.pulsar.client.api.Authentication;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.io.Content;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -42,11 +44,11 @@ public class AdminProxyHandlerTest {
     private AdminProxyHandler adminProxyHandler;
 
     @BeforeClass
-    public void setupMocks() throws ServletException {
+    public void setupMocks() throws Exception {
         // given
         HttpClient httpClient = mock(HttpClient.class);
         adminProxyHandler = new AdminProxyHandler(mock(ProxyConfiguration.class),
-                mock(BrokerDiscoveryProvider.class)) {
+                mock(BrokerDiscoveryProvider.class), mock(Authentication.class)) {
             @Override
             protected HttpClient createHttpClient() throws ServletException {
                 return httpClient;
@@ -56,6 +58,20 @@ public class AdminProxyHandlerTest {
         when(servletConfig.getServletName()).thenReturn("AdminProxyHandler");
         when(servletConfig.getServletContext()).thenReturn(mock(ServletContext.class));
         adminProxyHandler.init(servletConfig);
+    }
+
+    @Test
+    public void testRequestTimeout() {
+        ProxyConfiguration proxyConfiguration = spy(new ProxyConfiguration());
+        proxyConfiguration.setHttpProxyTimeout(120 * 1000);
+
+        adminProxyHandler = new AdminProxyHandler(proxyConfiguration,
+                mock(BrokerDiscoveryProvider.class), mock(Authentication.class));
+
+        HttpClient httpClient = mock(HttpClient.class);
+        adminProxyHandler.customizeHttpClient(httpClient);
+
+        assertEquals(adminProxyHandler.getTimeout(), 120 * 1000);
     }
 
     @Test
@@ -70,7 +86,7 @@ public class AdminProxyHandlerTest {
                             1024);
             Field field = replayableProxyContentProvider.getClass().getDeclaredField("bodyBuffer");
             field.setAccessible(true);
-            Assert.assertEquals(((ByteArrayOutputStream) field.get(replayableProxyContentProvider)).size(), 0);
+            assertEquals(((ByteBuffer) field.get(replayableProxyContentProvider)).position(), 0);
         } catch (IllegalArgumentException e) {
             Assert.fail("IllegalArgumentException should not be thrown");
         }
@@ -91,20 +107,21 @@ public class AdminProxyHandlerTest {
                         maxRequestBodySize);
 
         // when
-
         // content is consumed
-        Iterator<ByteBuffer> byteBufferIterator = replayableProxyContentProvider.iterator();
         int consumedBytes = 0;
-        while (byteBufferIterator.hasNext()) {
-            ByteBuffer byteBuffer = byteBufferIterator.next();
-            consumedBytes += byteBuffer.limit();
+        while (true) {
+            Content.Chunk chunk = replayableProxyContentProvider.read();
+            consumedBytes += chunk.getByteBuffer().remaining();
+            if (chunk.isLast()) {
+                break;
+            }
         }
 
         // then
-        Assert.assertEquals(consumedBytes, requestBodySize);
+        assertEquals(consumedBytes, requestBodySize);
         Field field = replayableProxyContentProvider.getClass().getDeclaredField("bodyBufferMaxSizeReached");
         field.setAccessible(true);
-        Assert.assertEquals(((boolean) field.get(replayableProxyContentProvider)), true);
+        assertEquals(((boolean) field.get(replayableProxyContentProvider)), true);
     }
 
     @Test
@@ -128,16 +145,18 @@ public class AdminProxyHandlerTest {
         for (int i = 0; i < 3; i++) {
             // when
             consumeBuffer.clear();
-            Iterator<ByteBuffer> byteBufferIterator = replayableProxyContentProvider.iterator();
-            while (byteBufferIterator.hasNext()) {
-                ByteBuffer byteBuffer = byteBufferIterator.next();
-                consumeBuffer.put(byteBuffer);
+            while (true) {
+                Content.Chunk chunk = replayableProxyContentProvider.read();
+                consumeBuffer.put(chunk.getByteBuffer());
+                if (chunk.isLast()) {
+                    break;
+                }
             }
             consumeBuffer.flip();
-            byte[] consumedBytes = new byte[consumeBuffer.limit()];
+            byte[] consumedBytes = new byte[consumeBuffer.remaining()];
             consumeBuffer.get(consumedBytes);
             // then
-            Assert.assertEquals(consumedBytes, inputBuffer);
+            assertEquals(consumedBytes, inputBuffer, "i=" + i);
         }
     }
 }

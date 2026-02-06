@@ -16,18 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.service;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 public interface Dispatcher {
-    void addConsumer(Consumer consumer) throws BrokerServiceException;
+    CompletableFuture<Void> addConsumer(Consumer consumer);
 
     void removeConsumer(Consumer consumer) throws BrokerServiceException;
 
@@ -49,7 +52,11 @@ public interface Dispatcher {
      *
      * @return
      */
-    CompletableFuture<Void> close();
+    default CompletableFuture<Void> close() {
+        return close(true, Optional.empty());
+    }
+
+    CompletableFuture<Void> close(boolean disconnectClients, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     boolean isClosed();
 
@@ -63,11 +70,16 @@ public interface Dispatcher {
      *
      * @return
      */
-    CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor);
+    default CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor) {
+        return disconnectAllConsumers(isResetCursor, Optional.empty());
+    }
 
     default CompletableFuture<Void> disconnectAllConsumers() {
         return disconnectAllConsumers(false);
     }
+
+    CompletableFuture<Void> disconnectAllConsumers(boolean isResetCursor,
+                                                   Optional<BrokerLookupData> assignedBrokerLookupData);
 
     void resetCloseFuture();
 
@@ -80,7 +92,7 @@ public interface Dispatcher {
 
     void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch);
 
-    void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
+    void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions);
 
     void addUnAckedMessages(int unAckMessages);
 
@@ -91,7 +103,8 @@ public interface Dispatcher {
     }
 
     default void updateRateLimiter() {
-        //No-op
+        initializeDispatchRateLimiterIfNeeded();
+        getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate);
     }
 
     default boolean initializeDispatchRateLimiterIfNeeded() {
@@ -110,8 +123,8 @@ public interface Dispatcher {
         return 0;
     }
 
-    default void clearDelayedMessages() {
-        //No-op
+    default CompletableFuture<Void> clearDelayedMessages() {
+        return CompletableFuture.completedFuture(null);
     }
 
     default void cursorIsReset() {
@@ -129,6 +142,24 @@ public interface Dispatcher {
         return false;
     }
 
+    /**
+     * A callback hook after acknowledge messages.
+     * @param exOfDeletion the ex of {@link org.apache.bookkeeper.mledger.ManagedCursor#asyncDelete},
+     *              {@link ManagedCursor#asyncClearBacklog} or {@link ManagedCursor#asyncSkipEntries)}.
+     * @param ctxOfDeletion the param ctx of calling {@link org.apache.bookkeeper.mledger.ManagedCursor#asyncDelete},
+     *              {@link ManagedCursor#asyncClearBacklog} or {@link ManagedCursor#asyncSkipEntries)}.
+     */
+    default void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion){}
+
+    /**
+     * Trigger a new "readMoreEntries" if the dispatching has been paused before. This method is only implemented in
+     * {@link org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers} right now,
+     * other implementations do not necessary implement this method.
+     * @return did a resume.
+     */
+    default boolean checkAndResumeIfPaused(){
+        return false;
+    }
 
     default long getFilterProcessedMsgCount() {
         return 0;
@@ -143,6 +174,54 @@ public interface Dispatcher {
     }
 
     default long getFilterRescheduledMsgCount() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled message events by subscription limit, default is 0.
+     */
+    default long getDispatchThrottledMsgEventsBySubscriptionLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled bytes by subscription limit, default is 0.
+     */
+    default long getDispatchThrottledBytesBySubscriptionLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to topic rate limits.
+     * @return the count of throttled message events by topic limit, default is 0.
+     */
+    default long getDispatchThrottledMsgEventsByTopicLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to topic rate limits.
+     * @return the count of throttled bytes events by topic limit, default is 0.
+     */
+    default long getDispatchThrottledBytesEventsByTopicLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled message events by broker limit, default is 0.
+     */
+    default long getDispatchThrottledMsgEventsByBrokerLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled bytes count by broker limit, default is 0.
+     */
+    default long getDispatchThrottledBytesEventsByBrokerLimit() {
         return 0;
     }
 

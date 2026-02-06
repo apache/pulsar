@@ -20,14 +20,16 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newPartitionMetadataResponse;
+import static org.testng.AssertJUnit.fail;
 import com.google.common.collect.Sets;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarChannelInitializer;
@@ -35,13 +37,16 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -52,6 +57,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     private static final String subscription = "reader-sub";
     private final AtomicInteger connectionsCreated = new AtomicInteger(0);
     private final ConcurrentHashMap<String, Queue<LookupError>> failureMap = new ConcurrentHashMap<>();
+    private static final String TEST_TIME_OUT_SEMAPHORE_RELEASE = "testTimeoutReleasePendingLookupRequestSemaphore";
 
     @BeforeClass
     @Override
@@ -68,24 +74,16 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
-        return new PulsarService(conf) {
-            @Override
-            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-                BrokerService broker = new BrokerService(this, ioEventLoopGroup);
-                broker.setPulsarChannelInitializerFactory(
-                        (_pulsar, opts) -> {
-                            return new PulsarChannelInitializer(_pulsar, opts) {
-                                @Override
-                                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
-                                    connectionsCreated.incrementAndGet();
-                                    return new ErrorByTopicServerCnx(pulsar, failureMap);
-                                }
-                            };
-                        });
-                return broker;
-            }
-        };
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        brokerService.setPulsarChannelInitializerFactory(
+                (_pulsar, opts) -> new PulsarChannelInitializer(_pulsar, opts) {
+                    @Override
+                    protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
+                        connectionsCreated.incrementAndGet();
+                        return new ErrorByTopicServerCnx(pulsar, failureMap);
+                    }
+                });
+        return brokerService;
     }
 
     @AfterClass(alwaysRun = true)
@@ -117,6 +115,30 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         try (PulsarClient client = newClient()) {
             client.getPartitionsForTopic("TOO_MANY:2,OK:10").get();
         }
+    }
+
+    @Test
+    public void testTimeoutReleasePendingLookupRequestSemaphore() throws Exception {
+        PulsarClientImpl client = (PulsarClientImpl) newClient();
+
+        LookupService lookup = client.getLookup();
+
+        CompletableFuture<PartitionedTopicMetadata> future =
+                lookup.getPartitionedTopicMetadata(TopicName.get(TEST_TIME_OUT_SEMAPHORE_RELEASE), false);
+        try {
+            future.get();
+            fail();
+        } catch (Exception e) {
+            Assert.assertTrue(FutureUtil.unwrapCompletionException(e)
+                    instanceof PulsarClientException.TimeoutException);
+        }
+
+        Set<CompletableFuture<ClientCnx>> clientCnxs = client.getCnxPool().getConnections();
+        Assert.assertEquals(clientCnxs.size(), 1);
+        ClientCnx clientCnx = ((CompletableFuture<ClientCnx>) clientCnxs.toArray()[0]).get();
+        Assert.assertEquals(clientCnx.getPendingLookupRequestSemaphore().availablePermits(),
+                client.conf.getConcurrentLookupRequest());
+        client.close();
     }
 
     @Test
@@ -291,6 +313,9 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         @Override
         protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata) {
             TopicName t = TopicName.get(partitionMetadata.getTopic());
+            if (t.getLocalName().equals(TEST_TIME_OUT_SEMAPHORE_RELEASE)) {
+                return;
+            }
             LookupError error = errorList(t.getLocalName()).poll();
             if (error == LookupError.TOO_MANY) {
                 final long requestId = partitionMetadata.getRequestId();

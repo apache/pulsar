@@ -84,6 +84,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
                         .setConnectionRequestTimeout(config.getConnectionRequestTimeoutInMs())
                         .setConnectTimeout(config.getConnectTimeoutInMs())
                         .setSocketTimeout(config.getSocketTimeoutInMs()))
+                .setCompressionEnabled(config.isCompressionEnabled())
                 .setHttpClientConfigCallback(this.configCallback)
                 .setFailureListener(new org.elasticsearch.client.RestClient.FailureListener() {
                     public void onFailure(Node node) {
@@ -143,7 +144,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
     public boolean deleteDocument(String index, String documentId) throws IOException {
         final DeleteRequest req = new
                 DeleteRequest.Builder()
-                .index(config.getIndexName())
+                .index(index)
                 .id(documentId)
                 .build();
 
@@ -155,7 +156,7 @@ public class ElasticSearchJavaRestClient extends RestClient {
     public boolean indexDocument(String index, String documentId, String documentSource) throws IOException {
         final Map mapped = objectMapper.readValue(documentSource, Map.class);
         final IndexRequest<Object> indexRequest = new IndexRequest.Builder<>()
-                .index(config.getIndexName())
+                .index(index)
                 .document(mapped)
                 .id(documentId)
                 .build();

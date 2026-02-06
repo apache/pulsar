@@ -19,9 +19,9 @@
 package org.apache.pulsar.proxy.server;
 
 
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.io.File;
@@ -34,8 +34,10 @@ import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
-
-import static org.testng.Assert.assertEquals;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ProxyConfigurationTest {
@@ -43,7 +45,8 @@ public class ProxyConfigurationTest {
     @Test
     public void testConfigFileDefaults() throws Exception {
         try (FileInputStream stream = new FileInputStream("../conf/proxy.conf")) {
-            final ProxyConfiguration javaConfig = PulsarConfigurationLoader.create(new Properties(), ProxyConfiguration.class);
+            final ProxyConfiguration javaConfig =
+                    PulsarConfigurationLoader.create(new Properties(), ProxyConfiguration.class);
             final ProxyConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ProxyConfiguration.class);
             List<String> toSkip = Arrays.asList("properties", "class");
             for (PropertyDescriptor pd : Introspector.getBeanInfo(ProxyConfiguration.class).getPropertyDescriptors()) {
@@ -54,7 +57,8 @@ public class ProxyConfigurationTest {
                 final Object javaValue = pd.getReadMethod().invoke(javaConfig);
                 final Object fileValue = pd.getReadMethod().invoke(fileConfig);
                 assertEquals(fileValue, javaValue, "property '"
-                        + key + "' conf/proxy.conf default value doesn't match java default value\nConf: " + fileValue + "\nJava: " + javaValue);
+                        + key + "' conf/proxy.conf default value doesn't match java default value\nConf: "
+                        + fileValue + "\nJava: " + javaValue);
             }
         }
     }
@@ -68,6 +72,7 @@ public class ProxyConfigurationTest {
         try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
             printWriter.println("zookeeperSessionTimeoutMs=60");
             printWriter.println("zooKeeperCacheExpirySeconds=500");
+            printWriter.println("httpMaxRequestHeaderSize=1234");
         }
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -75,6 +80,7 @@ public class ProxyConfigurationTest {
         stream.close();
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+        assertEquals(serviceConfig.getHttpMaxRequestHeaderSize(), 1234);
 
         testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -122,7 +128,7 @@ public class ProxyConfigurationTest {
             printWriter.println("proxyAdditionalServlets=a,b,c");
         }
         testConfigFile.deleteOnExit();
-        try(InputStream stream = new FileInputStream(testConfigFile)) {
+        try (InputStream stream = new FileInputStream(testConfigFile)) {
             ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(stream, ProxyConfiguration.class);
             assertEquals(proxyConfig.getProperties().getProperty("proxyAdditionalServlets"), "a,b,c");
             assertEquals(proxyConfig.getProxyAdditionalServlets().size(), 3);
@@ -130,6 +136,121 @@ public class ProxyConfigurationTest {
             assertEquals(proxyConfig.getProperties().getProperty("proxyAdditionalServlets"), "a,b,c");
             assertEquals(proxyConfig.getProxyAdditionalServlets().size(), 3);
         }
+    }
+
+    @Test
+    public void testBrokerUrlCheck() throws IOException {
+        ProxyConfiguration configuration = new ProxyConfiguration();
+        // brokerServiceURL must start with pulsar://
+        configuration.setBrokerServiceURL("127.0.0.1:6650");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.getArgs());
+                fail("brokerServiceURL must start with pulsar://");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("brokerServiceURL must start with pulsar://"));
+            }
+        }
+        configuration.setBrokerServiceURL("pulsar://127.0.0.1:6650");
+
+        // brokerServiceURLTLS must start with pulsar+ssl://
+        configuration.setBrokerServiceURLTLS("pulsar://127.0.0.1:6650");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.getArgs());
+                fail("brokerServiceURLTLS must start with pulsar+ssl://");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("brokerServiceURLTLS must start with pulsar+ssl://"));
+            }
+        }
+
+        // brokerServiceURL did not support multi urls yet.
+        configuration.setBrokerServiceURL("pulsar://127.0.0.1:6650,pulsar://127.0.0.2:6650");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.getArgs());
+                fail("brokerServiceURL does not support multi urls yet");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("does not support multi urls yet"));
+            }
+        }
+        configuration.setBrokerServiceURL("pulsar://127.0.0.1:6650");
+
+        // brokerServiceURLTLS did not support multi urls yet.
+        configuration.setBrokerServiceURLTLS("pulsar+ssl://127.0.0.1:6650,pulsar+ssl:127.0.0.2:6650");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.getArgs());
+                fail("brokerServiceURLTLS does not support multi urls yet");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("does not support multi urls yet"));
+            }
+        }
+        configuration.setBrokerServiceURLTLS("pulsar+ssl://127.0.0.1:6650");
+
+        // brokerWebServiceURL did not support multi urls yet.
+        configuration.setBrokerWebServiceURL("http://127.0.0.1:8080,http://127.0.0.2:8080");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.getArgs());
+                fail("brokerWebServiceURL does not support multi urls yet");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("does not support multi urls yet"));
+            }
+        }
+        configuration.setBrokerWebServiceURL("http://127.0.0.1:8080");
+
+        // brokerWebServiceURLTLS did not support multi urls yet.
+        configuration.setBrokerWebServiceURLTLS("https://127.0.0.1:443,https://127.0.0.2:443");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.getArgs());
+                fail("brokerWebServiceURLTLS does not support multi urls yet");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("does not support multi urls yet"));
+            }
+        }
+        configuration.setBrokerWebServiceURLTLS("https://127.0.0.1:443");
+
+        // functionWorkerWebServiceURL did not support multi urls yet.
+        configuration.setFunctionWorkerWebServiceURL("http://127.0.0.1:8080,http://127.0.0.2:8080");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.getArgs());
+                fail("functionWorkerWebServiceURL does not support multi urls yet");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("does not support multi urls yet"));
+            }
+        }
+        configuration.setFunctionWorkerWebServiceURL("http://127.0.0.1:8080");
+
+        // functionWorkerWebServiceURLTLS did not support multi urls yet.
+        configuration.setFunctionWorkerWebServiceURLTLS("http://127.0.0.1:443,http://127.0.0.2:443");
+        try (MockedStatic<PulsarConfigurationLoader> theMock = Mockito.mockStatic(PulsarConfigurationLoader.class)) {
+            theMock.when(PulsarConfigurationLoader.create(Mockito.anyString(), Mockito.any()))
+                    .thenReturn(configuration);
+            try {
+                new ProxyServiceStarter(ProxyServiceStarterTest.getArgs());
+                fail("functionWorkerWebServiceURLTLS does not support multi urls yet");
+            } catch (Exception ex) {
+                assertTrue(ex.getMessage().contains("does not support multi urls yet"));
+            }
+        }
+        configuration.setFunctionWorkerWebServiceURLTLS("http://127.0.0.1:443");
     }
 
 }

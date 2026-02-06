@@ -18,44 +18,76 @@
  */
 package org.apache.pulsar.broker;
 
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.jspecify.annotations.NonNull;
 
 /**
- * Multiple brokers with a real test Zookeeper server (instead of the mock server)
+ * Multiple brokers with a real test Zookeeper server (instead of the mock server).
  */
 @Slf4j
 public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
     TestZKServer testZKServer;
+    List<MetadataStoreExtended> storesToClose = new ArrayList<>();
 
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        testZKServer = new TestZKServer();
+        if (testZKServer == null) {
+            testZKServer = new TestZKServer();
+        }
     }
 
     @Override
     protected void onCleanup() {
         super.onCleanup();
+        for (MetadataStoreExtended store : storesToClose) {
+            try {
+                store.close();
+            } catch (Exception e) {
+                log.error("Error in closing metadata store", e);
+            }
+        }
+        storesToClose.clear();
         if (testZKServer != null) {
             try {
                 testZKServer.close();
             } catch (Exception e) {
                 log.error("Error in stopping ZK server", e);
             }
+            testZKServer = null;
         }
     }
 
     @Override
-    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    protected void configureMetadataStores(PulsarTestContext.Builder builder) {
+        builder.localMetadataStore(createMetadataStore(MetadataStoreConfig.METADATA_STORE))
+                .configurationMetadataStore(createMetadataStore(MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
     }
 
     @Override
-    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    protected PulsarTestContext.Builder createAdditionalPulsarTestContextBuilder(ServiceConfiguration conf) {
+        return createPulsarTestContextBuilder(conf)
+                .reuseSpyConfig(pulsarTestContext)
+                .bookKeeperClient(pulsarTestContext.getBookKeeperClient());
+    }
+
+    @NonNull
+    protected MetadataStoreExtended createMetadataStore(String metadataStoreName)  {
+        try {
+            MetadataStoreExtended store =
+                    MetadataStoreExtended.create(testZKServer.getConnectionString(),
+                            MetadataStoreConfig.builder().metadataStoreName(metadataStoreName).build());
+            storesToClose.add(store);
+            return store;
+        } catch (MetadataStoreException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

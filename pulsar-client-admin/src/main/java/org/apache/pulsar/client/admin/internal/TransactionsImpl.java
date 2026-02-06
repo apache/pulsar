@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
@@ -45,8 +46,8 @@ import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 public class TransactionsImpl extends BaseResource implements Transactions {
     private final WebTarget adminV3Transactions;
 
-    public TransactionsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public TransactionsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminV3Transactions = web.path("/admin/v3/transactions");
     }
 
@@ -132,17 +133,20 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
-                                                                                    boolean lowWaterMarks) {
+                                                                                    boolean lowWaterMarks,
+                                                                                    boolean segmentStats) {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.queryParam("lowWaterMarks", lowWaterMarks);
+        path = path.queryParam("segmentStats", segmentStats);
         return asyncGetRequest(path, new FutureCallback<TransactionBufferStats>(){});
     }
 
     @Override
     public TransactionBufferStats getTransactionBufferStats(String topic,
-                                                            boolean lowWaterMarks) throws PulsarAdminException {
-        return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks));
+                                                            boolean lowWaterMarks,
+                                                            boolean segmentStats) throws PulsarAdminException {
+        return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks, segmentStats));
     }
 
     @Override
@@ -228,6 +232,22 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
+    public CompletableFuture<TransactionBufferInternalStats> getTransactionBufferInternalStatsAsync(String topic,
+                                                                                                    boolean metadata) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = adminV3Transactions.path("transactionBufferInternalStats");
+        path = path.path(tn.getRestPath(false));
+        path = path.queryParam("metadata", metadata);
+        return asyncGetRequest(path, new FutureCallback<TransactionBufferInternalStats>(){});
+    }
+
+    @Override
+    public TransactionBufferInternalStats getTransactionBufferInternalStats(String topic, boolean metadata)
+            throws PulsarAdminException {
+        return sync(() -> getTransactionBufferInternalStatsAsync(topic, metadata));
+    }
+
+    @Override
     public void scaleTransactionCoordinators(int replicas) throws PulsarAdminException {
          sync(() -> scaleTransactionCoordinatorsAsync(replicas));
     }
@@ -262,5 +282,18 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                   Long entryId, Integer batchIndex)
             throws PulsarAdminException {
         return sync(() -> getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, batchIndex));
+    }
+
+    @Override
+    public CompletableFuture<Void> abortTransactionAsync(TxnID txnID)  {
+        WebTarget path = adminV3Transactions.path("abortTransaction");
+        path = path.path(String.valueOf(txnID.getMostSigBits()));
+        path = path.path(String.valueOf(txnID.getLeastSigBits()));
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void abortTransaction(TxnID txnID) throws PulsarAdminException {
+        sync(() -> abortTransactionAsync(txnID));
     }
 }

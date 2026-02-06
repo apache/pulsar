@@ -23,9 +23,12 @@ import com.google.common.annotations.Beta;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Metadata store client interface.
@@ -35,6 +38,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
  */
 @Beta
 public interface MetadataStore extends AutoCloseable {
+
+    Logger LOGGER = LoggerFactory.getLogger(MetadataStore.class);
 
     /**
      * Read the value of one key, identified by the path
@@ -50,6 +55,17 @@ public interface MetadataStore extends AutoCloseable {
      */
     CompletableFuture<Optional<GetResult>> get(String path);
 
+
+    /**
+     * Ensure that the next value read from  the local client will be up-to-date with the latest version of the value
+     * as it can be seen by all the other clients.
+     * @param path
+     * @return a handle to the operation
+     */
+    default CompletableFuture<Void> sync(String path) {
+        return CompletableFuture.completedFuture(null);
+    }
+
     /**
      * Return all the nodes (lexicographically sorted) that are children to the specific path.
      *
@@ -61,6 +77,20 @@ public interface MetadataStore extends AutoCloseable {
      */
     CompletableFuture<List<String>> getChildren(String path);
 
+
+    /**
+     * Return all the nodes (lexicographically sorted) that are children to the specific path.
+     *
+     * If the path itself does not exist, it will return an empty list.
+     *
+     * This method is similar to {@link #getChildren(String)}, but it attempts to read directly from
+     *  the underlying store.
+     *
+     * @param path
+     *            the path of the key to get from the store
+     * @return a future to track the async request
+     */
+    CompletableFuture<List<String>> getChildrenFromStore(String path);
     /**
      * Read whether a specific path exists.
      *
@@ -109,6 +139,23 @@ public interface MetadataStore extends AutoCloseable {
      * @return a future to track the async request
      */
     CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion);
+
+    default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion) {
+        return delete(path, expectedVersion)
+                .exceptionally(e -> {
+                    if (e.getCause() instanceof NotFoundException) {
+                        LOGGER.info("Path {} not found while deleting (this is not a problem)", path);
+                        return null;
+                    } else {
+                        if (expectedVersion.isEmpty()) {
+                            LOGGER.info("Failed to delete path {}", path, e);
+                        } else {
+                            LOGGER.info("Failed to delete path {} with expected version {}", path, expectedVersion, e);
+                        }
+                        throw new CompletionException(e);
+                    }
+                });
+    }
 
     /**
      * Delete a key-value pair and all the children nodes.
@@ -186,9 +233,13 @@ public interface MetadataStore extends AutoCloseable {
      *            the custom serialization/deserialization object
      * @param cacheConfig
      *          the cache configuration to be used
+     * @deprecated use {@link #getMetadataCache(String, MetadataSerde, MetadataCacheConfig)}
      * @return the metadata cache object
      */
-    <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig);
+    @Deprecated
+    default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
+        return getMetadataCache("serde", serde, cacheConfig);
+    }
 
     /**
      * Create a metadata cache that uses a particular serde object.
@@ -200,6 +251,19 @@ public interface MetadataStore extends AutoCloseable {
      */
     default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde) {
         return getMetadataCache(serde, getDefaultMetadataCacheConfig());
+    }
+
+    /**
+     * Create a metadata cache that uses a particular serde object.
+     *
+     * @param <T>
+     * @param serde
+     *            the custom serialization/deserialization object
+     * @return the metadata cache object
+     */
+    default <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
+                                                  MetadataCacheConfig cacheConfig) {
+        return getMetadataCache(serde, cacheConfig);
     }
 
     /**

@@ -896,7 +896,7 @@ public class SchedulerManager implements AutoCloseable {
         @Override
         public String toString() {
             try {
-                return ObjectMapperFactory.getThreadLocal().writerWithDefaultPrettyPrinter()
+                return ObjectMapperFactory.getMapper().writer().withDefaultPrettyPrinter()
                         .writeValueAsString(workerStatsMap);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);

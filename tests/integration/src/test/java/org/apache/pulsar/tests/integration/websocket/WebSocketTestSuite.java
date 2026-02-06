@@ -19,18 +19,6 @@
 package org.apache.pulsar.tests.integration.websocket;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import lombok.Cleanup;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
-import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -38,6 +26,21 @@ import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.websocket.api.Callback;
+import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
+import org.eclipse.jetty.websocket.api.annotations.WebSocket;
+import org.eclipse.jetty.websocket.client.WebSocketClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 
 public abstract class WebSocketTestSuite extends PulsarTestSuite {
     private static final Logger log = LoggerFactory.getLogger(WebSocketTestSuite.class);
@@ -81,9 +84,10 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
     }
 
     @WebSocket
-    public static class Client extends WebSocketAdapter implements AutoCloseable {
+    public abstract static class Client implements AutoCloseable {
         final BlockingQueue<String> incomingMessages = new ArrayBlockingQueue<>(10);
         private final WebSocketClient client;
+        private Session session;
 
         Client(String webSocketUri) throws Exception {
             HttpClient httpClient = new HttpClient();
@@ -92,11 +96,16 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
             client.connect(this, URI.create(webSocketUri)).get();
         }
 
-        void sendText(String payload) throws IOException {
-            getSession().getRemote().sendString(payload);
+        @OnWebSocketOpen
+        public void onWebSocketConnect(Session session) {
+            this.session = session;
         }
 
-        @Override
+        void sendText(String payload) throws IOException {
+            session.sendText(payload, Callback.NOOP);
+        }
+
+        @OnWebSocketMessage
         public void onWebSocketText(String s) {
             incomingMessages.add(s);
         }
@@ -106,8 +115,7 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
             if (response == null) {
                 Assert.fail("Did not get websocket response within timeout");
             }
-            return ObjectMapperFactory.getThreadLocal().readValue(response, new TypeReference<>() {});
-
+            return ObjectMapperFactory.getMapper().getObjectMapper().readValue(response, new TypeReference<>() {});
         }
 
         @Override
@@ -124,11 +132,11 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
         }
 
         void send(String payload) throws IOException {
-            sendText("{\n" +
-                    "  \"payload\": \"" + payload + "\",\n" +
-                    "  \"properties\": {\"key1\": \"value1\", \"key2\": \"value2\"},\n" +
-                    "  \"context\": \"1\"\n" +
-                    "}");
+            sendText("{\n"
+                    + "  \"payload\": \"" + payload + "\",\n"
+                    + "  \"properties\": {\"key1\": \"value1\", \"key2\": \"value2\"},\n"
+                    + "  \"context\": \"1\"\n"
+                    + "}");
         }
     }
 

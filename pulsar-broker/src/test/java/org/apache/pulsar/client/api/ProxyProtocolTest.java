@@ -20,17 +20,14 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
-
-import lombok.Cleanup;
 
 @Test(groups = "broker-api")
 public class ProxyProtocolTest extends TlsProducerConsumerBase {
@@ -45,11 +42,11 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
                 .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI).operationTimeout(1000, TimeUnit.MILLISECONDS);
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
         @Cleanup
@@ -68,11 +65,11 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
                 .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI).operationTimeout(1000, TimeUnit.MILLISECONDS);
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
         @Cleanup

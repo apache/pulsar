@@ -18,16 +18,21 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import java.io.File;
-import java.io.IOException;
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.io.Serializable;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClientBuilder;
@@ -76,7 +81,7 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
 
     @FieldDoc(
         required = false,
-        defaultValue = "Apache Pulsar IO Connector",
+        defaultValue = "pulsar-kinesis",
         help = "Name of the Amazon Kinesis application. By default the application name is included "
                 + "in the user agent string used to make AWS requests. This can assist with troubleshooting "
                 + "(e.g. distinguish requests made by separate connectors instances)."
@@ -124,22 +129,44 @@ public class KinesisSourceConfig extends BaseKinesisConfig implements Serializab
 
     @FieldDoc(
         required = false,
-        defaultValue = "",
-        help = "Cloudwatch end-point url. It can be found at https://docs.aws.amazon.com/general/latest/gr/rande.html"
-    )
-    private String cloudwatchEndpoint = "";
-
-    @FieldDoc(
-        required = false,
         defaultValue = "true",
         help = "When true, uses Kinesis enhanced fan-out, when false, uses polling"
     )
     private boolean useEnhancedFanOut = true;
 
+    @FieldDoc(required = false,
+            defaultValue = "kinesis.arrival.timestamp,kinesis.encryption.type,kinesis.partition.key,"
+                    + "kinesis.sequence.number",
+            help = "A comma-separated list of Kinesis metadata properties to include in the Pulsar message properties."
+                    + " The supported properties are: kinesis.arrival.timestamp, kinesis.encryption.type, "
+                    + "kinesis.partition.key, kinesis.sequence.number, kinesis.shard.id, kinesis.millis.behind.latest")
+    private String kinesisRecordProperties = "kinesis.arrival.timestamp,kinesis.encryption.type,"
+            + "kinesis.partition.key,kinesis.sequence.number";
+    private transient Set<String> propertiesToInclude;
 
-    public static KinesisSourceConfig load(String yamlFile) throws IOException {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        return mapper.readValue(new File(yamlFile), KinesisSourceConfig.class);
+    public static KinesisSourceConfig load(Map<String, Object> config, SourceContext sourceContext) {
+        KinesisSourceConfig kinesisSourceConfig = IOConfigUtils.loadWithSecrets(config,
+                KinesisSourceConfig.class, sourceContext);
+        boolean isNotBlankEndpoint = isNotBlank(kinesisSourceConfig.getAwsEndpoint())
+                && isNotBlank(kinesisSourceConfig.getCloudwatchEndpoint())
+                && isNotBlank(kinesisSourceConfig.getDynamoEndpoint());
+        checkArgument(isNotBlank(kinesisSourceConfig.getAwsRegion()) || isNotBlankEndpoint,
+                "Either \"awsRegion\" must be set OR all of "
+                        + "[ \"awsEndpoint\", \"cloudwatchEndpoint\", and \"dynamoEndpoint\" ] must be set.");
+        if (kinesisSourceConfig.getInitialPositionInStream() == InitialPositionInStream.AT_TIMESTAMP) {
+            checkArgument((kinesisSourceConfig.getStartAtTime() != null),
+                    "When initialPositionInStream is AT_TIMESTAMP, startAtTime must be specified");
+        }
+        if (isNotBlank(kinesisSourceConfig.getKinesisRecordProperties())) {
+            Set<String> properties = Arrays.stream(kinesisSourceConfig.getKinesisRecordProperties().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toSet());
+            kinesisSourceConfig.setPropertiesToInclude(properties);
+        } else {
+            kinesisSourceConfig.setPropertiesToInclude(Collections.emptySet());
+        }
+        return kinesisSourceConfig;
     }
 
     public KinesisAsyncClient buildKinesisAsyncClient(AwsCredentialProviderPlugin credPlugin) {

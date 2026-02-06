@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
@@ -33,6 +34,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.client.Entity;
@@ -43,6 +48,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -55,6 +61,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -129,12 +136,14 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String SCHEMA_VERSION = "X-Pulsar-Base64-schema-version-b64encoded";
     private static final String ENCRYPTION_PARAM = "X-Pulsar-Base64-encryption-param";
     private static final String ENCRYPTION_KEYS = "X-Pulsar-Base64-encryption-keys";
+    public static final String TXN_ABORTED = "X-Pulsar-txn-aborted";
+    public static final String TXN_UNCOMMITTED = "X-Pulsar-txn-uncommitted";
     // CHECKSTYLE.ON: MemberName
 
     public static final String PROPERTY_SHADOW_SOURCE_KEY = "PULSAR.SHADOW_SOURCE";
 
-    public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public TopicsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminTopics = web.path("/admin");
         adminV2Topics = web.path("/admin/v2");
     }
@@ -180,7 +189,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                                                         Map<QueryParam, Object> params) {
         ListTopicsOptions options = ListTopicsOptions
                 .builder()
-                .bundle((String) params.get(QueryParam.Bundle.value))
+                .bundle((String) params.get(QueryParam.Bundle))
                 .build();
         return getListAsync(namespace, topicDomain, options);
     }
@@ -590,21 +599,27 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public TopicStats getStats(String topic, GetStatsOptions getStatsOptions) throws PulsarAdminException {
-        boolean getPreciseBacklog = getStatsOptions.isGetPreciseBacklog();
-        boolean subscriptionBacklogSize = getStatsOptions.isSubscriptionBacklogSize();
-        boolean getEarliestTimeInBacklog = getStatsOptions.isGetEarliestTimeInBacklog();
-        return sync(() -> getStatsAsync(topic, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog));
+        return sync(() -> getStatsAsync(topic, getStatsOptions));
     }
 
     @Override
     public CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
                                                        boolean subscriptionBacklogSize,
                                                        boolean getEarliestTimeInBacklog) {
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize,
+                getEarliestTimeInBacklog, false, false);
+        return getStatsAsync(topic, getStatsOptions);
+    }
+
+    @Override
+    public CompletableFuture<TopicStats> getStatsAsync(String topic, GetStatsOptions getStatsOptions) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "stats")
-                .queryParam("getPreciseBacklog", getPreciseBacklog)
-                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize)
-                .queryParam("getEarliestTimeInBacklog", getEarliestTimeInBacklog);
+                .queryParam("getPreciseBacklog", getStatsOptions.isGetPreciseBacklog())
+                .queryParam("subscriptionBacklogSize", getStatsOptions.isSubscriptionBacklogSize())
+                .queryParam("getEarliestTimeInBacklog", getStatsOptions.isGetEarliestTimeInBacklog())
+                .queryParam("excludePublishers", getStatsOptions.isExcludePublishers())
+                .queryParam("excludeConsumers", getStatsOptions.isExcludeConsumers());
         final CompletableFuture<TopicStats> future = new CompletableFuture<>();
 
         InvocationCallback<TopicStats> persistentCB = new InvocationCallback<TopicStats>() {
@@ -621,16 +636,16 @@ public class TopicsImpl extends BaseResource implements Topics {
 
         InvocationCallback<NonPersistentTopicStats> nonpersistentCB =
                 new InvocationCallback<NonPersistentTopicStats>() {
-            @Override
-            public void completed(NonPersistentTopicStats response) {
-                future.complete(response);
-            }
+                    @Override
+                    public void completed(NonPersistentTopicStats response) {
+                        future.complete(response);
+                    }
 
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        };
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                };
 
         if (topic.startsWith(TopicDomain.non_persistent.value())) {
             asyncGetRequest(path, nonpersistentCB);
@@ -685,33 +700,49 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition,
+                                                     GetStatsOptions getStatsOptions) throws PulsarAdminException {
+        return sync(()-> getPartitionedStatsAsync(topic, perPartition, getStatsOptions));
+    }
+
+    @Override
     public CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic,
             boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                                                                              boolean getEarliestTimeInBacklog) {
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize,
+                getEarliestTimeInBacklog, false, false);
+        return getPartitionedStatsAsync(topic, perPartition, getStatsOptions);
+    }
+
+    @Override
+    public CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition,
+                                                                             GetStatsOptions getStatsOptions) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitioned-stats");
         path = path.queryParam("perPartition", perPartition)
-                .queryParam("getPreciseBacklog", getPreciseBacklog)
-                .queryParam("subscriptionBacklogSize", subscriptionBacklogSize)
-                .queryParam("getEarliestTimeInBacklog", getEarliestTimeInBacklog);
+                .queryParam("getPreciseBacklog", getStatsOptions.isGetPreciseBacklog())
+                .queryParam("subscriptionBacklogSize", getStatsOptions.isSubscriptionBacklogSize())
+                .queryParam("getEarliestTimeInBacklog", getStatsOptions.isGetEarliestTimeInBacklog())
+                .queryParam("excludePublishers", getStatsOptions.isExcludePublishers())
+                .queryParam("excludeConsumers", getStatsOptions.isExcludeConsumers());
         final CompletableFuture<PartitionedTopicStats> future = new CompletableFuture<>();
 
         InvocationCallback<NonPersistentPartitionedTopicStats> nonpersistentCB =
                 new InvocationCallback<NonPersistentPartitionedTopicStats>() {
 
-            @Override
-            public void completed(NonPersistentPartitionedTopicStats response) {
-                if (!perPartition) {
-                    response.getPartitions().clear();
-                }
-                future.complete(response);
-            }
+                    @Override
+                    public void completed(NonPersistentPartitionedTopicStats response) {
+                        if (!perPartition) {
+                            response.getPartitions().clear();
+                        }
+                        future.complete(response);
+                    }
 
-            @Override
-            public void failed(Throwable throwable) {
-                future.completeExceptionally(getApiException(throwable.getCause()));
-            }
-        };
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                };
 
         InvocationCallback<PartitionedTopicStats> persistentCB = new InvocationCallback<PartitionedTopicStats>() {
 
@@ -844,7 +875,9 @@ public class TopicsImpl extends BaseResource implements Topics {
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
-    private CompletableFuture<List<Message<byte[]>>> peekNthMessage(String topic, String subName, int messagePosition) {
+    private CompletableFuture<List<Message<byte[]>>> peekNthMessage(
+            String topic, String subName, int messagePosition, boolean showServerMarker,
+            TransactionIsolationLevel transactionIsolationLevel) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName,
@@ -856,7 +889,8 @@ public class TopicsImpl extends BaseResource implements Topics {
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessagesFromHttpResponse(tn.toString(), response));
+                            future.complete(getMessagesFromHttpResponse(tn.toString(), response,
+                                    showServerMarker, transactionIsolationLevel));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -871,28 +905,35 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
+    public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
+                                              boolean showServerMarker,
+                                              TransactionIsolationLevel transactionIsolationLevel)
             throws PulsarAdminException {
-        return sync(() -> peekMessagesAsync(topic, subName, numMessages));
+        return sync(() -> peekMessagesAsync(topic, subName, numMessages, showServerMarker, transactionIsolationLevel));
     }
 
     @Override
-    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
+    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+            String topic, String subName, int numMessages,
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel) {
         checkArgument(numMessages > 0);
         CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
-        peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(), future, 1);
+        peekMessagesAsync(topic, subName, numMessages, new ArrayList<>(),
+                future, 1, showServerMarker, transactionIsolationLevel);
         return future;
     }
 
     private void peekMessagesAsync(String topic, String subName, int numMessages,
-            List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage) {
+            List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage,
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel) {
         if (numMessages <= 0) {
             future.complete(messages);
             return;
         }
 
         // if peeking first message succeeds, we know that the topic and subscription exists
-        peekNthMessage(topic, subName, nthMessage).handle((r, ex) -> {
+        peekNthMessage(topic, subName, nthMessage, showServerMarker, transactionIsolationLevel)
+                .handle((r, ex) -> {
             if (ex != null) {
                 // if we get a not found exception, it means that the position for the message we are trying to get
                 // does not exist. At this point, we can return the already found messages.
@@ -907,7 +948,8 @@ public class TopicsImpl extends BaseResource implements Topics {
             for (int i = 0; i < Math.min(r.size(), numMessages); i++) {
                 messages.add(r.get(i));
             }
-            peekMessagesAsync(topic, subName, numMessages - r.size(), messages, future, nthMessage + 1);
+            peekMessagesAsync(topic, subName, numMessages - r.size(), messages, future,
+                    nthMessage + 1, showServerMarker, transactionIsolationLevel);
             return null;
         });
     }
@@ -963,34 +1005,16 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
-    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
-        CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
-        getRemoteMessageById(topic, ledgerId, entryId).handle((r, ex) -> {
-            if (ex != null) {
-                if (ex instanceof NotFoundException) {
-                    log.warn("Exception '{}' occurred while trying to get message.", ex.getMessage());
-                    future.complete(r);
-                } else {
-                    future.completeExceptionally(ex);
-                }
-                return null;
-            }
-            future.complete(r);
-            return null;
-        });
-        return future;
-    }
-
-    private CompletableFuture<Message<byte[]>> getRemoteMessageById(String topic, long ledgerId, long entryId) {
+    public CompletableFuture<List<Message<byte[]>>> getMessagesByIdAsync(String topic, long ledgerId, long entryId) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "ledger", Long.toString(ledgerId), "entry", Long.toString(entryId));
-        final CompletableFuture<Message<byte[]>> future = new CompletableFuture<>();
+        final CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
                         try {
-                            future.complete(getMessagesFromHttpResponse(topicName.toString(), response).get(0));
+                            future.complete(getMessagesFromHttpResponse(topicName.toString(), response));
                         } catch (Exception e) {
                             future.completeExceptionally(getApiException(e));
                         }
@@ -1004,6 +1028,19 @@ public class TopicsImpl extends BaseResource implements Topics {
         return future;
     }
 
+    @Override
+    public List<Message<byte[]>> getMessagesById(String topic, long ledgerId, long entryId)
+            throws PulsarAdminException {
+        return sync(() -> getMessagesByIdAsync(topic, ledgerId, entryId));
+    }
+
+    @Deprecated
+    @Override
+    public CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) {
+        return getMessagesByIdAsync(topic, ledgerId, entryId).thenApply(n -> n.get(0));
+    }
+
+    @Deprecated
     @Override
     public Message<byte[]> getMessageById(String topic, long ledgerId, long entryId)
             throws PulsarAdminException {
@@ -1146,6 +1183,18 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void trimTopic(String topic) throws PulsarAdminException {
+        sync(() -> trimTopicAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> trimTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "trim");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public LongRunningProcessStatus compactionStatus(String topic)
             throws PulsarAdminException {
         return sync(() -> compactionStatusAsync(topic));
@@ -1223,6 +1272,13 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     private List<Message<byte[]>> getMessagesFromHttpResponse(String topic, Response response) throws Exception {
+        return getMessagesFromHttpResponse(topic, response, true,
+                TransactionIsolationLevel.READ_UNCOMMITTED);
+    }
+
+    private List<Message<byte[]>> getMessagesFromHttpResponse(
+            String topic, Response response, boolean showServerMarker,
+            TransactionIsolationLevel transactionIsolationLevel) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             throw getApiException(response);
@@ -1254,7 +1310,32 @@ public class TopicsImpl extends BaseResource implements Topics {
 
             Map<String, String> properties = new TreeMap<>();
             MultivaluedMap<String, Object> headers = response.getHeaders();
-            Object tmp = headers.getFirst(PUBLISH_TIME);
+            Object tmp = headers.getFirst(MARKER_TYPE);
+            if (tmp != null) {
+                if (!showServerMarker) {
+                    return new ArrayList<>();
+                } else {
+                    messageMetadata.setMarkerType(Integer.parseInt(tmp.toString()));
+                }
+            }
+
+            tmp = headers.getFirst(TXN_ABORTED);
+            if (tmp != null && Boolean.parseBoolean(tmp.toString())) {
+                properties.put(TXN_ABORTED, tmp.toString());
+                if (transactionIsolationLevel == TransactionIsolationLevel.READ_COMMITTED) {
+                    return new ArrayList<>();
+                }
+            }
+
+            tmp = headers.getFirst(TXN_UNCOMMITTED);
+            if (tmp != null && Boolean.parseBoolean(tmp.toString())) {
+                properties.put(TXN_UNCOMMITTED, tmp.toString());
+                if (transactionIsolationLevel == TransactionIsolationLevel.READ_COMMITTED) {
+                    return new ArrayList<>();
+                }
+            }
+
+            tmp = headers.getFirst(PUBLISH_TIME);
             if (tmp != null) {
                 messageMetadata.setPublishTime(DateFormatter.parse(tmp.toString()));
             }
@@ -1305,10 +1386,6 @@ public class TopicsImpl extends BaseResource implements Topics {
             tmp = headers.getFirst(PARTITION_KEY_B64_ENCODED);
             if (tmp != null) {
                 messageMetadata.setPartitionKeyB64Encoded(Boolean.parseBoolean(tmp.toString()));
-            }
-            tmp = headers.getFirst(MARKER_TYPE);
-            if (tmp != null) {
-                messageMetadata.setMarkerType(Integer.parseInt(tmp.toString()));
             }
             tmp = headers.getFirst(TXNID_LEAST_BITS);
             if (tmp != null) {
@@ -1379,9 +1456,10 @@ public class TopicsImpl extends BaseResource implements Topics {
 
             for (Entry<String, List<Object>> entry : headers.entrySet()) {
                 String header = entry.getKey();
-                if (header.contains("X-Pulsar-PROPERTY-")) {
-                    String keyName = header.substring("X-Pulsar-PROPERTY-".length());
-                    properties.put(keyName, (String) entry.getValue().get(0));
+                if ("X-Pulsar-PROPERTY".equals(header)) {
+                    Map<String, String> msgPropsTmp = new Gson().fromJson((String) entry.getValue().get(0), Map.class);
+                    properties.putAll(msgPropsTmp);
+                    break;
                 }
             }
 
@@ -1488,6 +1566,23 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
+                                                                       Optional<MessageId> startPosition,
+                                                                       long backlogScanMaxEntries)
+            throws PulsarAdminException {
+        return sync(
+                () -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition, backlogScanMaxEntries));
+    }
+
+    @Override
+    public AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
+                                                       Optional<MessageId> startPosition,
+                                                       Predicate<AnalyzeSubscriptionBacklogResult> terminatePredicate)
+            throws PulsarAdminException {
+        return sync(() -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition, terminatePredicate));
+    }
+
+    @Override
     public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
                                                                                 String subscriptionName,
                                                                                 Optional<MessageId> startPosition) {
@@ -1516,6 +1611,96 @@ public class TopicsImpl extends BaseResource implements Topics {
             }
         });
         return future;
+    }
+
+    @Override
+    public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                                               String subscriptionName,
+                                                                               Optional<MessageId> startPosition,
+                                                                               long backlogScanMaxEntries) {
+        return analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition,
+                (backlogResult) -> backlogResult.getEntries() >= backlogScanMaxEntries);
+    }
+
+    @Override
+    public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                       String subscriptionName, Optional<MessageId> startPosition,
+                                                       Predicate<AnalyzeSubscriptionBacklogResult> terminatePredicate) {
+        final CompletableFuture<AnalyzeSubscriptionBacklogResult> future = new CompletableFuture<>();
+        AtomicReference<AnalyzeSubscriptionBacklogResult> resultRef = new AtomicReference<>();
+        int partitionIndex = TopicName.get(topic).getPartitionIndex();
+        AtomicReference<Optional<MessageId>> startPositionRef = new AtomicReference<>(startPosition);
+
+        Supplier<CompletableFuture<AnalyzeSubscriptionBacklogResult>> resultSupplier =
+                () -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPositionRef.get());
+        BiConsumer<AnalyzeSubscriptionBacklogResult, Throwable> completeAction = new BiConsumer<>() {
+            @Override
+            public void accept(AnalyzeSubscriptionBacklogResult currentResult, Throwable throwable) {
+                if (throwable != null) {
+                    future.completeExceptionally(throwable);
+                    return;
+                }
+
+                AnalyzeSubscriptionBacklogResult mergedResult = mergeBacklogResults(currentResult, resultRef.get());
+                resultRef.set(mergedResult);
+                if (!mergedResult.isAborted() || terminatePredicate.test(mergedResult)) {
+                    future.complete(mergedResult);
+                    return;
+                }
+
+                // In analyze-backlog, we treat 0 entries or null lastMessageId as scan completed for mere safety.
+                // 0 entries or a null lastMessageId indicates no entries were scanned.
+                if (currentResult.getEntries() <= 0 || StringUtils.isBlank(currentResult.getLastMessageId())) {
+                    log.info("[{}][{}] complete scan due total entry <= 0 or last message id is blank, "
+                            + "start position is: {}, current result: {}", topic, subscriptionName,
+                            startPositionRef.get(), currentResult);
+                    future.complete(mergedResult);
+                    return;
+                }
+
+                String[] messageIdSplits = mergedResult.getLastMessageId().split(":");
+                MessageIdImpl nextScanMessageId =
+                        new MessageIdImpl(Long.parseLong(messageIdSplits[0]), Long.parseLong(messageIdSplits[1]) + 1,
+                                partitionIndex);
+                startPositionRef.set(Optional.of(nextScanMessageId));
+
+                resultSupplier.get().whenComplete(this);
+            }
+        };
+
+        resultSupplier.get().whenComplete(completeAction);
+        return future;
+    }
+
+    private AnalyzeSubscriptionBacklogResult mergeBacklogResults(AnalyzeSubscriptionBacklogResult current,
+                                                                 AnalyzeSubscriptionBacklogResult previous) {
+        if (previous == null) {
+            return current;
+        }
+
+        AnalyzeSubscriptionBacklogResult mergedRes = new AnalyzeSubscriptionBacklogResult();
+        mergedRes.setEntries(current.getEntries() + previous.getEntries());
+        mergedRes.setMessages(current.getMessages() + previous.getMessages());
+        mergedRes.setMarkerMessages(current.getMarkerMessages() + previous.getMarkerMessages());
+
+        mergedRes.setFilterAcceptedEntries(current.getFilterAcceptedEntries() + previous.getFilterAcceptedEntries());
+        mergedRes.setFilterRejectedEntries(current.getFilterRejectedEntries() + previous.getFilterRejectedEntries());
+        mergedRes.setFilterRescheduledEntries(
+                current.getFilterRescheduledEntries() + previous.getFilterRescheduledEntries());
+
+        mergedRes.setFilterAcceptedMessages(current.getFilterAcceptedMessages() + previous.getFilterAcceptedMessages());
+        mergedRes.setFilterRejectedMessages(current.getFilterRejectedMessages() + previous.getFilterRejectedMessages());
+        mergedRes.setFilterRescheduledMessages(
+                current.getFilterRescheduledMessages() + previous.getFilterRescheduledMessages());
+
+        mergedRes.setAborted(current.isAborted());
+        mergedRes.setFirstMessageId(previous.getFirstMessageId());
+        String lastMessageId = current.getLastMessageId();
+        if (StringUtils.isNotBlank(lastMessageId)) {
+            mergedRes.setLastMessageId(lastMessageId);
+        }
+
+        return mergedRes;
     }
 
     @Override
@@ -2744,6 +2929,32 @@ public class TopicsImpl extends BaseResource implements Topics {
                 return createPartitionedTopicAsync(shadowTopic, sourceTopicMeta.partitions, shadowProperties);
             }
         });
+    }
+
+    @Override
+    public MessageId getMessageIdByIndex(String topicName, long index) throws PulsarAdminException {
+        return sync(() -> getMessageIdByIndexAsync(topicName, index));
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getMessageIdByIndexAsync(String topicName, long index) {
+        final CompletableFuture<MessageId> messageIdCompletableFuture = new CompletableFuture<>();
+        TopicName topic = validateTopic(topicName);
+        WebTarget path = topicPath(topic, "getMessageIdByIndex");
+        path = path.queryParam("index", index);
+        asyncGetRequest(path, new InvocationCallback<MessageIdImpl>(){
+
+            @Override
+            public void completed(MessageIdImpl messageId) {
+                messageIdCompletableFuture.complete(messageId);
+            }
+
+            @Override
+            public void failed(Throwable throwable) {
+                messageIdCompletableFuture.completeExceptionally(throwable);
+            }
+        });
+        return messageIdCompletableFuture;
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

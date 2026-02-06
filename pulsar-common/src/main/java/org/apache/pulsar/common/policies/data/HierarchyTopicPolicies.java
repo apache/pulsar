@@ -49,7 +49,9 @@ public class HierarchyTopicPolicies {
     final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
     final PolicyHierarchyValue<PublishRate> publishRate;
     final PolicyHierarchyValue<Boolean> delayedDeliveryEnabled;
+    final PolicyHierarchyValue<Boolean> dispatcherPauseOnAckStatePersistentEnabled;
     final PolicyHierarchyValue<Long> delayedDeliveryTickTimeMillis;
+    final PolicyHierarchyValue<Long> delayedDeliveryMaxDelayInMillis;
     final PolicyHierarchyValue<DispatchRateImpl> replicatorDispatchRate;
     final PolicyHierarchyValue<Integer> maxConsumersPerSubscription;
     final PolicyHierarchyValue<SubscribeRate> subscribeRate;
@@ -81,7 +83,9 @@ public class HierarchyTopicPolicies {
         messageTTLInSeconds = new PolicyHierarchyValue<>();
         publishRate = new PolicyHierarchyValue<>();
         delayedDeliveryEnabled = new PolicyHierarchyValue<>();
+        dispatcherPauseOnAckStatePersistentEnabled = new PolicyHierarchyValue<>();
         delayedDeliveryTickTimeMillis = new PolicyHierarchyValue<>();
+        delayedDeliveryMaxDelayInMillis = new PolicyHierarchyValue<>();
         replicatorDispatchRate = new PolicyHierarchyValue<>();
         compactionThreshold = new PolicyHierarchyValue<>();
         subscribeRate = new PolicyHierarchyValue<>();

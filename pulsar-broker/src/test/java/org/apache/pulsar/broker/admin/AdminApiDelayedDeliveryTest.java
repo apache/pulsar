@@ -18,10 +18,23 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -29,13 +42,6 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.*;
 
 @Test(groups = "broker-admin")
 @Slf4j
@@ -66,6 +72,7 @@ public class AdminApiDelayedDeliveryTest extends MockedPulsarServiceBaseTest {
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                 .tickTime(2000)
                 .active(false)
+                .maxDeliveryDelayInMillis(10_000)
                 .build();
         admin.namespaces().setDelayedDeliveryMessages(namespace, delayedDeliveryPolicies);
         //zk update takes time
@@ -124,6 +131,7 @@ public class AdminApiDelayedDeliveryTest extends MockedPulsarServiceBaseTest {
         DelayedDeliveryPolicies delayedDeliveryPolicies = DelayedDeliveryPolicies.builder()
                 .tickTime(3)
                 .active(true)
+                .maxDeliveryDelayInMillis(5000)
                 .build();
         admin.namespaces().setDelayedDeliveryMessages(namespace, delayedDeliveryPolicies);
         Awaitility.await().untilAsserted(()
@@ -151,12 +159,14 @@ public class AdminApiDelayedDeliveryTest extends MockedPulsarServiceBaseTest {
                 DelayedDeliveryPolicies.builder()
                         .tickTime(conf.getDelayedDeliveryTickTimeMillis())
                         .active(conf.isDelayedDeliveryEnabled())
+                        .maxDeliveryDelayInMillis(conf.getDelayedDeliveryMaxDelayInMillis())
                         .build();
         assertEquals(admin.topics().getDelayedDeliveryPolicy(topic, true), brokerLevelPolicy);
         //set namespace-level policy
         DelayedDeliveryPolicies namespaceLevelPolicy = DelayedDeliveryPolicies.builder()
                 .tickTime(100)
                 .active(true)
+                .maxDeliveryDelayInMillis(4000)
                 .build();
         admin.namespaces().setDelayedDeliveryMessages(namespace, namespaceLevelPolicy);
         Awaitility.await().untilAsserted(()
@@ -164,10 +174,12 @@ public class AdminApiDelayedDeliveryTest extends MockedPulsarServiceBaseTest {
         DelayedDeliveryPolicies policyFromBroker = admin.topics().getDelayedDeliveryPolicy(topic, true);
         assertEquals(policyFromBroker.getTickTime(), 100);
         assertTrue(policyFromBroker.isActive());
+        assertEquals(policyFromBroker.getMaxDeliveryDelayInMillis(), 4000);
         // set topic-level policy
         DelayedDeliveryPolicies topicLevelPolicy = DelayedDeliveryPolicies.builder()
                 .tickTime(200)
                 .active(true)
+                .maxDeliveryDelayInMillis(5000)
                 .build();
         admin.topics().setDelayedDeliveryPolicy(topic, topicLevelPolicy);
         Awaitility.await().untilAsserted(()
@@ -175,6 +187,7 @@ public class AdminApiDelayedDeliveryTest extends MockedPulsarServiceBaseTest {
         policyFromBroker = admin.topics().getDelayedDeliveryPolicy(topic, true);
         assertEquals(policyFromBroker.getTickTime(), 200);
         assertTrue(policyFromBroker.isActive());
+        assertEquals(policyFromBroker.getMaxDeliveryDelayInMillis(), 5000);
         //remove topic-level policy
         admin.topics().removeDelayedDeliveryPolicy(topic);
         Awaitility.await().untilAsserted(()

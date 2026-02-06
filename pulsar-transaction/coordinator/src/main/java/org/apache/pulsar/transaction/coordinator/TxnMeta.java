@@ -107,4 +107,11 @@ public interface TxnMeta {
      * @return transaction timeout at.
      */
     long getTimeoutAt();
+
+    /**
+     * Return the transaction's owner.
+     *
+     * @return transaction's owner.
+     */
+    String getOwner();
 }

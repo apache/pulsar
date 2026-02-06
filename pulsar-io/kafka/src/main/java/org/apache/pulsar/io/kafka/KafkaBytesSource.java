@@ -49,36 +49,36 @@ import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
 /**
- *  Kafka Source that transfers the data from Kafka to Pulsar and sets the Schema type properly.
- *  We use the key and the value deserializer in order to decide the type of Schema to be set on the topic on Pulsar.
- *  In case of KafkaAvroDeserializer we use the Schema Registry to download the schema and apply it to the topic.
- *  Please refer to {@link #getSchemaFromDeserializerAndAdaptConfiguration(String, Properties, boolean)} for the list
- *  of supported Deserializers.
- *  If you set StringDeserializer for the key then we use the raw key as key for the Pulsar message.
- *  If you set another Deserializer for the key we use the KeyValue schema type in Pulsar with the SEPARATED encoding.
- *  This way the Key is stored in the Pulsar key, encoded as base64 string and with a Schema, the Value of the message
- *  is stored in the Pulsar value with a Schema.
- *  This way there is a one-to-one mapping between Kafka key/value pair and the Pulsar data model.
+ * Kafka Source that transfers the data from Kafka to Pulsar and sets the Schema type properly.
+ * We use the key and the value deserializer in order to decide the type of Schema to be set on the topic on Pulsar.
+ * In case of KafkaAvroDeserializer we use the Schema Registry to download the schema and apply it to the topic.
+ * Please refer to {@link #getSchemaFromDeserializerAndAdaptConfiguration(String, Properties, boolean)} for the list
+ * of supported Deserializers.
+ * If you set StringDeserializer for the key then we use the raw key as key for the Pulsar message.
+ * If you set another Deserializer for the key we use the KeyValue schema type in Pulsar with the SEPARATED encoding.
+ * This way the Key is stored in the Pulsar key, encoded as base64 string and with a Schema, the Value of the message
+ * is stored in the Pulsar value with a Schema.
+ * This way there is a one-to-one mapping between Kafka key/value pair and the Pulsar data model.
  */
 @Connector(
-    name = "kafka",
-    type = IOType.SOURCE,
-    help = "Transfer data from Kafka to Pulsar.",
-    configClass = KafkaSourceConfig.class
+        name = "kafka",
+        type = IOType.SOURCE,
+        help = "Transfer data from Kafka to Pulsar.",
+        configClass = KafkaSourceConfig.class
 )
 @Slf4j
 public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
     private AvroSchemaCache schemaCache;
-    private Schema keySchema;
-    private Schema valueSchema;
+    private Schema<ByteBuffer> keySchema;
+    private Schema<ByteBuffer> valueSchema;
     private boolean produceKeyValue;
 
     @Override
     protected Properties beforeCreateConsumer(Properties props) {
         props.putIfAbsent(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         props.putIfAbsent(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-        log.info("Created kafka consumer config : {}", props);
+        log.info("Created kafka consumer on : {}", props.getOrDefault(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, ""));
 
         keySchema = getSchemaFromDeserializerAndAdaptConfiguration(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 props, true);
@@ -86,18 +86,18 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
                 props, false);
 
         boolean needsSchemaCache = keySchema == DeferredSchemaPlaceholder.INSTANCE
-                                    || valueSchema == DeferredSchemaPlaceholder.INSTANCE;
+                || valueSchema == DeferredSchemaPlaceholder.INSTANCE;
 
         if (needsSchemaCache) {
             initSchemaCache(props);
         }
 
         if (keySchema.getSchemaInfo().getType() != SchemaType.STRING) {
-            // if the Key is a String we can use native Pulsar Key
-            // otherwise we use KeyValue schema
-            // that allows you to set a schema for the Key and a schema for the Value.
-            // using SEPARATED encoding the key is saved into the binary key
-            // so it is used for routing and for compaction
+            // If the Key is a String we can use native Pulsar Key.
+            // Otherwise, we use KeyValue schema.
+            // That allows you to set a schema for the Key and a schema for the Value.
+            // Using SEPARATED encoding the key is saved into the binary key,
+            // so it is used for routing and for compaction.
             produceKeyValue = true;
         }
 
@@ -114,13 +114,13 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
     }
 
     @Override
-    public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
+    public KafkaRecord<ByteBuffer> buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
         if (produceKeyValue) {
-            Object key = extractSimpleValue(consumerRecord.key());
-            Object value = extractSimpleValue(consumerRecord.value());
-            Schema currentKeySchema = getSchemaFromObject(consumerRecord.key(), keySchema);
-            Schema currentValueSchema = getSchemaFromObject(consumerRecord.value(), valueSchema);
-            return new KeyValueKafkaRecord(consumerRecord,
+            ByteBuffer key = extractSimpleValue(consumerRecord.key());
+            ByteBuffer value = extractSimpleValue(consumerRecord.value());
+            Schema<ByteBuffer> currentKeySchema = getSchemaFromObject(consumerRecord.key(), keySchema);
+            Schema<ByteBuffer> currentValueSchema = getSchemaFromObject(consumerRecord.value(), valueSchema);
+            return new KeyValueKafkaRecord<ByteBuffer, ByteBuffer>(consumerRecord,
                     new KeyValue<>(key, value),
                     currentKeySchema,
                     currentValueSchema,
@@ -128,7 +128,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
         } else {
             Object value = consumerRecord.value();
-            return new KafkaRecord(consumerRecord,
+            return new KafkaRecord<>(consumerRecord,
                     extractSimpleValue(value),
                     getSchemaFromObject(value, valueSchema),
                     copyKafkaHeaders(consumerRecord));
@@ -152,7 +152,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         }
     }
 
-    private Schema<ByteBuffer> getSchemaFromObject(Object value, Schema fallback) {
+    private Schema<ByteBuffer> getSchemaFromObject(Object value, Schema<ByteBuffer> fallback) {
         if (value instanceof BytesWithKafkaSchema) {
             // this is a Struct with schema downloaded by the schema registry
             // the schema may be different from record to record
@@ -174,12 +174,12 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
 
         Schema<?> result;
         if (ByteArrayDeserializer.class.getName().equals(kafkaDeserializerClass)
-            || ByteBufferDeserializer.class.getName().equals(kafkaDeserializerClass)
-            || BytesDeserializer.class.getName().equals(kafkaDeserializerClass)) {
+                || ByteBufferDeserializer.class.getName().equals(kafkaDeserializerClass)
+                || BytesDeserializer.class.getName().equals(kafkaDeserializerClass)) {
             result = Schema.BYTEBUFFER;
         } else if (StringDeserializer.class.getName().equals(kafkaDeserializerClass)) {
             if (isKey) {
-                // for the key we use the String value and we want StringDeserializer
+                // for the key we use the String value, and we want StringDeserializer
                 props.put(key, kafkaDeserializerClass);
             }
             result = Schema.STRING;
@@ -193,7 +193,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             result = Schema.INT64;
         } else if (ShortDeserializer.class.getName().equals(kafkaDeserializerClass)) {
             result = Schema.INT16;
-        } else if (KafkaAvroDeserializer.class.getName().equals(kafkaDeserializerClass)){
+        } else if (KafkaAvroDeserializer.class.getName().equals(kafkaDeserializerClass)) {
             // in this case we have to inject our custom deserializer
             // that extracts Avro schema information
             props.put(key, ExtractKafkaAvroSchemaDeserializer.class.getName());
@@ -206,11 +206,11 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         return new ByteBufferSchemaWrapper(result);
     }
 
-    Schema getKeySchema() {
+    Schema<ByteBuffer> getKeySchema() {
         return keySchema;
     }
 
-    Schema getValueSchema() {
+    Schema<ByteBuffer> getValueSchema() {
         return valueSchema;
     }
 
@@ -238,7 +238,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
         }
     }
 
-     static final class DeferredSchemaPlaceholder extends ByteBufferSchemaWrapper {
+    static final class DeferredSchemaPlaceholder extends ByteBufferSchemaWrapper {
         DeferredSchemaPlaceholder() {
             super(SchemaInfoImpl
                     .builder()
@@ -247,6 +247,7 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
                     .schema(new byte[0])
                     .build());
         }
+
         static final DeferredSchemaPlaceholder INSTANCE = new DeferredSchemaPlaceholder();
     }
 

@@ -88,6 +88,10 @@ public class BrokerServiceException extends Exception {
         public PersistenceException(Throwable t) {
             super(t);
         }
+
+        public PersistenceException(String msg) {
+            super(msg);
+        }
     }
 
     public static class TopicTerminatedException extends BrokerServiceException {
@@ -142,6 +146,10 @@ public class BrokerServiceException extends Exception {
         public TopicBusyException(String msg) {
             super(msg);
         }
+
+        public TopicBusyException(String msg, Throwable t) {
+            super(msg, t);
+        }
     }
 
     public static class TopicNotFoundException extends BrokerServiceException {
@@ -152,6 +160,18 @@ public class BrokerServiceException extends Exception {
 
     public static class SubscriptionNotFoundException extends BrokerServiceException {
         public SubscriptionNotFoundException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class UnsupportedSubscriptionException extends BrokerServiceException {
+        public UnsupportedSubscriptionException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class SubscriptionConflictUnloadException extends BrokerServiceException {
+        public SubscriptionConflictUnloadException(String msg) {
             super(msg);
         }
     }
@@ -198,9 +218,9 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class TopicPoliciesCacheNotInitException extends BrokerServiceException {
-        public TopicPoliciesCacheNotInitException() {
-            super("Topic policies cache have not init.");
+    public static class ConnectionClosedException extends BrokerServiceException {
+        public ConnectionClosedException(String msg) {
+            super(msg);
         }
     }
 
@@ -242,6 +262,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.ServiceNotReady;
         } else if (t instanceof TopicNotFoundException) {
             return ServerError.TopicNotFound;
+        } else if (t instanceof SubscriptionNotFoundException) {
+            return ServerError.SubscriptionNotFound;
         } else if (t instanceof IncompatibleSchemaException
             || t instanceof InvalidSchemaDataException) {
             // for backward compatible with old clients, invalid schema data

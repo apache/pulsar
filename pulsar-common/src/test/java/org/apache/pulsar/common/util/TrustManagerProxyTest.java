@@ -25,6 +25,7 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import lombok.Cleanup;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -41,15 +42,12 @@ public class TrustManagerProxyTest {
     public void testLoadCA(String path, int count) {
         String caPath = Resources.getResource(path).getPath();
 
+        @Cleanup("shutdownNow")
         ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        try {
-            TrustManagerProxy trustManagerProxy =
-                    new TrustManagerProxy(caPath, 120, scheduledExecutor);
-            X509Certificate[] x509Certificates = trustManagerProxy.getAcceptedIssuers();
-            assertNotNull(x509Certificates);
-            assertEquals(Arrays.stream(x509Certificates).count(), count);
-        } finally {
-            scheduledExecutor.shutdown();
-        }
+        TrustManagerProxy trustManagerProxy =
+                new TrustManagerProxy(caPath, 120, scheduledExecutor);
+        X509Certificate[] x509Certificates = trustManagerProxy.getAcceptedIssuers();
+        assertNotNull(x509Certificates);
+        assertEquals(Arrays.stream(x509Certificates).count(), count);
     }
 }

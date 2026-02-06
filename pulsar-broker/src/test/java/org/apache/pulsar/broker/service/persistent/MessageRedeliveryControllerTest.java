@@ -27,9 +27,11 @@ import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.TreeSet;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
+import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -54,16 +56,23 @@ public class MessageRedeliveryControllerTest {
         ConcurrentLongLongPairHashMap hashesToBeBlocked = (ConcurrentLongLongPairHashMap) hashesToBeBlockedField
                 .get(controller);
 
+        Field hashesRefCountField = MessageRedeliveryController.class.getDeclaredField("hashesRefCount");
+        hashesRefCountField.setAccessible(true);
+        ConcurrentLongLongHashMap hashesRefCount = (ConcurrentLongLongHashMap) hashesRefCountField.get(controller);
+
         if (allowOutOfOrderDelivery) {
             assertNull(hashesToBeBlocked);
+            assertNull(hashesRefCount);
         } else {
             assertNotNull(hashesToBeBlocked);
+            assertNotNull(hashesRefCount);
         }
 
         assertTrue(controller.isEmpty());
         assertEquals(messagesToRedeliver.size(), 0);
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 0);
+            assertEquals(hashesRefCount.size(), 0);
         }
 
         controller.add(1, 1);
@@ -77,6 +86,7 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.size(), 0);
             assertFalse(hashesToBeBlocked.containsKey(1, 1));
             assertFalse(hashesToBeBlocked.containsKey(1, 2));
+            assertEquals(hashesRefCount.size(), 0);
         }
 
         controller.remove(1, 1);
@@ -88,6 +98,7 @@ public class MessageRedeliveryControllerTest {
         assertFalse(messagesToRedeliver.contains(1, 2));
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 0);
+            assertEquals(hashesRefCount.size(), 0);
         }
 
         controller.add(2, 1, 100);
@@ -104,6 +115,20 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.get(2, 1).first, 100);
             assertEquals(hashesToBeBlocked.get(2, 2).first, 101);
             assertEquals(hashesToBeBlocked.get(2, 3).first, 101);
+            assertEquals(hashesRefCount.size(), 2);
+            assertEquals(hashesRefCount.get(100), 1);
+            assertEquals(hashesRefCount.get(101), 2);
+        }
+
+        controller.remove(2, 1);
+        controller.remove(2, 2);
+
+        if (!allowOutOfOrderDelivery) {
+            assertEquals(hashesToBeBlocked.size(), 1);
+            assertEquals(hashesToBeBlocked.get(2, 3).first, 101);
+            assertEquals(hashesRefCount.size(), 1);
+            assertEquals(hashesRefCount.get(100), -1);
+            assertEquals(hashesRefCount.get(101), 1);
         }
 
         controller.clear();
@@ -113,6 +138,8 @@ public class MessageRedeliveryControllerTest {
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 0);
             assertTrue(hashesToBeBlocked.isEmpty());
+            assertEquals(hashesRefCount.size(), 0);
+            assertTrue(hashesRefCount.isEmpty());
         }
 
         controller.add(2, 2, 201);
@@ -135,6 +162,11 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.get(2, 2).first, 201);
             assertEquals(hashesToBeBlocked.get(3, 1).first, 300);
             assertEquals(hashesToBeBlocked.get(3, 2).first, 301);
+            assertEquals(hashesRefCount.size(), 4);
+            assertEquals(hashesRefCount.get(200), 1);
+            assertEquals(hashesRefCount.get(201), 1);
+            assertEquals(hashesRefCount.get(300), 1);
+            assertEquals(hashesRefCount.get(301), 1);
         }
 
         controller.removeAllUpTo(3, 1);
@@ -143,6 +175,8 @@ public class MessageRedeliveryControllerTest {
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 1);
             assertEquals(hashesToBeBlocked.get(3, 2).first, 301);
+            assertEquals(hashesRefCount.size(), 1);
+            assertEquals(hashesRefCount.get(301), 1);
         }
 
         controller.removeAllUpTo(5, 10);
@@ -150,6 +184,7 @@ public class MessageRedeliveryControllerTest {
         assertEquals(messagesToRedeliver.size(), 0);
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 0);
+            assertEquals(hashesRefCount.size(), 0);
         }
     }
 
@@ -190,19 +225,20 @@ public class MessageRedeliveryControllerTest {
 
         if (allowOutOfOrderDelivery) {
             // The entries are sorted by ledger ID but not by entry ID
-            PositionImpl[] actual1 = controller.getMessagesToReplayNow(3).toArray(new PositionImpl[3]);
-            PositionImpl[] expected1 = { PositionImpl.get(1, 1), PositionImpl.get(1, 2), PositionImpl.get(1, 3) };
+            Position[] actual1 = controller.getMessagesToReplayNow(3, item -> true).toArray(new Position[3]);
+            Position[] expected1 = { PositionFactory.create(1, 1),
+                    PositionFactory.create(1, 2), PositionFactory.create(1, 3) };
             assertEqualsNoOrder(actual1, expected1);
         } else {
             // The entries are completely sorted
-            Set<PositionImpl> actual2 = controller.getMessagesToReplayNow(6);
-            Set<PositionImpl> expected2 = new TreeSet<>();
-            expected2.add(PositionImpl.get(1, 1));
-            expected2.add(PositionImpl.get(1, 2));
-            expected2.add(PositionImpl.get(1, 3));
-            expected2.add(PositionImpl.get(2, 1));
-            expected2.add(PositionImpl.get(2, 2));
-            expected2.add(PositionImpl.get(3, 1));
+            Set<Position> actual2 = controller.getMessagesToReplayNow(6, item -> true);
+            Set<Position> expected2 = new TreeSet<>();
+            expected2.add(PositionFactory.create(1, 1));
+            expected2.add(PositionFactory.create(1, 2));
+            expected2.add(PositionFactory.create(1, 3));
+            expected2.add(PositionFactory.create(2, 1));
+            expected2.add(PositionFactory.create(2, 2));
+            expected2.add(PositionFactory.create(3, 1));
             assertEquals(actual2, expected2);
         }
     }

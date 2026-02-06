@@ -38,16 +38,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
-import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -59,6 +59,7 @@ import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.NonNull;
 
 @Slf4j
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
@@ -70,23 +71,23 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
-                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock,
-                              ScheduledExecutorService scheduler) {
+                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks,
+                              Clock clock,
+                              PulsarService pulsarService) {
         this.schemaStorage = schemaStorage;
         this.compatibilityChecks = compatibilityChecks;
         this.clock = clock;
-        this.stats = SchemaRegistryStats.getInstance(scheduler);
+        this.stats = new SchemaRegistryStats(pulsarService);
     }
 
-    @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
                               Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks,
-                              ScheduledExecutorService scheduler) {
-        this(schemaStorage, compatibilityChecks, Clock.systemUTC(), scheduler);
+                              PulsarService pulsarService) {
+        this(schemaStorage, compatibilityChecks, Clock.systemUTC(), pulsarService);
     }
 
     @Override
-    @NotNull
+    @NonNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
         return getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
             if (schema != null && schema.schema.isDeleted()) {
@@ -98,7 +99,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, SchemaVersion version) {
         long start = this.clock.millis();
 
@@ -136,16 +137,17 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     }
                 })
                 .whenComplete((v, t) -> {
+                    var latencyMs = this.clock.millis() - start;
                     if (t != null) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Get schema failed", schemaId);
                         }
-                        this.stats.recordGetFailed(schemaId);
+                        this.stats.recordGetFailed(schemaId, latencyMs);
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug(null == v ? "[{}] Schema not found" : "[{}] Schema is present", schemaId);
                         }
-                        this.stats.recordGetLatency(schemaId, this.clock.millis() - start);
+                        this.stats.recordGetLatency(schemaId, latencyMs);
                     }
                 });
     }
@@ -157,10 +159,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return schemaStorage.getAll(schemaId)
                 .thenCompose(schemas -> convertToSchemaAndMetadata(schemaId, schemas))
                 .whenComplete((v, t) -> {
+                    var latencyMs = this.clock.millis() - start;
                     if (t != null) {
-                        this.stats.recordGetFailed(schemaId);
+                        this.stats.recordListFailed(schemaId, latencyMs);
                     } else {
-                        this.stats.recordGetLatency(schemaId, this.clock.millis() - start);
+                        this.stats.recordListLatency(schemaId, latencyMs);
                     }
                 });
     }
@@ -183,7 +186,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
         MutableLong start = new MutableLong(0);
@@ -228,10 +231,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             return CompletableFuture.completedFuture(Pair.of(info.toByteArray(), context));
                         });
                 }))).whenComplete((v, ex) -> {
+                    var latencyMs = this.clock.millis() - start.getValue();
                     if (ex != null) {
                         log.error("[{}] Put schema failed", schemaId, ex);
                         if (start.getValue() != 0) {
-                            this.stats.recordPutFailed(schemaId);
+                            this.stats.recordPutFailed(schemaId, latencyMs);
                         }
                         promise.completeExceptionally(ex);
                     } else {
@@ -261,14 +265,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return schemaStorage
                 .put(schemaId, deletedEntry, new byte[]{})
                 .whenComplete((v, t) -> {
+                    var latencyMs = this.clock.millis() - start;
                     if (t != null) {
                         log.error("[{}] User {} delete schema failed", schemaId, user);
-                        this.stats.recordDelFailed(schemaId);
+                        this.stats.recordDelFailed(schemaId, latencyMs);
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] User {} delete schema finished", schemaId, user);
                         }
-                        this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
+                        this.stats.recordDelLatency(schemaId, latencyMs);
                     }
                 });
     }
@@ -284,11 +289,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
         return schemaStorage.delete(schemaId, forcefully)
                 .whenComplete((v, t) -> {
+                    var latencyMs = this.clock.millis() - start;
                     if (t != null) {
-                        this.stats.recordDelFailed(schemaId);
+                        this.stats.recordDelFailed(schemaId, latencyMs);
                         log.error("[{}] Delete schema storage failed", schemaId);
                     } else {
-                        this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
+                        this.stats.recordDelLatency(schemaId, latencyMs);
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Delete schema storage finished", schemaId);
                         }
@@ -348,14 +354,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     private void checkCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,
                                  SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
-        SchemaHash existingHash = SchemaHash.of(existingSchema.schema);
-        SchemaHash newHash = SchemaHash.of(newSchema);
         SchemaData existingSchemaData = existingSchema.schema;
         if (newSchema.getType() != existingSchemaData.getType()) {
             throw new IncompatibleSchemaException(String.format("Incompatible schema: "
                             + "exists schema type %s, new schema type %s",
                     existingSchemaData.getType(), newSchema.getType()));
         }
+        SchemaHash existingHash = SchemaHash.of(existingSchemaData);
+        SchemaHash newHash = SchemaHash.of(newSchema);
         if (!newHash.equals(existingHash)) {
             compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
                     .checkCompatible(existingSchemaData, newSchema, strategy);
@@ -393,7 +399,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     return checkCompatibilityWithAll(schemaId, schemaData, strategy);
                 }
             } else {
-                return FutureUtil.failedFuture(new IncompatibleSchemaException("Topic does not have schema to check"));
+                return FutureUtil.failedFuture(new NotExistSchemaException("Topic does not have schema to check"));
             }
         });
     }
@@ -465,21 +471,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     }
                 });
 
-                if (existingSchema.schema.getType() != schema.getType()) {
-                    result.completeExceptionally(new IncompatibleSchemaException(
-                            String.format("Incompatible schema: exists schema type %s, new schema type %s",
-                                    existingSchema.schema.getType(), schema.getType())));
-                } else {
-                    try {
-                        checkCompatible(existingSchema, schema, strategy);
-                        result.complete(null);
-                    } catch (IncompatibleSchemaException e) {
-                        result.completeExceptionally(e);
-                    }
+                try {
+                    checkCompatible(existingSchema, schema, strategy);
+                    result.complete(null);
+                } catch (IncompatibleSchemaException e) {
+                    result.completeExceptionally(e);
                 }
                 return result;
             } else {
-                return FutureUtils.exception(new IncompatibleSchemaException("Do not have existing schema."));
+                return CompletableFuture.completedFuture(null);
             }
         });
     }
@@ -552,12 +552,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         schemaFutureList.thenCompose(FutureUtils::collect).handle((schemaList, ex) -> {
             List<SchemaAndMetadata> list = ex != null ? new ArrayList<>() : schemaList;
             if (ex != null) {
-                boolean recoverable = ex.getCause() != null && (ex.getCause() instanceof SchemaException)
-                        ? ((SchemaException) ex.getCause()).isRecoverable()
-                        : true;
+                final Throwable rc = FutureUtil.unwrapCompletionException(ex);
+                boolean recoverable = !(rc instanceof SchemaException) || ((SchemaException) rc).isRecoverable();
                 // if error is recoverable then fail the request.
                 if (recoverable) {
-                    schemaResult.completeExceptionally(ex.getCause());
+                    schemaResult.completeExceptionally(rc);
                     return null;
                 }
                 // clean the schema list for recoverable and delete the schema from zk
@@ -570,7 +569,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 trimDeletedSchemaAndGetList(list);
                 // clean up the broken schema from zk
                 deleteSchemaStorage(schemaId, true).handle((sv, th) -> {
-                    log.info("Clean up non-recoverable schema {}. Deletion of schema {} {}", ex.getCause().getMessage(),
+                    log.info("Clean up non-recoverable schema {}. Deletion of schema {} {}", rc.getMessage(),
                             schemaId, (th == null ? "successful" : "failed, " + th.getCause().getMessage()));
                     schemaResult.complete(list);
                     return null;

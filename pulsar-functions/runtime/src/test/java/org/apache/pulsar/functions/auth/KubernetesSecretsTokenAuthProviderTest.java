@@ -22,7 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-
+import static org.mockito.Mockito.when;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Container;
@@ -31,11 +31,9 @@ import io.kubernetes.client.openapi.models.V1PodTemplateSpec;
 import io.kubernetes.client.openapi.models.V1Secret;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1StatefulSetSpec;
-
 import java.util.Collections;
 import java.util.Optional;
-
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -51,7 +49,8 @@ public class KubernetesSecretsTokenAuthProviderTest {
         byte[] testBytes = new byte[]{0, 1, 2, 3, 4};
 
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider =
+                new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, testBytes, (fd) -> "default");
 
 
@@ -65,19 +64,25 @@ public class KubernetesSecretsTokenAuthProviderTest {
         kubernetesSecretsTokenAuthProvider.configureAuthDataStatefulSet(statefulSet, Optional.of(functionAuthData));
 
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes().size(), 1);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getName(), "function-auth");
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getSecret().getSecretName(), "pf-secret-foo");
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getName(),
+                "function-auth");
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes()
+                .get(0).getSecret().getSecretName(), "pf-secret-foo");
 
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().size(), 1);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().size(), 1);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getName(), "function-auth");
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers()
+                .get(0).getVolumeMounts().size(), 1);
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers()
+                .get(0).getVolumeMounts().get(0).getName(), "function-auth");
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers()
+                .get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
     }
 
     @Test
     public void testConfigureAuthDataStatefulSetNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider =
+                new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, null, (fd) -> "default");
 
 
@@ -91,23 +96,33 @@ public class KubernetesSecretsTokenAuthProviderTest {
         kubernetesSecretsTokenAuthProvider.configureAuthDataStatefulSet(statefulSet, Optional.of(functionAuthData));
 
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes().size(), 1);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getName(), "function-auth");
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes().get(0).getSecret().getSecretName(), "pf-secret-foo");
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes()
+                .get(0).getName(), "function-auth");
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getVolumes()
+                .get(0).getSecret().getSecretName(), "pf-secret-foo");
 
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().size(), 1);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().size(), 1);
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getName(), "function-auth");
-        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers()
+                .get(0).getVolumeMounts().size(), 1);
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers()
+                .get(0).getVolumeMounts().get(0).getName(), "function-auth");
+        Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers()
+                .get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
     }
 
     @Test
     public void testCacheAuthData() throws ApiException {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        doReturn(new V1Secret()).when(coreV1Api).createNamespacedSecret(anyString(), any(), anyString(), anyString(), anyString());
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        CoreV1Api.APIcreateNamespacedSecretRequest request = mock(CoreV1Api.APIcreateNamespacedSecretRequest.class);
+        doReturn(request).when(coreV1Api).createNamespacedSecret(anyString(), any());
+        doReturn(new V1Secret()).when(request).execute();
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider =
+                new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api,  null, (fd) -> "default");
-        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant").setNamespace("test-ns").setName("test-func").build();
-        Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.cacheAuthData(funcDetails, new AuthenticationDataSource() {
+        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant")
+                .setNamespace("test-ns").setName("test-func").build();
+        Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.cacheAuthData(funcDetails,
+                new AuthenticationDataSource() {
                     @Override
                     public boolean hasDataFromCommand() {
                         return true;
@@ -127,11 +142,13 @@ public class KubernetesSecretsTokenAuthProviderTest {
     public void configureAuthenticationConfig() {
         byte[] testBytes = new byte[]{0, 1, 2, 3, 4};
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider =
+                new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, testBytes, (fd) -> "default");
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
         FunctionAuthData functionAuthData = FunctionAuthData.builder().data("foo".getBytes()).build();
-        kubernetesSecretsTokenAuthProvider.configureAuthenticationConfig(authenticationConfig, Optional.of(functionAuthData));
+        kubernetesSecretsTokenAuthProvider.configureAuthenticationConfig(authenticationConfig,
+                Optional.of(functionAuthData));
 
         Assert.assertEquals(authenticationConfig.getClientAuthenticationPlugin(), AuthenticationToken.class.getName());
         Assert.assertEquals(authenticationConfig.getClientAuthenticationParameters(), "file:///etc/auth/token");
@@ -141,11 +158,13 @@ public class KubernetesSecretsTokenAuthProviderTest {
     @Test
     public void configureAuthenticationConfigNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider =
+                new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, null, (fd) -> "default");
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
         FunctionAuthData functionAuthData = FunctionAuthData.builder().data("foo".getBytes()).build();
-        kubernetesSecretsTokenAuthProvider.configureAuthenticationConfig(authenticationConfig, Optional.of(functionAuthData));
+        kubernetesSecretsTokenAuthProvider.configureAuthenticationConfig(authenticationConfig,
+                Optional.of(functionAuthData));
 
         Assert.assertEquals(authenticationConfig.getClientAuthenticationPlugin(), AuthenticationToken.class.getName());
         Assert.assertEquals(authenticationConfig.getClientAuthenticationParameters(), "file:///etc/auth/token");
@@ -156,12 +175,20 @@ public class KubernetesSecretsTokenAuthProviderTest {
     @Test
     public void testUpdateAuthData() throws Exception {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
+        KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider =
+                new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, null, (fd) -> "default");
         // test when existingFunctionAuthData is empty
         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
-        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant").setNamespace("test-ns").setName("test-func").build();
-        Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData(funcDetails, existingFunctionAuthData, new AuthenticationDataSource() {
+        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant")
+                .setNamespace("test-ns").setName("test-func").build();
+
+        CoreV1Api.APIcreateNamespacedSecretRequest namespacedSecretRequest = mock();
+        when(coreV1Api.createNamespacedSecret(anyString(), any())).thenReturn(namespacedSecretRequest);
+        when(namespacedSecretRequest.execute()).thenReturn(new V1Secret());
+
+        Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData(funcDetails,
+                existingFunctionAuthData, new AuthenticationDataSource() {
                     @Override
                     public boolean hasDataFromCommand() {
                         return true;
@@ -179,7 +206,8 @@ public class KubernetesSecretsTokenAuthProviderTest {
 
         // test when existingFunctionAuthData is NOT empty
         existingFunctionAuthData = Optional.of(new FunctionAuthData("pf-secret-z7mxx".getBytes(), null));
-        functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData(funcDetails, existingFunctionAuthData, new AuthenticationDataSource() {
+        functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData(funcDetails, existingFunctionAuthData,
+                new AuthenticationDataSource() {
                     @Override
                     public boolean hasDataFromCommand() {
                         return true;

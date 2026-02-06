@@ -22,7 +22,6 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.time.Clock;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -57,10 +56,10 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
     }
 
     @Override
-    public CompletableFuture<Boolean> addTransaction(long sequenceId, long timeout) {
+    public void addTransaction(long sequenceId, long timeout) {
         if (timeout < tickTimeMillis) {
             this.transactionMetadataStoreService.endTransactionForTimeout(new TxnID(tcId, sequenceId));
-            return CompletableFuture.completedFuture(false);
+            return;
         }
         synchronized (this){
             long nowTime = clock.millis();
@@ -79,7 +78,6 @@ public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker,
                 nowTaskTimeoutTime = transactionTimeoutTime;
             }
         }
-        return CompletableFuture.completedFuture(false);
     }
 
     @Override

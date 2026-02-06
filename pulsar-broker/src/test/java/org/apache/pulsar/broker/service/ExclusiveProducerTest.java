@@ -19,20 +19,21 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import io.netty.util.HashedWheelTimer;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import io.netty.util.HashedWheelTimer;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerFencedException;
+import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -48,6 +49,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
 
     @BeforeClass
     protected void setup() throws Exception {
+        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
+        isTcpLookup = true;
         baseSetup();
     }
 
@@ -241,6 +244,35 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topics")
+    public void testSharedProducerCloseWithWaitForExclusiveProducer(String type, boolean partitioned) throws Exception {
+        String topic = newTopic(type, partitioned);
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+        Producer<String> p2 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.Shared)
+                .create();
+        CompletableFuture<Producer<String>> p3Future = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.WaitForExclusive)
+                .createAsync();
+        // sleep 1 second to make sure p1, p2, p3Future are added to broker producers and waitingExclusiveProducers
+        Thread.sleep(1000L);
+        // now p3Future is still pending because p1,p2 are active in shared mode.
+        assertFalse(p3Future.isDone());
+        p1.close();
+        p2.close();
+        // close p1,p2 and p3Future should be done and return a producer.
+        Awaitility.await().atMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertTrue(p3Future.isDone());
+            assertTrue(p3Future.get().isConnected());
+        });
+        p3Future.get().close();
+    }
+
+    @Test(dataProvider = "topics")
     public void existingSharedProducer(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
@@ -316,6 +348,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     public void topicDeleted(String ignored, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
+        @Cleanup
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(ProducerAccessMode.Exclusive)
@@ -329,8 +362,14 @@ public class ExclusiveProducerTest extends BrokerTestBase {
             admin.topics().delete(topic, true);
         }
 
-        // The producer should be able to publish again on the topic
-        p1.send("msg-2");
+        if (!partitioned) {
+            // The producer should be able to publish again on the topic
+            p1.send("msg-2");
+        } else {
+            // The partitioned topic is deleted, the producer should not be able to publish again on the topic.
+            // Partitioned metadata is required to publish messages to the topic.
+            assertThrows(TimeoutException.class, () -> p1.send("msg-2"));
+        }
     }
 
     @Test(dataProvider = "topics")

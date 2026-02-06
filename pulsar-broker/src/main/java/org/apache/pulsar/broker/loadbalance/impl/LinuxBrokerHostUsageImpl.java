@@ -21,10 +21,10 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForCGroup;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForEntireHost;
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getPhysicalNICs;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalCpuLimit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicLimit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicUsage;
+import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getUsablePhysicalNICs;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.isCGroupEnabled;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
@@ -56,23 +56,27 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private OperatingSystemMXBean systemBean;
     private SystemResourceUsage usage;
     private final Optional<Double> overrideBrokerNicSpeedGbps;
+    private final List<String> overrideBrokerNics;
     private final boolean isCGroupsEnabled;
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
         this(
             pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
             pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
+            pulsar.getConfiguration().getLoadBalancerOverrideBrokerNics(),
             pulsar.getLoadManagerExecutor()
         );
     }
 
     public LinuxBrokerHostUsageImpl(int hostUsageCheckIntervalMin,
                                     Optional<Double> overrideBrokerNicSpeedGbps,
+                                    List<String> overrideBrokerNics,
                                     ScheduledExecutorService executorService) {
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
         this.overrideBrokerNicSpeedGbps = overrideBrokerNicSpeedGbps;
+        this.overrideBrokerNics = overrideBrokerNics;
         this.isCGroupsEnabled = isCGroupEnabled();
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
@@ -88,7 +92,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     @Override
     public void calculateBrokerHostUsage() {
-        List<String> nics = getPhysicalNICs();
+        List<String> nics = !overrideBrokerNics.isEmpty() ? overrideBrokerNics : getUsablePhysicalNICs();
         double totalNicLimit = getTotalNicLimitWithConfiguration(nics);
         double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, BitRateUnit.Kilobit);
         double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, BitRateUnit.Kilobit);
@@ -140,7 +144,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalCpuUsageForCGroup(double elapsedTimeSeconds) {
-        double usage = getCpuUsageForCGroup();
+        double usage = (double) getCpuUsageForCGroup();
         double currentUsage = usage - lastCpuUsage;
         lastCpuUsage = usage;
         return 100 * currentUsage / elapsedTimeSeconds / TimeUnit.SECONDS.toNanos(1);
@@ -155,7 +159,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
      * </pre>
      *
      * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
-     * far. Real CPU usage should equal the sum substracting the idle cycles, this would include iowait, irq and steal.
+     * far. Real CPU usage should equal the sum substracting the idle cycles(that is idle+iowait), this would include
+     * cpu, user, nice, system, irq, softirq, steal, guest and guest_nice.
      */
     private double getTotalCpuUsageForEntireHost() {
         LinuxInfoUtils.ResourceUsage cpuUsageForEntireHost = getCpuUsageForEntireHost();

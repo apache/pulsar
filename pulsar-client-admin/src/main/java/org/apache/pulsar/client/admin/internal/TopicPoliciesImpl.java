@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -1257,6 +1258,68 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "autoSubscriptionCreation");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<Void> setDispatcherPauseOnAckStatePersistent(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "dispatcherPauseOnAckStatePersistent");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDispatcherPauseOnAckStatePersistent(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "dispatcherPauseOnAckStatePersistent");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistent(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "dispatcherPauseOnAckStatePersistent").queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<Boolean>(){});
+    }
+
+    @Override
+    public CompletableFuture<Void> setReplicationClusters(String topic, List<String> clusterIds) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Set<String> getReplicationClusters(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getReplicationClustersAsync(topic, applied));
+    }
+
+    public CompletableFuture<Set<String>> getReplicationClustersAsync(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<Set<String>>(){});
+    }
+
+    @Override
+    public void removeReplicationClusters(String topic) throws PulsarAdminException {
+        sync(() -> removeReplicationClustersAsync(topic));
+    }
+
+    public CompletableFuture<Void> removeReplicationClustersAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void deleteTopicPolicies(String topic) throws PulsarAdminException {
+        sync(() -> deleteTopicPoliciesAsync(topic));
+    }
+
+    public CompletableFuture<Void> deleteTopicPoliciesAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "policies");
         return asyncDeleteRequest(path);
     }
 

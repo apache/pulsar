@@ -26,8 +26,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-client-admin-original</artifactId>
@@ -77,8 +76,8 @@
     </dependency>
 
     <dependency>
-      <groupId>javax.xml.bind</groupId>
-      <artifactId>jaxb-api</artifactId>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
       <exclusions>
         <exclusion>
           <groupId>javax.activation</groupId>
@@ -88,7 +87,7 @@
     </dependency>
     <dependency>
       <groupId>com.sun.activation</groupId>
-      <artifactId>javax.activation</artifactId>
+      <artifactId>jakarta.activation</artifactId>
       <scope>runtime</scope>
     </dependency>
 
@@ -113,6 +112,13 @@
       <artifactId>hamcrest</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>com.github.tomakehurst</groupId>
+      <artifactId>wiremock-jre8-standalone</artifactId>
+      <version>${wiremock.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -129,7 +135,7 @@
         <artifactId>modernizer-maven-plugin</artifactId>
         <configuration>
           <failOnViolations>true</failOnViolations>
-          <javaVersion>8</javaVersion>
+          <javaVersion>17</javaVersion>
         </configuration>
         <executions>
           <execution>

@@ -43,7 +43,7 @@ public class BatchMessageContainerImplTest {
 
     @Test
     public void testUpdateMaxBatchSize() {
-        int SHRINK_COOLING_OFF_PERIOD = 10;
+        int shrinkCoolingOffPeriod = 10;
         BatchMessageContainerImpl messageContainer = new BatchMessageContainerImpl();
         // check init state
         assertEquals(messageContainer.getMaxBatchSize(), 1024);
@@ -59,7 +59,7 @@ public class BatchMessageContainerImplTest {
         // test shrink
         for (int i = 0; i < 15; ++i) {
             messageContainer.updateMaxBatchSize(2);
-            if (i < SHRINK_COOLING_OFF_PERIOD) {
+            if (i < shrinkCoolingOffPeriod) {
                 assertEquals(messageContainer.getMaxBatchSize(), 2048);
             } else {
                 assertEquals(messageContainer.getMaxBatchSize(), 2048 * 0.75);
@@ -69,7 +69,7 @@ public class BatchMessageContainerImplTest {
         messageContainer.updateMaxBatchSize(2048);
         // test big message sudden appearance
         for (int i = 0; i < 15; ++i) {
-            if (i == SHRINK_COOLING_OFF_PERIOD - 2) {
+            if (i == shrinkCoolingOffPeriod - 2) {
                 messageContainer.updateMaxBatchSize(2000);
             } else {
                 messageContainer.updateMaxBatchSize(2);
@@ -78,8 +78,8 @@ public class BatchMessageContainerImplTest {
         }
 
         // test big and small message alternating occurrence
-        for (int i = 0; i < SHRINK_COOLING_OFF_PERIOD * 3; ++i) {
-            if (i % 2 ==0) {
+        for (int i = 0; i < shrinkCoolingOffPeriod * 3; ++i) {
+            if (i % 2 == 0) {
                 messageContainer.updateMaxBatchSize(2);
             } else {
                 messageContainer.updateMaxBatchSize(2000);
@@ -105,6 +105,8 @@ public class BatchMessageContainerImplTest {
         final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setCompressionType(CompressionType.NONE);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         MemoryLimitController memoryLimitController = mock(MemoryLimitController.class);
         when(pulsarClient.getMemoryLimitController()).thenReturn(memoryLimitController);
         try {
@@ -148,6 +150,8 @@ public class BatchMessageContainerImplTest {
         final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setCompressionType(CompressionType.NONE);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         MemoryLimitController memoryLimitController = mock(MemoryLimitController.class);
         when(pulsarClient.getMemoryLimitController()).thenReturn(memoryLimitController);
         try {

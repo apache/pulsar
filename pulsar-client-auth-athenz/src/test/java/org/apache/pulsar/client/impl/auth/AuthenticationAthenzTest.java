@@ -18,15 +18,22 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import static org.apache.pulsar.common.util.Codec.encode;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import org.testng.annotations.Test;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import static org.apache.pulsar.common.util.Codec.encode;
-import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
-
+import static org.testng.Assert.fail;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yahoo.athenz.auth.util.Crypto;
+import com.yahoo.athenz.zts.RoleToken;
+import com.yahoo.athenz.zts.ZTSClient;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -38,12 +45,12 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yahoo.athenz.auth.util.Crypto;
-import com.yahoo.athenz.zts.RoleToken;
-import com.yahoo.athenz.zts.ZTSClient;
+import lombok.Cleanup;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 public class AuthenticationAthenzTest {
 
@@ -144,7 +151,7 @@ public class AuthenticationAthenzTest {
             PrivateKey key = (PrivateKey) field.get(authBase64);
             assertEquals(key, privateKey);
         } catch (Exception e) {
-            Assert.fail();
+            fail();
         }
     }
 
@@ -171,8 +178,70 @@ public class AuthenticationAthenzTest {
             PrivateKey key = (PrivateKey) field.get(authEncode);
             assertEquals(key, privateKey);
         } catch (Exception e) {
-            Assert.fail();
+            fail();
         }
+    }
+
+    @Test
+    public void testCopperArgos() throws Exception {
+        @Cleanup
+        AuthenticationAthenz caAuth = new AuthenticationAthenz();
+        Field ztsClientField = caAuth.getClass().getDeclaredField("ztsClient");
+        ztsClientField.setAccessible(true);
+        ztsClientField.set(caAuth, new MockZTSClient("dummy"));
+
+        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        Map<String, String> authParamsMap = new HashMap<>();
+        authParamsMap.put("providerDomain", "test_provider");
+        authParamsMap.put("ztsUrl", "https://localhost:4443/");
+
+        try {
+            caAuth.configure(jsonMapper.writeValueAsString(authParamsMap));
+            fail("Should not succeed if some required parameters are missing");
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+
+        authParamsMap.put("x509CertChain", "data:application/x-pem-file;base64,aW52YWxpZAo=");
+        try {
+            caAuth.configure(jsonMapper.writeValueAsString(authParamsMap));
+            fail("'data' scheme url should not be accepted");
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+
+        authParamsMap.put("x509CertChain", "file:./src/test/resources/copper_argos_client.crt");
+        try {
+            caAuth.configure(jsonMapper.writeValueAsString(authParamsMap));
+            fail("Should not succeed if 'privateKey' or 'caCert' is missing");
+        } catch (Exception e) {
+            assertTrue(e instanceof IllegalArgumentException);
+        }
+
+        authParamsMap.put("privateKey", "./src/test/resources/copper_argos_client.key");
+        authParamsMap.put("caCert", "./src/test/resources/copper_argos_ca.crt");
+        caAuth.configure(jsonMapper.writeValueAsString(authParamsMap));
+
+        Field x509CertChainPathField = caAuth.getClass().getDeclaredField("x509CertChainPath");
+        x509CertChainPathField.setAccessible(true);
+        String actualX509CertChainPath = (String) x509CertChainPathField.get(caAuth);
+        assertFalse(actualX509CertChainPath.startsWith("file:"));
+        assertFalse(actualX509CertChainPath.startsWith("./"));
+        assertTrue(actualX509CertChainPath.endsWith("/src/test/resources/copper_argos_client.crt"));
+
+        Field privateKeyPathField = caAuth.getClass().getDeclaredField("privateKeyPath");
+        privateKeyPathField.setAccessible(true);
+        String actualPrivateKeyPath = (String) privateKeyPathField.get(caAuth);
+        assertFalse(actualPrivateKeyPath.startsWith("file:"));
+        assertFalse(actualPrivateKeyPath.startsWith("./"));
+        assertTrue(actualPrivateKeyPath.endsWith("/src/test/resources/copper_argos_client.key"));
+
+        Field caCertPathField = caAuth.getClass().getDeclaredField("caCertPath");
+        caCertPathField.setAccessible(true);
+        String actualCaCertPath = (String) caCertPathField.get(caAuth);
+        assertFalse(actualCaCertPath.startsWith("file:"));
+        assertFalse(actualCaCertPath.startsWith("./"));
+        assertTrue(actualCaCertPath.endsWith("/src/test/resources/copper_argos_ca.crt"));
     }
 
     @Test
@@ -183,7 +252,8 @@ public class AuthenticationAthenzTest {
 
         String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() { });
+        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
+                new TypeReference<HashMap<String, String>>() { });
 
         authParamsMap.put("autoPrefetchEnabled", "true");
         AuthenticationAthenz auth1 = new AuthenticationAthenz();
@@ -207,7 +277,8 @@ public class AuthenticationAthenzTest {
 
         String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() { });
+        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
+                new TypeReference<HashMap<String, String>>() { });
 
         authParamsMap.put("roleHeader", "");
         AuthenticationAthenz auth1 = new AuthenticationAthenz();
@@ -222,5 +293,57 @@ public class AuthenticationAthenzTest {
         field.set(auth2, new MockZTSClient("dummy"));
         assertEquals(auth2.getAuthData().getHttpHeaders().iterator().next().getKey(), "Test-Role-Header");
         auth2.close();
+    }
+
+    @Test
+    public void testZtsProxyUrlSetting() throws Exception {
+        final String ztsProxyUrl = "https://example.com:4443/";
+        final String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
+        final ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        final Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
+                new TypeReference<HashMap<String, String>>() { });
+
+        try (MockedConstruction<ZTSClient> mockedZTSClient = Mockito.mockConstruction(ZTSClient.class,
+                (mock, context) -> {
+            final String actualZtsProxyUrl = (String) context.arguments().get(1);
+            assertNull(actualZtsProxyUrl);
+
+            when(mock.getRoleToken(any(), any(), anyInt(), anyInt(), anyBoolean())).thenReturn(mock(RoleToken.class));
+        })) {
+            authParamsMap.remove("ztsProxyUrl");
+            final AuthenticationAthenz auth1 = new AuthenticationAthenz();
+            auth1.configure(jsonMapper.writeValueAsString(authParamsMap));
+            auth1.getAuthData();
+
+            assertEquals(mockedZTSClient.constructed().size(), 1);
+
+            auth1.close();
+
+            authParamsMap.put("ztsProxyUrl", "");
+            final AuthenticationAthenz auth2 = new AuthenticationAthenz();
+            auth2.configure(jsonMapper.writeValueAsString(authParamsMap));
+            auth2.getAuthData();
+
+            assertEquals(mockedZTSClient.constructed().size(), 2);
+
+            auth2.close();
+        }
+
+        try (MockedConstruction<ZTSClient> mockedZTSClient = Mockito.mockConstruction(ZTSClient.class,
+                (mock, context) -> {
+            final String actualZtsProxyUrl = (String) context.arguments().get(1);
+            assertEquals(actualZtsProxyUrl, ztsProxyUrl);
+
+            when(mock.getRoleToken(any(), any(), anyInt(), anyInt(), anyBoolean())).thenReturn(mock(RoleToken.class));
+        })) {
+            authParamsMap.put("ztsProxyUrl", ztsProxyUrl);
+            final AuthenticationAthenz auth3 = new AuthenticationAthenz();
+            auth3.configure(jsonMapper.writeValueAsString(authParamsMap));
+            auth3.getAuthData();
+
+            assertEquals(mockedZTSClient.constructed().size(), 1);
+
+            auth3.close();
+        }
     }
 }

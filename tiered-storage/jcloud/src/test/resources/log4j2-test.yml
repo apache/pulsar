@@ -33,12 +33,12 @@ Configuration:
       name: STDOUT
       target: SYSTEM_OUT
       PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t:%C@%L] %-5level %logger{36} - %msg%n"
+        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
     File:
       name: File
       fileName: ${filename}
       PatternLayout:
-        Pattern: "%d %p %C{1.} [%t] %m%n"
+        Pattern: "%d %p %c{1.} [%t] %m%n"
       Filters:
         ThresholdFilter:
           level: error

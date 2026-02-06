@@ -111,7 +111,7 @@ public abstract class MockedBookKeeperTestCase {
     }
 
     /**
-     * Start cluster
+     * Start cluster.
      *
      * @throws Exception
      */
@@ -131,6 +131,7 @@ public abstract class MockedBookKeeperTestCase {
     }
 
     protected void stopMetadataStore() throws Exception {
+        metadataStore.close();
         metadataStore.setAlwaysFail(new MetadataStoreException("error"));
     }
 

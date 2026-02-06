@@ -18,15 +18,26 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import lombok.Cleanup;
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
+@Slf4j
 public class LinuxBrokerHostUsageImplTest {
 
     @Test
@@ -34,12 +45,68 @@ public class LinuxBrokerHostUsageImplTest {
         @Cleanup("shutdown")
         ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
         LinuxBrokerHostUsageImpl linuxBrokerHostUsage =
-                new LinuxBrokerHostUsageImpl(1, Optional.of(3.0), executorService);
+                new LinuxBrokerHostUsageImpl(1, Optional.of(3.0), new ArrayList<>(), executorService);
         List<String> nics = new ArrayList<>();
         nics.add("1");
         nics.add("2");
         nics.add("3");
         double totalLimit = linuxBrokerHostUsage.getTotalNicLimitWithConfiguration(nics);
         Assert.assertEquals(totalLimit, 3.0 * 1000 * 1000 * 3);
+    }
+
+    @Test
+    public void checkOverrideBrokerNics() {
+        try (MockedStatic<LinuxInfoUtils> mockedUtils = Mockito.mockStatic(LinuxInfoUtils.class)) {
+            mockedUtils.when(() -> LinuxInfoUtils.getTotalNicUsage(any(), any(), any())).thenReturn(3.0d);
+            mockedUtils.when(LinuxInfoUtils::getCpuUsageForEntireHost).thenReturn(LinuxInfoUtils.ResourceUsage.empty());
+            List<String> nics = new ArrayList<>();
+            nics.add("1");
+            nics.add("2");
+            nics.add("3");
+            ServiceConfiguration config = new ServiceConfiguration();
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(3.0d));
+            config.setLoadBalancerOverrideBrokerNics(nics);
+            PulsarService pulsarService = mock(PulsarService.class);
+            when(pulsarService.getConfiguration()).thenReturn(config);
+            @Cleanup("shutdown")
+            ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+            when(pulsarService.getLoadManagerExecutor()).thenReturn(executorService);
+            LinuxBrokerHostUsageImpl linuxBrokerHostUsage = new LinuxBrokerHostUsageImpl(pulsarService);
+            linuxBrokerHostUsage.calculateBrokerHostUsage();
+            double totalLimit = linuxBrokerHostUsage.getTotalNicLimitWithConfiguration(nics);
+            Assert.assertEquals(totalLimit, 3.0 * 1000 * 1000 * 3);
+            double totalNicLimitRx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthIn().limit;
+            double totalNicLimitTx = linuxBrokerHostUsage.getBrokerHostUsage().getBandwidthOut().limit;
+            Assert.assertEquals(totalNicLimitRx, 3.0 * 1000 * 1000 * 3);
+            Assert.assertEquals(totalNicLimitTx, 3.0 * 1000 * 1000 * 3);
+        }
+    }
+
+    @Test
+    public void testCpuUsage() throws InterruptedException {
+        if (!LinuxInfoUtils.isLinux()) {
+            return;
+        }
+
+        @Cleanup("shutdown")
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        LinuxBrokerHostUsageImpl linuxBrokerHostUsage =
+                new LinuxBrokerHostUsageImpl(Integer.MAX_VALUE, Optional.empty(),
+                        new ArrayList<>(), executorService);
+
+        linuxBrokerHostUsage.calculateBrokerHostUsage();
+        TimeUnit.SECONDS.sleep(1);
+        linuxBrokerHostUsage.calculateBrokerHostUsage();
+
+        double usage = linuxBrokerHostUsage.getBrokerHostUsage().getCpu().usage;
+        double limit = linuxBrokerHostUsage.getBrokerHostUsage().getCpu().limit;
+        float percentUsage = linuxBrokerHostUsage.getBrokerHostUsage().getCpu().percentUsage();
+
+        Assert.assertTrue(usage > 0);
+        Assert.assertTrue(limit > 0);
+        Assert.assertTrue(limit >= usage);
+        Assert.assertTrue(percentUsage > 0);
+
+        log.info("usage: {}, limit: {}, percentUsage: {}", usage, limit, percentUsage);
     }
 }

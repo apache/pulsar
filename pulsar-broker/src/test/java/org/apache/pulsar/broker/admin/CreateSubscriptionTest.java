@@ -31,6 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.http.HttpResponse;
@@ -139,7 +140,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topic, 10);
 
         // create subscription for one partition
-        final String partitionedTopic0 = topic+"-partition-0";
+        final String partitionedTopic0 = topic + "-partition-0";
         admin.topics().createSubscription(partitionedTopic0, "sub-1", MessageId.latest);
 
         admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
@@ -431,6 +432,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         final int numberOfMessages = 5;
         String topic = "persistent://my-property/my-ns/my-topic";
         RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(30 * 1000).build();
+        @Cleanup
         CloseableHttpClient httpClient = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
 
         // Produce some messages to pulsar
@@ -471,14 +473,14 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void testWaitingCurosrCausedMemoryLeak() throws Exception {
         String topic = "persistent://my-property/my-ns/my-topic";
-        for (int i = 0; i < 10; i ++) {
+        for (int i = 0; i < 10; i++) {
             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                     .subscriptionType(SubscriptionType.Failover).subscriptionName("test" + i).subscribe();
             Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
             consumer.close();
         }
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
-        ManagedLedgerImpl ml = (ManagedLedgerImpl)(topicRef.getManagedLedger());
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) (topicRef.getManagedLedger());
         assertEquals(ml.getWaitingCursorsCount(), 0);
     }
 

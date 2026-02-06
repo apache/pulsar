@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -27,18 +29,23 @@ import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import io.opentelemetry.api.common.Attributes;
 import java.net.URL;
+import java.time.Duration;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -48,8 +55,11 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.stats.OpenTelemetryProducerStats;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -62,8 +72,10 @@ import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -101,6 +113,12 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        super.customizeMainPulsarTestContextBuilder(pulsarTestContextBuilder);
+        pulsarTestContextBuilder.enableOpenTelemetry(true);
+    }
+
     @Test(timeOut = 90000 /* 1.5mn */)
     public void testNonPersistentPartitionsAreNotAutoCreatedWhenThePartitionedTopicDoesNotExist() throws Exception {
         final boolean defaultAllowAutoTopicCreation = conf.isAllowAutoTopicCreation();
@@ -114,7 +132,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             // Then error when subscribe to a partition of a non-persistent topic that does not exist
             assertThrows(PulsarClientException.NotFoundException.class,
-                    () -> pulsarClient.newConsumer().topic(topicPartitionName).subscriptionName("sub-issue-9173").subscribe());
+                    () -> pulsarClient.newConsumer().topic(topicPartitionName)
+                            .subscriptionName("sub-issue-9173").subscribe());
 
             // Then error when produce to a partition of a non-persistent topic that does not exist
             try {
@@ -142,12 +161,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             admin.topics().createPartitionedTopic(topic, 3);
 
             // When subscribe, then a sub-consumer is created for each partition which means the partitions are created
-            final MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
+            final MultiTopicsConsumerImpl<byte[]> consumer =
+                    (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
                     .topic(topic).subscriptionName("sub-issue-9173").subscribe();
             assertEquals(consumer.getConsumers().size(), 3);
 
             // When produce, a sub-producer is created for each partition which means the partitions are created
-            PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic).create();
+            PartitionedProducerImpl<byte[]> producer =
+                    (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic).create();
             assertEquals(producer.getProducers().size(), 3);
 
             consumer.close();
@@ -295,7 +316,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that broker doesn't dispatch messages if consumer runs out of permits filled out with messages
+     * It verifies that broker doesn't dispatch messages if consumer runs out of permits filled out with messages.
      */
     @Test(dataProvider = "subscriptionType")
     public void testConsumerInternalQueueMaxOut(SubscriptionType type) throws Exception {
@@ -338,7 +359,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * Verifies that broker should failed to publish message if producer publishes messages more than rate limit
+     * Verifies that broker should failed to publish message if producer publishes messages more than rate limit.
      */
     @Test
     public void testProducerRateLimit() throws Exception {
@@ -351,18 +372,22 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             startBroker();
             // produce message concurrently
             @Cleanup("shutdownNow")
-            ExecutorService executor = Executors.newFixedThreadPool(5);
+            ExecutorService executor = Executors.newFixedThreadPool(10);
             AtomicBoolean failed = new AtomicBoolean(false);
+            @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
                     .subscribe();
-            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
-            byte[] msgData = "testData".getBytes();
-            final int totalProduceMessages = 10;
+            var producerName = BrokerTestUtil.newUniqueName("testProducerRateLimit");
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).producerName(producerName).create();
+            final int totalProduceMessages = 500;
             CountDownLatch latch = new CountDownLatch(totalProduceMessages);
             for (int i = 0; i < totalProduceMessages; i++) {
+                final int messageIndex = i;
                 executor.submit(() -> {
                     try {
-                        producer.send(msgData);
+                        String message = "my-message-" + messageIndex;
+                        producer.send(message.getBytes());
                     } catch (Exception e) {
                         log.error("Failed to send message", e);
                         failed.set(true);
@@ -388,14 +413,26 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // but as message should be dropped at broker: broker should not receive the message
             assertNotEquals(messageSet.size(), totalProduceMessages);
 
-            producer.close();
+            // Verify the corresponding metric is updated
+            var attributes = Attributes.builder()
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_NAME, producerName)
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ID, 0)
+                    .put(OpenTelemetryAttributes.PULSAR_PRODUCER_ACCESS_MODE, "shared")
+                    .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "non-persistent")
+                    .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
+                    .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/my-ns")
+                    .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
+                    .build();
+            var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
+            assertMetricLongSumValue(metrics, OpenTelemetryProducerStats.MESSAGE_DROP_COUNTER, attributes,
+                    value -> assertThat(value).isPositive());
         } finally {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
         }
     }
 
     /**
-     * verifies message delivery with multiple consumers on shared and failover subscriptions
+     * verifies message delivery with multiple consumers on shared and failover subscriptions.
      *
      * @throws Exception
      */
@@ -476,7 +513,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies that broker is capturing topic stats correctly
+     * verifies that broker is capturing topic stats correctly.
      */
     @Test
     public void testTopicStats() throws Exception {
@@ -531,7 +568,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies that non-persistent topic replicates using replicator
+     * verifies that non-persistent topic replicates using replicator.
      */
     @Test
     public void testReplicator() throws Exception {
@@ -727,7 +764,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies: broker should reject non-persistent topic loading if broker is not enable for non-persistent topic
+     * verifies: broker should reject non-persistent topic loading if broker is not enable for non-persistent topic.
      *
      * @throws Exception
      */
@@ -758,7 +795,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies that broker started with onlyNonPersistent mode doesn't own persistent-topic
+     * verifies that broker started with onlyNonPersistent mode doesn't own persistent-topic.
      *
      * @param loadManagerName
      * @throws Exception
@@ -809,58 +846,104 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * Verifies msg-drop stats
+     * Verifies msg-drop stats.
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 60000)
     public void testMsgDropStat() throws Exception {
 
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
-            final String topicName = "non-persistent://my-property/my-ns/stats-topic";
-            // restart broker with lower publish rate limit
-            conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
+            final String topicName = BrokerTestUtil.newUniqueName("non-persistent://my-property/my-ns/stats-topic");
+
+            // For non-persistent topics, set the per-connection in-flight limit to 0.
+            // Since ServerCnx drops when inFlight > max; with max=0, any second overlapping send on the
+            // same connection is dropped (entryId == -1) and recorded. This makes observing a publisher drop
+            // reliable in this test.
+            conf.setMaxConcurrentNonPersistentMessagePerConnection(0);
             stopBroker();
             startBroker();
+
+            pulsar.getBrokerService().updateRates();
+
+            @Cleanup
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-1")
                     .receiverQueueSize(1).subscribe();
 
+            @Cleanup
             Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-2")
                     .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared).subscribe();
 
+            @Cleanup
             ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
+
+            final int threads = 10;
             @Cleanup("shutdownNow")
-            ExecutorService executor = Executors.newFixedThreadPool(5);
+            ExecutorService executor = Executors.newFixedThreadPool(threads);
             byte[] msgData = "testData".getBytes();
-            final int totalProduceMessages = 200;
-            CountDownLatch latch = new CountDownLatch(totalProduceMessages);
-            for (int i = 0; i < totalProduceMessages; i++) {
-                executor.submit(() -> {
-                    producer.sendAsync(msgData).handle((msg, e) -> {
-                        latch.countDown();
-                        return null;
+
+            /*
+             * Trigger at least one publisher drop through concurrent send() calls.
+             *
+             * Uses CyclicBarrier to ensure all threads send simultaneously, creating overlap.
+             * With maxConcurrentNonPersistentMessagePerConnection = 0, ServerCnx#handleSend
+             * drops any send while another is in-flight, returning MessageId with entryId = -1.
+             * Awaitility repeats whole bursts (bounded to 20s) until a drop is observed.
+             */
+            AtomicBoolean publisherDropSeen = new AtomicBoolean(false);
+            Awaitility.await().atMost(Duration.ofSeconds(20)).until(() -> {
+                CyclicBarrier barrier = new CyclicBarrier(threads);
+                CountDownLatch completionLatch = new CountDownLatch(threads);
+                AtomicReference<Throwable> error = new AtomicReference<>();
+                publisherDropSeen.set(false);
+
+                for (int i = 0; i < threads; i++) {
+                    executor.submit(() -> {
+                        try {
+                            barrier.await();
+                            MessageId msgId = producer.send(msgData);
+                            // Publisher drop is signaled by MessageIdImpl.entryId == -1
+                            if (msgId instanceof MessageIdImpl && ((MessageIdImpl) msgId).getEntryId() == -1) {
+                                publisherDropSeen.set(true);
+                            }
+                        } catch (Throwable t) {
+                            if (t instanceof InterruptedException) {
+                                Thread.currentThread().interrupt();
+                            }
+                            error.compareAndSet(null, t);
+                        } finally {
+                            completionLatch.countDown();
+                        }
                     });
-                });
-            }
-            latch.await();
+                }
 
-            NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-            pulsar.getBrokerService().updateRates();
-            NonPersistentTopicStats stats = topic.getStats(false, false, false);
-            NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
-            NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
-            NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");
-            assertTrue(npStats.getMsgDropRate() > 0);
-            assertTrue(sub1Stats.getMsgDropRate() > 0);
-            assertTrue(sub2Stats.getMsgDropRate() > 0);
+                // Wait for all sends to complete.
+                assertTrue(completionLatch.await(20, TimeUnit.SECONDS));
 
-            producer.close();
-            consumer.close();
-            consumer2.close();
+                assertNull(error.get(), "Concurrent send encountered an exception");
+                return publisherDropSeen.get();
+            });
+
+            assertTrue(publisherDropSeen.get(), "Expected at least one publisher drop (entryId == -1)");
+
+            NonPersistentTopic topic =
+                    (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                pulsar.getBrokerService().updateRates();
+                NonPersistentTopicStats stats = topic.getStats(false, false, false);
+                NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
+                NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
+                NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");
+                assertTrue(npStats.getMsgDropRate() > 0);
+                assertTrue(sub1Stats.getMsgDropRate() > 0);
+                assertTrue(sub2Stats.getMsgDropRate() > 0);
+            });
+
         } finally {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(defaultNonPersistentMessageRate);
         }

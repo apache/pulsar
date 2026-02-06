@@ -28,6 +28,8 @@ import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -57,10 +59,12 @@ public class ElasticSearchConfig implements Serializable {
     )
     private String indexName;
 
+    @Deprecated
     @FieldDoc(
         required = false,
         defaultValue = "_doc",
-        help = "The type name that the connector writes messages to, with the default value set to _doc."
+        help = "No longer in use in OpenSearch 2+. "
+                + "The type name that the connector writes messages to, with the default value set to _doc."
                 + " This value should be set explicitly to a valid type name other than _doc for Elasticsearch version before 6.2,"
                 + " and left to the default value otherwise."
     )
@@ -212,10 +216,10 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "5",
-            help = "Idle connection timeout to prevent a read timeout."
+            defaultValue = "30000",
+            help = "Idle connection timeout to prevent a connection timeout due to inactivity."
     )
-    private int connectionIdleTimeoutInMs = 5;
+    private int connectionIdleTimeoutInMs = 30000;
 
     @FieldDoc(
             required = false,
@@ -240,6 +244,11 @@ public class ElasticSearchConfig implements Serializable {
     )
     private String primaryFields = "";
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            help = "The SSL config for elastic search."
+    )
     private ElasticSearchSslConfig ssl = new ElasticSearchSslConfig();
 
     @FieldDoc(
@@ -338,9 +347,8 @@ public class ElasticSearchConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), ElasticSearchConfig.class);
     }
 
-    public static ElasticSearchConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), ElasticSearchConfig.class);
+    public static ElasticSearchConfig load(Map<String, Object> map, SinkContext sinkContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, ElasticSearchConfig.class, sinkContext);
     }
 
     public void validate() {

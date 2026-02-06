@@ -18,9 +18,26 @@
  */
 package org.apache.pulsar.broker.web;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.extern.slf4j.Slf4j;
+import org.eclipse.jetty.io.Connection;
+import org.eclipse.jetty.io.EndPoint;
+import org.eclipse.jetty.server.ConnectionMetaData;
+import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.CustomRequestLog;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.RequestLog;
+import org.eclipse.jetty.server.Response;
+import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.Slf4jRequestLogWriter;
+import org.eclipse.jetty.util.Attributes;
+import org.eclipse.jetty.util.HostPort;
+import org.eclipse.jetty.util.component.ContainerLifeCycle;
 
 /**
  * Class to standardize initialization of a Jetty request logger for all pulsar components.
@@ -58,7 +75,203 @@ public class JettyRequestLogFactory {
      * Build a new Jetty request logger using the format defined in this class.
      * @return a request logger
      */
-    public static CustomRequestLog createRequestLogger() {
-        return new CustomRequestLog(new Slf4jRequestLogWriter(), LOG_FORMAT);
+    public static RequestLog createRequestLogger() {
+        return createRequestLogger(false, null);
+    }
+
+    /**
+     * Build a new Jetty request logger using the format defined in this class.
+     * @param showDetailedAddresses whether to show detailed addresses and ports in logs
+     * @return a request logger
+     */
+    public static RequestLog createRequestLogger(boolean showDetailedAddresses, Server server) {
+        if (!showDetailedAddresses) {
+            return new CustomRequestLog(new Slf4jRequestLogWriter(), LOG_FORMAT);
+        } else {
+            return new OriginalClientIPRequestLog(server);
+        }
+    }
+
+    /**
+     * Logs the original and real remote (client) and local (server) IP addresses
+     * when detailed addresses are enabled.
+     * Tracks the real addresses of remote and local using a registered Connection.Listener
+     * when detailed addresses are enabled.
+     * This is necessary when Proxy Protocol is used to pass the original client IP.
+     */
+    @Slf4j
+    private static class OriginalClientIPRequestLog extends ContainerLifeCycle implements RequestLog {
+        private final ThreadLocal<StringBuilder> requestLogStringBuilder = ThreadLocal.withInitial(StringBuilder::new);
+        private final CustomRequestLog delegate;
+        private final Slf4jRequestLogWriter delegateLogWriter;
+
+        OriginalClientIPRequestLog(Server server) {
+            delegate = new CustomRequestLog(this::write, LOG_FORMAT);
+            addBean(delegate);
+            delegateLogWriter = new Slf4jRequestLogWriter();
+            addBean(delegateLogWriter);
+            if (server != null) {
+                for (Connector connector : server.getConnectors()) {
+                    // adding the listener is only necessary for connectors that use ProxyConnectionFactory
+                    if (connector.getDefaultConnectionFactory() instanceof ProxyConnectionFactory) {
+                        connector.addBean(proxyProtocolOriginalEndpointListener);
+                    }
+                }
+            }
+        }
+
+        void write(String requestEntry) {
+            StringBuilder sb = requestLogStringBuilder.get();
+            sb.setLength(0);
+            sb.append(requestEntry);
+        }
+
+        @Override
+        public void log(Request request, Response response) {
+            delegate.log(request, response);
+            StringBuilder sb = requestLogStringBuilder.get();
+            sb.append(" [R:");
+            String remoteAddr = Request.getRemoteAddr(request);
+            sb.append(remoteAddr);
+            sb.append(':');
+            int remotePort = Request.getRemotePort(request);
+            sb.append(remotePort);
+
+            InetSocketAddress realRemoteAddress =
+                    lookupRealAddress(unwrap(request.getConnectionMetaData()).getRemoteSocketAddress());
+            if (realRemoteAddress != null) {
+                String realRemoteHost = HostPort.normalizeHost(realRemoteAddress.getHostString());
+                int realRemotePort = realRemoteAddress.getPort();
+                if (!realRemoteHost.equals(remoteAddr) || realRemotePort != remotePort) {
+                    sb.append(" via ");
+                    sb.append(realRemoteHost);
+                    sb.append(':');
+                    sb.append(realRemotePort);
+                }
+            }
+            sb.append("]->[L:");
+            InetSocketAddress realLocalAddress = lookupRealAddress(unwrap(request.getConnectionMetaData())
+                    .getLocalSocketAddress());
+            String localAddr = Request.getLocalAddr(request);
+            int localPort = Request.getLocalPort(request);
+            if (realLocalAddress != null) {
+                String realLocalHost = HostPort.normalizeHost(realLocalAddress.getHostString());
+                int realLocalPort = realLocalAddress.getPort();
+                sb.append(realLocalHost);
+                sb.append(':');
+                sb.append(realLocalPort);
+                if (!realLocalHost.equals(localAddr) || realLocalPort != localPort) {
+                    sb.append(" dst ");
+                    sb.append(localAddr);
+                    sb.append(':');
+                    sb.append(localPort);
+                }
+            } else {
+                sb.append(localAddr);
+                sb.append(':');
+                sb.append(localPort);
+            }
+            sb.append(']');
+            try {
+                delegateLogWriter.write(sb.toString());
+            } catch (Exception e) {
+                log.warn("Failed to write request log", e);
+            }
+        }
+
+        private ConnectionMetaData unwrap(ConnectionMetaData connectionMetaData) {
+            if (connectionMetaData instanceof Attributes) {
+                return (ConnectionMetaData) Attributes.unwrap((Attributes) connectionMetaData);
+            }
+            return connectionMetaData;
+        }
+
+        private InetSocketAddress lookupRealAddress(SocketAddress socketAddress) {
+            if (socketAddress == null || !(socketAddress instanceof InetSocketAddress)) {
+                return null;
+            }
+            InetSocketAddress inetSocketAddress = (InetSocketAddress) socketAddress;
+            if (proxyProtocolRealAddressMapping.isEmpty()) {
+                return inetSocketAddress;
+            }
+            AddressEntry entry = proxyProtocolRealAddressMapping.get(new AddressKey(inetSocketAddress.getHostString(),
+                    inetSocketAddress.getPort()));
+            if (entry != null) {
+                return entry.realAddress;
+            } else {
+                return inetSocketAddress;
+            }
+        }
+
+        private final Connection.Listener proxyProtocolOriginalEndpointListener =
+                new ProxyProtocolOriginalEndpointListener();
+
+        private final ConcurrentHashMap<AddressKey, AddressEntry> proxyProtocolRealAddressMapping =
+                new ConcurrentHashMap<>();
+
+        // Use a record as key since InetSocketAddress hash code changes if the address gets resolved
+        record AddressKey(String hostString, int port) {
+
+        }
+
+        record AddressEntry(InetSocketAddress realAddress, AtomicInteger referenceCount) {
+
+        }
+
+        // Tracks the real addresses of remote and local when detailed addresses are enabled.
+        // This is necessary when Proxy Protocol is used to pass the original client IP.
+        // The Proxy Protocol implementation in Jetty wraps the original endpoint with a ProxyEndPoint
+        // and the real endpoint information isn't available in the request object.
+        // This listener is added to all connectors to track the real addresses of the client and server.
+        class ProxyProtocolOriginalEndpointListener implements Connection.Listener {
+            @Override
+            public void onOpened(Connection connection) {
+                handleConnection(connection, true);
+            }
+
+            @Override
+            public void onClosed(Connection connection) {
+                handleConnection(connection, false);
+            }
+
+            private void handleConnection(Connection connection, boolean increment) {
+                if (connection.getEndPoint() instanceof ProxyConnectionFactory.ProxyEndPoint) {
+                    ProxyConnectionFactory.ProxyEndPoint proxyEndPoint =
+                            (ProxyConnectionFactory.ProxyEndPoint) connection.getEndPoint();
+                    EndPoint originalEndpoint = proxyEndPoint.unwrap();
+                    mapAddress((InetSocketAddress) proxyEndPoint.getLocalSocketAddress(),
+                            (InetSocketAddress) originalEndpoint.getLocalSocketAddress(),
+                            increment);
+                    mapAddress((InetSocketAddress) proxyEndPoint.getRemoteSocketAddress(),
+                            (InetSocketAddress) originalEndpoint.getRemoteSocketAddress(),
+                            increment);
+                }
+            }
+
+            private void mapAddress(InetSocketAddress current, InetSocketAddress real, boolean increment) {
+                // don't add the mapping if the current address is the same as the real address
+                if (real != null && current != null && current.equals(real)) {
+                    return;
+                }
+                AddressKey key = new AddressKey(current.getHostString(), current.getPort());
+                proxyProtocolRealAddressMapping.compute(key, (__, entry) -> {
+                    if (entry == null) {
+                        if (increment) {
+                            entry = new AddressEntry(real, new AtomicInteger(1));
+                        }
+                    } else {
+                        if (increment) {
+                            entry.referenceCount.incrementAndGet();
+                        } else {
+                            if (entry.referenceCount.decrementAndGet() == 0) {
+                                // remove the entry if the reference count drops to 0
+                                entry = null;
+                            }
+                        }
+                    }
+                    return entry;
+                });
+            }
+        }
     }
 }

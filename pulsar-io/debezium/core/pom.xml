@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io-debezium</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-debezium-core</artifactId>
@@ -54,6 +54,12 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.prometheus</groupId>
+          <artifactId>simpleclient_caffeine</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -64,18 +70,24 @@
 
     <dependency>
       <groupId>org.apache.kafka</groupId>
-      <artifactId>kafka_${scala.binary.version}</artifactId>
-      <version>${kafka-client.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.kafka</groupId>
       <artifactId>connect-runtime</artifactId>
       <version>${kafka-client.version}</version>
       <exclusions>
         <exclusion>
           <groupId>org.apache.kafka</groupId>
           <artifactId>kafka-log4j-appender</artifactId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.eclipse.jetty</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.lz4</groupId>
+          <artifactId>lz4-java</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -117,5 +129,17 @@
     </dependency>
 
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <skip>${skipDeployConnector}</skip>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 
 </project>

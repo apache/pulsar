@@ -41,12 +41,16 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
@@ -254,46 +258,46 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     /**
-     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
+     * It updates number of partitions of an existing partitioned topic. It requires partitioned-topic to be
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
-     *
-     * Already created partitioned producers and consumers can't see newly created partitions and it requires to
-     * recreate them at application so, newly created producers and consumers can connect to newly added partitions as
-     * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
-     *
-     * @param property
-     * @param cluster
-     * @param namespace
-     * @param numPartitions
      */
     @POST
     @Path("/{property}/{cluster}/{namespace}/{topic}/partitions")
     @ApiOperation(hidden = true, value = "Increment partitions of an existing partitioned topic.",
-            notes = "It only increments partitions of existing non-global partitioned-topic")
+            notes = "It increments partitions of existing partitioned-topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Update topic partition successful."),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace or topic does not exist"),
-            @ApiResponse(code = 406, message = "The number of partitions should be more than 0"
-                    + " and less than or equal to maxNumPartitionsPerPartitionedTopic"
+            @ApiResponse(code = 401, message = "Unauthenticated"),
+            @ApiResponse(code = 403, message = "Forbidden/Unauthorized"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 422, message = "The number of partitions should be more than 0 and"
+                    + " less than or equal to maxNumPartitionsPerPartitionedTopic"
                     + " and number of new partitions must be greater than existing number of partitions"),
-            @ApiResponse(code = 409, message = "Partitioned topic does not exist")})
+            @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
     public void updatePartitionedTopic(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
+            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopic,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("force") @DefaultValue("false") boolean force,
             int numPartitions) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly, authoritative, force)
-                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+        validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE)
+                .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopic, force))
+                .thenAccept(__ -> {
+                    log.info("[{}][{}] Updated topic partition to {}.", clientAppId(), topicName, numPartitions);
+                    asyncResponse.resume(Response.noContent().build());
+                })
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, ex);
+                        log.error("[{}][{}] Failed to update partition to {}",
+                                clientAppId(), topicName, numPartitions, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -318,8 +322,15 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to get partitioned metadata topic {}", clientAppId(), topicName, ex);
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (!isRedirectException(t)) {
+                        if (AdminResource.isNotFoundException(t)) {
+                            log.error("[{}] Failed to get partitioned metadata topic {}: {}",
+                                    clientAppId(), topicName, ex.getMessage());
+                        } else {
+                            log.error("[{}] Failed to get partitioned metadata topic {}",
+                                    clientAppId(), topicName, t);
+                        }
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -434,7 +445,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalGetStatsAsync(authoritative, getPreciseBacklog, false, false)
+        GetStatsOptions getStatsOptions =
+                new GetStatsOptions(getPreciseBacklog, false, false, false, false);
+        internalGetStatsAsync(authoritative, getStatsOptions)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -501,7 +514,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, false, false, false);
+            GetStatsOptions getStatsOptions = new GetStatsOptions(false, false, false, false, false);
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getStatsOptions);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -548,15 +562,30 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, @PathParam("subName") String encodedSubName,
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(property, cluster, namespace, encodedTopic);
-            internalDeleteSubscription(asyncResponse, decode(encodedSubName), authoritative, force);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+                                   @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        String subName = decode(encodedSubName);
+        internalDeleteSubscriptionAsync(subName, authoritative, force)
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(cause)) {
+                        log.error("[{}] Failed to delete subscription {} from topic {}", clientAppId(), subName,
+                                topicName, cause);
+                    }
+
+                    if (cause instanceof BrokerServiceException.SubscriptionBusyException) {
+                        resumeAsyncResponseExceptionally(asyncResponse,
+                                new RestException(Response.Status.PRECONDITION_FAILED,
+                                        "Subscription has active connected consumers"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, cause);
+                    }
+
+                    return null;
+                });
     }
 
     @POST
@@ -819,14 +848,18 @@ public class PersistentTopics extends PersistentTopicsBase {
                                @PathParam("topic") @Encoded String encodedTopic, @PathParam("ledgerId") Long ledgerId,
                                @PathParam("entryId") Long entryId,
                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetMessageById(asyncResponse, ledgerId, entryId, authoritative);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        internalGetMessageById(ledgerId, entryId, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                                clientAppId(), ledgerId, entryId, topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+        });
     }
 
     @GET

@@ -3,14 +3,19 @@
 all:
   - '**'
 docs:
-  - 'site2/**'
-  - 'deployment/**'
-  - '.asf.yaml'
   - '*.md'
   - '**/*.md'
+  - '.asf.yaml'
   - '.github/changes-filter.yaml'
   - '.github/ISSUE_TEMPLATE/**'
+  - '.idea/**'
+  - 'deployment/**'
   - 'wiki/**'
+  - 'pip/**'
+  - '.gitignore'
+  - '.gitattributes'
+java_non_tests:
+  - '**/src/main/java/**/*.java'
 tests:
   - added|modified: '**/src/test/java/**/*.java'
 need_owasp:
@@ -18,3 +23,9 @@ need_owasp:
   - '**/pom.xml'
   - 'src/owasp-dependency-check-false-positives.xml'
   - 'src/owasp-dependency-check-suppressions.xml'
+pulsar_dockerfile_wolfi:
+  - 'docker/pulsar/Dockerfile.wolfi'
+  - 'tests/docker-images/java-test-image/Dockerfile'
+pulsar_all_dockerfile_wolfi:
+  - 'docker/pulsar-all/Dockerfile.wolfi'
+  - 'tests/docker-images/latest-version-image/Dockerfile'

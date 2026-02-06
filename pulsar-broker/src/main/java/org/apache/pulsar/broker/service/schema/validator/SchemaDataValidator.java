@@ -22,11 +22,15 @@ import org.apache.pulsar.broker.service.schema.KeyValueSchemaCompatibilityCheck;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A validator to validate the schema data is well formed.
  */
 public interface SchemaDataValidator {
+
+    Logger LOGGER = LoggerFactory.getLogger(SchemaDataValidator.class);
 
     /**
      * Validate if the schema data is well formed.
@@ -65,7 +69,8 @@ public interface SchemaDataValidator {
                 break;
             case NONE:
             case BYTES:
-                // `NONE` and `BYTES` schema is not stored
+            case EXTERNAL:
+                // `NONE`, `BYTES` and `EXTERNAL` schema is not stored
                 break;
             case AUTO:
             case AUTO_CONSUME:

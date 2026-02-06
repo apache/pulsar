@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.io.kafka;
 
-import lombok.extern.slf4j.Slf4j;
-import org.testng.annotations.Test;
-
-import java.nio.ByteBuffer;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
+import java.nio.ByteBuffer;
+import lombok.extern.slf4j.Slf4j;
+import org.testng.annotations.Test;
 
 @Slf4j
 public class ByteBufferSchemaWrapperTest {
 
     @Test
-    public void testGetBytesNoCopy() throws Exception {
+    public void testGetBytesNoCopy() {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray);
         assertEquals(0, wrapped.arrayOffset());
@@ -41,18 +39,18 @@ public class ByteBufferSchemaWrapperTest {
     }
 
     @Test
-    public void testGetBytesOffsetZeroDifferentLen() throws Exception {
+    public void testGetBytesOffsetZeroDifferentLen() {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray, 1, 2);
         assertEquals(0, wrapped.arrayOffset());
         assertEquals(2, wrapped.remaining());
         byte[] result = ByteBufferSchemaWrapper.getBytes(wrapped);
         assertNotSame(result, originalArray);
-        assertArrayEquals(result, new byte[] {2,3});
+        assertArrayEquals(result, new byte[] {2, 3});
     }
 
     @Test
-    public void testGetBytesOffsetNonZero() throws Exception {
+    public void testGetBytesOffsetNonZero() {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray);
         wrapped.position(1);
@@ -62,18 +60,18 @@ public class ByteBufferSchemaWrapperTest {
         assertEquals(2, wrapped.remaining());
         byte[] result = ByteBufferSchemaWrapper.getBytes(wrapped);
         assertNotSame(result, originalArray);
-        assertArrayEquals(result, new byte[] {2,3});
+        assertArrayEquals(result, new byte[] {2, 3});
     }
 
     @Test
-    public void testGetBytesOffsetZero() throws Exception {
+    public void testGetBytesOffsetZero() {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray, 0, 2);
         assertEquals(0, wrapped.arrayOffset());
         assertEquals(2, wrapped.remaining());
         byte[] result = ByteBufferSchemaWrapper.getBytes(wrapped);
         assertNotSame(result, originalArray);
-        assertArrayEquals(result, new byte[] {1,2});
+        assertArrayEquals(result, new byte[] {1, 2});
     }
 
 }

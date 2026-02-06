@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -31,6 +32,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -589,7 +591,7 @@ public interface Topics {
     CompletableFuture<Void> createMissedPartitionsAsync(String topic);
 
     /**
-     * Update number of partitions of a non-global partitioned topic.
+     * Update number of partitions of a partitioned topic.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -605,7 +607,7 @@ public interface Topics {
     void updatePartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
 
     /**
-     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * Update number of partitions of a partitioned topic asynchronously.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -621,7 +623,7 @@ public interface Topics {
     CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions);
 
     /**
-     * Update number of partitions of a non-global partitioned topic.
+     * Update number of partitions of a partitioned topic.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -641,7 +643,7 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
-     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * Update number of partitions of a partitioned topic asynchronously.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -661,7 +663,7 @@ public interface Topics {
             boolean force);
 
     /**
-     * Update number of partitions of a non-global partitioned topic.
+     * Update number of partitions of a partitioned topic.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -679,7 +681,7 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
-     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * Update number of partitions of a partitioned topic asynchronously.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -1139,23 +1141,26 @@ public interface Topics {
     default TopicStats getStats(String topic, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                         boolean getEarliestTimeInBacklog) throws PulsarAdminException {
         GetStatsOptions getStatsOptions =
-                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog);
+                new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog, false, false);
         return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic, boolean getPreciseBacklog,
                         boolean subscriptionBacklogSize) throws PulsarAdminException {
-        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, false);
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, subscriptionBacklogSize, false,
+                false, false);
         return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic, boolean getPreciseBacklog) throws PulsarAdminException {
-        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, false, false);
+        GetStatsOptions getStatsOptions = new GetStatsOptions(getPreciseBacklog, false, false,
+                false, false);
         return getStats(topic, getStatsOptions);
     }
 
     default TopicStats getStats(String topic) throws PulsarAdminException {
-        return getStats(topic, new GetStatsOptions(false, false, false));
+        return getStats(topic, new GetStatsOptions(false, false, false,
+                false, false));
     }
 
     /**
@@ -1175,6 +1180,8 @@ public interface Topics {
      */
     CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
                                                 boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<TopicStats> getStatsAsync(String topic, GetStatsOptions getStatsOptions);
 
     default CompletableFuture<TopicStats> getStatsAsync(String topic) {
         return getStatsAsync(topic, false, false, false);
@@ -1346,6 +1353,9 @@ public interface Topics {
                                               boolean subscriptionBacklogSize, boolean getEarliestTimeInBacklog)
             throws PulsarAdminException;
 
+    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition, GetStatsOptions getStatsOptions)
+            throws PulsarAdminException;
+
     default PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException {
         return getPartitionedStats(topic, perPartition, false, false, false);
     }
@@ -1361,11 +1371,16 @@ public interface Topics {
      *            Set to true to get precise backlog, Otherwise get imprecise backlog.
      * @param subscriptionBacklogSize
      *            Whether to get backlog size for each subscription.
+     * @param getEarliestTimeInBacklog
+     *            Whether to get the earliest time in backlog.
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
     CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(
             String topic, boolean perPartition, boolean getPreciseBacklog, boolean subscriptionBacklogSize,
             boolean getEarliestTimeInBacklog);
+
+    CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(
+            String topic, boolean perPartition, GetStatsOptions getStatsOptions);
 
     default CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition) {
         return getPartitionedStatsAsync(topic, perPartition, false, false, false);
@@ -1640,7 +1655,38 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException;
+    default List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
+            throws PulsarAdminException {
+        return peekMessages(topic, subName, numMessages, false, TransactionIsolationLevel.READ_COMMITTED);
+    }
+
+    /**
+     * Peek messages from a topic subscription.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param numMessages
+     *            Number of messages
+     * @param showServerMarker
+     *            Enables the display of internal server write markers
+     * @param transactionIsolationLevel
+     *            Sets the isolation level for peeking messages within transactions.
+     *            - 'READ_COMMITTED' allows peeking only committed transactional messages.
+     *            - 'READ_UNCOMMITTED' allows peeking all messages,
+     *                                 even transactional messages which have been aborted.
+     * @return
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Topic or subscription does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages,
+                                       boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel)
+            throws PulsarAdminException;
 
     /**
      * Peek messages from a topic subscription asynchronously.
@@ -1653,7 +1699,31 @@ public interface Topics {
      *            Number of messages
      * @return a future that can be used to track when the messages are returned
      */
-    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages);
+    default CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
+        return peekMessagesAsync(topic, subName, numMessages, false, TransactionIsolationLevel.READ_COMMITTED);
+    }
+
+    /**
+     * Peek messages from a topic subscription asynchronously.
+     *
+     * @param topic
+     *            topic name
+     * @param subName
+     *            Subscription name
+     * @param numMessages
+     *            Number of messages
+     * @param showServerMarker
+     *            Enables the display of internal server write markers
+      @param transactionIsolationLevel
+     *            Sets the isolation level for peeking messages within transactions.
+     *            - 'READ_COMMITTED' allows peeking only committed transactional messages.
+     *            - 'READ_UNCOMMITTED' allows peeking all messages,
+     *                                 even transactional messages which have been aborted.
+     * @return a future that can be used to track when the messages are returned
+     */
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(
+            String topic, String subName, int numMessages,
+            boolean showServerMarker, TransactionIsolationLevel transactionIsolationLevel);
 
     /**
      * Get a message by its messageId via a topic subscription.
@@ -1666,7 +1736,9 @@ public interface Topics {
      * @return the message indexed by the messageId
      * @throws PulsarAdminException
      *            Unexpected error
+     * @deprecated Using {@link #getMessagesById(String, long, long)} instead.
      */
+    @Deprecated
     Message<byte[]> getMessageById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
 
     /**
@@ -1678,8 +1750,31 @@ public interface Topics {
      * @param entryId
      *            Entry id
      * @return a future that can be used to track when the message is returned
+     * @deprecated Using {@link #getMessagesByIdAsync(String, long, long)} instead.
      */
+    @Deprecated
     CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
+
+    /**
+     * Get the messages by messageId.
+     *
+     * @param topic    Topic name
+     * @param ledgerId Ledger id
+     * @param entryId  Entry id
+     * @return A set of messages.
+     * @throws PulsarAdminException Unexpected error
+     */
+    List<Message<byte[]>> getMessagesById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
+
+    /**
+     * Get the messages by messageId asynchronously.
+     *
+     * @param topic    Topic name
+     * @param ledgerId Ledger id
+     * @param entryId  Entry id
+     * @return A future that can be used to track when a set of messages is returned.
+     */
+    CompletableFuture<List<Message<byte[]>>> getMessagesByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
      * Get message ID published at or just after this absolute timestamp (in ms).
@@ -1980,6 +2075,19 @@ public interface Topics {
     CompletableFuture<Void> triggerCompactionAsync(String topic);
 
     /**
+     * Trigger topic trimming.
+     * @param topic The topic to trim
+     * @throws PulsarAdminException
+     */
+    void trimTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * Trigger topic trimming asynchronously.
+     * @param topic The topic to trim
+     */
+    CompletableFuture<Void> trimTopicAsync(String topic);
+
+    /**
      * Check the status of an ongoing compaction for a topic.
      *
      * @param topic The topic whose compaction status we wish to check
@@ -2113,6 +2221,52 @@ public interface Topics {
      * This is a potentially expensive operation, as it requires
      * to read the messages from storage.
      * This function takes into consideration batch messages
+     * and also Subscription filters. <br/>
+     * See also: {@link #analyzeSubscriptionBacklogAsync(String, String, Optional, long)}
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @param backlogScanMaxEntries
+     *           the maximum number of backlog entries the client will scan before terminating its loop
+     * @return an accurate analysis of the backlog
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
+                                                                Optional<MessageId> startPosition,
+                                                                long backlogScanMaxEntries) throws PulsarAdminException;
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters. <br/>
+     * See also: {@link #analyzeSubscriptionBacklogAsync(String, String, Optional, Predicate)} <br/>
+     *
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @param terminatePredicate
+     *           the predicate to determine whether to terminate the loop
+     * @return an accurate analysis of the backlog
+     */
+    AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
+                                                        Optional<MessageId> startPosition,
+                                                        Predicate<AnalyzeSubscriptionBacklogResult> terminatePredicate)
+            throws PulsarAdminException;
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
      * and also Subscription filters.
      * @param topic
      *            Topic name
@@ -2121,12 +2275,79 @@ public interface Topics {
      * @param startPosition
      *           the position to start the scan from (empty means the last processed message)
      * @return an accurate analysis of the backlog
-     * @throws PulsarAdminException
-     *            Unexpected error
      */
     CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
                                                                            String subscriptionName,
                                                                            Optional<MessageId> startPosition);
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters.
+     *
+     *<p>
+     * What's the purpose of this overloaded method? <br/>
+     * There are broker side configurable maximum limits how many entries will be read and how long the scanning can
+     * take. The subscriptionBacklogScanMaxTimeMs (default 2 minutes) and subscriptionBacklogScanMaxEntries
+     * (default 10000) control this behavior. <br/>
+     * Increasing these settings is possible. However, it's possible that the HTTP request times out (also idle timeout
+     * in NAT/firewall etc.) before the command completes so increasing the limits might not be useful beyond a few
+     * minutes.
+     *</p>
+     *
+     *<p>
+     * How does this method work? <br/>
+     * 1. Add a new parameter backlogScanMaxEntries in client side method to control the client-side loop termination
+     *    condition. <br/>
+     * 2. If subscriptionBacklogScanMaxEntries(server side) >= backlogScanMaxEntries(client side), then
+     *    backlogScanMaxEntries parameter will take no effect. <br/>
+     * 3. If subscriptionBacklogScanMaxEntries < backlogScanMaxEntries, the client will call analyze-backlog method in
+     *    a loop until server return ScanOutcome.COMPLETED or the total entries exceeds backlogScanMaxEntries. <br/>
+     * 4. This means that backlogScanMaxEntries cannot be used to precisely control the number of entries scanned by
+     *    the server, it only serves to determine when the loop should terminate. <br/>
+     * 5. With this method, the server can reduce the values of the two parameters subscriptionBacklogScanMaxTimeMs and
+     *    subscriptionBacklogScanMaxEntries, so user can retrieve the desired number of backlog entries through
+     *    client-side looping.
+     *</p>
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @param backlogScanMaxEntries
+     *           the maximum number of backlog entries the client will scan before terminating its loop
+     * @return an accurate analysis of the backlog
+     */
+    CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                                            String subscriptionName,
+                                                                            Optional<MessageId> startPosition,
+                                                                            long backlogScanMaxEntries);
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters. <br/>
+     * See also: {@link #analyzeSubscriptionBacklogAsync(String, String, Optional, long)} <br/>
+     * User can control the loop termination condition by terminatePredicate.
+     *
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @param terminatePredicate
+     *           the predicate to determine whether to terminate the loop
+     * @return an accurate analysis of the backlog
+     */
+    CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                        String subscriptionName, Optional<MessageId> startPosition,
+                                                        Predicate<AnalyzeSubscriptionBacklogResult> terminatePredicate);
 
     /**
      * Get backlog size by a message ID.
@@ -4264,6 +4485,15 @@ public interface Topics {
 
     /**
      * Set the replication clusters for the topic.
+     * <p/>
+     * When removing a cluster from the replication list, the behavior depends on your configuration store setup:
+     * <ul>
+     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the topic data
+     *     from the removed cluster.</li>
+     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the
+     *     operating cluster's behavior. Replication stops from the operating cluster to the
+     *     removed cluster, but existing topic data on the removed cluster is preserved.</li>
+     * </ul>
      *
      * @param topic
      * @param clusterIds
@@ -4274,6 +4504,15 @@ public interface Topics {
 
     /**
      * Set the replication clusters for the topic asynchronously.
+     * <p/>
+     * When removing a cluster from the replication list, the behavior depends on your configuration store setup:
+     * <ul>
+     * <li><b>Shared Configuration Store</b>: Removing a cluster from replication will delete the topic data
+     *     from the removed cluster.</li>
+     * <li><b>Separate Configuration Store</b>: Removing a cluster from replication only affects the
+     *     operating cluster's behavior. Replication stops from the operating cluster to the
+     *     removed cluster, but existing topic data on the removed cluster is preserved.</li>
+     * </ul>
      *
      * @param topic
      * @param clusterIds
@@ -4451,4 +4690,61 @@ public interface Topics {
     default CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic) {
         return createShadowTopicAsync(shadowTopic, sourceTopic, null);
     }
+
+    /**
+     * Get the message id by index. If the index points to a system message, return the first user message following it;
+     * if the specified message has expired and been deleted, return MessageId.Earliest.
+     * The messages without entry metadata will be skipped, and the next matched message whose index >= the specified
+     * index will be returned.
+     * @param topicName either the specific partition name of a partitioned topic (e.g. my-topic-partition-0)
+     *                 or the original topic name for non-partitioned topics.
+     * @param index the index of a message
+     * @return the message id of the message.
+     * When retrieving a message ID by index, the resolution is limited to the **entry** level (an entry is the minimal
+     * storage unit for messages in Pulsar's persistence layer).
+     * If message batching is enabled, a single entry may contain multiple messages with distinct indexes.
+     * Example Scenario (partition with 2 entries):
+     * | Entry | Ledger ID | Entry ID | Index | Messages |
+     * | :--- | ---: | ---: | ---: | ---: |
+     * | A | 0 | 0 | 2 | 0,1,2 |
+     * | B | 0 | 1 | 4 | 3,4 |
+     * Param with indexes 0,1,2 or 3,4 will return the **same MessageID** (e.g., `MessageId(0:0:*)` for Entry A).
+     * @throws NotAuthorizedException      (HTTP 403 Forbidden) Client lacks permissions to access the topic/namespace.
+     * @throws NotFoundException           (HTTP 404 Not Found) Source topic/namespace does not exist, or invalid index.
+     * @throws PulsarAdminException        (HTTP 406 Not Acceptable) Specified topic is not a persistent topic.
+     * @throws PreconditionFailedException (HTTP 412 Precondition Failed) Broker entry metadata is disabled.
+     * @throws PulsarAdminException        For other errors (e.g., HTTP 500 Internal Server Error).
+     */
+    MessageId getMessageIdByIndex(String topicName, long index) throws PulsarAdminException;
+
+
+    /**
+     * Get the message id by index asynchronously. If the index points to a system message, return the first user
+     * message following it; if the specified message has expired and been deleted, return MessageId.Earliest.
+     * The messages without entry metadata will be skipped, and the next matched message whose index >= the specified
+     * index will be returned.
+     * @param topicName either the specific partition name of a partitioned topic (e.g. my-topic-partition-0) or
+     *                 the original topic name for non-partitioned topics.
+     * @param index the index of a message
+     * When retrieving a message ID by index, the resolution is limited to the **entry** level (an entry is the minimal
+     *              storage unit for messages in Pulsar's persistence layer).
+     * If message batching is enabled, a single entry may contain multiple messages with distinct indexes.
+     * Example Scenario (partition with 2 entries):
+     * | Entry | Ledger ID | Entry ID | Index | Messages |
+     * | :--- | ---: | ---: | ---: | ---: |
+     * | A | 0 | 0 | 2 | 0,1,2 |
+     * | B | 0 | 1 | 4 | 3,4 |
+     * Param with indexes 0,1,2 or 3,4 will return the **same MessageID** (e.g., `MessageId(0:0:*)` for Entry A).
+     * @implNote The return {@link CompletableFuture<MessageId>} that completes with the message id of the message.
+     *         The future may complete exceptionally with:
+     *         <ul>
+     *             <li>{@link NotAuthorizedException} (HTTP 403) Permission denied for topic/namespace access.</li>
+     *             <li>{@link NotFoundException} (HTTP 404) Shadow topic/namespace does not exist or invalid index.</li>
+     *             <li>{@link PulsarAdminException} (HTTP 406) Shadow topic is not a persistent topic.</li>
+     *             <li>{@link PreconditionFailedException} (HTTP 412) Broker entry metadata is not enabled.</li>
+     *             <li>{@link PulsarAdminException} (HTTP 307) Redirect required to the correct broker.</li>
+     *             <li>{@link PulsarAdminException} Other errors (e.g., HTTP 500).</li>
+     *         </ul>
+     */
+    CompletableFuture<MessageId> getMessageIdByIndexAsync(String topicName, long index);
 }

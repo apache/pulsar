@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.data;
 
+import java.net.URI;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 
@@ -35,7 +39,10 @@ public record BrokerLookupData (String webServiceUrl,
                                 Map<String, String> protocols,
                                 boolean persistentTopicsEnabled,
                                 boolean nonPersistentTopicsEnabled,
-                                String brokerVersion) implements ServiceLookupData {
+                                String loadManagerClassName,
+                                long startTimestamp,
+                                String brokerVersion,
+                                Map<String, String> properties) implements ServiceLookupData {
     @Override
     public String getWebServiceUrl() {
         return this.webServiceUrl();
@@ -66,8 +73,35 @@ public record BrokerLookupData (String webServiceUrl,
         return Optional.ofNullable(this.protocols().get(protocol));
     }
 
-    public LookupResult toLookupResult() {
+    @Override
+    public String getLoadManagerClassName() {
+        return this.loadManagerClassName;
+    }
+
+    @Override
+    public long getStartTimestamp() {
+        return this.startTimestamp;
+    }
+
+    public LookupResult toLookupResult(LookupOptions options) throws PulsarServerException {
+        if (options.hasAdvertisedListenerName()) {
+            AdvertisedListener listener = advertisedListeners.get(options.getAdvertisedListenerName());
+            if (listener == null) {
+                throw new PulsarServerException("the broker do not have "
+                        + options.getAdvertisedListenerName() + " listener");
+            }
+            URI url = listener.getBrokerServiceUrl();
+            URI urlTls = listener.getBrokerServiceUrlTls();
+            return new LookupResult(webServiceUrl, webServiceUrlTls,
+                    url == null ? null : url.toString(),
+                    urlTls == null ? null : urlTls.toString(), LookupResult.Type.BrokerUrl, false);
+        }
         return new LookupResult(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
                 LookupResult.Type.BrokerUrl, false);
+    }
+
+    public NamespaceEphemeralData toNamespaceEphemeralData() {
+        return new NamespaceEphemeralData(pulsarServiceUrl, pulsarServiceUrlTls, webServiceUrl, webServiceUrlTls,
+                false, advertisedListeners);
     }
 }

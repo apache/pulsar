@@ -27,11 +27,13 @@ public interface Replicator {
 
     void startProducer();
 
-    ReplicatorStatsImpl getStats();
+    Topic getLocalTopic();
+
+    ReplicatorStatsImpl computeStats();
+
+    CompletableFuture<Void> terminate();
 
     CompletableFuture<Void> disconnect();
-
-    CompletableFuture<Void> disconnect(boolean b);
 
     void updateRates();
 
@@ -49,4 +51,10 @@ public interface Replicator {
     }
 
     boolean isConnected();
+
+    long getNumberOfEntriesInBacklog();
+
+    boolean isTerminated();
+
+    ReplicatorStatsImpl getStats();
 }

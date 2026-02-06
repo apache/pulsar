@@ -62,11 +62,11 @@ public abstract class BaseResource {
     private static final Logger log = LoggerFactory.getLogger(BaseResource.class);
 
     protected final Authentication auth;
-    protected final long readTimeoutMs;
+    protected final long requestTimeoutMs;
 
-    protected BaseResource(Authentication auth, long readTimeoutMs) {
+    protected BaseResource(Authentication auth, long requestTimeoutMs) {
         this.auth = auth;
-        this.readTimeoutMs = readTimeoutMs;
+        this.requestTimeoutMs = requestTimeoutMs;
     }
 
     public Builder request(final WebTarget target) throws PulsarAdminException {
@@ -202,11 +202,19 @@ public abstract class BaseResource {
                 new InvocationCallback<Response>() {
                     @Override
                     public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+                        int status = response.getStatus();
+                        // Accept both 200 OK and 204 No Content as success
+                        if (status != Response.Status.OK.getStatusCode()
+                                && status != Response.Status.NO_CONTENT.getStatusCode()) {
                             future.completeExceptionally(getApiException(response));
                         } else {
                             try {
-                                future.complete(readResponse.apply(response));
+                                // Handle 204 No Content - no response body to read
+                                if (status == Response.Status.NO_CONTENT.getStatusCode()) {
+                                    future.complete(null);
+                                } else {
+                                    future.complete(readResponse.apply(response));
+                                }
                             } catch (Exception e) {
                                 future.completeExceptionally(getApiException(e));
                             }
@@ -323,11 +331,12 @@ public abstract class BaseResource {
             return e.getResponse().readEntity(ErrorData.class).reason.toString();
         } catch (Exception ex) {
             try {
-                return ObjectMapperFactory.getThreadLocal().readValue(
+                return ObjectMapperFactory.getMapper().reader().readValue(
                         e.getResponse().getEntity().toString(), ErrorData.class).reason;
             } catch (Exception ex1) {
                 try {
-                    return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
+                    return ObjectMapperFactory.getMapper().reader()
+                            .readValue(e.getMessage(), ErrorData.class).reason;
                 } catch (Exception ex2) {
                     // could not parse output to ErrorData class
                     return e.getMessage();
@@ -338,7 +347,7 @@ public abstract class BaseResource {
 
     protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
         try {
-            return executor.get().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
+            return executor.get().get(this.requestTimeoutMs, TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
            Thread.currentThread().interrupt();
           throw new PulsarAdminException(e);

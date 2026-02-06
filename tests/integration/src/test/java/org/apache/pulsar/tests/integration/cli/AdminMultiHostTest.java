@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.tests.TestRetrySupport;
@@ -62,6 +63,7 @@ public class AdminMultiHostTest extends TestRetrySupport {
     @Test
     public void testAdminMultiHost() throws Exception {
         String hosts = pulsarCluster.getAllBrokersHttpServiceUrl();
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(hosts).build();
         // all brokers alive
         Assert.assertEquals(admin.brokers().getActiveBrokers(clusterName).size(), 3);

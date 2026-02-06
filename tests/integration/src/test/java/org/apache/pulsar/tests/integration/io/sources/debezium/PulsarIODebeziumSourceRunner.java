@@ -19,9 +19,9 @@
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
 import com.google.common.base.Preconditions;
+import dev.failsafe.Failsafe;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.failsafe.Failsafe;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -43,7 +43,7 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
     private int numMessages;
     private boolean jsonWithEnvelope;
     private PulsarClient client;
-    
+
     public PulsarIODebeziumSourceRunner(PulsarCluster cluster, String functionRuntimeType, String converterClassName,
             String tenant, String ns, String sourceName, String outputTopic, int numMessages, boolean jsonWithEnvelope,
             String consumeTopicName, PulsarClient client) {
@@ -97,7 +97,8 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
         log.info("[debezium mysql test] create consumer finish. converterName: {}", converterClassName);
 
         // validate the source result
-        sourceTester.validateSourceResult(consumer, sourceTester.getNumEntriesExpectAfterStart(), null, converterClassName);
+        sourceTester.validateSourceResult(consumer, sourceTester.getNumEntriesExpectAfterStart(),
+                null, converterClassName);
 
         final int numEntriesToInsert = sourceTester.getNumEntriesToInsert();
         Preconditions.checkArgument(numEntriesToInsert >= 1);

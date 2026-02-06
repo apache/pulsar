@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 import static org.apache.bookkeeper.mledger.offload.OffloadUtils.buildLedgerMetadataFormat;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.Recycler;
 import java.io.IOException;
 import java.util.Iterator;
@@ -45,6 +46,8 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +66,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
     private OrderedScheduler scheduler;
     private static final long ENTRIES_PER_READ = 100;
     private OrderedScheduler assignmentScheduler;
-    private OffloadPoliciesImpl offloadPolicies;
+    private OffloadPolicies offloadPolicies;
     private final LedgerOffloaderStats offloaderStats;
 
     public static boolean driverSupported(String driver) {
@@ -104,7 +107,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
         this.configuration.setClassLoader(FileSystemLedgerOffloaderFactory.class.getClassLoader());
         this.driverName = conf.getManagedLedgerOffloadDriver();
-        this.storageBasePath = configuration.get("hadoop.tmp.dir");
+        this.storageBasePath = configuration.get("fs.defaultFS");
         this.scheduler = scheduler;
         this.fileSystem = FileSystem.get(configuration);
         this.assignmentScheduler = OrderedScheduler.newSchedulerBuilder()
@@ -191,15 +194,21 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
         @Override
         public void run() {
-            if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
+            if (!readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
                 promise.completeExceptionally(
                         new IllegalArgumentException("An empty or open ledger should never be offloaded"));
                 return;
             }
+            if (readHandle.getLength() <= 0) {
+                log.warn("Ledger [{}] has zero length, but it contains {} entries. "
+                    + " Attempting to offload ledger since it contains entries.", readHandle.getId(),
+                    readHandle.getLastAddConfirmed() + 1);
+            }
             long ledgerId = readHandle.getId();
-            final String topicName = extraMetadata.get(MANAGED_LEDGER_NAME);
-            String storagePath = getStoragePath(storageBasePath, topicName);
+            final String managedLedgerName = extraMetadata.get(MANAGED_LEDGER_NAME);
+            String storagePath = getStoragePath(storageBasePath, managedLedgerName);
             String dataFilePath = getDataFilePath(storagePath, ledgerId, uuid);
+            final String topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
             LongWritable key = new LongWritable();
             BytesWritable value = new BytesWritable();
             try {
@@ -241,7 +250,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                 promise.complete(null);
             } catch (Exception e) {
                 log.error("Exception when get CompletableFuture<LedgerEntries> : ManagerLedgerName: {}, "
-                        + "LedgerId: {}, UUID: {} ", topicName, ledgerId, uuid, e);
+                        + "LedgerId: {}, UUID: {} ", managedLedgerName, ledgerId, uuid, e);
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
                 }
@@ -306,22 +315,27 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         @Override
         public void run() {
             String managedLedgerName = ledgerReader.extraMetadata.get(MANAGED_LEDGER_NAME);
+            String topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
             if (ledgerReader.fileSystemWriteException == null) {
                 Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
                 while (iterator.hasNext()) {
                     LedgerEntry entry = iterator.next();
                     long entryId = entry.getEntryId();
                     key.set(entryId);
+                    byte[] currentEntryBytes;
+                    int currentEntrySize;
                     try {
-                        value.set(entry.getEntryBytes(), 0, entry.getEntryBytes().length);
+                        currentEntryBytes = entry.getEntryBytes();
+                        currentEntrySize = currentEntryBytes.length;
+                        value.set(currentEntryBytes, 0, currentEntrySize);
                         dataWriter.append(key, value);
                     } catch (IOException e) {
                         ledgerReader.fileSystemWriteException = e;
-                        ledgerReader.offloaderStats.recordWriteToStorageError(managedLedgerName);
+                        ledgerReader.offloaderStats.recordWriteToStorageError(topicName);
                         break;
                     }
                     haveOffloadEntryNumber.incrementAndGet();
-                    ledgerReader.offloaderStats.recordOffloadBytes(managedLedgerName, entry.getLength());
+                    ledgerReader.offloaderStats.recordOffloadBytes(topicName, currentEntrySize);
                 }
             }
             countDownLatch.countDown();
@@ -367,6 +381,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
         String ledgerName = offloadDriverMetadata.get(MANAGED_LEDGER_NAME);
         String storagePath = getStoragePath(storageBasePath, ledgerName);
         String dataFilePath = getDataFilePath(storagePath, ledgerId, uid);
+        String topicName = TopicName.fromPersistenceNamingEncoding(ledgerName);
         CompletableFuture<Void> promise = new CompletableFuture<>();
         try {
             fileSystem.delete(new Path(dataFilePath), true);
@@ -376,11 +391,11 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             promise.completeExceptionally(e);
         }
         return promise.whenComplete((__, t) ->
-                this.offloaderStats.recordDeleteOffloadOps(ledgerName, t == null));
+                this.offloaderStats.recordDeleteOffloadOps(topicName, t == null));
     }
 
     @Override
-    public OffloadPoliciesImpl getOffloadPolicies() {
+    public OffloadPolicies getOffloadPolicies() {
         return offloadPolicies;
     }
 
@@ -392,6 +407,9 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
             } catch (Exception e) {
                 log.error("FileSystemManagedLedgerOffloader close failed!", e);
             }
+        }
+        if (assignmentScheduler != null) {
+            MoreExecutors.shutdownAndAwaitTermination(assignmentScheduler, 5, TimeUnit.SECONDS);
         }
     }
 }

@@ -22,7 +22,6 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStr
 import static org.apache.pulsar.functions.worker.PulsarFunctionLocalRunTest.getPulsarApiExamplesJar;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
@@ -57,7 +56,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Test Pulsar sink on function
+ * Test Pulsar sink on function.
  *
  */
 @Slf4j
@@ -87,7 +86,7 @@ public class PulsarWorkerAssignmentTest {
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
-        config = spy(ServiceConfiguration.class);
+        config = new ServiceConfiguration();
         config.setClusterName("use");
         final Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
@@ -132,11 +131,26 @@ public class PulsarWorkerAssignmentTest {
     void shutdown() {
         log.info("--- Shutting down ---");
         try {
-            pulsarClient.close();
-            admin.close();
-            functionsWorkerService.stop();
-            pulsar.close();
-            bkEnsemble.stop();
+            if (pulsarClient != null) {
+                pulsarClient.close();
+                pulsarClient = null;
+            }
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
+            if (functionsWorkerService != null) {
+                functionsWorkerService.stop();
+                functionsWorkerService = null;
+            }
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } catch (Exception e) {
             log.warn("Encountered errors at shutting down PulsarWorkerAssignmentTest", e);
         } finally {
@@ -155,7 +169,8 @@ public class PulsarWorkerAssignmentTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper()
+                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
         // worker talks to local broker
         workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
         workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort().get());
@@ -174,7 +189,6 @@ public class PulsarWorkerAssignmentTest {
         workerConfig.setTopicCompactionFrequencySec(1);
 
         PulsarWorkerService workerService = new PulsarWorkerService();
-        workerService.init(workerConfig, null, false);
         return workerService;
     }
 
@@ -200,15 +214,16 @@ public class PulsarWorkerAssignmentTest {
         retryStrategically((test) -> {
             try {
                 return admin.topics().getStats(sinkTopic).getSubscriptions().size() == 1
-                        && admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers()
-                                .size() == 2;
+                        && admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next()
+                        .getConsumers().size() == 2;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
         // validate 2 instances have been started
         assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().size(), 1);
-        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers().size(), 2);
+        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions()
+                .values().iterator().next().getConsumers().size(), 2);
 
         // (2) Update function with 1 instance
         functionConfig.setParallelism(1);
@@ -217,15 +232,16 @@ public class PulsarWorkerAssignmentTest {
         retryStrategically((test) -> {
             try {
                 return admin.topics().getStats(sinkTopic).getSubscriptions().size() == 1
-                        && admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers()
-                                .size() == 1;
+                        && admin.topics().getStats(sinkTopic).getSubscriptions()
+                        .values().iterator().next().getConsumers().size() == 1;
             } catch (PulsarAdminException e) {
                 return false;
             }
         }, 50, 150);
         // validate pulsar sink consumer has started on the topic
         log.info("admin.topics().getStats(sinkTopic): {}", new Gson().toJson(admin.topics().getStats(sinkTopic)));
-        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers().size(), 1);
+        assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions()
+                .values().iterator().next().getConsumers().size(), 1);
     }
 
     @Test(timeOut = 60000, enabled = false)

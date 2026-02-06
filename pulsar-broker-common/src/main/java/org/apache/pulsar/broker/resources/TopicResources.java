@@ -30,26 +30,32 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 @Slf4j
 public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
 
-    private final MetadataStore store;
+    private final MetadataStoreExtended store;
 
-    private final Map<BiConsumer<String, NotificationType>, Pattern> topicListeners;
+    private final Map<TopicListener, Pattern> topicListeners;
 
-    public TopicResources(MetadataStore store) {
+    public TopicResources(MetadataStoreExtended store) {
         this.store = store;
         topicListeners = new ConcurrentHashMap<>();
         store.registerListener(this::handleNotification);
+        store.registerSessionListener(this::handleSessionEvent);
     }
 
+    /***
+     * List persistent topics names under a namespace, the topic name contains the partition suffix.
+     */
     public CompletableFuture<List<String>> listPersistentTopicsAsync(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
 
@@ -72,11 +78,6 @@ public class TopicResources {
         );
     }
 
-    public CompletableFuture<Void> deletePersistentTopicAsync(TopicName topic) {
-        String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
-        return store.delete(path, Optional.of(-1L));
-    }
-
     public CompletableFuture<Void> createPersistentTopicAsync(TopicName topic) {
         String path = MANAGED_LEDGER_PATH + "/" + topic.getPersistenceNamingEncoding();
         return store.put(path, new byte[0], Optional.of(-1L))
@@ -90,38 +91,20 @@ public class TopicResources {
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns;
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return store.delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        log.info("Clearing namespace persistence for namespace: {}, path {}", ns, path);
+        return store.deleteIfExists(path, Optional.empty());
     }
 
     public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return store.delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        log.info("Clearing domain persistence for namespace: {}, path {}", ns, path);
+        return store.deleteIfExists(path, Optional.empty());
     }
 
     public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
-        return store.exists(path)
-                .thenCompose(exists -> {
-                    if (exists) {
-                        return store.delete(path, Optional.empty());
-                    } else {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                });
+        log.info("Clearing tenant persistence for tenant: {}, path {}", tenant, path);
+        return store.deleteRecursive(path);
     }
 
     void handleNotification(Notification notification) {
@@ -131,30 +114,94 @@ public class TopicResources {
         if (notification.getPath().startsWith(MANAGED_LEDGER_PATH)
                 && (notification.getType() == NotificationType.Created
                 || notification.getType() == NotificationType.Deleted)) {
-            for (Map.Entry<BiConsumer<String, NotificationType>, Pattern> entry :
+            for (Map.Entry<TopicListener, Pattern> entry :
                     topicListeners.entrySet()) {
                 Matcher matcher = entry.getValue().matcher(notification.getPath());
                 if (matcher.matches()) {
                     TopicName topicName = TopicName.get(
-                            matcher.group(2), NamespaceName.get(matcher.group(1)), matcher.group(3));
-                    entry.getKey().accept(topicName.toString(), notification.getType());
+                            matcher.group(2), NamespaceName.get(matcher.group(1)), decode(matcher.group(3)));
+                    if (!SystemTopicNames.isSystemTopic(topicName)) {
+                        entry.getKey().onTopicEvent(topicName.toString(), notification.getType());
+                    }
                 }
             }
         }
     }
 
     Pattern namespaceNameToTopicNamePattern(NamespaceName namespaceName) {
-        return Pattern.compile(
-                MANAGED_LEDGER_PATH + "/(" + namespaceName + ")/(" + TopicDomain.persistent + ")/(" + "[^/]+)");
+        return Pattern.compile(MANAGED_LEDGER_PATH + "/(" + Pattern.quote(namespaceName.toString()) + ")/("
+                        + TopicDomain.persistent + ")/(" + "[^/]+)");
     }
 
-    public void registerPersistentTopicListener(
-            NamespaceName namespaceName, BiConsumer<String, NotificationType> listener) {
-        topicListeners.put(listener, namespaceNameToTopicNamePattern(namespaceName));
+    public void registerPersistentTopicListener(TopicListener listener) {
+        topicListeners.put(listener, namespaceNameToTopicNamePattern(listener.getNamespaceName()));
     }
 
-    public void deregisterPersistentTopicListener(BiConsumer<String, NotificationType> listener) {
+    public void deregisterPersistentTopicListener(TopicListener listener) {
         topicListeners.remove(listener);
     }
 
+    private void handleSessionEvent(SessionEvent sessionEvent) {
+        topicListeners.keySet().forEach(listener -> {
+            try {
+                listener.onSessionEvent(sessionEvent);
+            } catch (Exception e) {
+                log.warn("Failed to handle session event {} for listener {}", sessionEvent, listener, e);
+            }
+        });
+    }
+
+    @Deprecated
+    public void registerPersistentTopicListener(
+            NamespaceName namespaceName, BiConsumer<String, NotificationType> listener) {
+        topicListeners.put(new BiConsumerTopicListener(listener, namespaceName),
+                namespaceNameToTopicNamePattern(namespaceName));
+    }
+
+    @Deprecated
+    public void deregisterPersistentTopicListener(BiConsumer<String, NotificationType> listener) {
+        topicListeners.remove(new BiConsumerTopicListener(listener, null));
+    }
+
+    // for backwards compatibility with broker plugins that could be using the BiConsumer based methods
+    @Deprecated
+    static class BiConsumerTopicListener implements TopicListener {
+        private final BiConsumer<String, NotificationType> listener;
+        private final NamespaceName namespaceName;
+
+        BiConsumerTopicListener(BiConsumer<String, NotificationType> listener, NamespaceName namespaceName) {
+            this.listener = listener;
+            this.namespaceName = namespaceName;
+        }
+
+        @Override
+        public NamespaceName getNamespaceName() {
+            return namespaceName;
+        }
+
+        @Override
+        public void onTopicEvent(String topicName, NotificationType notificationType) {
+            listener.accept(topicName, notificationType);
+        }
+
+        @Override
+        public void onSessionEvent(SessionEvent sessionEvent) {
+            // ignore
+        }
+
+        @Override
+        public String toString() {
+            return "BiConsumerTopicListener [listener=" + listener + ", namespaceName=" + namespaceName + "]";
+        }
+
+        @Override
+        public int hashCode() {
+            return listener.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof BiConsumerTopicListener && listener.equals(((BiConsumerTopicListener) obj).listener);
+        }
+    }
 }

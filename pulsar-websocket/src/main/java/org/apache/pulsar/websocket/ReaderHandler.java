@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.websocket;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.MessageId;
@@ -38,14 +41,14 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.apache.pulsar.websocket.data.EndOfTopicResponse;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WriteCallback;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.eclipse.jetty.ee8.websocket.api.Session;
+import org.eclipse.jetty.ee8.websocket.api.WriteCallback;
+import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +76,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     private static final AtomicLongFieldUpdater<ReaderHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ReaderHandler.class, "msgDeliveredCounter");
 
-    public ReaderHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+    public ReaderHandler(WebSocketService service, HttpServletRequest request, JettyServerUpgradeResponse response) {
         super(service, request, response);
 
         final int receiverQueueSize = getReceiverQueueSize();
@@ -116,6 +119,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
             }
+            allowConnect = true;
         } catch (Exception e) {
             log.warn("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
                     request.getRemotePort(), subscription, topic, e);
@@ -157,11 +161,12 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(dm), new WriteCallback() {
+                        .sendString(objectWriter().writeValueAsString(dm),
+                                new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
                                 log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(), subscription,
-                                        getRemote().getInetSocketAddress().toString(), th.getMessage());
+                                        getRemote().getRemoteAddress().toString(), th.getMessage());
                                 pendingMessages.decrementAndGet();
                                 // schedule receive as one of the delivery failed
                                 service.getExecutor().execute(() -> receiveMessage());
@@ -171,7 +176,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                             public void writeSuccess() {
                                 if (log.isDebugEnabled()) {
                                     log.debug("[{}/{}] message is delivered successfully to {} ", reader.getTopic(),
-                                            subscription, getRemote().getInetSocketAddress().toString());
+                                            subscription, getRemote().getRemoteAddress().toString());
                                 }
                                 updateDeliverMsgStat(msgSize);
                             }
@@ -190,7 +195,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 log.info("[{}/{}] Reader was closed while receiving msg from broker", reader.getTopic(), subscription);
             } else {
                 log.warn("[{}/{}] Error occurred while reader handler was delivering msg to {}: {}", reader.getTopic(),
-                        subscription, getRemote().getInetSocketAddress().toString(), exception.getMessage());
+                        subscription, getRemote().getRemoteAddress().toString(), exception.getMessage());
             }
             return null;
         });
@@ -207,7 +212,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         super.onWebSocketText(message);
 
         try {
-            ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
+            ConsumerCommand command = consumerCommandReader.readValue(message);
             if ("isEndOfTopic".equals(command.type)) {
                 handleEndOfTopic();
                 return;
@@ -230,21 +235,21 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     // Check and notify reader if reached end of topic.
     private void handleEndOfTopic() {
         try {
-            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+            String msg = objectWriter().writeValueAsString(
                     new EndOfTopicResponse(reader.hasReachedEndOfTopic()));
             getSession().getRemote()
                     .sendString(msg, new WriteCallback() {
                         @Override
                         public void writeFailed(Throwable th) {
                             log.warn("[{}/{}] Failed to send end of topic msg to {} due to {}", reader.getTopic(),
-                                    subscription, getRemote().getInetSocketAddress().toString(), th.getMessage());
+                                    subscription, getRemote().getRemoteAddress().toString(), th.getMessage());
                         }
 
                         @Override
                         public void writeSuccess() {
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}/{}] End of topic message is delivered successfully to {} ",
-                                        reader.getTopic(), subscription, getRemote().getInetSocketAddress().toString());
+                                        reader.getTopic(), subscription, getRemote().getRemoteAddress().toString());
                             }
                         }
                     });
@@ -310,8 +315,21 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canConsume(topic, authRole, authenticationData,
-                this.subscription);
+        try {
+            AuthenticationDataSubscription subscription = new AuthenticationDataSubscription(authenticationData,
+                    this.subscription);
+            return service.getAuthorizationService()
+                    .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
+                    .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            throw e;
+        } catch (Exception e) {
+            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
+                    e.getMessage());
+            throw e;
+        }
     }
 
     private int getReceiverQueueSize() {

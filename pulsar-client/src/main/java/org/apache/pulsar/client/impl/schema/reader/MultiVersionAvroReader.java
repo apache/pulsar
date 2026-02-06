@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.reader;
 
-import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabledFromSchemaInfo;
+import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.getJsr310ConversionEnabled;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -44,10 +44,12 @@ public class MultiVersionAvroReader<T> extends AbstractMultiVersionAvroBaseReade
     protected SchemaReader<T> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
-            LOG.info("Load schema reader for version({}), schema is : {}, schemaInfo: {}",
-                    SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                    schemaInfo.getSchemaDefinition(), schemaInfo.toString());
-            boolean jsr310ConversionEnabled = getJsr310ConversionEnabledFromSchemaInfo(schemaInfo);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Load schema reader for version({}), schema is : {}, schemaInfo: {}",
+                        SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
+                        schemaInfo.getSchemaDefinition(), schemaInfo);
+            }
+            boolean jsr310ConversionEnabled = getJsr310ConversionEnabled(schemaInfo);
             return new AvroReader<>(parseAvroSchema(schemaInfo.getSchemaDefinition()),
                     readerSchema, pojoClassLoader, jsr310ConversionEnabled);
         } else {

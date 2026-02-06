@@ -89,6 +89,19 @@ class ContextImpl(pulsar.Context):
   def get_current_message_topic_name(self):
     return self.message.topic_name()
 
+  def get_message_sequence_id(self):
+    if not self.get_message_id():
+      return None
+    ledger_id = self.get_message_id().ledger_id()
+    entry_id = self.get_message_id().entry_id()
+    offset = (ledger_id << 28) | entry_id
+    return offset
+
+  def get_message_partition_index(self):
+    if not self.get_message_id():
+      return None
+    return self.get_message_id().partition()
+
   def get_partition_key(self):
     return self.message.partition_key()
 
@@ -197,7 +210,7 @@ class ContextImpl(pulsar.Context):
       topic_consumer = self.consumers[topic]
     else:
       # if this topic is a partitioned topic
-      m = re.search('(.+)-partition-(\d+)', topic)
+      m = re.search(r'(.+)-partition-(\d+)', topic)
       if not m:
         raise ValueError('Invalid topicname %s' % topic)
       elif m.group(1) in self.consumers:
@@ -233,7 +246,7 @@ class ContextImpl(pulsar.Context):
     return self.state_context.get_amount(key)
 
   def del_counter(self, key):
-    return self.state_context.delete(key)
+    return self.state_context.delete_key(key)
 
   def put_state(self, key, value):
     return self.state_context.put(key, value)

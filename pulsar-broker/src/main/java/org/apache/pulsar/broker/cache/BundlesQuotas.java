@@ -19,18 +19,13 @@
 package org.apache.pulsar.broker.cache;
 
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.resources.LoadBalanceResources;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
-import org.apache.pulsar.metadata.api.MetadataCache;
-import org.apache.pulsar.metadata.api.MetadataStore;
 
 public class BundlesQuotas {
-
-    // Root path for resource-quota
-    private static final String RESOURCE_QUOTA_ROOT = "/loadbalance/resource-quota";
-    private static final String DEFAULT_RESOURCE_QUOTA_PATH = RESOURCE_QUOTA_ROOT + "/default";
-
-    private final MetadataCache<ResourceQuota> resourceQuotaCache;
+    LoadBalanceResources loadBalanceResources;
 
     // Default initial quota
     static final ResourceQuota INITIAL_QUOTA = new ResourceQuota();
@@ -44,24 +39,21 @@ public class BundlesQuotas {
         INITIAL_QUOTA.setDynamic(true); // allow dynamically re-calculating
     }
 
-    public BundlesQuotas(MetadataStore localStore) {
-        this.resourceQuotaCache = localStore.getMetadataCache(ResourceQuota.class);
+    public BundlesQuotas(PulsarService pulsar) {
+        loadBalanceResources = pulsar.getPulsarResources().getLoadBalanceResources();
     }
 
     public CompletableFuture<Void> setDefaultResourceQuota(ResourceQuota quota) {
-        return resourceQuotaCache.readModifyUpdateOrCreate(DEFAULT_RESOURCE_QUOTA_PATH, __ -> quota)
-                .thenApply(__ -> null);
+        return loadBalanceResources.getQuotaResources().setWithCreateDefaultQuotaAsync(quota);
     }
 
     public CompletableFuture<ResourceQuota> getDefaultResourceQuota() {
-        return resourceQuotaCache.get(DEFAULT_RESOURCE_QUOTA_PATH)
+        return loadBalanceResources.getQuotaResources().getDefaultQuota()
                 .thenApply(optResourceQuota -> optResourceQuota.orElse(INITIAL_QUOTA));
     }
 
     public CompletableFuture<Void> setResourceQuota(String bundle, ResourceQuota quota) {
-        return resourceQuotaCache.readModifyUpdateOrCreate(RESOURCE_QUOTA_ROOT + "/" + bundle,
-                __ -> quota)
-                .thenApply(__ -> null);
+        return loadBalanceResources.getQuotaResources().setWithCreateQuotaAsync(bundle, quota);
     }
 
     public CompletableFuture<Void> setResourceQuota(NamespaceBundle bundle, ResourceQuota quota) {
@@ -73,7 +65,7 @@ public class BundlesQuotas {
     }
 
     public CompletableFuture<ResourceQuota> getResourceQuota(String bundle) {
-        return resourceQuotaCache.get(RESOURCE_QUOTA_ROOT + "/" + bundle)
+        return loadBalanceResources.getQuotaResources().getQuota(bundle)
                 .thenCompose(optResourceQuota -> {
                     if (optResourceQuota.isPresent()) {
                         return CompletableFuture.completedFuture(optResourceQuota.get());
@@ -84,7 +76,6 @@ public class BundlesQuotas {
     }
 
     public CompletableFuture<Void> resetResourceQuota(NamespaceBundle bundle) {
-        return resourceQuotaCache.delete(RESOURCE_QUOTA_ROOT + "/" + bundle.toString());
+        return loadBalanceResources.getQuotaResources().deleteQuota(bundle.toString());
     }
-
 }

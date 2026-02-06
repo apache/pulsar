@@ -29,7 +29,7 @@ import lombok.NoArgsConstructor;
 public class TransactionBufferSnapshotSegment {
     private String topicName;
     private long sequenceId;
-    private long maxReadPositionLedgerId;
-    private long maxReadPositionEntryId;
+    private long persistentPositionLedgerId;
+    private long persistentPositionEntryId;
     private List<TxnIDData> aborts;
 }

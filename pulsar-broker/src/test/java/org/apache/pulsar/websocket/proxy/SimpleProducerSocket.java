@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -29,17 +28,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@WebSocket(maxTextMessageSize = 64 * 1024)
+@WebSocket
 public class SimpleProducerSocket {
 
     private final CountDownLatch closeLatch;
@@ -61,7 +61,7 @@ public class SimpleProducerSocket {
         ProducerMessage msg = new ProducerMessage();
         msg.payload = Base64.getEncoder().encodeToString(("test" + index).getBytes());
         msg.key = Integer.toString(index);
-        return jsonMapper().writeValueAsString(msg);
+        return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
@@ -75,7 +75,7 @@ public class SimpleProducerSocket {
         this.closeLatch.countDown();
     }
 
-    @OnWebSocketConnect
+    @OnWebSocketOpen
     public void onConnect(Session session) throws Exception {
         log.info("Got connect: {}", session);
         this.session = session;
@@ -84,7 +84,7 @@ public class SimpleProducerSocket {
 
     public void sendMessage(int totalMsgs) throws Exception {
         for (int i = 0; i < totalMsgs; i++) {
-            this.session.getRemote().sendString(getTestJsonPayload(i));
+            this.session.sendText(getTestJsonPayload(i), Callback.NOOP);
         }
     }
 
@@ -92,10 +92,6 @@ public class SimpleProducerSocket {
     public synchronized void onMessage(String msg) throws JsonParseException {
         JsonObject ack = new Gson().fromJson(msg, JsonObject.class);
         producerBuffer.add(ack.get("messageId").getAsString());
-    }
-
-    public RemoteEndpoint getRemote() {
-        return this.session.getRemote();
     }
 
     public Session getSession() {

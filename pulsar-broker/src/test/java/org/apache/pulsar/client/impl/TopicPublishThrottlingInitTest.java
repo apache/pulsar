@@ -21,13 +21,10 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.service.Producer;
-import org.apache.pulsar.broker.service.PublishRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -74,15 +71,11 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
             .enableBatching(false)
             .maxPendingMessages(30000).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
-        // (1) verify message-rate is initialized when value configured in broker
-        Assert.assertNotEquals(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         log.info("Get broker configuration: brokerTick {},  MaxMessageRate {}, MaxByteRate {}",
             pulsar.getConfiguration().getBrokerPublisherThrottlingTickTimeMillis(),
             pulsar.getConfiguration().getBrokerPublisherThrottlingMaxMessageRate(),
             pulsar.getConfiguration().getBrokerPublisherThrottlingMaxByteRate());
-
-        Assert.assertNotEquals(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
 
         Producer prod = topic.getProducers().values().iterator().next();
         // reset counter
@@ -100,8 +93,6 @@ public class TopicPublishThrottlingInitTest extends ProducerConsumerBase {
         // disable throttling
         admin.brokers()
             .updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate", Integer.toString(0));
-        Awaitility.await().untilAsserted(() ->
-                Assert.assertEquals(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER));
 
         // reset counter
         prod.updateRates();

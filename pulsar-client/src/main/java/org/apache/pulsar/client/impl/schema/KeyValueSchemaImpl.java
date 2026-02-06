@@ -19,13 +19,17 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.client.api.EncodeData.isValidSchemaId;
+import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
@@ -102,6 +106,22 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     private KeyValueSchemaImpl(Schema<K> keySchema,
                                Schema<V> valueSchema,
                                KeyValueEncodingType keyValueEncodingType) {
+        SchemaType keySchemaType = null;
+        if (keySchema != null && keySchema.getSchemaInfo() != null) {
+            keySchemaType = keySchema.getSchemaInfo().getType();
+        }
+        SchemaType valueSchemaType = null;
+        if (valueSchema != null && valueSchema.getSchemaInfo() != null) {
+            valueSchemaType = valueSchema.getSchemaInfo().getType();
+        }
+        if ((SchemaType.EXTERNAL.equals(keySchemaType)
+                && valueSchemaType != null && SchemaType.isStructType(valueSchemaType))
+                || (SchemaType.EXTERNAL.equals(valueSchemaType)
+                && keySchemaType != null && SchemaType.isStructType(keySchemaType))) {
+            throw new IllegalArgumentException("External schema cannot be used with other Pulsar struct schema types,"
+                    + "keySchemaType: " + keySchemaType + ", valueSchemaType: " + valueSchemaType);
+        }
+
         this.keySchema = keySchema;
         this.valueSchema = valueSchema;
         this.keyValueEncodingType = keyValueEncodingType;
@@ -133,18 +153,23 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
 
     // encode as bytes: [key.length][key.bytes][value.length][value.bytes] or [value.bytes]
     public byte[] encode(KeyValue<K, V> message) {
+        return encode(null, message).data();
+    }
+
+    @Override
+    public EncodeData encode(String topic, KeyValue<K, V> message) {
         if (keyValueEncodingType != null && keyValueEncodingType == KeyValueEncodingType.INLINE) {
             return KeyValue.encode(
+                topic,
                 message.getKey(),
                 keySchema,
                 message.getValue(),
-                valueSchema
-            );
+                valueSchema);
         } else {
             if (message.getValue() == null) {
                 return null;
             }
-            return valueSchema.encode(message.getValue());
+            return valueSchema.encode(topic, message.getValue());
         }
     }
 
@@ -164,6 +189,20 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     @Override
     public KeyValue<K, V> decode(ByteBuf byteBuf) {
         return decode(ByteBufUtil.getBytes(byteBuf));
+    }
+
+    @Override
+    public KeyValue<K, V> decode(String topic, byte[] data, byte[] schemaId) {
+        if (this.keyValueEncodingType == KeyValueEncodingType.SEPARATED) {
+            throw new SchemaSerializationException("This method cannot be used under this SEPARATED encoding type");
+        }
+        return KeyValue.decode(data, (keyBytes, valueBytes) ->
+                decode(topic, keyBytes, valueBytes, schemaId));
+    }
+
+    @Override
+    public KeyValue<K, V> decode(String topic, ByteBuffer data, byte[] schemaId) {
+        return decode(topic, getBytes(data), schemaId);
     }
 
     @Override
@@ -194,6 +233,42 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
             }
         }
         return new KeyValue<>(k, v);
+    }
+
+    public KeyValue<K, V> decode(String topic, byte[] keyBytes, byte[] valueBytes, byte[] schemaId) {
+        K k = null;
+        byte[] keySchemaId = null;
+        byte[] valueSchemaId = null;
+        if (isValidSchemaId(schemaId)) {
+            var kvSchemaId = getKeyValueSchemaId(schemaId);
+            keySchemaId = kvSchemaId.getKey();
+            valueSchemaId = kvSchemaId.getValue();
+        }
+
+        if (keyBytes != null) {
+            if (keySchema.supportSchemaVersioning() && isValidSchemaId(keySchemaId)) {
+                k = keySchema.decode(topic, keyBytes, keySchemaId);
+            } else {
+                k = keySchema.decode(keyBytes);
+            }
+        }
+
+        V v = null;
+        if (valueBytes != null) {
+            if (valueSchema.supportSchemaVersioning() && isValidSchemaId(valueSchemaId)) {
+                v = valueSchema.decode(topic, valueBytes, valueSchemaId);
+            } else {
+                v = valueSchema.decode(valueBytes);
+            }
+        }
+        return new KeyValue<>(k, v);
+    }
+
+    private KeyValue<byte[], byte[]> getKeyValueSchemaId(byte[] schemaId) {
+        if (!SchemaType.EXTERNAL.equals(valueSchema.getSchemaInfo().getType())) {
+            return new KeyValue<>(schemaId, schemaId);
+        }
+        return KeyValue.getSchemaId(schemaId);
     }
 
     public SchemaInfo getSchemaInfo() {

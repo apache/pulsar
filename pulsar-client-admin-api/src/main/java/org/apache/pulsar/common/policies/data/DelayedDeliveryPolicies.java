@@ -26,10 +26,12 @@ import org.apache.pulsar.common.policies.data.impl.DelayedDeliveryPoliciesImpl;
 public interface DelayedDeliveryPolicies {
     long getTickTime();
     boolean isActive();
+    long getMaxDeliveryDelayInMillis();
 
     interface Builder {
         Builder tickTime(long tickTime);
         Builder active(boolean active);
+        Builder maxDeliveryDelayInMillis(long maxDeliveryDelayInMillis);
         DelayedDeliveryPolicies build();
     }
 

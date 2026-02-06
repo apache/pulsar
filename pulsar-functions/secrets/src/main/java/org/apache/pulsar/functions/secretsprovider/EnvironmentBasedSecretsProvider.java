@@ -18,11 +18,19 @@
  */
 package org.apache.pulsar.functions.secretsprovider;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
  * This defines a very simple Secrets Provider that looks up environment variable
  * thats named the same as secretName and fetches it.
  */
 public class EnvironmentBasedSecretsProvider implements SecretsProvider {
+
+    /**
+     * Pattern to match ${secretName} in the value.
+     */
+    private static final Pattern interpolationPattern = Pattern.compile("\\$\\{(.+?)}");
 
     /**
      * Fetches a secret.
@@ -32,5 +40,16 @@ public class EnvironmentBasedSecretsProvider implements SecretsProvider {
     @Override
     public String provideSecret(String secretName, Object pathToSecret) {
         return System.getenv(secretName);
+    }
+
+    @Override
+    public String interpolateSecretForValue(String value) {
+        Matcher m = interpolationPattern.matcher(value);
+        if (m.matches()) {
+            String secretName = m.group(1);
+            // If the secret doesn't exist, we return null and don't override the current value.
+            return provideSecret(secretName, null);
+        }
+        return null;
     }
 }

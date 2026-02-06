@@ -19,18 +19,18 @@
 package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.bookkeeper.common.util.SafeRunnable;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
@@ -61,6 +61,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private Optional<T> proposedValue;
 
     private final ScheduledExecutorService executor;
+    private final FutureUtil.Sequencer<Void> sequencer;
 
     private enum InternalState {
         Init, ElectionInProgress, LeaderIsPresent, Closed
@@ -84,10 +85,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.internalState = InternalState.Init;
         this.stateChangesListener = stateChangesListener;
         this.executor = executor;
-
+        this.sequencer = FutureUtil.Sequencer.create();
         store.registerListener(this::handlePathNotification);
         store.registerSessionListener(this::handleSessionNotification);
-        updateCachedValueFuture = executor.scheduleWithFixedDelay(SafeRunnable.safeRun(this::getLeaderValue),
+        updateCachedValueFuture = executor.scheduleWithFixedDelay(this::getLeaderValue,
                 metadataCacheConfig.getRefreshAfterWriteMillis() / 2,
                 metadataCacheConfig.getRefreshAfterWriteMillis(), TimeUnit.MILLISECONDS);
     }
@@ -111,13 +112,13 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             } else {
                 return tryToBecomeLeader();
             }
-        }).thenComposeAsync(leaderElectionState -> {
+        }).thenCompose(leaderElectionState -> {
             // make sure that the cache contains the current leader
             // so that getLeaderValueIfPresent works on all brokers
             cache.refresh(path);
             return cache.get(path)
                     .thenApply(__ -> leaderElectionState);
-        }, executor);
+        });
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
@@ -128,19 +129,29 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             return FutureUtils.exception(t);
         }
 
-        if (existingValue.equals(proposedValue.orElse(null))) {
+        T value = proposedValue.orElse(null);
+        if (existingValue.equals(value)) {
             // If the value is the same as our proposed value, it means this instance was the leader at some
             // point before. The existing value can either be for this same session or for a previous one.
             if (res.getStat().isCreatedBySelf()) {
+                log.info("Keeping the existing value {} for {} as it's from the same session stat={}", existingValue,
+                        path, res.getStat());
                 // The value is still valid because it was created in the same session
                 changeState(LeaderElectionState.Leading);
+                return CompletableFuture.completedFuture(LeaderElectionState.Leading);
             } else {
+                log.info("Conditionally deleting existing equals value {} for {} because it's not created in the "
+                        + "current session. stat={}", existingValue, path, res.getStat());
                 // Since the value was created in a different session, it might be expiring. We need to delete it
                 // and try the election again.
                 return store.delete(path, Optional.of(res.getStat().getVersion()))
                         .thenCompose(__ -> tryToBecomeLeader());
             }
         } else if (res.getStat().isCreatedBySelf()) {
+            log.warn("Conditionally deleting existing value {} for {} because it's different from the proposed value "
+                            + "({}). This is unexpected since it was created within the same session. "
+                            + "In tests this could happen because of an invalid shared session id when using mocks.",
+                    existingValue, path, value);
             // The existing value is different but was created from the same session
             return store.delete(path, Optional.of(res.getStat().getVersion()))
                     .thenCompose(__ -> tryToBecomeLeader());
@@ -164,9 +175,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> tryToBecomeLeader() {
+        T value = proposedValue.get();
         byte[] payload;
         try {
-            payload = serde.serialize(path, proposedValue.get());
+            payload = serde.serialize(path, value);
         } catch (Throwable t) {
             return FutureUtils.exception(t);
         }
@@ -180,7 +192,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                             cache.get(path)
                                     .thenRun(() -> {
                                         synchronized (LeaderElectionImpl.this) {
-                                            log.info("Acquired leadership on {}", path);
+                                            log.info("Acquired leadership on {} with {}", path, value);
                                             internalState = InternalState.LeaderIsPresent;
                                             if (leaderElectionState != LeaderElectionState.Leading) {
                                                 leaderElectionState = LeaderElectionState.Leading;
@@ -195,6 +207,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                                     }).exceptionally(ex -> {
                                         // We fail to do the get(), so clean up the leader election fail the whole
                                         // operation
+                                        log.warn("Failed to get the current state after acquiring leadership on {}. "
+                                                + " Conditionally deleting current entry.", path, ex);
                                         store.delete(path, Optional.of(stat.getVersion()))
                                                 .thenRun(() -> result.completeExceptionally(ex))
                                                 .exceptionally(ex2 -> {
@@ -204,6 +218,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                                         return null;
                                     });
                         } else {
+                            log.info("Leadership on {} with value {} was lost. "
+                                            + "Conditionally deleting entry with stat={}.", path, value, stat);
                             // LeaderElection was closed in between. Release the lock asynchronously
                             store.delete(path, Optional.of(stat.getVersion()))
                                     .thenRun(() -> result.completeExceptionally(
@@ -218,7 +234,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                     if (ex.getCause() instanceof BadVersionException) {
                         // There was a conflict between 2 participants trying to become leaders at same time. Retry
                         // to fetch info on new leader.
-
+                        log.info("There was a conflict between 2 participants trying to become leaders at the same "
+                                        + "time on {}. Attempted with value {}. Retrying.",
+                                path, value);
                         elect()
                             .thenAccept(lse -> result.complete(lse))
                             .exceptionally(ex2 -> {
@@ -252,13 +270,17 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
         internalState = InternalState.Closed;
 
-        executor.shutdownNow();
-
         if (leaderElectionState != LeaderElectionState.Leading) {
             return CompletableFuture.completedFuture(null);
         }
 
-        return store.delete(path, version);
+        return store.delete(path, version)
+                .thenAccept(__ -> {
+                            synchronized (LeaderElectionImpl.this) {
+                                leaderElectionState = LeaderElectionState.NoLeader;
+                            }
+                        }
+                );
     }
 
     @Override
@@ -278,18 +300,18 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     private void handleSessionNotification(SessionEvent event) {
         // Ensure we're only processing one session event at a time.
-        executor.execute(SafeRunnable.safeRun(() -> {
-            if (event == SessionEvent.SessionReestablished) {
-                log.info("Revalidating leadership for {}", path);
-
-                try {
-                    LeaderElectionState les = elect().get();
-                    log.info("Resynced leadership for {} - State: {}", path, les);
-                } catch (ExecutionException | InterruptedException e) {
-                    log.warn("Failure when processing session event", e);
-                }
+        sequencer.sequential(() -> FutureUtil.composeAsync(() -> {
+            if (event == SessionEvent.Reconnected || event == SessionEvent.SessionReestablished) {
+                log.info("Revalidating leadership for {}, event:{}", path, event);
+                return elect().thenAccept(leaderState -> {
+                    log.info("Resynced leadership for {} - State: {}", path, leaderState);
+                }).exceptionally(ex -> {
+                    log.warn("Failure when processing session event", ex);
+                    return null;
+                });
             }
-        }));
+            return CompletableFuture.completedFuture(null);
+        }, executor));
     }
 
     private void handlePathNotification(Notification notification) {
@@ -335,5 +357,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 }
             }
         }
+    }
+
+    @VisibleForTesting
+    protected ScheduledExecutorService getSchedulerExecutor() {
+        return executor;
     }
 }

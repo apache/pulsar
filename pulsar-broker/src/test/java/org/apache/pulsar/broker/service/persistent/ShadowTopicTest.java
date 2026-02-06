@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.collect.Lists;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
@@ -94,7 +96,7 @@ public class ShadowTopicTest extends BrokerTestBase {
         //1. test shadow topic setting in topic creation.
         admin.topics().createPartitionedTopic(sourceTopic, 2);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
-        pulsarClient.newProducer().topic(shadowTopic).create().close();//trigger loading partitions.
+        pulsarClient.newProducer().topic(shadowTopic).create().close(); //trigger loading partitions.
 
         PersistentTopic brokerShadowTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(shadowTopicPartition).get().get();
@@ -114,6 +116,35 @@ public class ShadowTopicTest extends BrokerTestBase {
     }
 
     @Test
+    public void testPartitionedShadowTopicProduceAndConsume() throws Exception {
+        String sourceTopic = newShadowSourceTopicName();
+        String shadowTopic = sourceTopic + "-shadow";
+        admin.topics().createPartitionedTopic(sourceTopic, 3);
+        admin.topics().createShadowTopic(shadowTopic, sourceTopic);
+
+        admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(shadowTopic).subscriptionName("test")
+                .subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            producer.send("msg-" + i);
+        }
+
+        Set<String> set = new HashSet<>();
+        for (int i = 0; i < 10; i++) {
+            Message<String> msg = consumer.receive();
+            set.add(msg.getValue());
+        }
+        for (int i = 0; i < 10; i++) {
+            Assert.assertTrue(set.contains("msg-" + i));
+        }
+    }
+
+    @Test
     public void testShadowTopicNotWritable() throws Exception {
         String sourceTopic = newShadowSourceTopicName();
         String shadowTopic = sourceTopic + "-shadow";
@@ -121,7 +152,7 @@ public class ShadowTopicTest extends BrokerTestBase {
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(shadowTopic).create();
-        Assert.expectThrows(PulsarClientException.NotAllowedException.class, ()-> producer.send(new byte[]{1,2,3}));
+        Assert.expectThrows(PulsarClientException.NotAllowedException.class, () -> producer.send(new byte[]{1, 2, 3}));
     }
 
     private void awaitUntilShadowReplicatorReady(String sourceTopic, String shadowTopic) {

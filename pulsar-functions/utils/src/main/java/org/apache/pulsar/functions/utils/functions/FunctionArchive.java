@@ -19,14 +19,50 @@
 package org.apache.pulsar.functions.utils.functions;
 
 import java.nio.file.Path;
-import lombok.Builder;
-import lombok.Data;
 import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.functions.utils.FunctionFilePackage;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 
-@Builder
-@Data
-public class FunctionArchive {
-    private Path archivePath;
-    private ClassLoader classLoader;
-    private FunctionDefinition functionDefinition;
+public class FunctionArchive implements AutoCloseable {
+    private final Path archivePath;
+    private final FunctionDefinition functionDefinition;
+    private final String narExtractionDirectory;
+    private final boolean enableClassloading;
+    private ValidatableFunctionPackage functionPackage;
+    private boolean closed;
+
+    public FunctionArchive(Path archivePath, FunctionDefinition functionDefinition, String narExtractionDirectory,
+                           boolean enableClassloading) {
+        this.archivePath = archivePath;
+        this.functionDefinition = functionDefinition;
+        this.narExtractionDirectory = narExtractionDirectory;
+        this.enableClassloading = enableClassloading;
+    }
+
+    public Path getArchivePath() {
+        return archivePath;
+    }
+
+    public synchronized ValidatableFunctionPackage getFunctionPackage() {
+        if (closed) {
+            throw new IllegalStateException("FunctionArchive is already closed");
+        }
+        if (functionPackage == null) {
+            functionPackage = new FunctionFilePackage(archivePath.toFile(), narExtractionDirectory, enableClassloading,
+                    FunctionDefinition.class);
+        }
+        return functionPackage;
+    }
+
+    public FunctionDefinition getFunctionDefinition() {
+        return functionDefinition;
+    }
+
+    @Override
+    public synchronized void close() throws Exception {
+        closed = true;
+        if (functionPackage instanceof AutoCloseable) {
+            ((AutoCloseable) functionPackage).close();
+        }
+    }
 }

@@ -60,7 +60,7 @@ public class WorkerServiceLoader {
     private static WorkerServiceDefinition getWorkerServiceDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(PULSAR_FN_WORKER_DEFINITION_FILE);
 
-        return ObjectMapperFactory.getThreadLocalYaml().readValue(
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(
             configStr, WorkerServiceDefinition.class
         );
     }
@@ -73,7 +73,7 @@ public class WorkerServiceLoader {
      */
     static WorkerServiceWithClassLoader load(WorkerServiceMetadata metadata,
                                              String narExtractionDirectory) throws IOException {
-        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        final File narFile = metadata.getArchivePath().toAbsolutePath().normalize().toFile();
         NarClassLoader ncl = NarClassLoaderBuilder.builder()
                 .narFile(narFile)
                 .parentClassLoader(WorkerService.class.getClassLoader())

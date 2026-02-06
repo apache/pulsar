@@ -29,14 +29,14 @@ import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
 
 /**
- * Kafka sink should treats incoming messages as pure bytes. So we don't
+ * Kafka sink should treat incoming messages as pure bytes. So we don't
  * apply schema into it.
  */
 @Connector(
-    name = "kafka",
-    type = IOType.SINK,
-    help = "The KafkaBytesSink is used for moving messages from Pulsar to Kafka.",
-    configClass = KafkaSinkConfig.class
+        name = "kafka",
+        type = IOType.SINK,
+        help = "The KafkaBytesSink is used for moving messages from Pulsar to Kafka.",
+        configClass = KafkaSinkConfig.class
 )
 @Slf4j
 public class KafkaBytesSink extends KafkaAbstractSink<String, byte[]> {
@@ -45,7 +45,7 @@ public class KafkaBytesSink extends KafkaAbstractSink<String, byte[]> {
     protected Properties beforeCreateProducer(Properties props) {
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName());
-        log.info("Created kafka producer config : {}", props);
+        log.info("Created kafka producer on : {}", props.getOrDefault(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, ""));
         return props;
     }
 

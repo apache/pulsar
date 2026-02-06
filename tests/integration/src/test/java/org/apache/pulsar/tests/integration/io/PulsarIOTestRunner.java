@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import dev.failsafe.RetryPolicy;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
+import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -31,21 +33,18 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.tests.integration.io.sinks.SinkTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
-import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import net.jodah.failsafe.RetryPolicy;
-
 @Slf4j
 public abstract class PulsarIOTestRunner {
     static final long MB = 1048576L;
     public static final long RUNTIME_INSTANCE_RAM_BYTES = 128 * MB;
-    final Duration ONE_MINUTE = Duration.ofMinutes(1);
-    final Duration TEN_SECONDS = Duration.ofSeconds(10);
+    final Duration oneMinute = Duration.ofMinutes(1);
+    final Duration tenSeconds = Duration.ofSeconds(10);
 
-	protected final RetryPolicy<Void> statusRetryPolicy = new RetryPolicy<Void>()
-            .withMaxDuration(ONE_MINUTE)
-            .withDelay(TEN_SECONDS)
-            .onRetry(e -> log.error("Retry ... "));
+    protected final RetryPolicy<?> statusRetryPolicy = RetryPolicy.builder()
+            .withMaxDuration(oneMinute)
+            .withDelay(tenSeconds)
+            .onRetry(e -> log.error("Retry ... "))
+            .build();
 
     protected PulsarCluster pulsarCluster;
     protected String functionRuntimeType;
@@ -55,7 +54,7 @@ public abstract class PulsarIOTestRunner {
       this.functionRuntimeType = functionRuntimeType;
     }
 
-	protected Schema<?> getSchema(boolean jsonWithEnvelope) {
+    protected Schema<?> getSchema(boolean jsonWithEnvelope) {
         if (jsonWithEnvelope) {
             return KeyValueSchemaImpl.kvBytes();
         } else {

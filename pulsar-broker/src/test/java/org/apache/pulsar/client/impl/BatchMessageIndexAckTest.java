@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -39,17 +48,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.doReturn;
-
 @Slf4j
 @Test(groups = "broker-impl")
 public class BatchMessageIndexAckTest extends ProducerConsumerBase {
@@ -57,7 +55,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
         doReturn(CompletableFuture.completedFuture(new LedgerMetadata() {
@@ -150,7 +147,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             public long getCToken() {
                 return 0;
             }
-        })).when(mockBookKeeper).getLedgerMetadata(anyLong());
+        })).when(pulsarTestContext.getBookKeeperClient()).getLedgerMetadata(anyLong());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -176,7 +173,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .receiverQueueSize(100)
             .isAckReceiptEnabled(ackReceiptEnabled)
             .subscriptionType(SubscriptionType.Shared)
-            .enableBatchIndexAcknowledgment(true)
             .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
             .subscribe();
 
@@ -256,7 +252,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .subscriptionName("sub")
             .receiverQueueSize(100)
             .isAckReceiptEnabled(ackReceiptEnabled)
-            .enableBatchIndexAcknowledgment(true)
             .subscribe();
 
         @Cleanup
@@ -326,7 +321,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .acknowledgmentGroupTime(1, TimeUnit.MILLISECONDS)
                 .topic(topic)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionName("test")
                 .subscribe();
 

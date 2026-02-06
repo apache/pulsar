@@ -27,14 +27,18 @@
         <cpe>cpe:/a:netty:netty</cpe>
     </suppress>
     <suppress>
-        <notes>Suppress all pulsar-presto-distribution vulnerabilities</notes>
-        <filePath regex="true">.*pulsar-presto-distribution-.*</filePath>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
-    </suppress>
-    <suppress>
         <notes>Suppress libthrift-0.12.0.jar vulnerabilities</notes>
         <gav>org.apache.thrift:libthrift:0.12.0</gav>
         <vulnerabilityName regex="true">.*</vulnerabilityName>
+    </suppress>
+
+    <!-- influxdb dependencies -->
+    <suppress>
+        <notes><![CDATA[
+       file name: msgpack-core-0.9.0.jar
+       ]]></notes>
+        <sha1>87d9ce0b22de48428fa32bb8ad476e18b6969548</sha1>
+        <cve>CVE-2022-41719</cve>
     </suppress>
 
     <!-- see https://github.com/apache/pulsar/pull/16110 -->
@@ -100,7 +104,15 @@
         <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
         <cve>CVE-2020-8908</cve>
     </suppress>
-
+    <suppress>
+        <notes><![CDATA[
+    file name: canal.client-1.1.5.jar (shaded: com.google.guava:guava:32.1.1)
+    CVE cannot take effect.
+    Already covered by PR https://github.com/apache/pulsar/pull/20699
+    ]]></notes>
+        <sha1>b87878db57d5cfc2ca7d3972cc8f7486bf02fbca</sha1>
+        <cve>CVE-2023-2976</cve>
+    </suppress>
     <!-- clickhouse: security scan matches client lib to the server CVEs -->
     <suppress>
         <notes><![CDATA[
@@ -174,6 +186,15 @@
     </suppress>
     <suppress>
         <notes><![CDATA[
+    file name: clickhouse-jdbc-0.4.6-all.jar (shaded: com.google.guava:guava:32.1.1)
+    CVE cannot take effect.
+    Already covered by PR https://github.com/apache/pulsar/pull/20699
+    ]]></notes>
+        <sha1>d3b929509399a698915b24ff47db781d0c526760</sha1>
+        <cve>CVE-2023-2976</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
      file name: logback-core-1.1.3.jar
      ]]></notes>
         <sha1>e3c02049f2dbbc764681b40094ecf0dcbc99b157</sha1>
@@ -220,49 +241,20 @@
         <cve>CVE-2021-42550</cve>
     </suppress>
 
-    <!-- jetcd matched against ETCD server CVEs-->
     <suppress>
-        <notes><![CDATA[
-       file name: jetcd-core-0.5.11.jar
-       ]]></notes>
-        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
-        <cve>CVE-2020-15106</cve>
+        <notes>Ignore etdc CVEs in jetcd</notes>
+        <filePath regex="true">.*jetcd.*</filePath>
+        <cpe>cpe:/a:etcd:etcd</cpe>
     </suppress>
     <suppress>
-        <notes><![CDATA[
-       file name: jetcd-core-0.5.11.jar
-       ]]></notes>
-        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
-        <cve>CVE-2020-15112</cve>
+        <notes>Ignore etdc CVEs in jetcd</notes>
+        <filePath regex="true">.*jetcd.*</filePath>
+        <cpe>cpe:/a:redhat:etcd</cpe>
     </suppress>
     <suppress>
-        <notes><![CDATA[
-       file name: jetcd-core-0.5.11.jar
-       ]]></notes>
-        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
-        <cve>CVE-2020-15113</cve>
-    </suppress>
-
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-common-0.5.11.jar
-       ]]></notes>
-        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
-        <cve>CVE-2020-15106</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-common-0.5.11.jar
-       ]]></notes>
-        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
-        <cve>CVE-2020-15112</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-common-0.5.11.jar
-       ]]></notes>
-        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
-        <cve>CVE-2020-15113</cve>
+        <notes>Ignore grpc CVEs in jetcd</notes>
+        <filePath regex="true">.*jetcd-grpc.*</filePath>
+        <cpe>cpe:/a:grpc:grpc</cpe>
     </suppress>
 
     <!-- bouncycastle misdetections -->
@@ -372,86 +364,6 @@
         <cpe>cpe:/a:apache:solr</cpe>
     </suppress>
 
-    <!-- debezium-related misdetections -->
-    <suppress>
-        <notes><![CDATA[
-       file name: debezium-connector-mysql-1.9.5.Final.jar
-       ]]></notes>
-        <sha1>b725e5577ba687fab8345b3a08f028bcca4ce17e</sha1>
-        <cve>CVE-2010-1626</cve>
-        <cve>CVE-2009-4028</cve>
-        <cve>CVE-2007-1420</cve>
-        <cve>CVE-2007-5925</cve>
-        <cve>CVE-2007-2691</cve>
-        <cve>CVE-2009-0819</cve>
-        <cve>CVE-2010-1621</cve>
-        <cve>CVE-2010-3677</cve>
-        <cve>CVE-2010-3682</cve>
-        <cve>CVE-2012-5627</cve>
-        <cve>CVE-2015-2575</cve>
-        <cve>CVE-2017-15945</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: mysql-binlog-connector-java-0.25.6.jar
-       ]]></notes>
-        <sha1>af20d92757ee9de6c289c46189bd9350e50e7ad3</sha1>
-        <cve>CVE-2007-1420</cve>
-        <cve>CVE-2007-2691</cve>
-        <cve>CVE-2007-5925</cve>
-        <cve>CVE-2009-0819</cve>
-        <cve>CVE-2009-4028</cve>
-        <cve>CVE-2010-1621</cve>
-        <cve>CVE-2010-1626</cve>
-        <cve>CVE-2010-3677</cve>
-        <cve>CVE-2010-3682</cve>
-        <cve>CVE-2012-5627</cve>
-        <cve>CVE-2015-2575</cve>
-        <cve>CVE-2017-15945</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: debezium-connector-postgres-1.9.5.Final.jar
-       ]]></notes>
-        <sha1>c21d9db465caa2da9780fba0d07d3023b0e2fe46</sha1>
-        <cve>CVE-2007-2138</cve>
-        <cve>CVE-2010-0733</cve>
-        <cve>CVE-2014-0060</cve>
-        <cve>CVE-2014-0061</cve>
-        <cve>CVE-2014-0062</cve>
-        <cve>CVE-2014-0063</cve>
-        <cve>CVE-2014-0064</cve>
-        <cve>CVE-2014-0065</cve>
-        <cve>CVE-2014-0066</cve>
-        <cve>CVE-2014-0067</cve>
-        <cve>CVE-2014-8161</cve>
-        <cve>CVE-2015-0241</cve>
-        <cve>CVE-2015-0242</cve>
-        <cve>CVE-2015-0243</cve>
-        <cve>CVE-2015-0244</cve>
-        <cve>CVE-2015-3165</cve>
-        <cve>CVE-2015-3166</cve>
-        <cve>CVE-2015-3167</cve>
-        <cve>CVE-2015-5288</cve>
-        <cve>CVE-2015-5289</cve>
-        <cve>CVE-2016-0766</cve>
-        <cve>CVE-2016-0768</cve>
-        <cve>CVE-2016-0773</cve>
-        <cve>CVE-2016-5423</cve>
-        <cve>CVE-2016-5424</cve>
-        <cve>CVE-2016-7048</cve>
-        <cve>CVE-2017-14798</cve>
-        <cve>CVE-2017-7484</cve>
-        <cve>CVE-2018-1115</cve>
-        <cve>CVE-2019-10127</cve>
-        <cve>CVE-2019-10128</cve>
-        <cve>CVE-2019-10210</cve>
-        <cve>CVE-2019-10211</cve>
-        <cve>CVE-2020-25694</cve>
-        <cve>CVE-2020-25695</cve>
-        <cve>CVE-2021-3393</cve>
-        <cve>CVE-2021-23214</cve>
-    </suppress>
     <suppress>
         <notes><![CDATA[
        file name: protostream-types-4.4.1.Final.jar
@@ -483,5 +395,30 @@
         <cve>CVE-2020-17516</cve>
         <cve>CVE-2021-44521</cve>
     </suppress>
-
+    <suppress>
+        <notes><![CDATA[
+       The vulnerable method is deprecated in Guava, but isn't removed. It's necessary to suppress this CVE.
+       See https://github.com/google/guava/issues/4011
+       ]]></notes>
+        <cve>CVE-2020-8908</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       This is a false positive in jackson-databind.
+       See https://github.com/FasterXML/jackson-databind/issues/3972#issuecomment-1596604021
+       ]]></notes>
+        <cve>CVE-2023-35116</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+   This is a false positive in avro-protobuf. The vulnerability is in Hamba avro golang library.
+   ]]></notes>
+        <cve>CVE-2023-37475</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+    This CVE can be suppressed since it is covered in Pulsar by hostname verification changes made in https://github.com/apache/pulsar/pull/15824.
+   ]]></notes>
+        <cve>CVE-2023-4586</cve>
+    </suppress>
 </suppressions>

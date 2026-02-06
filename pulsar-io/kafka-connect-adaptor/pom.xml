@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-kafka-connect-adaptor</artifactId>
@@ -37,6 +37,25 @@
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
       <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-common</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>io.prometheus</groupId>
+          <artifactId>simpleclient_caffeine</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-utils</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
@@ -66,6 +85,14 @@
           <groupId>org.eclipse.jetty</groupId>
           <artifactId>*</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.lz4</groupId>
+          <artifactId>lz4-java</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -73,12 +100,36 @@
       <groupId>org.apache.kafka</groupId>
       <artifactId>connect-json</artifactId>
       <version>${kafka-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>org.apache.kafka</groupId>
       <artifactId>connect-api</artifactId>
       <version>${kafka-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>connect-transforms</artifactId>
+      <version>${kafka-client.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <!-- pulsar-client is only needed for MessageId conversion (for seeking), commons-lang3 and Netty buffer manipulation -->
@@ -104,24 +155,18 @@
       <artifactId>commons-lang3</artifactId>
     </dependency>
 
+    <!-- confluent connect avro converter -->
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>kafka-connect-avro-converter-shaded</artifactId>
-      <version>${project.version}</version>
+      <groupId>io.confluent</groupId>
+      <artifactId>kafka-connect-avro-converter</artifactId>
+      <version>${confluent.version}</version>
       <exclusions>
         <exclusion>
-          <groupId>io.confluent</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>org.apache.avro</groupId>
-          <artifactId>*</artifactId>
+          <artifactId>avro</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
-
-
-
 
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -135,12 +180,24 @@
       <artifactId>connect-file</artifactId>
       <version>${kafka-client.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>jose4j</artifactId>
+          <groupId>org.bitbucket.b_c</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>testmocks</artifactId>
       <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.awaitility</groupId>
+      <artifactId>awaitility</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -172,10 +229,38 @@
     </dependency>
 
     <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bc-fips</artifactId>
+      <version>${bouncycastle.bc-fips.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>com.typesafe.netty</groupId>
       <artifactId>netty-reactive-streams</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <skip>${skipDeployConnector}</skip>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <repositories>
+    <repository>
+      <id>confluent</id>
+      <url>https://packages.confluent.io/maven/</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 </project>

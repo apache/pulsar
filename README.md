@@ -79,6 +79,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ### Dashboard & Management Tools
 
+- [Dekaf UI](https://github.com/visortelle/dekaf)
 - [Pulsar Manager](https://github.com/apache/pulsar-manager)
 
 ### Website
@@ -98,29 +99,66 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ## Pulsar Runtime Java Version Recommendation
 
-- pulsar ver > 2.10 and master branch
+> **Note**:
+>
+> When using Java versions, it is recommended to
+> use [a recent version of a particular Java release (17 or 21)](https://adoptium.net/en-GB/temurin/releases?version=21&os=linux&arch=any)
+> with the most recent bug fixes and security patches.
+> For example, the JVM bug [JDK-8351933](https://bugs.openjdk.org/browse/JDK-8351933) can cause stability issues in
+> Pulsar.
+> [JDK-8351933](https://bugs.openjdk.org/browse/JDK-8351933) was fixed in Java 17.0.17+ and Java 21.0.8+.
+> Pulsar Docker images come with the most recent Java version at the time of release.
 
-| Components     | Java Version  |
+When using the Pulsar Java client, it is recommended to [set specific system properties and JVM options](https://pulsar.apache.org/docs/next/client-libraries-java-setup/#java-client-performance) to allow optimal performance.
+
+
+### pulsar ver >= 4.1 and master branch
+
+| Component       | Java Version |
+|-----------------|:------------:|
+| Broker          |      21      |
+| Functions / IO  |      21      |
+| CLI             |   17 or 21   |
+| Java Client     |   17 or 21   |
+
+Docker image Java runtime: 21
+
+### 3.3 <= pulsar ver <= 4.0
+
+| Component       |  Java Version   |
+|-----------------|:---------------:|
+| Broker          |       21        |
+| Functions / IO  |       21        |
+| CLI             |    17 or 21     |
+| Java Client     | 8, 11, 17 or 21 |
+
+Docker image Java runtime: 21
+
+### 2.10 <= pulsar ver <= 3.0 
+
+| Component      | Java Version  |
 |----------------|:-------------:|
 | Broker         |      17       |
 | Functions / IO |      17       |
 | CLI            |      17       |
 | Java Client    | 8 or 11 or 17 |
 
-- 2.8 <= pulsar ver <= 2.10
+Docker image Java runtime: 17
 
-| Components     | Java Version |
-|----------------|:------------:|
-| Broker         |      11      |
-| Functions / IO |      11      |
-| CLI            |   8 or 11    |
-| Java Client    |   8 or 11    |
+### 2.8 <= pulsar ver <= 2.10
 
-- pulsar ver < 2.8
+| Component       | Java Version |
+|-----------------|:------------:|
+| Broker          |      11      |
+| Functions / IO  |      11      |
+| CLI             |   8 or 11    |
+| Java Client     |   8 or 11    |
 
-| Components | Java Version |
-|------------|:------------:|
-| All        |   8 or 11    |
+### pulsar ver < 2.8
+
+| Component   | Java Version |
+|-------------|:------------:|
+| All         |   8 or 11    |
 
 ## Build Pulsar
 
@@ -128,21 +166,22 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 - JDK
 
-    | Pulsar Version    |                    JDK Version                    |
-    |-------------------|:-------------------------------------------------:|
-    | master and 2.11 + | [JDK 17](https://adoptium.net/?variant=openjdk17) |
-    | 2.8 / 2.9 / 2.10  | [JDK 11](https://adoptium.net/?variant=openjdk11) |
-    | 2.7 -             |  [JDK 8](https://adoptium.net/?variant=openjdk8)  |
+    | Pulsar Version   |                                   JDK Version                                    |
+    |------------------|:--------------------------------------------------------------------------------:|
+    | master and 4.0+  | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) | 
+    | 2.11 +           | [JDK 17](https://adoptium.net/en-GB/temurin/releases?version=17&os=any&arch=any) |
+    | 2.8 / 2.9 / 2.10 | [JDK 11](https://adoptium.net/en-GB/temurin/releases?version=11&os=any&arch=any) |
+    | 2.7 -            |  [JDK 8](https://adoptium.net/en-GB/temurin/releases?version=8&os=any&arch=any)  |
 
-- Maven 3.6.1+
+- Maven 3.9.9+
 - zip
+
+There is also a guide for [setting up the tooling for building Pulsar](https://pulsar.apache.org/contribute/setup-buildtools/).
 
 > **Note**:
 >
 > This project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system-installed Maven.
 > Use it by replacing `mvn` by `./mvnw` on Linux and `mvnw.cmd` on Windows in the commands below.    
->
-> It's better to use CMD rather than Powershell on Windows. Because maven will activate the `windows` profile which runs `rename-netty-native-libs.cmd`.
 
 ### Build
 
@@ -192,14 +231,21 @@ Check https://pulsar.apache.org for documentation and examples.
 
 ## Build custom docker images
 
+The commands used in the Apache Pulsar release process can be found in the [release process documentation](https://pulsar.apache.org/contribute/release-process/#stage-docker-images).
+
+Here are some general instructions for building custom docker images:
+
 * Docker images must be built with Java 8 for `branch-2.7` or previous branches because of [ISSUE-8445](https://github.com/apache/pulsar/issues/8445).
 * Java 11 is the recommended JDK version in `branch-2.8`, `branch-2.9` and `branch-2.10`.
-* Java 17 is the recommended JDK version in `master`.
+* Java 17 is the recommended JDK version in `branch-2.11`, `branch-3.0` and `branch-3.3`.
+* Java 21 is the recommended JDK version since `branch-4.0`.
 
 The following command builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`:
 
 ```bash
 mvn clean install -DskipTests
+# setting DOCKER_CLI_EXPERIMENTAL=enabled is required in some environments with older docker versions
+export DOCKER_CLI_EXPERIMENTAL=enabled
 mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
 ```
 
@@ -231,18 +277,30 @@ Read https://pulsar.apache.org/contribute/setup-ide for setting up IntelliJ IDEA
 
 ##### Mailing lists
 
+* The mailing lists are the primary contact for the Apache Pulsar project.
+* Your email to the mailing list might be placed in a moderation queue if you haven't joined the mailing list by subscribing before posting.
+
+> **Note**
+>
+> Please note that security-related issues or concerns should not be reported in public channels.
+> Follow the instructions in the [Security Policy](https://pulsar.apache.org/security/) to contact the [ASF Security Team](https://www.apache.org/security/) and the Apache Pulsar PMC directly.
+
 | Name                                                      | Scope                           | Subscribe                                             | Unsubscribe                                               | Archives                                                           |
 |:----------------------------------------------------------|:--------------------------------|:------------------------------------------------------|:----------------------------------------------------------|:-------------------------------------------------------------------|
-| [users@pulsar.apache.org](mailto:users@pulsar.apache.org) | User-related discussions        | [Subscribe](mailto:users-subscribe@pulsar.apache.org) | [Unsubscribe](mailto:users-unsubscribe@pulsar.apache.org) | [Archives](http://mail-archives.apache.org/mod_mbox/pulsar-users/) |
-| [dev@pulsar.apache.org](mailto:dev@pulsar.apache.org)     | Development-related discussions | [Subscribe](mailto:dev-subscribe@pulsar.apache.org)   | [Unsubscribe](mailto:dev-unsubscribe@pulsar.apache.org)   | [Archives](http://mail-archives.apache.org/mod_mbox/pulsar-dev/)   |
+| [users@pulsar.apache.org](mailto:users@pulsar.apache.org) | User-related discussions        | [Subscribe](mailto:users-subscribe@pulsar.apache.org?subject=subscribe&body=subscribe) | [Unsubscribe](mailto:users-unsubscribe@pulsar.apache.org?subject=unsubscribe&body=unsubscribe) | [Archives](https://lists.apache.org/list.html?users@pulsar.apache.org) |
+| [dev@pulsar.apache.org](mailto:dev@pulsar.apache.org)     | Development-related discussions | [Subscribe](mailto:dev-subscribe@pulsar.apache.org?subject=subscribe&body=subscribe)   | [Unsubscribe](mailto:dev-unsubscribe@pulsar.apache.org?subject=unsubscribe&body=unsubscribe)   | [Archives](https://lists.apache.org/list.html?dev@pulsar.apache.org)   |
 
 ##### Slack
 
 Pulsar slack channel at https://apache-pulsar.slack.com/
 
-You can self-register at https://apache-pulsar.herokuapp.com/
+You can self-register at https://communityinviter.com/apps/apache-pulsar/apache-pulsar
 
-##### Report a security vulnerability
+## Security Policy
+
+If you find a security issue with Pulsar then please [read the security policy](https://pulsar.apache.org/security/#security-policy). It is critical to avoid public disclosure.
+
+### Reporting a security vulnerability
 
 To report a vulnerability for Pulsar, contact the [Apache Security Team](https://www.apache.org/security/). When reporting a vulnerability to [security@apache.org](mailto:security@apache.org), you can copy your email to [private@pulsar.apache.org](mailto:private@pulsar.apache.org) to send your report to the Apache Pulsar Project Management Committee. This is a private mailing list.
 
@@ -254,7 +312,7 @@ Licensed under the Apache License, Version 2.0: http://www.apache.org/licenses/L
 
 ## Crypto Notice
 
-This distribution includes cryptographic software. The country in which you currently reside may have restrictions on the import, possession, use, and/or re-export to another country, of encryption software. BEFORE using any encryption software, please check your country's laws, regulations and policies concerning the import, possession, or use, and re-export of encryption software, to see if this is permitted. See <http://www.wassenaar.org/> for more information.
+This distribution includes cryptographic software. The country in which you currently reside may have restrictions on the import, possession, use, and/or re-export to another country, of encryption software. BEFORE using any encryption software, please check your country's laws, regulations and policies concerning the import, possession, or use, and re-export of encryption software, to see if this is permitted. See [The Wassenaar Arrangement](http://www.wassenaar.org/) for more information.
 
 The U.S. Government Department of Commerce, Bureau of Industry and Security (BIS), has classified this software as Export Commodity Control Number (ECCN) 5D002.C.1, which includes information security software using or performing cryptographic functions with asymmetric algorithms. The form and manner of this Apache Software Foundation distribution makes it eligible for export under the License Exception ENC Technology Software Unrestricted (TSU) exception (see the BIS Export Administration Regulations, Section 740.13) for both object code and source code.
 

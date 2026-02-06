@@ -20,183 +20,159 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCacheNotInitException;
-import org.apache.pulsar.client.impl.Backoff;
-import org.apache.pulsar.client.impl.BackoffBuilder;
-import org.apache.pulsar.client.util.RetryUtil;
+import java.util.function.Consumer;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Topic policies service.
  */
-@InterfaceStability.Evolving
-public interface TopicPoliciesService {
+@InterfaceStability.Stable
+@InterfaceAudience.LimitedPrivate
+public interface TopicPoliciesService extends AutoCloseable {
+
+    String GLOBAL_POLICIES_MSG_KEY_PREFIX = "__G__";
+
+    Logger LOG = LoggerFactory.getLogger(TopicPoliciesService.class);
 
     TopicPoliciesService DISABLED = new TopicPoliciesServiceDisabled();
-    long DEFAULT_GET_TOPIC_POLICY_TIMEOUT = 30_000;
 
     /**
-     * Delete policies for a topic async.
+     * Delete policies for a topic asynchronously.
      *
      * @param topicName topic name
      */
     CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName);
 
-    /**
-     * Update policies for a topic async.
-     *
-     * @param topicName topic name
-     * @param policies  policies for the topic name
-     */
-    CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies);
-
-    /**
-     * Get policies for a topic async.
-     * @param topicName topic name
-     * @return future of the topic policies
-     */
-    TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException;
-
-    /**
-     * Get policies from current cache.
-     * @param topicName topic name
-     * @return the topic policies
-     */
-    TopicPolicies getTopicPoliciesIfExists(TopicName topicName);
-
-    /**
-     * Get global policies for a topic async.
-     * @param topicName topic name
-     * @return future of the topic policies
-     */
-    TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal) throws TopicPoliciesCacheNotInitException;
-
-    /**
-     * When getting TopicPolicies, if the initialization has not been completed,
-     * we will go back off and try again until time out.
-     * @param topicName topic name
-     * @param backoff back off policy
-     * @param isGlobal is global policies
-     * @return CompletableFuture&lt;Optional&lt;TopicPolicies&gt;&gt;
-     */
-    default CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsyncWithRetry(TopicName topicName,
-              final Backoff backoff, ScheduledExecutorService scheduledExecutorService, boolean isGlobal) {
-        CompletableFuture<Optional<TopicPolicies>> response = new CompletableFuture<>();
-        Backoff usedBackoff = backoff == null ? new BackoffBuilder()
-                .setInitialTime(500, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
-                .setMax(DEFAULT_GET_TOPIC_POLICY_TIMEOUT, TimeUnit.MILLISECONDS)
-                .create() : backoff;
-        try {
-            RetryUtil.retryAsynchronously(() -> {
-                CompletableFuture<Optional<TopicPolicies>> future = new CompletableFuture<>();
-                try {
-                    future.complete(Optional.ofNullable(getTopicPolicies(topicName, isGlobal)));
-                } catch (BrokerServiceException.TopicPoliciesCacheNotInitException exception) {
-                    future.completeExceptionally(exception);
-                }
-                return future;
-            }, usedBackoff, scheduledExecutorService, response);
-        } catch (Exception e) {
-            response.completeExceptionally(e);
-        }
-        return response;
+    default CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName,
+                                                             boolean keepGlobalPoliciesAfterDeleting) {
+        return deleteTopicPoliciesAsync(topicName);
     }
 
     /**
-     * Get policies for a topic without cache async.
-     * @param topicName topic name
-     * @return future of the topic policies
+     * Update policies for a topic asynchronously.
+     * The policyUpdater will be called with a TopicPolicies object (either newly created or cloned from existing)
+     * which can be safely mutated. The service will handle writing this updated object.
+     *
+     * @param topicName       topic name
+     * @param isGlobalPolicy  true if the global policy is to be updated, false for local
+     * @param skipUpdateWhenTopicPolicyDoesntExist when true, skips the update if the topic policy does not already
+     *                                             exist. This is useful for cases when the policyUpdater is removing
+     *                                             a setting in the policy.
+     * @param policyUpdater   a function that modifies the TopicPolicies
+     * @return a CompletableFuture that completes when the update has been completed with read-your-writes consistency.
      */
-    CompletableFuture<TopicPolicies> getTopicPoliciesBypassCacheAsync(TopicName topicName);
+    CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName,
+                                                     boolean isGlobalPolicy,
+                                                     boolean skipUpdateWhenTopicPolicyDoesntExist,
+                                                     Consumer<TopicPolicies> policyUpdater);
 
     /**
-     * Add owned namespace bundle async.
-     *
-     * @param namespaceBundle namespace bundle
+     * It controls the behavior of {@link TopicPoliciesService#getTopicPoliciesAsync}.
      */
-    CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle);
+    enum GetType {
+        GLOBAL_ONLY, // only get the global policies
+        LOCAL_ONLY,  // only get the local policies
+    }
 
     /**
-     * Remove owned namespace bundle async.
-     *
-     * @param namespaceBundle namespace bundle
+     * Retrieve the topic policies.
      */
-    CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle);
+    CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(TopicName topicName, GetType type);
 
     /**
      * Start the topic policy service.
      */
-    void start();
+    default void start(PulsarService pulsar) {
+    }
 
-    void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
+    /**
+     * Close the resources if necessary.
+     */
+    default void close() throws Exception {
+    }
 
-    void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener);
+    /**
+     * Registers a listener for topic policies updates.
+     *
+     * <p>
+     * The listener will receive the latest topic policies when they are updated. If the policies are removed, the
+     * listener will receive a null value. Note that not every update is guaranteed to trigger the listener. For
+     * instance, if the policies change from A -> B -> null -> C in quick succession, only the final state (C) is
+     * guaranteed to be received by the listener.
+     * In summary, the listener is guaranteed to receive only the latest value.
+     * </p>
+     *
+     * @return true if the listener is registered successfully
+     */
+    boolean registerListener(TopicName topicName, TopicPolicyListener listener);
+
+    /**
+     * Unregister the topic policies listener.
+     */
+    void unregisterListener(TopicName topicName, TopicPolicyListener listener);
 
     class TopicPoliciesServiceDisabled implements TopicPoliciesService {
 
         @Override
         public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, boolean isGlobalPolicy,
+                                                                boolean skipUpdateWhenTopicPolicyDoesntExist,
+                                                                Consumer<TopicPolicies> policyUpdater) {
             return FutureUtil.failedFuture(new UnsupportedOperationException("Topic policies service is disabled."));
         }
 
         @Override
-        public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, TopicPolicies policies) {
-            return FutureUtil.failedFuture(new UnsupportedOperationException("Topic policies service is disabled."));
+        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(TopicName topicName, GetType type) {
+            return CompletableFuture.completedFuture(Optional.empty());
         }
 
         @Override
-        public TopicPolicies getTopicPolicies(TopicName topicName) throws TopicPoliciesCacheNotInitException {
-            return null;
+        public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
+            return false;
         }
 
         @Override
-        public TopicPolicies getTopicPolicies(TopicName topicName, boolean isGlobal)
-                throws TopicPoliciesCacheNotInitException {
-            return null;
-        }
-
-        @Override
-        public TopicPolicies getTopicPoliciesIfExists(TopicName topicName) {
-            return null;
-        }
-
-        @Override
-        public CompletableFuture<TopicPolicies> getTopicPoliciesBypassCacheAsync(TopicName topicName) {
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
-            //No-op
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public CompletableFuture<Void> removeOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
-            //No-op
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public void start() {
+        public void unregisterListener(TopicName topicName, TopicPolicyListener listener) {
             //No-op
         }
+    }
 
-        @Override
-        public void registerListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-            //No-op
-        }
+    static String getEventKey(PulsarEvent event, boolean isGlobal) {
+        return wrapEventKey(TopicName.get(event.getTopicPoliciesEvent().getDomain(),
+            event.getTopicPoliciesEvent().getTenant(),
+            event.getTopicPoliciesEvent().getNamespace(),
+            event.getTopicPoliciesEvent().getTopic()).toString(), isGlobal);
+    }
 
-        @Override
-        public void unregisterListener(TopicName topicName, TopicPolicyListener<TopicPolicies> listener) {
-            //No-op
+    static String wrapEventKey(String originalKey, boolean isGlobalPolicies) {
+        if (!isGlobalPolicies) {
+            return originalKey;
         }
+        return GLOBAL_POLICIES_MSG_KEY_PREFIX + originalKey;
+    }
+
+    static boolean isGlobalPolicy(Message<PulsarEvent> msg) {
+        return msg.getKey().startsWith(GLOBAL_POLICIES_MSG_KEY_PREFIX);
+    }
+
+    static TopicName unwrapEventKey(String originalKey) {
+        String tpName = originalKey;
+        if (originalKey.startsWith(GLOBAL_POLICIES_MSG_KEY_PREFIX)) {
+            tpName = originalKey.substring(GLOBAL_POLICIES_MSG_KEY_PREFIX.length());
+        }
+        return TopicName.get(tpName);
     }
 }

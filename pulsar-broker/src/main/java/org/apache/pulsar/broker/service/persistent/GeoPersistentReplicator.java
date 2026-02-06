@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -26,18 +27,25 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class GeoPersistentReplicator extends PersistentReplicator {
 
     public GeoPersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster,
                                    String remoteCluster, BrokerService brokerService,
-                                   PulsarClientImpl replicationClient)
+                                   PulsarClientImpl replicationClient, PulsarAdmin replicationAdmin)
             throws PulsarServerException {
-        super(localCluster, topic, cursor, remoteCluster, topic.getName(), brokerService, replicationClient);
+        super(localCluster, topic, cursor, remoteCluster, topic.getName(), brokerService, replicationClient,
+                replicationAdmin);
     }
 
     /**
@@ -49,7 +57,90 @@ public class GeoPersistentReplicator extends PersistentReplicator {
     }
 
     @Override
-    protected boolean replicateEntries(List<Entry> entries) {
+    protected CompletableFuture<Void> prepareCreateProducer() {
+        return createRemoteTopicIfDoesNotExist(TopicName.get(localTopicName).getPartitionedTopicName());
+    }
+
+    private CompletableFuture<Integer> getLocalPartitionMetadata(String topic) {
+        return admin.topics().getPartitionedTopicMetadataAsync(topic)
+                .thenApply(metadata -> metadata.partitions)
+                .exceptionallyCompose(t -> {
+                    Throwable actEx = FutureUtil.unwrapCompletionException(t);
+                    if (actEx instanceof PulsarAdminException.NotFoundException) {
+                        // Legacy edge case: Local topic is non-partitioned but name ends with "-partition-{num}".
+                        // This should never happen in practice because PIP-414 disables this naming pattern.
+                        return createRemoteTopicIfDoesNotExist(localTopicName)
+                                .thenApply(__ -> -1); // Special marker
+                    }
+                    return CompletableFuture.failedFuture(actEx);
+                });
+    }
+
+    private CompletableFuture<Integer> getRemotePartitionMetadata(String topic) {
+        return replicationAdmin.topics().getPartitionedTopicMetadataAsync(topic)
+                .thenApply(metadata -> metadata.partitions)
+                .exceptionallyCompose(t -> {
+                    Throwable actEx = FutureUtil.unwrapCompletionException(t);
+                    if (actEx instanceof PulsarAdminException.NotFoundException) {
+                        return CompletableFuture.completedFuture(-1); // Topic doesn't exist
+                    }
+                    return CompletableFuture.failedFuture(actEx);
+                });
+    }
+
+    private CompletableFuture<Void> handlePartitionComparison(String topic, int localPartitions, int remotePartitions) {
+        // Skip if already handled by recursion
+        if (localPartitions == -1) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Remote topic doesn't exist - create it
+        if (remotePartitions == -1) {
+            if (!brokerService.getPulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
+                String errorMsg = String.format("[%s] Can not start replicator because there is no topic on"
+                                + " the remote cluster. Please create a %s on the remote cluster",
+                        replicatorId, localPartitions == 0 ? "non-partitioned topic"
+                                : "partitioned topic with " + localPartitions + " partitions");
+                log.error(errorMsg);
+                return CompletableFuture.failedFuture(new PulsarServerException(errorMsg));
+            }
+
+            CompletableFuture<Void> createFuture = localPartitions == 0
+                    ? replicationAdmin.topics().createNonPartitionedTopicAsync(topic)
+                    : replicationAdmin.topics().createPartitionedTopicAsync(topic, localPartitions);
+
+            return createFuture.whenComplete((__, t) -> {
+                if (t != null) {
+                    log.error("[{}] Failed to create topic on remote cluster. Local has {} partitions",
+                            replicatorId, localPartitions, t);
+                }
+            });
+        }
+
+        // Both exist - verify compatibility
+        if (localPartitions == remotePartitions) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Incompatible partitions
+        String errorMsg = String.format("[%s] Can not start replicator because the partitions between"
+                        + " local and remote cluster are different. local: %s, remote: %s",
+                replicatorId, localPartitions, remotePartitions);
+        log.error(errorMsg);
+        return CompletableFuture.failedFuture(new PulsarServerException(errorMsg));
+    }
+
+    private CompletableFuture<Void> createRemoteTopicIfDoesNotExist(String partitionedTopic) {
+        return getLocalPartitionMetadata(partitionedTopic)
+                .thenCompose(localPartitions ->
+                        getRemotePartitionMetadata(partitionedTopic).thenCompose(remotePartitions ->
+                                handlePartitionComparison(partitionedTopic, localPartitions, remotePartitions)
+                        )
+                );
+    }
+
+    @Override
+    protected boolean replicateEntries(List<Entry> entries, final InFlightTask inFlightTask) {
         boolean atLeastOneMessageSentForReplication = false;
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
@@ -58,12 +149,13 @@ public class GeoPersistentReplicator extends PersistentReplicator {
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
             boolean isLocalMessageSkippedOnce = false;
-            boolean skipRemainingMessages = false;
+            boolean skipRemainingMessages = inFlightTask.isSkipReadResultDueToCursorRewind();
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 // Skip the messages since the replicator need to fetch the schema info to replicate the schema to the
                 // remote cluster. Rewind the cursor first and continue the message read after fetched the schema.
                 if (skipRemainingMessages) {
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     continue;
                 }
@@ -76,8 +168,28 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
                             entry.getPosition(), length, t.getMessage(), t);
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     continue;
+                }
+
+                if (Markers.isTxnMarker(msg.getMessageBuilder())) {
+                    cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
+                    entry.release();
+                    msg.recycle();
+                    continue;
+                }
+                if (msg.getMessageBuilder().hasTxnidLeastBits() && msg.getMessageBuilder().hasTxnidMostBits()) {
+                    TxnID tx = new TxnID(msg.getMessageBuilder().getTxnidMostBits(),
+                            msg.getMessageBuilder().getTxnidLeastBits());
+                    if (topic.isTxnAborted(tx, entry.getPosition())) {
+                        cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                        inFlightTask.incCompletedEntries();
+                        entry.release();
+                        msg.recycle();
+                        continue;
+                    }
                 }
 
                 if (isEnableReplicatedSubscriptions) {
@@ -87,6 +199,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 if (msg.isReplicated()) {
                     // Discard messages that were already replicated into this region
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -98,6 +211,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                                 entry.getPosition(), msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -110,6 +224,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                                 replicatorId, entry.getPosition(), msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
@@ -117,38 +232,42 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
                 if (STATE_UPDATER.get(this) != State.Started || isLocalMessageSkippedOnce) {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
-                    // recovered when the producer is ready
+                    // recover when the producer is ready
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Dropping read message at {} because producer is not ready",
                                 replicatorId, entry.getPosition());
                     }
                     isLocalMessageSkippedOnce = true;
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
                     continue;
                 }
 
-                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
-
-                // Increment pending messages for messages produced locally
-                PENDING_MESSAGES_UPDATER.incrementAndGet(this);
-
-                msgOut.recordEvent(headersAndPayload.readableBytes());
-
+                dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.consumeDispatchQuota(1, entry.getLength()));
                 msg.setReplicatedFrom(localCluster);
 
                 headersAndPayload.retain();
 
                 CompletableFuture<SchemaInfo> schemaFuture = getSchemaInfo(msg);
                 if (!schemaFuture.isDone() || schemaFuture.isCompletedExceptionally()) {
+                    /**
+                     * Skip in flight reading tasks.
+                     * Explain the result of the race-condition between:
+                     *   - {@link #readMoreEntries}
+                     *   - {@link #beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding)}
+                     * Since {@link #acquirePermitsIfNotFetchingSchema} and
+                     *   {@link #beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding)} acquire the
+                     * same lock, it is safe.
+                     */
+                    beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Fetching_Schema);
+                    inFlightTask.incCompletedEntries();
                     entry.release();
                     headersAndPayload.release();
                     msg.recycle();
                     // Mark the replicator is fetching the schema for now and rewind the cursor
                     // and trigger the next read after complete the schema fetching.
-                    fetchSchemaInProgress = true;
                     skipRemainingMessages = true;
-                    cursor.cancelPendingReadRequest();
                     log.info("[{}] Pause the data replication due to new detected schema", replicatorId);
                     schemaFuture.whenComplete((__, e) -> {
                         if (e != null) {
@@ -156,18 +275,28 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                                     replicatorId, e);
                         }
                         log.info("[{}] Resume the data replication after the schema fetching done", replicatorId);
-                        cursor.rewind();
-                        fetchSchemaInProgress = false;
-                        readMoreEntries();
+                        doRewindCursor(true);
                     });
                 } else {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
-                    producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
+                    msg.getMessageBuilder().clearTxnidMostBits();
+                    msg.getMessageBuilder().clearTxnidLeastBits();
+                    // Add props for sequence checking.
+                    msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION)
+                            .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
+                    msgOut.recordEvent(headersAndPayload.readableBytes());
+                    stats.incrementMsgOutCounter();
+                    stats.incrementBytesOutCounter(headersAndPayload.readableBytes());
+                    // Increment pending messages for messages produced locally
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Publishing {}:{}", replicatorId, entry.getLedgerId(), entry.getEntryId());
+                    }
+                    producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg, inFlightTask));
                     atLeastOneMessageSentForReplication = true;
                 }
             }
         } catch (Exception e) {
-            log.error("[{}] Unexpected exception: {}", replicatorId, e.getMessage(), e);
+            log.error("[{}] Unexpected exception in replication task: {}", replicatorId, e.getMessage(), e);
         }
         return atLeastOneMessageSentForReplication;
     }

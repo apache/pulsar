@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -42,7 +43,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -56,12 +59,16 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -71,7 +78,9 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -79,6 +88,14 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class SimpleLoadManagerImplTest {
+
+    public static final String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    public static final String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    public static final String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+
     LocalBookkeeperEnsemble bkEnsemble;
 
     URL url1;
@@ -93,7 +110,13 @@ public class SimpleLoadManagerImplTest {
     BrokerStats brokerStatsClient2;
 
     String primaryHost;
+
+    String primaryTlsHost;
+
     String secondaryHost;
+
+    private String defaultNamespace;
+    private String defaultTenant;
 
     ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
@@ -105,17 +128,20 @@ public class SimpleLoadManagerImplTest {
         bkEnsemble.start();
 
         // Start broker 1
-        ServiceConfiguration config1 = spy(ServiceConfiguration.class);
+        ServiceConfiguration config1 = new ServiceConfiguration();
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
+        config1.setWebServicePortTls(Optional.of(0));
         config1.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config1.setBrokerShutdownTimeoutMs(0L);
         config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
         config1.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config1.setBrokerServicePortTls(Optional.of(0));
-        config1.setWebServicePortTls(Optional.of(0));
         config1.setAdvertisedAddress("localhost");
+        config1.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config1.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config1.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
@@ -123,11 +149,13 @@ public class SimpleLoadManagerImplTest {
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
         brokerStatsClient1 = admin1.brokerStats();
         primaryHost = pulsar1.getWebServiceAddress();
+        primaryTlsHost = pulsar1.getWebServiceAddressTls();
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
+        config2.setWebServicePortTls(Optional.of(0));
         config2.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config2.setBrokerShutdownTimeoutMs(0L);
         config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
@@ -135,6 +163,9 @@ public class SimpleLoadManagerImplTest {
         config2.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config2.setBrokerServicePortTls(Optional.of(0));
         config2.setWebServicePortTls(Optional.of(0));
+        config2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        config2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         config2.setAdvertisedAddress("localhost");
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
@@ -144,20 +175,40 @@ public class SimpleLoadManagerImplTest {
         brokerStatsClient2 = admin2.brokerStats();
         secondaryHost = pulsar2.getWebServiceAddress();
         Thread.sleep(100);
+
+        setupClusters();
     }
 
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        executor.shutdownNow();
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
+        }
 
-        admin1.close();
-        admin2.close();
+        if (admin1 != null) {
+            admin1.close();
+            admin1 = null;
+        }
+        if (admin2 != null) {
+            admin2.close();
+            admin2 = null;
+        }
 
-        pulsar2.close();
-        pulsar1.close();
+        if (pulsar2 != null) {
+            pulsar2.close();
+            pulsar2 = null;
+        }
+        if (pulsar1 != null) {
+            pulsar1.close();
+            pulsar1 = null;
+        }
 
-        bkEnsemble.stop();
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
     private void createNamespacePolicies(PulsarService pulsar) throws Exception {
@@ -190,6 +241,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test
     public void testBasicBrokerSelection() throws Exception {
+        @Cleanup("stop")
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
@@ -197,7 +249,7 @@ public class SimpleLoadManagerImplTest {
         rd.put("bandwidthIn", new ResourceUsage(250 * 1024, 1024 * 1024));
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
-        ResourceUnit ru1 = new SimpleResourceUnit("http://prod2-broker7.messaging.usw.example.com:8080", rd);
+        ResourceUnit ru1 = new SimpleResourceUnit("prod2-broker7.messaging.usw.example.com:8080", rd);
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
@@ -225,6 +277,7 @@ public class SimpleLoadManagerImplTest {
     @Test
     public void testPrimary() throws Exception {
         createNamespacePolicies(pulsar1);
+        @Cleanup("stop")
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
@@ -232,15 +285,15 @@ public class SimpleLoadManagerImplTest {
         rd.put("bandwidthIn", new ResourceUsage(250 * 1024, 1024 * 1024));
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
-        ResourceUnit ru1 = new SimpleResourceUnit(
-                "http://" + pulsar1.getAdvertisedAddress() + ":" + pulsar1.getConfiguration().getWebServicePort().get(), rd);
+        ResourceUnit ru1 = new SimpleResourceUnit(pulsar1.getBrokerId(), rd);
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
 
         // inject the load report and rankings
         Map<ResourceUnit, org.apache.pulsar.policies.data.loadbalancer.LoadReport> loadReports = new HashMap<>();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport.setSystemResourceUsage(new SystemResourceUsage());
         loadReports.put(ru1, loadReport);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "currentLoadReports", loadReports);
@@ -255,16 +308,15 @@ public class SimpleLoadManagerImplTest {
         sortedRankingsInstance.get().put(lr.getRank(rd), rus);
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "sortedRankings", sortedRankingsInstance);
 
-        ResourceUnit found = loadManager
-                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
-        // broker is not active so found should be null
+        ResourceUnit found = loadManager.getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
+        // TODO: this test doesn't make sense. This was the original assertion.
         assertNotEquals(found, null, "did not find a broker when expected one to be found");
-
     }
 
     @Test(enabled = false)
     public void testPrimarySecondary() throws Exception {
         createNamespacePolicies(pulsar1);
+        @Cleanup("stop")
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
 
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -273,7 +325,7 @@ public class SimpleLoadManagerImplTest {
         rd.put("bandwidthIn", new ResourceUsage(250 * 1024, 1024 * 1024));
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
-        ResourceUnit ru1 = new SimpleResourceUnit("http://prod2-broker7.messaging.usw.example.com:8080", rd);
+        ResourceUnit ru1 = new SimpleResourceUnit("prod2-broker7.messaging.usw.example.com:8080", rd);
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         LoadRanker lr = new ResourceAvailabilityRanker();
@@ -317,7 +369,8 @@ public class SimpleLoadManagerImplTest {
     public void testLoadReportParsing() throws Exception {
 
         ObjectMapper mapper = ObjectMapperFactory.create();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport reportData = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport reportData =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         reportData.setName("b1");
         SystemResourceUsage resource = new SystemResourceUsage();
         ResourceUsage resourceUsage = new ResourceUsage();
@@ -335,15 +388,17 @@ public class SimpleLoadManagerImplTest {
 
     @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
-        SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
+        @Cleanup("stop")
+        SimpleLoadManagerImpl loadManager =
+                spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));
         rd.put("bandwidthIn", new ResourceUsage(250 * 1024, 1024 * 1024));
         rd.put("bandwidthOut", new ResourceUsage(550 * 1024, 1024 * 1024));
 
-        ResourceUnit ru1 = new SimpleResourceUnit("http://pulsar-broker1.com:8080", rd);
-        ResourceUnit ru2 = new SimpleResourceUnit("http://pulsar-broker2.com:8080", rd);
+        ResourceUnit ru1 = new SimpleResourceUnit("pulsar-broker1.com:8080", rd);
+        ResourceUnit ru2 = new SimpleResourceUnit("pulsar-broker2.com:8080", rd);
         Set<ResourceUnit> rus = new HashSet<>();
         rus.add(ru1);
         rus.add(ru2);
@@ -367,10 +422,12 @@ public class SimpleLoadManagerImplTest {
         stats.put("property/cluster/namespace2/0x00000000_0xFFFFFFFF", nsb2);
 
         Map<ResourceUnit, org.apache.pulsar.policies.data.loadbalancer.LoadReport> loadReports = new HashMap<>();
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport1 = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport1 =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport1.setSystemResourceUsage(systemResource);
         loadReport1.setBundleStats(stats);
-        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport2 = new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
+        org.apache.pulsar.policies.data.loadbalancer.LoadReport loadReport2 =
+                new org.apache.pulsar.policies.data.loadbalancer.LoadReport();
         loadReport2.setSystemResourceUsage(new SystemResourceUsage());
         loadReport2.setBundleStats(stats);
         loadReports.put(ru1, loadReport1);
@@ -396,14 +453,14 @@ public class SimpleLoadManagerImplTest {
         final SimpleLoadManagerImpl loadManager = (SimpleLoadManagerImpl) pulsar1.getLoadManager().get();
 
         for (final NamespaceBundle bundle : bundles) {
-            if (loadManager.getLeastLoaded(bundle).get().getResourceId().equals(primaryHost)) {
+            if (loadManager.getLeastLoaded(bundle).get().getResourceId().equals(pulsar1.getBrokerId())) {
                 ++numAssignedToPrimary;
             } else {
                 ++numAssignedToSecondary;
             }
             // Check that number of assigned bundles are equivalent when an even number have been assigned.
             if ((numAssignedToPrimary + numAssignedToSecondary) % 2 == 0) {
-                assert (numAssignedToPrimary == numAssignedToSecondary);
+                assertEquals(numAssignedToPrimary, numAssignedToSecondary);
             }
         }
     }
@@ -454,9 +511,25 @@ public class SimpleLoadManagerImplTest {
         task1.run();
         verify(loadManager, times(1)).writeResourceQuotasToZooKeeper();
 
-        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager, null, null);
+        LoadSheddingTask task2 = new LoadSheddingTask(atomicLoadManager, null, null, null);
         task2.run();
         verify(loadManager, times(1)).doLoadShedding();
+    }
+
+    @Test
+    public void testMetadataServiceNotAvailable() {
+        LoadManager loadManager = mock(LoadManager.class);
+        AtomicReference<LoadManager> atomicLoadManager = new AtomicReference<>(loadManager);
+        ManagedLedgerFactoryImpl factory = mock(ManagedLedgerFactoryImpl.class);
+        doReturn(false).when(factory).isMetadataServiceAvailable();
+        LoadSheddingTask task2 = spy(new LoadSheddingTask(atomicLoadManager, null, null, factory));
+        task2.run();
+        verify(loadManager, times(0)).doLoadShedding();
+        verify(task2, times(1)).start();
+        doReturn(true).when(factory).isMetadataServiceAvailable();
+        task2.run();
+        verify(loadManager, times(1)).doLoadShedding();
+        verify(task2, times(2)).start();
     }
 
     @Test
@@ -474,6 +547,36 @@ public class SimpleLoadManagerImplTest {
         double usageLimit = 10.0;
         usage.setBandwidthIn(new ResourceUsage(usageLimit, usageLimit));
         assertEquals(usage.getBandwidthIn().usage, usageLimit);
+    }
+
+    @Test
+    public void testGetWebSerUrl() throws PulsarAdminException {
+        String webServiceUrl = admin1.brokerStats().getLoadReport().getWebServiceUrl();
+        Assert.assertEquals(webServiceUrl, pulsar1.getWebServiceAddress());
+
+        String webServiceUrl2 = admin2.brokerStats().getLoadReport().getWebServiceUrl();
+        Assert.assertEquals(webServiceUrl2, pulsar2.getWebServiceAddress());
+    }
+
+    @Test
+    public void testRedirectOwner() throws PulsarAdminException {
+        final String topicName = "persistent://" + defaultNamespace + "/" + "test-topic";
+        admin1.topics().createNonPartitionedTopic(topicName);
+        TopicStats stats = admin1.topics().getStats(topicName);
+        Assert.assertNotNull(stats);
+
+        TopicStats stats2 = admin2.topics().getStats(topicName);
+        Assert.assertNotNull(stats2);
+    }
+
+    private void setupClusters() throws PulsarAdminException {
+        admin1.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar1.getWebServiceAddress())
+                .brokerServiceUrl(pulsar1.getBrokerServiceUrl()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
+        defaultTenant = "prop-xyz";
+        admin1.tenants().createTenant(defaultTenant, tenantInfo);
+        defaultNamespace = defaultTenant + "/ns1";
+        admin1.namespaces().createNamespace(defaultNamespace, Set.of("use"));
     }
 
 }

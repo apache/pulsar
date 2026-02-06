@@ -66,7 +66,8 @@ public class BrokerInterceptorWithClassLoaderTest {
         NarClassLoader narLoader = mock(NarClassLoader.class);
         BrokerInterceptor interceptor = new BrokerInterceptor() {
             @Override
-            public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
+            public void beforeSendMessage(Subscription subscription, Entry entry,
+                                          long[] ackSet, MessageMetadata msgMetadata) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
 
@@ -135,7 +136,7 @@ public class BrokerInterceptorWithClassLoaderTest {
                 new BrokerInterceptorWithClassLoader(interceptor, narLoader);
         ClassLoader curClassLoader = Thread.currentThread().getContextClassLoader();
         // test class loader
-        assertEquals(brokerInterceptorWithClassLoader.getClassLoader(), narLoader);
+        assertEquals(brokerInterceptorWithClassLoader.getNarClassLoader(), narLoader);
         // test initialize
         brokerInterceptorWithClassLoader.initialize(mock(PulsarService.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);

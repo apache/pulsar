@@ -22,13 +22,11 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -147,7 +145,7 @@ public class ResendRequestTest extends BrokerTestBase {
         assertEquals(messageDataHashSet.size(), totalMessages);
         printIncomingMessageQueue(consumer);
 
-        // 9. Calling resend after acking all messages - expectin 0 messages
+        // 9. Calling resend after acking all messages - expecting 0 messages
         consumer.redeliverUnacknowledgedMessages();
         assertNull(consumer.receive(2000, TimeUnit.MILLISECONDS));
 
@@ -178,7 +176,7 @@ public class ResendRequestTest extends BrokerTestBase {
                 .subscriptionName(subscriptionName).receiverQueueSize(totalMessages / 2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(totalMessages / 2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -498,7 +496,7 @@ public class ResendRequestTest extends BrokerTestBase {
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscriptionType(SubscriptionType.Shared).subscribe();
 
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscriptionType(SubscriptionType.Shared).subscribe();
 
@@ -707,12 +705,19 @@ public class ResendRequestTest extends BrokerTestBase {
                 receivedConsumer1 += 1;
             }
         } while (message1 != null);
+        do {
+            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
+            if (message2 != null) {
+                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                receivedConsumer2 += 1;
+            }
+        } while (message2 != null);
         log.info("Consumer 1 receives = " + receivedConsumer1);
         log.info("Consumer 2 receives = " + receivedConsumer2);
         log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
         // Consumer 2 is on Stand By
-        assertEquals(receivedConsumer2, 0);
+        assertEquals(receivedConsumer1, 0);
 
         // 5. Consumer 2 asks for a redelivery but the request is ignored
         log.info("Consumer 2 asks for resend");
@@ -722,7 +727,7 @@ public class ResendRequestTest extends BrokerTestBase {
         message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
         message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         assertNull(message1);
-        assertNull(message2);
+        assertNotNull(message2);
     }
 
     @SuppressWarnings("unchecked")

@@ -37,9 +37,9 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         super(localStore, LocalPolicies.class, operationTimeoutSec);
     }
 
-    public void setLocalPolicies(NamespaceName ns, Function<LocalPolicies, LocalPolicies> modifyFunction)
-            throws MetadataStoreException {
-        set(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), modifyFunction);
+    public CompletableFuture<Void> setLocalPoliciesAsync(NamespaceName ns,
+                                                         Function<LocalPolicies, LocalPolicies> modifyFunction) {
+        return setAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), modifyFunction);
     }
 
     public Optional<LocalPolicies> getLocalPolicies(NamespaceName ns) throws MetadataStoreException{
@@ -55,6 +55,11 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         setWithCreate(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
     }
 
+    public CompletableFuture<Void> setLocalPoliciesWithCreateAsync(NamespaceName ns, Function<Optional<LocalPolicies>,
+            LocalPolicies> createFunction) {
+        return setWithCreateAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
+    }
+
     public CompletableFuture<Void> createLocalPoliciesAsync(NamespaceName ns, LocalPolicies policies) {
         return getCache().create(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), policies);
     }
@@ -66,7 +71,7 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     public CompletableFuture<Void> setLocalPoliciesWithVersion(NamespaceName ns, LocalPolicies policies,
                                                                Optional<Long> version) {
         try {
-            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies);
+            byte[] content = ObjectMapperFactory.getMapper().writer().writeValueAsBytes(policies);
             return getStore().put(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), content, version)
                     .thenApply(__ -> null);
         } catch (JsonProcessingException e) {
@@ -79,13 +84,13 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     }
 
     public CompletableFuture<Void> deleteLocalPoliciesAsync(NamespaceName ns) {
-        return deleteAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+        return deleteIfExistsAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 
     public CompletableFuture<Void> deleteLocalPoliciesTenantAsync(String tenant) {
         final String localPoliciesPath = joinPath(LOCAL_POLICIES_ROOT, tenant);
         CompletableFuture<Void> future = new CompletableFuture<Void>();
-        deleteAsync(localPoliciesPath).whenComplete((ignore, ex) -> {
+        deleteIfExistsAsync(localPoliciesPath).whenComplete((ignore, ex) -> {
             if (ex != null && ex.getCause().getCause() instanceof KeeperException) {
                 future.complete(null);
             } else if (ex != null) {

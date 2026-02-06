@@ -18,14 +18,21 @@
  */
 package org.apache.pulsar.tests.integration.io.sinks;
 
+import static org.testng.Assert.assertEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.collect.ImmutableMap;
+import java.io.UncheckedIOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -54,22 +61,13 @@ import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 import software.amazon.kinesis.retrieval.AggregatorUtil;
 import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
-import java.io.UncheckedIOException;
-import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.testng.Assert.assertEquals;
-
 @Slf4j
 public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
 
     private static final String NAME = "kinesis";
     private static final int LOCALSTACK_SERVICE_PORT = 4566;
     public static final String STREAM_NAME = "my-stream-1";
-    public static final ObjectReader READER = ObjectMapperFactory.getThreadLocal().reader();
+    public static final ObjectReader READER = ObjectMapperFactory.getMapper().reader();
     private final boolean withSchema;
     private KinesisAsyncClient client;
 
@@ -80,6 +78,11 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
         sinkConfig.put("awsKinesisStreamName", STREAM_NAME);
         sinkConfig.put("awsRegion", "us-east-1");
         sinkConfig.put("awsCredentialPluginParam", "{\"accessKey\":\"access\",\"secretKey\":\"secret\"}");
+        sinkConfig.put("awsEndpoint", NAME);
+        sinkConfig.put("awsEndpointPort", LOCALSTACK_SERVICE_PORT);
+        sinkConfig.put("awsStsEndpoint", NAME);
+        sinkConfig.put("awsStsPort", LOCALSTACK_SERVICE_PORT);
+        sinkConfig.put("skipCertificateValidation", true);
         if (withSchema) {
             sinkConfig.put("messageFormat", "FULL_MESSAGE_IN_JSON_EXPAND_VALUE");
         }
@@ -101,9 +104,6 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
     public void prepareSink() throws Exception {
         final LocalStackContainer localStackContainer = getServiceContainer();
         final URI endpointOverride = localStackContainer.getEndpointOverride(LocalStackContainer.Service.KINESIS);
-        sinkConfig.put("awsEndpoint", NAME);
-        sinkConfig.put("awsEndpointPort", LOCALSTACK_SERVICE_PORT);
-        sinkConfig.put("skipCertificateValidation", true);
         client = KinesisAsyncClient.builder().credentialsProvider(() -> AwsBasicCredentials.create(
                 "access",
                 "secret"))
@@ -129,8 +129,9 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
 
     @Override
     protected LocalStackContainer createSinkService(PulsarCluster cluster) {
-        return new LocalStackContainer(DockerImageName.parse("localstack/localstack:1.0.4"))
-                .withServices(LocalStackContainer.Service.KINESIS);
+        return new LocalStackContainer(DockerImageName.parse("localstack/localstack:4.0.3"))
+                .withServices(LocalStackContainer.Service.KINESIS, LocalStackContainer.Service.STS)
+                .withEnv("KINESIS_PROVIDER", "kinesalite");
     }
 
     @Override
@@ -152,15 +153,17 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
                 final SimplePojo keyPojo = new SimplePojo(
                         "f1_" + i,
                         "f2_" + i,
-                        Arrays.asList(i, i +1),
+                        Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
-                        ImmutableMap.of("map1_k_" + i, "map1_kv_" + i));
+                        ImmutableMap.of("map1_k_" + i, "map1_kv_" + i),
+                        ("key_bytes_" + i).getBytes(StandardCharsets.UTF_8));
                 final SimplePojo valuePojo = new SimplePojo(
                         String.valueOf(i),
                         "v2_" + i,
-                        Arrays.asList(i, i +1),
+                        Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
-                        ImmutableMap.of("map1_v_" + i, "map1_vv_" + i));
+                        ImmutableMap.of("map1_v_" + i, "map1_vv_" + i),
+                        ("value_bytes_" + i).getBytes(StandardCharsets.UTF_8));
                 producer.newMessage()
                         .value(new KeyValue<>(keyPojo, valuePojo))
                         .send();
@@ -220,8 +223,12 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
             JsonNode payload = READER.readTree(data).at("/payload");
             String i = payload.at("/value/field1").asText();
             assertEquals(payload.at("/value/field2").asText(), "v2_" + i);
+            assertEquals(payload.at("/value/bytes").asText(),
+                    Base64.getEncoder().encodeToString(("value_bytes_" + i).getBytes(StandardCharsets.UTF_8)));
             assertEquals(payload.at("/key/field1").asText(), "f1_" + i);
             assertEquals(payload.at("/key/field2").asText(), "f2_" + i);
+            assertEquals(payload.at("/key/bytes").asText(),
+                    Base64.getEncoder().encodeToString(("key_bytes_" + i).getBytes(StandardCharsets.UTF_8)));
             actualKvs.put(i, i);
         } else {
             actualKvs.put(partitionKey, data);
@@ -252,7 +259,8 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
             iterator = response.nextShardIterator();
             // millisBehindLatest equals zero when record processing is caught up,
             // and there are no new records to process at this moment.
-            // See https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html#Streams-GetRecords-response-MillisBehindLatest
+            // See https://docs.aws.amazon.com/kinesis/latest/APIReference/
+            // API_GetRecords.html#Streams-GetRecords-response-MillisBehindLatest
         } while (response.millisBehindLatest() != 0);
 
         for (KinesisClientRecord record : new AggregatorUtil().deaggregate(aggRecords)) {
@@ -269,6 +277,7 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
         private List<Integer> list1;
         private Set<Long> set1;
         private Map<String, String> map1;
+        private byte[] bytes;
     }
 
     @Override

@@ -373,7 +373,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         assertEquals(ledgersReadAsync, ids, "Comparing LedgersIds read asynchronously");
     }
 
-    @Test(timeOut = 30000, dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void checkConcurrentModifications(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
         MetadataStoreExtended store =
@@ -403,17 +403,20 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         final long start = MathUtils.nowInNano();
         final CountDownLatch latch = new CountDownLatch(1);
         ArrayList<Future<?>> futures = new ArrayList<>();
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final ConcurrentSkipListSet<Long> createdLedgers = new ConcurrentSkipListSet<>();
         for (int i = 0; i < numWriters; ++i) {
+            int writerIndex = i;
             Future<?> f = executor.submit(() -> {
                 @Cleanup
                 LedgerManager writerLM = new PulsarLedgerManager(store, ledgersRoot);
                 Random writerRNG = new Random(rng.nextLong());
-
+                log.info("Writer {} waiting", writerIndex);
                 latch.await();
-
+                log.info("Writer {} started", writerIndex);
                 while (MathUtils.elapsedNanos(start) < runtime) {
+                    log.info("Writer {} writing", writerIndex);
                     long candidate = 0;
                     do {
                         candidate = Math.abs(writerRNG.nextLong());
@@ -425,18 +428,22 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
                     createLedger(writerLM, candidate);
                     removeLedger(writerLM, candidate);
                 }
+                log.info("Writer {} finished", writerIndex);
                 return null;
             });
             futures.add(f);
         }
 
         for (int i = 0; i < numCheckers; ++i) {
+            int checkerIndex = i;
             Future<?> f = executor.submit(() -> {
                 @Cleanup
                 LedgerManager checkerLM = new PulsarLedgerManager(store, ledgersRoot);
+                log.info("Checker {} waiting", checkerIndex);
                 latch.await();
-
+                log.info("Checker {} started", checkerIndex);
                 while (MathUtils.elapsedNanos(start) < runtime) {
+                    log.info("Checker {} checking", checkerIndex);
                     LedgerRangeIterator lri = checkerLM.getLedgerRanges(0);
                     Set<Long> returnedIds = ledgerRangeToSet(lri);
                     for (long id : mustExist) {
@@ -448,15 +455,19 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
                         assertTrue(ledgersReadAsync.contains(id));
                     }
                 }
+                log.info("Checker {} finished", checkerIndex);
                 return null;
             });
             futures.add(f);
         }
 
         latch.countDown();
+        log.info("Waiting for futures");
         for (Future<?> f : futures) {
+            log.info("Waiting for future");
             f.get();
         }
+        log.info("Completed");
         executor.shutdownNow();
     }
 

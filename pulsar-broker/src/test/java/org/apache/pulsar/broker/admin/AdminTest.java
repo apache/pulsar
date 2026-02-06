@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -45,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import javax.servlet.ServletContext;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
@@ -69,7 +71,6 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -137,7 +138,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(properties).validateSuperUserAccess();
 
         namespaces = spy(Namespaces.class);
-        namespaces.setServletContext(new MockServletContext());
+        namespaces.setServletContext(mock(ServletContext.class));
         namespaces.setPulsar(pulsar);
         doReturn("test").when(namespaces).clientAppId();
         doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
@@ -154,7 +155,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         uriField.setAccessible(true);
 
         persistentTopics = spy(PersistentTopics.class);
-        persistentTopics.setServletContext(new MockServletContext());
+        persistentTopics.setServletContext(mock(ServletContext.class));
         persistentTopics.setPulsar(pulsar);
         doReturn("test").when(persistentTopics).clientAppId();
         doReturn("persistent").when(persistentTopics).domain();
@@ -164,11 +165,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(persistentTopics).validateAdminAccessForTenant("prop-xyz");
 
         resourceQuotas = spy(ResourceQuotas.class);
-        resourceQuotas.setServletContext(new MockServletContext());
+        resourceQuotas.setServletContext(mock(ServletContext.class));
         resourceQuotas.setPulsar(pulsar);
 
         brokerStats = spy(BrokerStats.class);
-        brokerStats.setServletContext(new MockServletContext());
+        brokerStats.setServletContext(mock(ServletContext.class));
         brokerStats.setPulsar(pulsar);
 
         doReturn(false).when(persistentTopics).isRequestHttps();
@@ -177,7 +178,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
         schemasResource = spy(SchemasResource.class);
-        schemasResource.setServletContext(new MockServletContext());
+        schemasResource.setServletContext(mock(ServletContext.class));
         schemasResource.setPulsar(pulsar);
     }
 
@@ -238,10 +239,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 conf.isBookkeeperMetadataStoreSeparated() ? conf.getBookkeeperMetadataStoreUrl() : null,
                 pulsar.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
 
-        final Map<String, Object> oldDataJson = ObjectMapperFactory
-                .getThreadLocal().convertValue(oldDataModel, Map.class);
+        final Map<String, Object> oldDataJson = ObjectMapperFactory.getMapper().getObjectMapper()
+                .convertValue(oldDataModel, Map.class);
 
-        final InternalConfigurationData newData = ObjectMapperFactory.getThreadLocal()
+        final InternalConfigurationData newData = ObjectMapperFactory.getMapper().getObjectMapper()
                 .convertValue(oldDataJson, InternalConfigurationData.class);
 
         assertEquals(newData.getMetadataStoreUrl(), conf.getMetadataStoreUrl());
@@ -302,7 +303,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         NamespaceIsolationDataImpl policyData = NamespaceIsolationDataImpl.builder()
                 .namespaces(Collections.singletonList("dummy/colo/ns"))
-                .primary(Collections.singletonList("localhost" + ":" + pulsar.getListenPortHTTP()))
+                .primary(Collections.singletonList(pulsar.getAdvertisedAddress()))
                 .autoFailoverPolicy(AutoFailoverPolicyData.builder()
                         .policyType(AutoFailoverPolicyType.min_available)
                         .parameters(parameters1)
@@ -444,9 +445,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         try {
             asyncRequests(ctx -> clusters.createCluster(ctx, "auth", ClusterDataImpl.builder()
                     .serviceUrl("http://dummy.web.example.com")
-                    .serviceUrlTls("")
-                    .brokerServiceUrl("http://dummy.messaging.example.com")
-                    .brokerServiceUrlTls("")
+                    .brokerServiceUrl("pulsar://dummy.messaging.example.com")
                     .authenticationPlugin("authenticationPlugin")
                     .authenticationParameters("authenticationParameters")
                     .listenerName("listenerName")
@@ -618,7 +617,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .build();
         response = asyncRequests(ctx -> properties.createTenant(ctx, "my-tenant", newPropertyAdmin2));
 
-        response = asyncRequests(ctx -> namespaces.createNamespace(ctx,"my-tenant", "use", "my-namespace", BundlesData.builder().build()));
+        response = asyncRequests(ctx -> namespaces.createNamespace(ctx, "my-tenant",
+                "use", "my-namespace", BundlesData.builder().build()));
 
         try {
             response = asyncRequests(ctx -> properties.deleteTenant(ctx, "my-tenant", false));
@@ -651,7 +651,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .allowedClusters(blankClusters)
                 .build();
         try {
-            response = asyncRequests(ctx -> properties.createTenant(ctx, "tenant-config-is-empty", tenantWithEmptyCluster));
+            response = asyncRequests(ctx -> properties.createTenant(ctx,
+                    "tenant-config-is-empty", tenantWithEmptyCluster));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
@@ -665,7 +666,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .allowedClusters(containBlankClusters)
                 .build();
         try {
-            response = asyncRequests(ctx -> properties.createTenant(ctx, "tenant-config-contain-empty", tenantContainEmptyCluster));
+            response = asyncRequests(ctx -> properties.createTenant(ctx,
+                    "tenant-config-contain-empty", tenantContainEmptyCluster));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
@@ -675,7 +677,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         int maxTenants = pulsar.getConfiguration().getMaxTenants();
         List<String> tenants = pulsar.getPulsarResources().getTenantResources().listTenants();
 
-        for(int tenantSize = tenants.size();tenantSize < maxTenants; tenantSize++ ){
+        for (int tenantSize = tenants.size(); tenantSize < maxTenants; tenantSize++) {
             final int tenantIndex = tenantSize;
             Response obj = (Response) asyncRequests(ctx ->
                     properties.createTenant(ctx, "test-tenant-" + tenantIndex, tenantInfo));
@@ -691,7 +693,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check creating existing property when tenant reach max count.
         try {
-            response = asyncRequests(ctx -> properties.createTenant(ctx, "test-tenant-" +  (maxTenants-1), tenantInfo));
+            response = asyncRequests(ctx -> properties.createTenant(ctx,
+                    "test-tenant-" +  (maxTenants - 1), tenantInfo));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
@@ -724,11 +727,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertTrue(res instanceof Set);
         Set<String> activeBrokers = (Set<String>) res;
         assertEquals(activeBrokers.size(), 1);
-        assertEquals(activeBrokers, Set.of(pulsar.getAdvertisedAddress() + ":" + pulsar.getListenPortHTTP().get()));
+        assertEquals(activeBrokers, Set.of(pulsar.getBrokerId()));
         Object leaderBrokerRes = asyncRequests(ctx -> brokers.getLeaderBroker(ctx));
         assertTrue(leaderBrokerRes instanceof BrokerInfo);
-        BrokerInfo leaderBroker = (BrokerInfo)leaderBrokerRes;
-        assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
+        BrokerInfo leaderBroker = (BrokerInfo) leaderBrokerRes;
+        assertEquals(leaderBroker.getBrokerId(),
+                pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getBrokerId).get());
     }
 
     @Test
@@ -753,19 +757,23 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         String namespace = "ns";
         String bundleRange = "0x00000000_0xffffffff";
         Policies policies = new Policies();
-        doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
-        doReturn(CompletableFuture.completedFuture(policies)).when(resourceQuotas).getNamespacePoliciesAsync(NamespaceName.get(property, cluster, namespace));
+        doReturn(policies).when(resourceQuotas).getNamespacePolicies(
+                NamespaceName.get(property, cluster, namespace));
+        doReturn(CompletableFuture.completedFuture(policies)).when(resourceQuotas)
+                .getNamespacePoliciesAsync(NamespaceName.get(property, cluster, namespace));
         doReturn("client-id").when(resourceQuotas).clientAppId();
 
         try {
-            asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange, quota));
+            asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(
+                    ctx, property, cluster, namespace, bundleRange, quota));
             fail();
         } catch (Exception e) {
             // OK : should fail without creating policies
         }
 
         try {
-            asyncRequests(ctx -> resourceQuotas.removeNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
+            asyncRequests(ctx -> resourceQuotas.removeNamespaceBundleResourceQuota(
+                    ctx, property, cluster, namespace, bundleRange));
             fail();
         } catch (Exception e) {
             // OK : should fail without creating policies
@@ -775,8 +783,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl admin = TenantInfoImpl.builder()
                 .allowedClusters(Collections.singleton(cluster))
                 .build();
-        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl(cluster).build();
-        asyncRequests(ctx -> clusters.createCluster(ctx, cluster, clusterData ));
+        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl("http://example.pulsar").build();
+        asyncRequests(ctx -> clusters.createCluster(ctx, cluster, clusterData));
         asyncRequests(ctx -> properties.createTenant(ctx, property, admin));
 
         // customized bandwidth for this namespace
@@ -785,14 +793,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         quota.setBandwidthOut(customizeBandwidth);
 
         // set and get Resource Quota
-        asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange, quota));
-        ResourceQuota bundleQuota = (ResourceQuota) asyncRequests(ctx -> resourceQuotas.getNamespaceBundleResourceQuota(ctx, property, cluster, namespace,
+        asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(
+                ctx, property, cluster, namespace, bundleRange, quota));
+        ResourceQuota bundleQuota = (ResourceQuota) asyncRequests(ctx -> resourceQuotas
+                .getNamespaceBundleResourceQuota(ctx, property, cluster, namespace,
                 bundleRange));
         assertEquals(quota, bundleQuota);
 
         // remove quota which sets to default quota
-        asyncRequests(ctx -> resourceQuotas.removeNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
-        bundleQuota = (ResourceQuota) asyncRequests(ctx -> resourceQuotas.getNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
+        asyncRequests(ctx -> resourceQuotas.removeNamespaceBundleResourceQuota(
+                ctx, property, cluster, namespace, bundleRange));
+        bundleQuota = (ResourceQuota) asyncRequests(ctx -> resourceQuotas
+                .getNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
         assertEquals(defaultBandwidth, bundleQuota.getBandwidthIn());
         assertEquals(defaultBandwidth, bundleQuota.getBandwidthOut());
     }
@@ -870,10 +882,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         // verify permission
         response = mock(AsyncResponse.class);
-        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        ArgumentCaptor<Map<String, Set<AuthAction>>> permissionsCaptor = ArgumentCaptor.forClass(Map.class);
         persistentTopics.getPermissionsOnTopic(response, property, cluster, namespace, topic);
-        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Map<String, Set<AuthAction>> permission = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
+        verify(response, timeout(5000).times(1)).resume(permissionsCaptor.capture());
+        Map<String, Set<AuthAction>> permission = permissionsCaptor.getValue();
         assertEquals(permission.get(role), actions);
         // remove permission
         response = mock(AsyncResponse.class);
@@ -884,10 +896,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // verify removed permission
         Awaitility.await().untilAsserted(() -> {
             AsyncResponse response1 = mock(AsyncResponse.class);
-            ArgumentCaptor<Response> responseCaptor1 = ArgumentCaptor.forClass(Response.class);
+            ArgumentCaptor<Map<String, Set<AuthAction>>> permissionsCaptor1 = ArgumentCaptor.forClass(Map.class);
             persistentTopics.getPermissionsOnTopic(response1, property, cluster, namespace, topic);
-            verify(response1, timeout(5000).times(1)).resume(responseCaptor1.capture());
-            Map<String, Set<AuthAction>> p = (Map<String, Set<AuthAction>>) responseCaptor1.getValue();
+            verify(response1, timeout(5000).times(1)).resume(permissionsCaptor1.capture());
+            Map<String, Set<AuthAction>> p = permissionsCaptor1.getValue();
             assertTrue(p.isEmpty());
         });
     }
@@ -915,17 +927,22 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         AsyncResponse response1 = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
-        persistentTopics.createPartitionedTopic(response1, property, cluster, namespace, partitionedTopicName, 5, false);
+        persistentTopics.createPartitionedTopic(response1, property, cluster, namespace,
+                partitionedTopicName, 5, false);
         verify(response1, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(),
+                Response.Status.NO_CONTENT.getStatusCode());
 
         AsyncResponse response2 = mock(AsyncResponse.class);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
-        persistentTopics.createPartitionedTopic(response2, property, cluster, namespace, partitionedTopicName2, 2, false);
+        persistentTopics.createPartitionedTopic(response2, property, cluster, namespace,
+                partitionedTopicName2, 2, false);
         verify(response2, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(),
+                Response.Status.NO_CONTENT.getStatusCode());
 
-        persistentTopics.updatePartitionedTopic(response2, property, cluster, namespace, partitionedTopicName2, false, false,
+        persistentTopics.updatePartitionedTopic(response2, property, cluster, namespace,
+                partitionedTopicName2, false, false,
                 false, 10);
     }
 
@@ -937,17 +954,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         final String partitionedTopicName = "error-500-topic";
         AsyncResponse response1 = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
-        NamespaceName namespaceName = NamespaceName.get(property, cluster, namespace);
-        NamespaceService ns = spy(pulsar.getNamespaceService());
-        Field namespaceField = pulsar.getClass().getDeclaredField("nsService");
-        namespaceField.setAccessible(true);
-        namespaceField.set(pulsar, ns);
         CompletableFuture<List<String>> future = new CompletableFuture();
         future.completeExceptionally(new RuntimeException("500 error contains error message"));
-        doReturn(future).when(ns).getListOfTopics(namespaceName, CommandGetTopicsOfNamespace.Mode.ALL);
-        persistentTopics.createPartitionedTopic(response1, property, cluster, namespace, partitionedTopicName, 5, false);
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+
+        doReturn(future).when(namespaceService).checkTopicExists(any());
+        persistentTopics.createPartitionedTopic(response1, property, cluster, namespace,
+                partitionedTopicName, 5, false);
+
         verify(response1, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
-        Assert.assertTrue(((ErrorData)responseCaptor.getValue().getResponse().getEntity()).reason.contains("500 error contains error message"));
+        Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(),
+                Status.INTERNAL_SERVER_ERROR.getStatusCode());
+        Assert.assertTrue(((ErrorData) responseCaptor.getValue().getResponse().getEntity())
+                .reason.contains("500 error contains error message"));
     }
 }

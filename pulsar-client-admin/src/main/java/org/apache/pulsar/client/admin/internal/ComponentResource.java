@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -27,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.RequestBuilder;
 
 /**
@@ -34,8 +37,8 @@ import org.asynchttpclient.RequestBuilder;
  */
 public class ComponentResource extends BaseResource {
 
-    protected ComponentResource(Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    protected ComponentResource(Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
     }
 
     public RequestBuilder addAuthHeaders(WebTarget target, RequestBuilder requestBuilder) throws PulsarAdminException {
@@ -65,5 +68,13 @@ public class ComponentResource extends BaseResource {
         } else {
             return null;
         }
+    }
+
+    protected ObjectWriter objectWriter() {
+        return ObjectMapperFactory.getMapper().writer();
+    }
+
+    protected ObjectReader objectReader() {
+        return ObjectMapperFactory.getMapper().reader();
     }
 }

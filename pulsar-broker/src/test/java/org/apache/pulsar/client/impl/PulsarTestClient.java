@@ -24,15 +24,18 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
 
@@ -50,6 +53,7 @@ import org.awaitility.Awaitility;
  *   called after the message to send out has been added to the pending messages in the client.
  *
  */
+@Slf4j
 public class PulsarTestClient extends PulsarClientImpl {
     private volatile int overrideRemoteEndpointProtocolVersion;
     private volatile boolean rejectNewConnections;
@@ -73,11 +77,12 @@ public class PulsarTestClient extends PulsarClientImpl {
         // method.
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(clientConfigurationData.getNumIoThreads(),
                 false,
-                new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon()));
+                new DefaultThreadFactory("pulsar-test-client-io", Thread.currentThread().isDaemon()));
 
         AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
-        ConnectionPool connectionPool = new ConnectionPool(clientConfigurationData, eventLoopGroup,
-                () -> clientCnxSupplierReference.get().get());
+        ConnectionPool connectionPool =
+                new ConnectionPool(InstrumentProvider.NOOP, clientConfigurationData, eventLoopGroup,
+                () -> clientCnxSupplierReference.get().get(), null);
 
         return new PulsarTestClient(clientConfigurationData, eventLoopGroup, connectionPool,
                 clientCnxSupplierReference);
@@ -86,7 +91,7 @@ public class PulsarTestClient extends PulsarClientImpl {
     private PulsarTestClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                              AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference)
             throws PulsarClientException {
-        super(conf, eventLoopGroup, cnxPool);
+        super(conf, eventLoopGroup, cnxPool, null, null, null, null, null, new DnsResolverGroupImpl(conf));
         // workaround initialization order issue so that ClientCnx can be created in this class
         clientCnxSupplierReference.set(this::createClientCnx);
     }
@@ -98,7 +103,7 @@ public class PulsarTestClient extends PulsarClientImpl {
      * @return new ClientCnx instance
      */
     protected ClientCnx createClientCnx() {
-        return new ClientCnx(conf, eventLoopGroup) {
+        return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
             @Override
             public int getRemoteEndpointProtocolVersion() {
                 return overrideRemoteEndpointProtocolVersion != 0
@@ -127,7 +132,7 @@ public class PulsarTestClient extends PulsarClientImpl {
     }
 
     /**
-     * Overrides the producer instance with an anonynomous subclass that adds hooks for observing new
+     * Overrides the producer instance with an anonymous subclass that adds hooks for observing new
      * OpSendMsg instances being added to pending messages in the client.
      * It also configures the hook to drop OpSend messages when dropping is enabled.
      */
@@ -189,7 +194,7 @@ public class PulsarTestClient extends PulsarClientImpl {
 
         // make the existing connection between the producer and broker to break by explicitly closing it
         ClientCnx cnx = producer.cnx();
-        producer.connectionClosed(cnx);
+        producer.connectionClosed(cnx, Optional.empty(), Optional.empty());
         cnx.close();
     }
 
@@ -216,5 +221,32 @@ public class PulsarTestClient extends PulsarClientImpl {
      */
     public void dropOpSendMessages() {
         this.dropOpSendMessages = true;
+    }
+
+    @Override
+    public CompletableFuture<Void> closeAsync() {
+        return super.closeAsync().handle((__, t) -> {
+            shutdownCnxPoolAndEventLoopGroup();
+            return null;
+        });
+    }
+
+    @Override
+    public void shutdown() throws PulsarClientException {
+        super.shutdown();
+        shutdownCnxPoolAndEventLoopGroup();
+    }
+
+    private void shutdownCnxPoolAndEventLoopGroup() {
+        try {
+            getCnxPool().close();
+        } catch (Exception e) {
+            log.warn("Error closing connection pool", e);
+        }
+        try {
+            eventLoopGroup.shutdownGracefully().get(5, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Error closing event loop group", e);
+        }
     }
 }

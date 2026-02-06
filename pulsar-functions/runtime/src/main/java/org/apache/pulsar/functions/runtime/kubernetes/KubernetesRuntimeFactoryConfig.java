@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -169,4 +170,9 @@ public class KubernetesRuntimeFactoryConfig {
     )
     protected int gracePeriodSeconds = 5;
 
+    @FieldContext(
+            doc = "A map of custom configurations passed to implementations of the KubernetesFunctionAuthProvider"
+                    + " interface."
+    )
+    private Map<String, Object> kubernetesFunctionAuthProviderConfig = new HashMap<>();
 }

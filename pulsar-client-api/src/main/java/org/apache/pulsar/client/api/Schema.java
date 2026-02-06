@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -73,6 +74,10 @@ public interface Schema<T> extends Cloneable {
      *             if the serialization fails
      */
     byte[] encode(T message);
+
+    default EncodeData encode(String topic, T message) {
+        return new EncodeData(encode(message));
+    }
 
     /**
      * Returns whether this schema supports versioning.
@@ -134,6 +139,14 @@ public interface Schema<T> extends Cloneable {
         return decode(getBytes(data));
     }
 
+    default T decode(String topic, ByteBuffer data, byte[] schemaId) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    default T decode(String topic, byte[] data, byte[] schemaId) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
     /**
      * Decode a ByteBuffer into an object using a given version. <br/>
      *
@@ -183,6 +196,10 @@ public interface Schema<T> extends Cloneable {
      * @return The duplicated schema.
      */
     Schema<T> clone();
+
+    default CompletableFuture<Void> closeAsync() {
+        return CompletableFuture.completedFuture(null);
+    }
 
     /**
      * Schema that doesn't perform any encoding on the message payloads. Accepts a byte array and it passes it through.

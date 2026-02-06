@@ -18,24 +18,6 @@
  */
 package org.apache.pulsar.websocket;
 
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.websocket.data.ProducerMessage;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
-import org.testng.annotations.Test;
-
-import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -43,6 +25,23 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import java.io.IOException;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import javax.servlet.http.HttpServletRequest;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.websocket.data.ProducerMessage;
+import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
+import org.testng.annotations.Test;
 
 public class ProducerHandlerTest {
 
@@ -53,7 +52,7 @@ public class ProducerHandlerTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
         ProducerBuilder producerBuilder = mock(ProducerBuilder.class);
         Producer producer = mock(Producer.class);
-        TypedMessageBuilder messageBuilder = mock(TypedMessageBuilder.class);
+        TypedMessageBuilder messageBuilder = mock(TypedMessageBuilderImpl.class);
         ProducerMessage produceRequest = new ProducerMessage();
 
         produceRequest.setDeliverAfterMs(11111);
@@ -81,12 +80,12 @@ public class ProducerHandlerTest {
         when(producerBuilder.create()).thenReturn(producer);
 
         when(producer.newMessage()).thenReturn(messageBuilder);
-        when(messageBuilder.sendAsync()).thenReturn( CompletableFuture.completedFuture(new MessageIdImpl(1, 2, 3)));
+        when(messageBuilder.sendAsync()).thenReturn(CompletableFuture.completedFuture(new MessageIdImpl(1, 2, 3)));
 
-        ServletUpgradeResponse response = mock(ServletUpgradeResponse.class);
+        JettyServerUpgradeResponse response = mock(JettyServerUpgradeResponse.class);
 
         ProducerHandler producerHandler = new ProducerHandler(service, httpServletRequest, response);
-        producerHandler.onWebSocketText(ObjectMapperFactory.getThreadLocal().writeValueAsString(produceRequest));
+        producerHandler.onWebSocketText(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));
 
         verify(messageBuilder, times(1)).deliverAfter(11111, TimeUnit.MILLISECONDS);
         verify(messageBuilder, times(1)).deliverAt(22222);

@@ -18,16 +18,10 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.util.concurrent.Futures.addCallback;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.services.kinesis.producer.KinesisProducer;
-import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
-import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration.ThreadingModel;
-import com.amazonaws.services.kinesis.producer.UserRecordFailedException;
-import com.amazonaws.services.kinesis.producer.UserRecordResult;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +29,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -49,7 +44,6 @@ import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.aws.AbstractAwsConnector;
 import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
-import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
@@ -57,6 +51,12 @@ import org.apache.pulsar.io.core.annotations.IOType;
 import org.apache.pulsar.io.kinesis.KinesisSinkConfig.MessageFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.kinesis.producer.KinesisProducer;
+import software.amazon.kinesis.producer.KinesisProducerConfiguration;
+import software.amazon.kinesis.producer.KinesisProducerConfiguration.ThreadingModel;
+import software.amazon.kinesis.producer.UserRecordFailedException;
+import software.amazon.kinesis.producer.UserRecordResult;
 
 /**
  * A Kinesis sink which can be configured by {@link KinesisSinkConfig}.
@@ -90,7 +90,6 @@ import org.slf4j.LoggerFactory;
     configClass = KinesisSinkConfig.class
 )
 public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObject> {
-
     private static final Logger LOG = LoggerFactory.getLogger(KinesisSink.class);
 
     private KinesisProducer kinesisProducer;
@@ -153,35 +152,53 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
     }
 
     @Override
-    public void open(Map<String, Object> config, SinkContext sinkContext) {
+    public void open(Map<String, Object> config, SinkContext sinkContext) throws IOException {
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        kinesisSinkConfig = IOConfigUtils.loadWithSecrets(config, KinesisSinkConfig.class, sinkContext);
+        kinesisSinkConfig = KinesisSinkConfig.load(config, sinkContext);
         this.sinkContext = sinkContext;
 
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsKinesisStreamName()), "empty kinesis-stream name");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsEndpoint())
-                        || isNotBlank(kinesisSinkConfig.getAwsRegion()),
-                      "Either the aws-end-point or aws-region must be set");
-        checkArgument(isNotBlank(kinesisSinkConfig.getAwsCredentialPluginParam()), "empty aws-credential param");
-
-        KinesisProducerConfiguration kinesisConfig = new KinesisProducerConfiguration();
-        kinesisConfig.setKinesisEndpoint(kinesisSinkConfig.getAwsEndpoint());
+        KinesisProducerConfiguration kinesisConfig = KinesisSinkConfig
+                .loadExtraKinesisProducerConfig(kinesisSinkConfig.getExtraKinesisProducerConfig());
+        if (isNotBlank(kinesisSinkConfig.getAwsEndpoint())) {
+            kinesisConfig.setKinesisEndpoint(kinesisSinkConfig.getAwsEndpoint());
+        }
+        if (isNotBlank(kinesisSinkConfig.getCloudwatchEndpoint())) {
+            kinesisConfig.setCloudwatchEndpoint(kinesisSinkConfig.getCloudwatchEndpoint());
+        }
         if (kinesisSinkConfig.getAwsEndpointPort() != null) {
             kinesisConfig.setKinesisPort(kinesisSinkConfig.getAwsEndpointPort());
         }
+        if (kinesisSinkConfig.getAwsStsEndpoint() != null) {
+            kinesisConfig.setStsEndpoint(kinesisSinkConfig.getAwsStsEndpoint());
+        }
+        if (kinesisSinkConfig.getAwsStsPort() != null) {
+            kinesisConfig.setStsPort(kinesisSinkConfig.getAwsStsPort());
+        }
         kinesisConfig.setRegion(kinesisSinkConfig.getAwsRegion());
         kinesisConfig.setThreadingModel(ThreadingModel.POOLED);
-        kinesisConfig.setThreadPoolSize(4);
-        kinesisConfig.setCollectionMaxCount(1);
+        if (kinesisConfig.getThreadPoolSize() == 0) {
+            kinesisConfig.setThreadPoolSize(4);
+        }
+        kinesisConfig.setCollectionMaxCount(kinesisSinkConfig.getCollectionMaxCount());
+        kinesisConfig.setCollectionMaxSize(kinesisSinkConfig.getCollectionMaxSize());
+        kinesisConfig.setConnectTimeout(kinesisSinkConfig.getConnectTimeout());
+        kinesisConfig.setCredentialsRefreshDelay(kinesisSinkConfig.getCredentialsRefreshDelay());
+        kinesisConfig.setMaxConnections(kinesisSinkConfig.getMaxConnections());
+        kinesisConfig.setMinConnections(kinesisSinkConfig.getMinConnections());
+        kinesisConfig.setRateLimit(kinesisSinkConfig.getRateLimit());
+        kinesisConfig.setRecordTtl(kinesisSinkConfig.getRecordTtl());
+        kinesisConfig.setRequestTimeout(kinesisSinkConfig.getRequestTimeout());
         if (kinesisSinkConfig.getSkipCertificateValidation() != null
                 && kinesisSinkConfig.getSkipCertificateValidation()) {
             kinesisConfig.setVerifyCertificate(false);
         }
-        AWSCredentialsProvider credentialsProvider = createCredentialProvider(
+        AwsCredentialsProvider credentialsProvider = createCredentialProvider(
                 kinesisSinkConfig.getAwsCredentialPluginName(),
                 kinesisSinkConfig.getAwsCredentialPluginParam())
-            .getCredentialProvider();
+            .getV2CredentialsProvider();
         kinesisConfig.setCredentialsProvider(credentialsProvider);
+        kinesisConfig.setNativeExecutable(StringUtils.trimToEmpty(kinesisSinkConfig.getNativeExecutable()));
+        kinesisConfig.setAggregationEnabled(kinesisSinkConfig.isAggregationEnabled());
 
         this.streamName = kinesisSinkConfig.getAwsKinesisStreamName();
         this.kinesisProducer = new KinesisProducer(kinesisConfig);

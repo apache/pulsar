@@ -25,8 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker</artifactId>
@@ -65,6 +64,11 @@
     </dependency>
 
     <dependency>
+      <groupId>it.unimi.dsi</groupId>
+      <artifactId>fastutil</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
@@ -79,6 +83,12 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-admin-original</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-cli-utils</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -139,6 +149,12 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-opentelemetry</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-batch-discovery-triggerers</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
@@ -150,6 +166,38 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>com.github.tomakehurst</groupId>
+      <artifactId>wiremock-jre8-standalone</artifactId>
+      <version>${wiremock.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.github.hakky54</groupId>
+      <artifactId>consolecaptor</artifactId>
+      <version>${consolecaptor.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>io.github.oxia-db</groupId>
+      <artifactId>oxia-testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.eclipse.jetty.websocket</groupId>
+      <artifactId>jetty-websocket-jetty-client</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.ee8</groupId>
+      <artifactId>jetty-ee8-proxy</artifactId>
+      <scope>test</scope>
+    </dependency>
+
 
     <!-- zookeeper server -->
     <dependency>
@@ -182,12 +230,19 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.awaitility</groupId>
       <artifactId>awaitility</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker-common</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
@@ -204,13 +259,13 @@
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-servlet</artifactId>
+      <groupId>org.eclipse.jetty.ee8</groupId>
+      <artifactId>jetty-ee8-servlet</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-servlets</artifactId>
+      <groupId>org.eclipse.jetty.ee8</groupId>
+      <artifactId>jetty-ee8-servlets</artifactId>
     </dependency>
 
     <dependency>
@@ -237,14 +292,12 @@
       <groupId>org.glassfish.jersey.test-framework</groupId>
       <artifactId>jersey-test-framework-core</artifactId>
       <scope>test</scope>
-      <version>${jersey.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.glassfish.jersey.test-framework.providers</groupId>
       <artifactId>jersey-test-framework-provider-grizzly2</artifactId>
       <scope>test</scope>
-      <version>${jersey.version}</version>
     </dependency>
 
     <dependency>
@@ -276,15 +329,32 @@
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.jspecify</groupId>
+      <artifactId>jspecify</artifactId>
+    </dependency>
 
     <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-docs-tools</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.swagger</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId>
     </dependency>
 
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-annotations</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -294,22 +364,13 @@
 
     <dependency>
       <groupId>io.prometheus</groupId>
-      <artifactId>simpleclient_jetty</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.prometheus</groupId>
       <artifactId>simpleclient_hotspot</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>io.prometheus</groupId>
-      <artifactId>simpleclient_caffeine</artifactId>
     </dependency>
 
     <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -341,6 +402,11 @@
     <dependency>
       <groupId>org.roaringbitmap</groupId>
       <artifactId>RoaringBitmap</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.oshi</groupId>
+      <artifactId>oshi-core-java11</artifactId>
     </dependency>
 
     <dependency>
@@ -384,8 +450,8 @@
     </dependency>
 
     <dependency>
-      <groupId>javax.xml.bind</groupId>
-      <artifactId>jaxb-api</artifactId>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
       <exclusions>
         <exclusion>
           <groupId>javax.activation</groupId>
@@ -396,7 +462,13 @@
 
     <dependency>
       <groupId>com.sun.activation</groupId>
-      <artifactId>javax.activation</artifactId>
+      <artifactId>jakarta.activation</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.rest-assured</groupId>
+      <artifactId>rest-assured</artifactId>
+      <scope>test</scope>
     </dependency>
 
     <!-- transaction related dependencies (begin) -->
@@ -415,6 +487,17 @@
       <version>${project.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>jetcd-core-shaded</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-netty-shaded</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>io.etcd</groupId>
       <artifactId>jetcd-test</artifactId>
@@ -556,11 +639,13 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>${protobuf-maven-plugin.version}</version>
         <configuration>
+          <!--suppress UnresolvedMavenProperty -->
           <protocArtifact>com.google.protobuf:protoc:${protoc3.version}:exe:${os.detected.classifier}</protocArtifact>
           <checkStaleness>true</checkStaleness>
           <excludes>
             <exclude>**/ResourceUsage.proto</exclude>
             <exclude>**/TransactionPendingAck.proto</exclude>
+            <exclude>**/DelayedMessageIndexBucketSegment.proto</exclude>
           </excludes>
         </configuration>
         <executions>
@@ -574,30 +659,6 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>properties-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>initialize</phase>
-            <goals>
-              <goal>set-system-properties</goal>
-            </goals>
-            <configuration>
-              <properties>
-                <property>
-                  <name>proto_path</name>
-                  <value>${project.parent.basedir}</value>
-                </property>
-                <property>
-                  <name>proto_search_strategy</name>
-                  <value>2</value>
-                </property>
-              </properties>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>com.github.splunk.lightproto</groupId>
         <artifactId>lightproto-maven-plugin</artifactId>
         <version>${lightproto-maven-plugin.version}</version>
@@ -605,6 +666,7 @@
           <sources>
             <source>${project.basedir}/src/main/proto/TransactionPendingAck.proto</source>
             <source>${project.basedir}/src/main/proto/ResourceUsage.proto</source>
+            <source>${project.basedir}/src/main/proto/DelayedMessageIndexBucketSegment.proto</source>
           </sources>
           <targetSourcesSubDir>generated-sources/lightproto/java</targetSourcesSubDir>
           <targetTestSourcesSubDir>generated-sources/lightproto/java</targetTestSourcesSubDir>
@@ -614,6 +676,25 @@
             <goals>
               <goal>generate</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>${build-helper-maven-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>add-source</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>target/generated-sources/lightproto/java</source>
+              </sources>
+            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -692,12 +773,32 @@
           <plugin>
             <groupId>com.github.kongchen</groupId>
             <artifactId>swagger-maven-plugin</artifactId>
-            <version>3.1.7</version>
+            <version>3.1.8</version>
             <configuration>
               <apiSources>
                 <apiSource>
                   <springmvc>false</springmvc>
-                  <locations>org.apache.pulsar.broker.admin.v2</locations>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
+                  <locations>
+                    <location>org.apache.pulsar.broker.admin.v2.Bookies</location>
+                    <location>org.apache.pulsar.broker.admin.v2.BrokerStats</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Brokers</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Clusters</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Functions</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Namespaces</location>
+                    <location>org.apache.pulsar.broker.admin.v2.NonPersistentTopics</location>
+                    <location>org.apache.pulsar.broker.admin.v2.PersistentTopics</location>
+                    <!-- See https://github.com/apache/pulsar/issues/18947 -->
+                    <!-- <location>org.apache.pulsar.broker.admin.v2.ExtPersistentTopics</location> -->
+                    <!-- <location>org.apache.pulsar.broker.admin.v2.ExtNonPersistentTopics</location> -->
+                    <location>org.apache.pulsar.broker.admin.v2.ResourceGroups</location>
+                    <location>org.apache.pulsar.broker.admin.v2.ResourceQuotas</location>
+                    <location>org.apache.pulsar.broker.admin.v2.SchemasResource</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Tenants</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Worker</location>
+                    <location>org.apache.pulsar.broker.admin.v2.WorkerStats</location>
+                  </locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v2</basePath>
                   <info>
@@ -714,6 +815,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.lookup.v2</locations>
                   <schemes>http,https</schemes>
                   <basePath>/lookup</basePath>
@@ -731,6 +834,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Functions</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -748,6 +853,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Transactions</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -765,6 +872,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Sources</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -782,6 +891,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Sinks</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -799,6 +910,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Packages</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>

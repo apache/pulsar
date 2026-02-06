@@ -21,28 +21,37 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
 public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
+    @Getter
     protected ClientConfigurationData conf;
 
     private ClassLoader clientBuilderClassLoader = null;
+    private boolean acceptGzipCompression = true;
+    private transient PulsarClientSharedResourcesImpl sharedResources;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf,
+                clientBuilderClassLoader, acceptGzipCompression, sharedResources);
     }
 
     public PulsarAdminBuilderImpl() {
         this.conf = new ClientConfigurationData();
+        this.conf.setConnectionsPerBroker(16);
     }
 
     private PulsarAdminBuilderImpl(ClientConfigurationData conf) {
@@ -51,12 +60,33 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     @Override
     public PulsarAdminBuilder clone() {
-        return new PulsarAdminBuilderImpl(conf.clone());
+        PulsarAdminBuilderImpl pulsarAdminBuilder = new PulsarAdminBuilderImpl(conf.clone());
+        pulsarAdminBuilder.clientBuilderClassLoader = clientBuilderClassLoader;
+        pulsarAdminBuilder.acceptGzipCompression = acceptGzipCompression;
+        return pulsarAdminBuilder;
     }
 
     @Override
     public PulsarAdminBuilder loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
+        setAuthenticationFromPropsIfAvailable(conf);
+        if (config.containsKey("acceptGzipCompression")) {
+            Object acceptGzipCompressionObj = config.get("acceptGzipCompression");
+            if (acceptGzipCompressionObj instanceof Boolean) {
+                acceptGzipCompression = (Boolean) acceptGzipCompressionObj;
+            } else {
+                acceptGzipCompression = Boolean.parseBoolean(acceptGzipCompressionObj.toString());
+            }
+        }
+        // in ClientConfigurationData, the maxConnectionsPerHost maps to connectionsPerBroker
+        if (config.containsKey("maxConnectionsPerHost")) {
+            Object maxConnectionsPerHostObj = config.get("maxConnectionsPerHost");
+            if (maxConnectionsPerHostObj instanceof Integer) {
+                maxConnectionsPerHost((Integer) maxConnectionsPerHostObj);
+            } else {
+                maxConnectionsPerHost(Integer.parseInt(maxConnectionsPerHostObj.toString()));
+            }
+        }
         return this;
     }
 
@@ -84,6 +114,24 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
             throws UnsupportedAuthenticationException {
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParamsString));
         return this;
+    }
+
+    private void setAuthenticationFromPropsIfAvailable(ClientConfigurationData clientConfig) {
+        String authPluginClass = clientConfig.getAuthPluginClassName();
+        String authParams = clientConfig.getAuthParams();
+        Map<String, String> authParamMap = clientConfig.getAuthParamMap();
+        if (StringUtils.isBlank(authPluginClass) || (StringUtils.isBlank(authParams) && authParamMap == null)) {
+            return;
+        }
+        try {
+            if (StringUtils.isNotBlank(authParams)) {
+                authentication(authPluginClass, authParams);
+            } else if (authParamMap != null) {
+                authentication(authPluginClass, authParamMap);
+            }
+        } catch (UnsupportedAuthenticationException ex) {
+            throw new RuntimeException("Failed to create authentication: " + ex.getMessage(), ex);
+        }
     }
 
     @Override
@@ -171,6 +219,20 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     }
 
     @Override
+    public PulsarAdminBuilder sslFactoryPlugin(String sslFactoryPlugin) {
+        if (StringUtils.isNotBlank(sslFactoryPlugin)) {
+            conf.setSslFactoryPlugin(sslFactoryPlugin);
+        }
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder sslFactoryPluginParams(String sslFactoryPluginParams) {
+        conf.setSslFactoryPluginParams(sslFactoryPluginParams);
+        return this;
+    }
+
+    @Override
     public PulsarAdminBuilder tlsProtocols(Set<String> tlsProtocols) {
         conf.setTlsProtocols(tlsProtocols);
         return this;
@@ -203,6 +265,41 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder setContextClassLoader(ClassLoader clientBuilderClassLoader) {
         this.clientBuilderClassLoader = clientBuilderClassLoader;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder acceptGzipCompression(boolean acceptGzipCompression) {
+        this.acceptGzipCompression = acceptGzipCompression;
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder maxConnectionsPerHost(int maxConnectionsPerHost) {
+        // reuse the same configuration as the client, however for the admin client, the connection
+        // is usually established to a cluster address and not to a broker address
+        this.conf.setConnectionsPerBroker(maxConnectionsPerHost);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
+        this.conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder description(String description) {
+        if (description != null && description.length() > 64) {
+            throw new IllegalArgumentException("description should be at most 64 characters");
+        }
+        this.conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder sharedResources(PulsarClientSharedResources sharedResources) {
+        this.sharedResources = (PulsarClientSharedResourcesImpl) sharedResources;
         return this;
     }
 }

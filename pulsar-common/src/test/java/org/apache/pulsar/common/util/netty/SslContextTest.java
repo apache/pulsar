@@ -21,31 +21,29 @@ package org.apache.pulsar.common.util.netty;
 import static org.testng.Assert.assertThrows;
 import com.google.common.io.Resources;
 import io.netty.handler.ssl.SslProvider;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.HashSet;
 import java.util.Set;
 import javax.net.ssl.SSLException;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.KeyStoreParams;
-import org.apache.pulsar.common.util.NettyClientSslContextRefresher;
-import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
-import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class SslContextTest {
-    final static String brokerKeyStorePath =
+    static final String BROKER_KEY_STORE_PATH =
             Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
-    final static String brokerTrustStorePath =
+    static final String BROKER_TRUST_STORE_PATH =
             Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
-    final static String keyStoreType = "JKS";
-    final static String keyStorePassword = "111111";
+    static final String KEY_STORE_TYPE = "JKS";
+    static final String KEY_STORE_PASSWORD = "111111";
 
-    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
-    final static String brokerCertPath =
+    static final String CA_CERT_PATH = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+    static final String BROKER_CERT_PATH =
             Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    final static String brokerKeyPath =
+    static final String BROKER_KEY_PATH =
             Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     @DataProvider(name = "caCertSslContextDataProvider")
@@ -84,13 +82,22 @@ public class SslContextTest {
 
     @Test(dataProvider = "cipherDataProvider")
     public void testServerKeyStoreSSLContext(Set<String> cipher) throws Exception {
-        NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
-                null,
-                keyStoreType, brokerKeyStorePath, keyStorePassword, false,
-                keyStoreType, brokerTrustStorePath, keyStorePassword,
-                true, cipher,
-                null, 600);
-        contextAutoRefreshBuilder.update();
+        PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
+                .tlsEnabledWithKeystore(true)
+                .tlsKeyStoreType(KEY_STORE_TYPE)
+                .tlsKeyStorePath(BROKER_KEY_STORE_PATH)
+                .tlsKeyStorePassword(KEY_STORE_PASSWORD)
+                .allowInsecureConnection(false)
+                .tlsTrustStoreType(KEY_STORE_TYPE)
+                .tlsTrustStorePath(BROKER_TRUST_STORE_PATH)
+                .tlsTrustStorePassword(KEY_STORE_PASSWORD)
+                .requireTrustedClientCertOnConnect(true)
+                .tlsCiphers(cipher)
+                .build();
+        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
+            pulsarSslFactory.initialize(pulsarSslConfiguration);
+            pulsarSslFactory.createInternalSslContext();
+        }
     }
 
     private static class ClientAuthenticationData implements AuthenticationDataProvider {
@@ -102,45 +109,67 @@ public class SslContextTest {
 
     @Test(dataProvider = "cipherDataProvider")
     public void testClientKeyStoreSSLContext(Set<String> cipher) throws Exception {
-        NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
-                null,
-                false,
-                keyStoreType, brokerTrustStorePath, keyStorePassword,
-                null, null, null,
-                cipher, null, 0, new ClientAuthenticationData());
-        contextAutoRefreshBuilder.update();
+        PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
+                .allowInsecureConnection(false)
+                .tlsEnabledWithKeystore(true)
+                .tlsTrustStoreType(KEY_STORE_TYPE)
+                .tlsTrustStorePath(BROKER_TRUST_STORE_PATH)
+                .tlsTrustStorePassword(KEY_STORE_PASSWORD)
+                .tlsCiphers(cipher)
+                .authData(new ClientAuthenticationData())
+                .build();
+        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
+            pulsarSslFactory.initialize(pulsarSslConfiguration);
+            pulsarSslFactory.createInternalSslContext();
+        }
     }
 
     @Test(dataProvider = "caCertSslContextDataProvider")
     public void testServerCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
-            throws GeneralSecurityException, IOException {
-        NettyServerSslContextBuilder sslContext = new NettyServerSslContextBuilder(sslProvider,
-                true,
-                caCertPath, brokerCertPath, brokerKeyPath,
-                ciphers,
-                null,
-                true, 60);
-        if (ciphers != null) {
-            if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
-                assertThrows(SSLException.class, sslContext::update);
-                return;
+            throws Exception {
+        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
+            PulsarSslConfiguration.PulsarSslConfigurationBuilder builder = PulsarSslConfiguration.builder()
+                    .tlsTrustCertsFilePath(CA_CERT_PATH)
+                    .tlsCertificateFilePath(BROKER_CERT_PATH)
+                    .tlsKeyFilePath(BROKER_KEY_PATH)
+                    .tlsCiphers(ciphers)
+                    .requireTrustedClientCertOnConnect(true);
+            if (sslProvider != null) {
+                builder.tlsProvider(sslProvider.name());
             }
+            PulsarSslConfiguration pulsarSslConfiguration = builder.build();
+            pulsarSslFactory.initialize(pulsarSslConfiguration);
+
+            if (ciphers != null) {
+                if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
+                    assertThrows(SSLException.class, pulsarSslFactory::createInternalSslContext);
+                    return;
+                }
+            }
+            pulsarSslFactory.createInternalSslContext();
         }
-        sslContext.update();
     }
 
     @Test(dataProvider = "caCertSslContextDataProvider")
     public void testClientCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
-            throws GeneralSecurityException, IOException {
-        NettyClientSslContextRefresher sslContext = new NettyClientSslContextRefresher(sslProvider,
-                true, caCertPath,
-                null, ciphers, null, 0);
-        if (ciphers != null) {
-            if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
-                assertThrows(SSLException.class, sslContext::update);
-                return;
+            throws Exception {
+        try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
+            PulsarSslConfiguration.PulsarSslConfigurationBuilder builder = PulsarSslConfiguration.builder()
+                    .allowInsecureConnection(true)
+                    .tlsTrustCertsFilePath(CA_CERT_PATH)
+                    .tlsCiphers(ciphers);
+            if (sslProvider != null) {
+                builder.tlsProvider(sslProvider.name());
             }
+            PulsarSslConfiguration pulsarSslConfiguration = builder.build();
+            pulsarSslFactory.initialize(pulsarSslConfiguration);
+            if (ciphers != null) {
+                if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
+                    assertThrows(SSLException.class, pulsarSslFactory::createInternalSslContext);
+                    return;
+                }
+            }
+            pulsarSslFactory.createInternalSslContext();
         }
-        sslContext.update();
     }
 }

@@ -292,7 +292,7 @@ public class PulsarLedgerManager implements LedgerManager {
         }
     }
 
-    private static final Pattern ledgerPathRegex = Pattern.compile("/L[0-9]+$");
+    private static final Pattern ledgerPathRegex = Pattern.compile(".*/L[0-9]+$");
 
     private void handleDataNotification(Notification n) {
         if (!n.getPath().startsWith(ledgerRootPath)
@@ -377,7 +377,7 @@ public class PulsarLedgerManager implements LedgerManager {
         }
     }
 
-    private String getLedgerPath(long ledgerId) {
+    public String getLedgerPath(long ledgerId) {
         return this.ledgerRootPath + StringUtils.getHybridHierarchicalLedgerPath(ledgerId);
     }
 

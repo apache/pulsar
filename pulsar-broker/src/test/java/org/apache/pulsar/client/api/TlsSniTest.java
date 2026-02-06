@@ -23,11 +23,9 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.testng.annotations.Test;
-
-import lombok.Cleanup;
 
 @Test(groups = "broker-api")
 public class TlsSniTest extends TlsProducerConsumerBase {
@@ -50,12 +48,12 @@ public class TlsSniTest extends TlsProducerConsumerBase {
                     brokerServiceUrlTls.getPort());
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceIpAddressUrl)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .enableTlsHostnameVerification(false)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
         @Cleanup

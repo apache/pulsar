@@ -37,7 +37,7 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.functions.Utils;
@@ -46,17 +46,20 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.SourceStatus;
-import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
+import org.apache.pulsar.functions.utils.FunctionFilePackage;
+import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
+import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Sources;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -76,8 +79,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                final FormDataContentDisposition fileDetail,
                                final String sourcePkgUrl,
                                final SourceConfig sourceConfig,
-                               final String clientRole,
-                               AuthenticationDataSource clientAuthenticationDataHttps) {
+                               final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -96,16 +98,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             throw new RestException(Response.Status.BAD_REQUEST, "Source config is not provided");
         }
 
-        try {
-            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.warn("{}/{}/{} Client [{}] is not authorized to register {}", tenant, namespace,
-                        sourceName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-            }
-        } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, sourceName, e);
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
+        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sourceName, "register", authParams);
 
         try {
             // Check tenant exists
@@ -122,8 +115,8 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 }
             }
         } catch (PulsarAdminException.NotAuthorizedException e) {
-            log.error("{}/{}/{} Client [{}] is not authorized to operate {} on tenant", tenant, namespace,
-                    sourceName, clientRole, ComponentTypeUtils.toString(componentType));
+            log.error("{}/{}/{} Client is not authorized to operate {} on tenant", tenant, namespace,
+                    sourceName, ComponentTypeUtils.toString(componentType));
             throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         } catch (PulsarAdminException.NotFoundException e) {
             log.error("{}/{}/{} Tenant {} does not exist", tenant, namespace, sourceName, tenant);
@@ -150,7 +143,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             // validate parameters
             try {
                 if (isPkgUrlProvided) {
-                    componentPackageFile = getPackageFile(sourcePkgUrl);
+                    componentPackageFile = getPackageFile(componentType, sourcePkgUrl);
                     functionDetails = validateUpdateRequestParams(tenant, namespace, sourceName,
                             sourceConfig, componentPackageFile);
                 } else {
@@ -193,11 +186,12 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
-                    if (clientAuthenticationDataHttps != null) {
+                    if (authParams.getClientAuthenticationDataSource() != null) {
 
                         try {
                             Optional<FunctionAuthData> functionAuthData = functionAuthProvider
-                                    .cacheAuthData(finalFunctionDetails, clientAuthenticationDataHttps);
+                                    .cacheAuthData(finalFunctionDetails,
+                                            authParams.getClientAuthenticationDataSource());
 
                             functionAuthData.ifPresent(authData -> functionMetaDataBuilder.setFunctionAuthSpec(
                                     Function.FunctionAuthenticationSpec.newBuilder()
@@ -245,8 +239,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                                final FormDataContentDisposition fileDetail,
                                final String sourcePkgUrl,
                                final SourceConfig sourceConfig,
-                               final String clientRole,
-                               AuthenticationDataSource clientAuthenticationDataHttps,
+                               final AuthenticationParameters authParams,
                                UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
@@ -266,17 +259,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             throw new RestException(Response.Status.BAD_REQUEST, "Source config is not provided");
         }
 
-        try {
-            if (!isAuthorizedRole(tenant, namespace, clientRole, clientAuthenticationDataHttps)) {
-                log.warn("{}/{}/{} Client [{}] is not authorized to update {}", tenant, namespace,
-                        sourceName, clientRole, ComponentTypeUtils.toString(componentType));
-                throw new RestException(Response.Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-
-            }
-        } catch (PulsarAdminException e) {
-            log.error("{}/{}/{} Failed to authorize [{}]", tenant, namespace, sourceName, e);
-            throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
-        }
+        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, sourceName, "update", authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
@@ -308,7 +291,8 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
 
-        if (existingSourceConfig.equals(mergedConfig) && isBlank(sourcePkgUrl) && uploadedInputStream == null) {
+        if (existingSourceConfig.equals(mergedConfig) && isBlank(sourcePkgUrl) && uploadedInputStream == null
+            && (updateOptions == null || !updateOptions.isUpdateAuthData())) {
             log.error("{}/{}/{} Update contains no changes", tenant, namespace, sourceName);
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
@@ -320,6 +304,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
             // validate parameters
             try {
                 componentPackageFile = getPackageFile(
+                        componentType,
                         sourcePkgUrl,
                         existingComponent.getPackageLocation().getPackagePath(),
                         uploadedInputStream);
@@ -357,7 +342,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
-                    if (clientAuthenticationDataHttps != null && updateOptions != null
+                    if (authParams.getClientAuthenticationDataSource() != null && updateOptions != null
                             && updateOptions.isUpdateAuthData()) {
                         // get existing auth data if it exists
                         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
@@ -369,7 +354,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                         try {
                             Optional<FunctionAuthData> newFunctionAuthData = functionAuthProvider
                                     .updateAuthData(finalFunctionDetails, existingFunctionAuthData,
-                                            clientAuthenticationDataHttps);
+                                            authParams.getClientAuthenticationDataSource());
 
                             if (newFunctionAuthData.isPresent()) {
                                 functionMetaDataBuilder.setFunctionAuthSpec(
@@ -392,8 +377,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
 
             Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
             if (isNotBlank(sourcePkgUrl) || uploadedInputStream != null) {
+                Function.FunctionMetaData metaData = functionMetaDataBuilder.build();
+                metaData = FunctionMetaDataUtils.incrMetadataVersion(metaData, metaData);
                 try {
-                    packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                    packageLocationMetaDataBuilder = getFunctionPackageLocation(metaData,
                             sourcePkgUrl, fileDetail, componentPackageFile);
                 } catch (Exception e) {
                     log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType),
@@ -591,10 +578,10 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
     public SourceStatus getSourceStatus(final String tenant,
                                         final String namespace,
                                         final String componentName,
-                                        final URI uri, final String clientRole,
-                                        final AuthenticationDataSource clientAuthenticationDataHttps) {
+                                        final URI uri,
+                                        final AuthenticationParameters authParams) {
         // validate parameters
-        componentStatusRequestValidate(tenant, namespace, componentName, clientRole, clientAuthenticationDataHttps);
+        componentStatusRequestValidate(tenant, namespace, componentName, authParams);
 
         SourceStatus sourceStatus;
         try {
@@ -616,11 +603,9 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                             final String sourceName,
                             final String instanceId,
                             final URI uri,
-                            final String clientRole,
-                            final AuthenticationDataSource clientAuthenticationDataHttps) {
+                            final AuthenticationParameters authParams) {
         // validate parameters
-        componentInstanceStatusRequestValidate(tenant, namespace, sourceName, Integer.parseInt(instanceId), clientRole,
-                clientAuthenticationDataHttps);
+        componentInstanceStatusRequestValidate(tenant, namespace, sourceName, Integer.parseInt(instanceId), authParams);
 
         SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData;
         try {
@@ -638,38 +623,12 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
     @Override
     public SourceConfig getSourceInfo(final String tenant,
                                       final String namespace,
-                                      final String componentName) {
-
-        if (!isWorkerServiceAvailable()) {
-            throwUnavailableException();
-        }
-
-        // validate parameters
-        try {
-            validateGetFunctionRequestParams(tenant, namespace, componentName, componentType);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid get {} request @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant,
-                    namespace, componentName, e);
-            throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
-        }
-
-        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
-        if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
-            log.error("{} does not exist @ /{}/{}/{}", ComponentTypeUtils.toString(componentType), tenant, namespace,
-                    componentName);
-            throw new RestException(Response.Status.NOT_FOUND,
-                    String.format(ComponentTypeUtils.toString(componentType) + " %s doesn't exist", componentName));
-        }
+                                      final String componentName,
+                                      final AuthenticationParameters authParams) {
+        componentStatusRequestValidate(tenant, namespace, componentName, authParams);
         Function.FunctionMetaData functionMetaData =
-                functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
-        if (!InstanceUtils.calculateSubjectType(functionMetaData.getFunctionDetails()).equals(componentType)) {
-            log.error("{}/{}/{} is not a {}", tenant, namespace, componentName,
-                    ComponentTypeUtils.toString(componentType));
-            throw new RestException(Response.Status.NOT_FOUND,
-                    String.format(ComponentTypeUtils.toString(componentType) + " %s doesn't exist", componentName));
-        }
-        SourceConfig config = SourceConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
-        return config;
+                worker().getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, componentName);
+        return SourceConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
     }
 
     @Override
@@ -677,7 +636,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         List<ConnectorDefinition> connectorDefinitions = getListOfConnectors();
         List<ConnectorDefinition> retval = new ArrayList<>();
         for (ConnectorDefinition connectorDefinition : connectorDefinitions) {
-            if (!org.apache.commons.lang.StringUtils.isEmpty(connectorDefinition.getSourceClass())) {
+            if (!org.apache.commons.lang3.StringUtils.isEmpty(connectorDefinition.getSourceClass())) {
                 retval.add(connectorDefinition);
             }
         }
@@ -707,7 +666,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
         sourceConfig.setName(sourceName);
         org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
 
-        ClassLoader classLoader = null;
+        ValidatableFunctionPackage connectorFunctionPackage = null;
         // check if source is builtin and extract classloader
         if (!StringUtils.isEmpty(sourceConfig.getArchive())) {
             String archive = sourceConfig.getArchive();
@@ -719,30 +678,37 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                 if (connector == null) {
                     throw new IllegalArgumentException("Built-in source is not available");
                 }
-                classLoader = connector.getClassLoader();
+                connectorFunctionPackage = connector.getConnectorFunctionPackage();
             }
         }
 
-        boolean shouldCloseClassLoader = false;
+        boolean shouldCloseFunctionPackage = false;
         try {
             // if source is not builtin, attempt to extract classloader from package file if it exists
-            if (classLoader == null && sourcePackageFile != null) {
-                classLoader = getClassLoaderFromPackage(sourceConfig.getClassName(),
-                        sourcePackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
-                shouldCloseClassLoader = true;
+            WorkerConfig workerConfig = worker().getWorkerConfig();
+            if (connectorFunctionPackage == null && sourcePackageFile != null) {
+                connectorFunctionPackage =
+                        new FunctionFilePackage(sourcePackageFile, workerConfig.getNarExtractionDirectory(),
+                                workerConfig.getEnableClassloadingOfExternalFiles(), ConnectorDefinition.class);
+                shouldCloseFunctionPackage = true;
             }
 
-            if (classLoader == null) {
+            if (connectorFunctionPackage == null) {
                 throw new IllegalArgumentException("Source package is not provided");
             }
 
             SourceConfigUtils.ExtractedSourceDetails sourceDetails =
                     SourceConfigUtils.validateAndExtractDetails(
-                            sourceConfig, classLoader, worker().getWorkerConfig().getValidateConnectorConfig());
+                            sourceConfig, connectorFunctionPackage,
+                            workerConfig.getValidateConnectorConfig());
             return SourceConfigUtils.convert(sourceConfig, sourceDetails);
         } finally {
-            if (shouldCloseClassLoader) {
-                ClassLoaderUtils.closeClassLoader(classLoader);
+            if (shouldCloseFunctionPackage && connectorFunctionPackage instanceof AutoCloseable) {
+                try {
+                    ((AutoCloseable) connectorFunctionPackage).close();
+                } catch (Exception e) {
+                    log.error("Failed to connector function file", e);
+                }
             }
         }
     }

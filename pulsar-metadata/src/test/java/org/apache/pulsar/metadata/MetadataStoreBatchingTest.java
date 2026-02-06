@@ -21,7 +21,6 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -104,7 +103,8 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         CompletableFuture<Stat> f3 = store.put(key1 + "/c", new byte[0], Optional.of(-1L)); // Should succeed
         CompletableFuture<Void> f4 = store.delete(key1 + "/d", Optional.empty()); // Should fail
 
-        assertEquals(f1.join().getVersion(), 0L);
+        assertTrue(f1.join().getVersion() >= 0L);
+        assertTrue(f1.join().isFirstVersion());
 
         try {
             f2.join();
@@ -112,7 +112,9 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
             assertEquals(ce.getCause().getClass(), BadVersionException.class);
         }
 
-        assertEquals(f3.join().getVersion(), 0L);
+        assertTrue(f3.join().getVersion() >= 0L);
+        assertTrue(f3.join().isFirstVersion());
+
 
         try {
             f4.join();
@@ -158,11 +160,11 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         // Create 20 MB of data and try to read it out
         int dataSize = 500 * 1024;
         byte[] payload = new byte[dataSize];
-        int N = 40;
+        int num = 40;
 
         List<CompletableFuture<Stat>> putFutures = new ArrayList<>();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             putFutures.add(store.put(key1 + "/" + i, payload, Optional.empty()));
         }
 
@@ -171,7 +173,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
         List<CompletableFuture<Optional<GetResult>>> getFutures = new ArrayList<>();
 
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < num; i++) {
             getFutures.add(store.get(key1 + "/" + i));
         }
 

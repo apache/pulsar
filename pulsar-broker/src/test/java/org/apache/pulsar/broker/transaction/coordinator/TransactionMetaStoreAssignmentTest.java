@@ -61,12 +61,13 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
         pulsarServiceList.remove(crashedMetaStore);
         crashedMetaStore.close();
 
+        pulsarClient.close();
         pulsarClient = buildClient();
         Awaitility.await().atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     int transactionMetaStoreCount2 = pulsarServiceList.stream()
-                            .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService().getStores().size())
-                            .sum();
+                            .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService()
+                                    .getStores().size()).sum();
                     Assert.assertEquals(transactionMetaStoreCount2, 16);
                 });
         pulsarClient.close();
@@ -90,7 +91,7 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
                     .removeTransactionMetadataStore(TransactionCoordinatorID.get(f)));
         }
         checkTransactionCoordinatorNum(0);
-        buildClient();
+        pulsarClient = buildClient();
         checkTransactionCoordinatorNum(16);
 
         pulsarClient.close();
@@ -101,8 +102,8 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
         Awaitility.await()
                 .untilAsserted(() -> {
                     int transactionMetaStoreCount = pulsarServiceList.stream()
-                            .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService().getStores().size())
-                            .sum();
+                            .mapToInt(pulsarService -> pulsarService.getTransactionMetadataStoreService()
+                                    .getStores().size()).sum();
                     Assert.assertEquals(transactionMetaStoreCount, number);
                 });
     }
@@ -118,7 +119,8 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
 
                     @Override
                     public String getServiceUrl() {
-                        return pulsarServiceList.get(atomicInteger.getAndIncrement() % pulsarServiceList.size()).getBrokerServiceUrl();
+                        return pulsarServiceList.get(atomicInteger.getAndIncrement()
+                                % pulsarServiceList.size()).getBrokerServiceUrl();
                     }
                 })
                 .statsInterval(0, TimeUnit.SECONDS)

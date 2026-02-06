@@ -96,6 +96,20 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Hostname or IP address the service binds on, default is 0.0.0.0.")
     private String bindAddress = "0.0.0.0";
 
+    @FieldContext(doc = "Enable or disable the use of HA proxy protocol for resolving the client IP for http/https "
+                    + "requests. Default is false.")
+    private boolean webServiceHaProxyProtocolEnabled = false;
+
+    @FieldContext(doc = "Trust X-Forwarded-For header for resolving the client IP for http/https requests.\n"
+                    + "Default is false.")
+    private boolean webServiceTrustXForwardedFor = false;
+
+    @FieldContext(doc =
+            "Add detailed client/remote and server/local addresses and ports to http/https request logging.\n"
+                    + "Defaults to true when either webServiceHaProxyProtocolEnabled or webServiceTrustXForwardedFor "
+                    + "is enabled.")
+    private Boolean webServiceLogDetailedAddresses;
+
     @FieldContext(doc = "Maximum size of a text message during parsing in WebSocket proxy")
     private int webSocketMaxTextFrameSize = 1024 * 1024;
     // --- Authentication ---
@@ -129,6 +143,10 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)")
     private String brokerClientTrustCertsFilePath = "";
 
+    // Note: name matches the ServiceConfiguration name to ensure correct mapping
+    @FieldContext(doc = "Enable TLS hostname verification when connecting to broker")
+    private boolean tlsHostnameVerificationEnabled = false;
+
     @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
 
@@ -158,8 +176,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
+    @FieldContext(doc = "Memory limit in MBs for direct memory in Pulsar Client used in WebSocket proxy")
+    private int webSocketPulsarClientMemoryLimitInMB = 0;
+
     @FieldContext(doc = "Timeout of idling WebSocket session (in milliseconds)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
+
+    @FieldContext(doc = "Interval of time to sending the ping to keep alive. This value greater than 0 means enabled")
+    private int webSocketPingDurationSeconds = -1;
 
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
     private String anonymousUserRole = null;
@@ -180,7 +204,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Path for the trusted TLS certificate file")
     private String tlsTrustCertsFilePath = "";
 
-    @FieldContext(doc = "Accept untrusted TLS certificate from client")
+    @FieldContext(doc = "Accept untrusted TLS certificate from client and broker")
     private boolean tlsAllowInsecureConnection = false;
 
     @FieldContext(doc = "Specify whether client certificates are required for "

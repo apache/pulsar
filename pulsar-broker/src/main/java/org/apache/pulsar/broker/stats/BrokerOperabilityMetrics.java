@@ -18,37 +18,106 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import io.opentelemetry.api.metrics.DoubleHistogram;
+import io.opentelemetry.api.metrics.ObservableLongCounter;
+import io.prometheus.client.Counter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionCreateStatus;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionStatus;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 /**
  */
-public class BrokerOperabilityMetrics {
+public class BrokerOperabilityMetrics implements AutoCloseable {
+    private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-").register();
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final DimensionStats topicLoadStats;
     private final String brokerName;
     private final LongAdder connectionTotalCreatedCount;
-    private final LongAdder connectionCreateSuccessCount;
-    private final LongAdder connectionCreateFailCount;
     private final LongAdder connectionTotalClosedCount;
     private final LongAdder connectionActive;
+    private volatile int healthCheckStatus; // 1=success, 0=failure, -1=unknown
 
-    public BrokerOperabilityMetrics(String localCluster, String brokerName) {
+    private final LongAdder connectionCreateSuccessCount;
+    private final LongAdder connectionCreateFailCount;
+
+    public static final String CONNECTION_COUNTER_METRIC_NAME = "pulsar.broker.connection.count";
+    private final ObservableLongCounter connectionCounter;
+
+    public static final String CONNECTION_CREATE_COUNTER_METRIC_NAME =
+            "pulsar.broker.connection.create.operation.count";
+    private final ObservableLongCounter connectionCreateCounter;
+
+    public static final String TOPIC_PUBLISH_LATENCY_METRIC_NAME = "pulsar.broker.topic.publish.latency";
+    private final DoubleHistogram topicPublishLatencyHistogram;
+    @PulsarDeprecatedMetric(newMetricName = TOPIC_PUBLISH_LATENCY_METRIC_NAME)
+    private static final Summary PUBLISH_LATENCY = Summary.build("pulsar_broker_publish_latency", "-")
+            .quantile(0.0)
+            .quantile(0.50)
+            .quantile(0.95)
+            .quantile(0.99)
+            .quantile(0.999)
+            .quantile(0.9999)
+            .quantile(1.0)
+            .register();
+
+    public BrokerOperabilityMetrics(PulsarService pulsar) {
         this.metricsList = new ArrayList<>();
-        this.localCluster = localCluster;
-        this.topicLoadStats = new DimensionStats("topic_load_times", 60);
-        this.brokerName = brokerName;
+        this.localCluster = pulsar.getConfiguration().getClusterName();
+        this.topicLoadStats = new DimensionStats("pulsar_topic_load_times", 60);
+        this.brokerName = pulsar.getAdvertisedAddress();
         this.connectionTotalCreatedCount = new LongAdder();
-        this.connectionCreateSuccessCount = new LongAdder();
-        this.connectionCreateFailCount = new LongAdder();
         this.connectionTotalClosedCount = new LongAdder();
         this.connectionActive = new LongAdder();
+        this.healthCheckStatus = -1;
+        this.connectionCreateSuccessCount = new LongAdder();
+        this.connectionCreateFailCount = new LongAdder();
+
+        connectionCounter = pulsar.getOpenTelemetry().getMeter()
+                .counterBuilder(CONNECTION_COUNTER_METRIC_NAME)
+                .setDescription("The number of connections.")
+                .setUnit("{connection}")
+                .buildWithCallback(measurement -> {
+                    var closedConnections = connectionTotalClosedCount.sum();
+                    var openedConnections = connectionTotalCreatedCount.sum();
+                    var activeConnections = openedConnections - closedConnections;
+                    measurement.record(activeConnections, ConnectionStatus.ACTIVE.attributes);
+                    measurement.record(openedConnections, ConnectionStatus.OPEN.attributes);
+                    measurement.record(closedConnections, ConnectionStatus.CLOSE.attributes);
+                });
+
+        connectionCreateCounter = pulsar.getOpenTelemetry().getMeter()
+                .counterBuilder(CONNECTION_CREATE_COUNTER_METRIC_NAME)
+                .setDescription("The number of connection create operations.")
+                .setUnit("{operation}")
+                .buildWithCallback(measurement -> {
+                    measurement.record(connectionCreateSuccessCount.sum(), ConnectionCreateStatus.SUCCESS.attributes);
+                    measurement.record(connectionCreateFailCount.sum(), ConnectionCreateStatus.FAILURE.attributes);
+                });
+
+        this.topicPublishLatencyHistogram = pulsar.getOpenTelemetry().getMeter()
+                .histogramBuilder(TOPIC_PUBLISH_LATENCY_METRIC_NAME)
+                .setUnit("s")
+                .setDescription("The latency in seconds for publishing messages")
+                .setExplicitBucketBoundariesAdvice(Arrays.asList(0.001, 0.005, 0.01, 0.02, 0.05, 0.1,
+                        0.2, 0.5, 1.0, 5.0, 30.0))
+                .build();
+    }
+
+    @Override
+    public void close() throws Exception {
+        connectionCounter.close();
+        connectionCreateCounter.close();
     }
 
     public List<Metrics> getMetrics() {
@@ -57,8 +126,10 @@ public class BrokerOperabilityMetrics {
     }
 
     private void generate() {
+        reset();
         metricsList.add(getTopicLoadMetrics());
         metricsList.add(getConnectionMetrics());
+        metricsList.add(getHealthMetrics());
     }
 
     public Metrics generateConnectionMetrics() {
@@ -75,6 +146,12 @@ public class BrokerOperabilityMetrics {
         return rMetrics;
     }
 
+    Metrics getHealthMetrics() {
+        Metrics rMetrics = Metrics.create(getDimensionMap("broker_health"));
+        rMetrics.put("brk_health", healthCheckStatus);
+        return rMetrics;
+    }
+
     Map<String, String> getDimensionMap(String metricsName) {
         Map<String, String> dimensionMap = new HashMap<>();
         dimensionMap.put("broker", brokerName);
@@ -84,7 +161,9 @@ public class BrokerOperabilityMetrics {
     }
 
     Metrics getTopicLoadMetrics() {
-        return getDimensionMetrics("topic_load_times", "topic_load", topicLoadStats);
+        Metrics metrics = getDimensionMetrics("pulsar_topic_load_times", "topic_load", topicLoadStats);
+        metrics.put("brk_topic_load_failed_count", TOPIC_LOAD_FAILED.get());
+        return metrics;
     }
 
     Metrics getDimensionMetrics(String metricsName, String dimensionName, DimensionStats stats) {
@@ -112,6 +191,10 @@ public class BrokerOperabilityMetrics {
         topicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
     }
 
+    public void recordTopicLoadFailed() {
+        this.TOPIC_LOAD_FAILED.inc();
+    }
+
     public void recordConnectionCreate() {
         this.connectionTotalCreatedCount.increment();
         this.connectionActive.increment();
@@ -128,5 +211,18 @@ public class BrokerOperabilityMetrics {
 
     public void recordConnectionCreateFail() {
         this.connectionCreateFailCount.increment();
+    }
+
+    public void recordHealthCheckStatusSuccess() {
+        this.healthCheckStatus = 1;
+    }
+
+    public void recordHealthCheckStatusFail() {
+        this.healthCheckStatus = 0;
+    }
+
+    public void recordPublishLatency(long latency, TimeUnit unit) {
+        this.topicPublishLatencyHistogram.record(unit.toMillis(latency) / 1000.0);
+        PUBLISH_LATENCY.observe(latency, unit);
     }
 }

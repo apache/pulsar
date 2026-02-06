@@ -21,13 +21,17 @@ package org.apache.pulsar.io.http;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.put;
+import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import java.io.IOException;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -69,6 +73,8 @@ public class HttpSinkTest {
         configureFor(server.port());
         stubFor(post(urlPathEqualTo("/"))
             .willReturn(aResponse().withStatus(200)));
+        stubFor(put(urlPathEqualTo("/"))
+                .willReturn(aResponse().withStatus(200)));
     }
 
     @AfterClass
@@ -212,7 +218,8 @@ public class HttpSinkTest {
                 .build())
             .build();
 
-        Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema = Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
+        Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema = Schema.KeyValue(keySchema, valueSchema,
+                KeyValueEncodingType.INLINE);
         KeyValue<GenericRecord, GenericRecord> keyValue = new KeyValue<>(keyGenericRecord, valueGenericRecord);
         GenericObject genericObject = new GenericObject() {
             @Override
@@ -231,12 +238,19 @@ public class HttpSinkTest {
     }
 
     private void test(Schema<?> schema, GenericObject genericObject, String responseBody) throws Exception {
+        test(HttpSinkConfig.HttpMethod.PUT.name(), schema, genericObject, responseBody);
+        test(HttpSinkConfig.HttpMethod.POST.name(), schema, genericObject, responseBody);
+    }
+
+    private void test(String httpMethod, Schema<?> schema,
+                      GenericObject genericObject, String responseBody) throws Exception {
         HttpSink httpSink = new HttpSink();
         Map<String, Object> config = new HashMap<>();
         config.put("url", server.baseUrl());
         Map<String, String> headers = new HashMap<>();
         headers.put("header-name", "header-value");
         config.put("headers", headers);
+        config.put("httpMethod", httpMethod);
         httpSink.open(config, null);
 
         long now = 1662418008000L;
@@ -384,6 +398,11 @@ public class HttpSinkTest {
                     }
 
                     @Override
+                    public Optional<byte[]> getSchemaId() {
+                        return Optional.of(new byte[0]);
+                    }
+
+                    @Override
                     public boolean isReplicated() {
                         return false;
                     }
@@ -421,9 +440,14 @@ public class HttpSinkTest {
             }
         };
         httpSink.write(record);
+        RequestPatternBuilder requestPatternBuilder = switch (httpMethod) {
+            case "POST" -> postRequestedFor(urlEqualTo("/"));
+            case "PUT" -> putRequestedFor(urlEqualTo("/"));
+            default -> throw new IllegalArgumentException("UnSupport httpMethod: " + httpMethod);
+        };
 
-        verify(postRequestedFor(urlEqualTo("/"))
-            .withRequestBody(equalTo(responseBody))
+        verify(requestPatternBuilder
+            .withRequestBody(equalToJson(responseBody))
             .withHeader("Content-Type", equalTo("application/json"))
             .withHeader("header-name", equalTo("header-value"))
             .withHeader("PulsarTopic", equalTo("test-topic"))

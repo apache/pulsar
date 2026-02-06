@@ -18,43 +18,34 @@
  */
 package org.apache.pulsar.tests;
 
-import org.testng.IClassListener;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.ITestClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
+import org.testng.ITestNGMethod;
 
 /**
- * TestNG listener adapter for detecting when execution finishes in previous
- * test class and starts in a new class.
+ * TestNG listener adapter that detects when execution finishes for a test class,
+ * assuming that a single test class is run in each context.
+ * This is the case when running tests with maven-surefire-plugin.
  */
-abstract class BetweenTestClassesListenerAdapter implements IClassListener, ITestListener {
-    Class<?> lastTestClass;
+abstract class BetweenTestClassesListenerAdapter implements ITestListener {
+    private static final Logger log = LoggerFactory.getLogger(BetweenTestClassesListenerAdapter.class);
 
     @Override
-    public void onBeforeClass(ITestClass testClass) {
-        checkIfTestClassChanged(testClass.getRealClass());
-    }
-
-    private void checkIfTestClassChanged(Class<?> testClazz) {
-        if (lastTestClass != testClazz) {
-            onBetweenTestClasses(lastTestClass, testClazz);
-            lastTestClass = testClazz;
-        }
-    }
-
-    @Override
-    public void onFinish(ITestContext context) {
-        if (lastTestClass != null) {
-            onBetweenTestClasses(lastTestClass, null);
-            lastTestClass = null;
-        }
+    public final void onFinish(ITestContext context) {
+        List<ITestClass> testClasses =
+                Arrays.stream(context.getAllTestMethods()).map(ITestNGMethod::getTestClass).distinct()
+                        .collect(Collectors.toList());
+        onBetweenTestClasses(testClasses);
     }
 
     /**
-     * Call back hook for adding logic when test execution moves from test class to another.
-     *
-     * @param endedTestClass the test class which has finished execution. null if the started test class is the first
-     * @param startedTestClass the test class which has started execution. null if the ended test class is the last
+     * Call back hook for adding logic when test execution has completely finished for one or many test classes.
      */
-    protected abstract void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass);
+    protected abstract void onBetweenTestClasses(List<ITestClass> testClasses);
 }

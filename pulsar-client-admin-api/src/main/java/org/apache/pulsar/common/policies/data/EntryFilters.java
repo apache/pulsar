@@ -28,7 +28,7 @@ import lombok.NoArgsConstructor;
 public class EntryFilters {
 
     /**
-     * The class name for the entry filter.
+     * Entry filters class names separated by a comma.
      */
     private String entryFilterNames;
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.bookkeeper;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.discover.RegistrationClient;
@@ -40,6 +41,7 @@ public abstract class AbstractMetadataDriver implements Closeable {
     public static final String METADATA_STORE_SCHEME = "metadata-store";
 
     public static final String METADATA_STORE_INSTANCE = "metadata-store-instance";
+    public static final long BLOCKING_CALL_TIMEOUT = TimeUnit.SECONDS.toMillis(30);
 
     protected MetadataStoreExtended store;
     private boolean storeInstanceIsOwned;

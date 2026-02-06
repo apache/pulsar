@@ -69,7 +69,6 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
             .clusterName("ClusterMetadataTearDownTest-" + UUID.randomUUID().toString().substring(0, 8))
             .numProxies(0)
             .numFunctionWorkers(0)
-            .enablePrestoWorker(false)
             .build();
 
     private PulsarCluster pulsarCluster;
@@ -186,7 +185,8 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         pulsarCluster.getBrokers().forEach(ChaosContainer::stop);
 
         assertTrue(getNumOfLedgers() > 0);
-        log.info("Before delete, cluster name: {}, num of ledgers: {}", pulsarCluster.getClusterName(), getNumOfLedgers());
+        log.info("Before delete, cluster name: {}, num of ledgers: {}", pulsarCluster.getClusterName(),
+                getNumOfLedgers());
 
         String[] args = { "-zk", pulsarCluster.getZKConnString(),
                 "-cs", pulsarCluster.getCSConnString(),
@@ -204,7 +204,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         for (String node : PulsarClusterMetadataTeardown.localZkNodes) {
             assertFalse(localNodes.contains(node));
         }
-        List<String> clusterNodes = configStore.getChildren( "/admin/clusters").join();
+        List<String> clusterNodes = configStore.getChildren("/admin/clusters").join();
         assertFalse(clusterNodes.contains(pulsarCluster.getClusterName()));
 
         // Try delete again, should not fail

@@ -22,7 +22,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -66,6 +65,16 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
             fail("should not reach here");
         } catch (PulsarAdminException pae) {
             assertEquals(404, pae.getStatusCode());
+            assertEquals(pae.getHttpError(), "Bookie rack placement configuration not found: " + bookie0);
+        }
+
+        // delete bookie doesn't exist
+        try {
+            admin.bookies().deleteBookieRackInfo(bookie0);
+            fail("should not reach here");
+        } catch (PulsarAdminException pae) {
+            assertEquals(404, pae.getStatusCode());
+            assertEquals(pae.getHttpError(), "Bookie rack placement configuration not found: " + bookie0);
         }
 
         // update the bookie info

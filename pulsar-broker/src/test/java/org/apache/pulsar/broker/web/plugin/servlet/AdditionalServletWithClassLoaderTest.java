@@ -25,10 +25,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import javax.servlet.Servlet;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.testng.annotations.Test;
 
 
@@ -53,12 +53,13 @@ public class AdditionalServletWithClassLoaderTest {
         wrapper.loadConfig(conf);
         verify(servlet, times(1)).loadConfig(same(conf));
         // test getServlet
-        assertEquals(wrapper.getServlet(),servlet);
+        assertEquals(wrapper.getServlet(), servlet);
         // test getServletHolder
-        ServletHolder servletHolder = new ServletHolder();
-        when(servlet.getServletHolder()).thenReturn(servletHolder);
-        assertEquals(wrapper.getServletHolder(),servletHolder);
-        verify(servlet, times(1)).getServletHolder();
+        Servlet servletInstance = mock(Servlet.class);
+        when(servlet.getServletInstance()).thenReturn(servletInstance);
+        when(servlet.getServletType()).thenReturn(AdditionalServlet.AdditionalServletType.JAVAX_SERVLET);
+        assertEquals(wrapper.getServletInstance(), servletInstance);
+        verify(servlet, times(1)).getServletInstance();
     }
 
     @Test
@@ -77,7 +78,7 @@ public class AdditionalServletWithClassLoaderTest {
             }
 
             @Override
-            public ServletHolder getServletHolder() {
+            public Object getServletInstance() {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
                 return null;
             }
@@ -101,7 +102,7 @@ public class AdditionalServletWithClassLoaderTest {
         additionalServletWithClassLoader.loadConfig(conf);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test getServletHolder
-        assertNull(additionalServletWithClassLoader.getServletHolder());
+        assertNull(additionalServletWithClassLoader.getServletInstance());
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test getServlet
         assertEquals(additionalServletWithClassLoader.getServlet(), servlet);

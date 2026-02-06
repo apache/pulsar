@@ -21,14 +21,12 @@ package org.apache.pulsar.tests.integration.topologies;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-
 import lombok.Builder;
 import lombok.Builder.Default;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Singular;
 import lombok.experimental.Accessors;
-
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.testcontainers.containers.GenericContainer;
@@ -82,15 +80,7 @@ public class PulsarClusterSpec {
     int numFunctionWorkers = 0;
 
     /**
-     * Enable a Presto Worker Node
-     *
-     * @return the flag whether presto worker is enabled
-     */
-    @Default
-    boolean enablePrestoWorker = false;
-
-    /**
-     * Allow to query the last message
+     * Allow to query the last message.
      */
     @Default
     boolean queryLastMessage = false;
@@ -127,13 +117,19 @@ public class PulsarClusterSpec {
     boolean enableContainerLog = false;
 
     /**
-     * Provide a map of paths (in the classpath) to mount as volumes inside the containers
+     * Provide a map of paths (in the classpath) to mount as volumes inside the containers.
      */
     @Builder.Default
     Map<String, String> classPathVolumeMounts = new TreeMap<>();
 
     /**
-     * Pulsar Test Image Name
+     * Data container.
+     */
+    @Builder.Default
+    GenericContainer<?> dataContainer = null;
+
+    /**
+     * Pulsar Test Image Name.
      *
      * @return the version of the pulsar test image to use
      */
@@ -149,6 +145,17 @@ public class PulsarClusterSpec {
      * Specify envs for broker.
      */
     Map<String, String> brokerEnvs;
+
+    /**
+     * Specify envs for bookkeeper.
+     */
+    Map<String, String> bookkeeperEnvs;
+
+    /**
+     * Specify envs for function workers.
+     */
+    @Singular
+    Map<String, String> functionWorkerEnvs;
 
     /**
      * Specify mount files.
@@ -167,4 +174,44 @@ public class PulsarClusterSpec {
      * Additional ports to expose on broker containers.
      */
     List<Integer> brokerAdditionalPorts;
+
+    /**
+     * Additional ports to expose on bookie containers.
+     */
+    List<Integer> bookieAdditionalPorts;
+
+    /**
+     * Additional ports to expose on proxy containers.
+     */
+    List<Integer> proxyAdditionalPorts;
+
+    /**
+     * Additional ports to expose on function workers.
+     */
+    @Singular
+    List<Integer> functionWorkerAdditionalPorts;
+
+    /**
+     * Enable TLS for connection.
+     */
+    @Default
+    boolean enableTls = false;
+
+    @Default
+    boolean enableOxia = false;
+
+    @Default
+    boolean profileBroker = false;
+
+    @Default
+    boolean profileProxy = false;
+
+    @Default
+    boolean profileFunctionWorker = false;
+
+    @Default
+    boolean profileBookie = false;
+
+    @Default
+    boolean profileZookeeper = false;
 }

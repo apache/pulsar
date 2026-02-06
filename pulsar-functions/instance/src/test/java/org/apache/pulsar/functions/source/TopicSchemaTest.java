@@ -35,21 +35,21 @@ public class TopicSchemaTest {
 
     @Test
     public void testGetSchema() {
-        TopicSchema topicSchema = new TopicSchema(null);
+        TopicSchema topicSchema = new TopicSchema(null, Thread.currentThread().getContextClassLoader());
 
-        String TOPIC = "public/default/test";
-        Schema<?> schema = topicSchema.getSchema(TOPIC + "1", DummyClass.class, Optional.of(SchemaType.JSON));
+        String topic = "public/default/test";
+        Schema<?> schema = topicSchema.getSchema(topic + "1", DummyClass.class, Optional.of(SchemaType.JSON));
         assertEquals(schema.getClass(), JSONSchema.class);
 
-        schema = topicSchema.getSchema(TOPIC + "2", DummyClass.class, Optional.of(SchemaType.AVRO));
+        schema = topicSchema.getSchema(topic + "2", DummyClass.class, Optional.of(SchemaType.AVRO));
         assertEquals(schema.getClass(), AvroSchema.class);
 
         // use an arbitrary protobuf class for testing purpose
-        schema = topicSchema.getSchema(TOPIC + "3", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF));
+        schema = topicSchema.getSchema(topic + "3", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF));
         assertEquals(schema.getClass(), ProtobufSchema.class);
 
         schema = topicSchema
-                .getSchema(TOPIC + "4", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF_NATIVE));
+                .getSchema(topic + "4", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF_NATIVE));
         assertEquals(schema.getClass(), ProtobufNativeSchema.class);
     }
 

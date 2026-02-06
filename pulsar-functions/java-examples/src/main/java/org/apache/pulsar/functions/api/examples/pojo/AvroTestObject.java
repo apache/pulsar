@@ -27,7 +27,7 @@ import lombok.Data;
 @Data
 public class AvroTestObject {
 
-    private int baseValue;
+    private Integer baseValue;
     private String objectValue;
 
 }

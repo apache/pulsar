@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -28,16 +31,12 @@ import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 /**
  * @author hezhangjian
@@ -45,6 +44,13 @@ import java.util.Set;
 @Slf4j
 @Test(groups = "broker")
 public class BundleSplitterTaskTest {
+
+    public static final String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    public static final String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    public static final String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
     private LocalBookkeeperEnsemble bkEnsemble;
 
@@ -68,6 +74,9 @@ public class BundleSplitterTaskTest {
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
+        config.setTlsCertificateFilePath(CA_CERT_FILE_PATH);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar = new PulsarService(config);
         pulsar.start();
     }
@@ -92,7 +101,7 @@ public class BundleSplitterTaskTest {
         bundleData.setLongTermData(averageMessageData);
         loadData.getBundleData().put("ten/ns/0x00000000_0x80000000", bundleData);
 
-        final Set<String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
+        final Map<String, String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
         Assert.assertEquals(bundlesToSplit.size(), 0);
     }
 
@@ -142,7 +151,7 @@ public class BundleSplitterTaskTest {
         loadData.getBundleData().put("ten/ns/0x40000000_0x60000000", bundleData3);
 
         int currentBundleCount = pulsar.getNamespaceService().getBundleCount(NamespaceName.get("ten/ns"));
-        final Set<String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
+        final Map<String, String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
         Assert.assertEquals(bundlesToSplit.size() + currentBundleCount,
                 pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles());
     }
@@ -151,8 +160,14 @@ public class BundleSplitterTaskTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
-        pulsar.close();
-        bkEnsemble.stop();
+        if (pulsar != null) {
+            pulsar.close();
+            pulsar = null;
+        }
+        if (bkEnsemble != null) {
+            bkEnsemble.stop();
+            bkEnsemble = null;
+        }
     }
 
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.websocket.proxy;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -54,6 +55,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         conf.setClusterName(configClusterName);
+        conf.setForceDeleteNamespaceAllowed(true);
         internalSetup();
 
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
@@ -64,7 +66,8 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         config.setWebServicePort(Optional.of(0));
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createConfigMetadataStore(anyString(), anyInt());
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
+                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         service.start();
     }
 
@@ -97,15 +100,16 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
-        admin.topics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
-                EnumSet.of(AuthAction.consume));
+        String topic = "persistent://p1/c1/ns1/ds2";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, "other-role", EnumSet.of(AuthAction.consume));
         waitForChange();
 
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null));
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertFalse(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, null));
-        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null,null));
+        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null, null));
 
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "no-access-role", null));
 
@@ -115,7 +119,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null, null));
 
-        admin.namespaces().deleteNamespace("p1/c1/ns1");
+        admin.namespaces().deleteNamespace("p1/c1/ns1", true);
         admin.tenants().deleteTenant("p1");
         admin.clusters().deleteCluster("c1");
     }

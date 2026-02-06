@@ -27,6 +27,14 @@ import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 public class AuthenticationProviderTls implements AuthenticationProvider {
 
+    private AuthenticationMetrics authenticationMetrics;
+
+    private enum ErrorCode {
+        UNKNOWN,
+        INVALID_CERTS,
+        INVALID_CN, // invalid common name
+    }
+
     @Override
     public void close() throws IOException {
         // noop
@@ -34,7 +42,13 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        // noop
+        initialize(Context.builder().config(config).build());
+    }
+
+    @Override
+    public void initialize(Context context) throws IOException {
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
     }
 
     @Override
@@ -43,8 +57,14 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
     }
 
     @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
+    }
+
+    @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         String commonName = null;
+        ErrorCode errorCode = ErrorCode.UNKNOWN;
         try {
             if (authData.hasDataFromTls()) {
                 /**
@@ -72,6 +92,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
                 // CN=Steve Kille,O=Isode Limited,C=GB
                 Certificate[] certs = authData.getTlsCertificates();
                 if (null == certs) {
+                    errorCode = ErrorCode.INVALID_CERTS;
                     throw new AuthenticationException("Failed to get TLS certificates from client");
                 }
                 String distinguishedName = ((X509Certificate) certs[0]).getSubjectX500Principal().getName();
@@ -85,12 +106,12 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             }
 
             if (commonName == null) {
+                errorCode = ErrorCode.INVALID_CN;
                 throw new AuthenticationException("Client unable to authenticate with TLS certificate");
             }
-            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+            authenticationMetrics.recordSuccess();
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            incrementFailureMetric(errorCode);
             throw exception;
         }
         return commonName;

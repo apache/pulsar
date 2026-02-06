@@ -35,12 +35,14 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /**
  * A tester for testing kafka sink.
  */
 @Slf4j
 public class KafkaSinkTester extends SinkTester<KafkaContainer> {
+    public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "7.8.2");
 
     private final String kafkaTopicName;
     private KafkaConsumer<String, String> kafkaConsumer;
@@ -63,7 +65,7 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
     @SuppressWarnings("deprecation")
     @Override
     protected KafkaContainer createSinkService(PulsarCluster cluster) {
-        return new KafkaContainer()
+        return new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:" + CONFLUENT_PLATFORM_VERSION))
                 .withEmbeddedZookeeper()
                 .withNetworkAliases(containerName)
                 .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
@@ -76,8 +78,8 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
         ExecResult execResult = serviceContainer.execInContainer(
                 "/usr/bin/kafka-topics",
                 "--create",
-                "--zookeeper",
-                "localhost:2181",
+                "--bootstrap-server",
+                "localhost:9092",
                 "--partitions",
                 "1",
                 "--replication-factor",

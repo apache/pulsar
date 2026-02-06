@@ -123,7 +123,7 @@ public class FileSourceConfig implements Serializable {
 
     public static FileSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), FileSourceConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), FileSourceConfig.class);
     }
 
     public void validate() {

@@ -18,17 +18,23 @@
  */
 package org.apache.pulsar.utils;
 
-import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.common.util.collections.LongPairSet;
+import org.roaringbitmap.PeekableIntIterator;
 import org.roaringbitmap.RoaringBitmap;
 
+/**
+ * A concurrent set of pairs of longs.
+ * The right side of the value supports unsigned values up to 2^32.
+ */
 public class ConcurrentBitmapSortedLongPairSet {
 
     private final NavigableMap<Long, RoaringBitmap> map = new TreeMap<>();
@@ -69,19 +75,30 @@ public class ConcurrentBitmapSortedLongPairSet {
         }
     }
 
-    public void removeUpTo(long item1, long item2) {
+    /**
+     * Remove all items up to (and including) the specified item.
+     *
+     * @param item1 the first part of the item key
+     * @param item2 the second part of the item key
+     * @return true if any bits were cleared
+     */
+    public boolean removeUpTo(long item1, long item2) {
+        boolean bitsCleared = false;
         lock.writeLock().lock();
         try {
             Map.Entry<Long, RoaringBitmap> firstEntry = map.firstEntry();
             while (firstEntry != null && firstEntry.getKey() <= item1) {
                 if (firstEntry.getKey() < item1) {
                     map.remove(firstEntry.getKey(), firstEntry.getValue());
+                    bitsCleared = true;
                 } else {
                     RoaringBitmap bitSet = firstEntry.getValue();
                     if (bitSet != null) {
+                        bitsCleared |= bitSet.contains(0, item2);
                         bitSet.remove(0, item2);
                         if (bitSet.isEmpty()) {
                             map.remove(firstEntry.getKey(), bitSet);
+                            bitsCleared = true;
                         }
                     }
                     break;
@@ -91,27 +108,56 @@ public class ConcurrentBitmapSortedLongPairSet {
         } finally {
             lock.writeLock().unlock();
         }
+        return bitsCleared;
     }
 
+    public <T extends Comparable<T>> Optional<T> first(LongPairSet.LongPairFunction<T> longPairConverter) {
+        MutableObject<Optional<T>> result = new MutableObject<>(Optional.empty());
+        processItems(longPairConverter, item -> {
+            result.setValue(Optional.of(item));
+            return false;
+        });
+        return result.getValue();
+    }
 
     public <T extends Comparable<T>> NavigableSet<T> items(int numberOfItems,
                                                            LongPairSet.LongPairFunction<T> longPairConverter) {
         NavigableSet<T> items = new TreeSet<>();
+        processItems(longPairConverter, item -> {
+            items.add(item);
+            return items.size() < numberOfItems;
+        });
+        return items;
+    }
+
+    public interface ItemProcessor<T extends Comparable<T>> {
+        /**
+         * @param item
+         * @return false if there is no further processing required
+         */
+        boolean process(T item);
+    }
+
+    public <T extends Comparable<T>> void processItems(LongPairSet.LongPairFunction<T> longPairConverter,
+                                                       ItemProcessor<T> itemProcessor) {
         lock.readLock().lock();
         try {
             for (Map.Entry<Long, RoaringBitmap> entry : map.entrySet()) {
-                Iterator<Integer> iterator = entry.getValue().stream().iterator();
-                while (iterator.hasNext() && items.size() < numberOfItems) {
-                    items.add(longPairConverter.apply(entry.getKey(), iterator.next()));
+                PeekableIntIterator intIterator = entry.getValue().getIntIterator();
+                boolean continueProcessing = true;
+                while (continueProcessing && intIterator.hasNext()) {
+                    // RoaringBitmap encodes values as unsigned 32-bit integers internally, it's necessary to use
+                    // Integer.toUnsignedLong to convert them to unsigned long values
+                    T item = longPairConverter.apply(entry.getKey(), Integer.toUnsignedLong(intIterator.next()));
+                    continueProcessing = itemProcessor.process(item);
                 }
-                if (items.size() == numberOfItems) {
+                if (!continueProcessing) {
                     break;
                 }
             }
         } finally {
             lock.readLock().unlock();
         }
-        return items;
     }
 
     public boolean isEmpty() {

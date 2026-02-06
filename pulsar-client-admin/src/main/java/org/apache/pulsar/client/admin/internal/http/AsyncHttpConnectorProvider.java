@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.client.admin.internal.http;
 
+import com.google.common.annotations.VisibleForTesting;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Configuration;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.glassfish.jersey.client.spi.Connector;
 import org.glassfish.jersey.client.spi.ConnectorProvider;
@@ -30,26 +32,43 @@ import org.glassfish.jersey.client.spi.ConnectorProvider;
 public class AsyncHttpConnectorProvider implements ConnectorProvider {
 
     private final ClientConfigurationData conf;
-    private Connector connector;
+    private AsyncHttpConnector connector;
     private final int autoCertRefreshTimeSeconds;
+    private final boolean acceptGzipCompression;
+    private boolean followRedirects = true;
 
-    public AsyncHttpConnectorProvider(ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
+    public AsyncHttpConnectorProvider(ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+                                      boolean acceptGzipCompression) {
         this.conf = conf;
         this.autoCertRefreshTimeSeconds = autoCertRefreshTimeSeconds;
+        this.acceptGzipCompression = acceptGzipCompression;
     }
 
     @Override
     public Connector getConnector(Client client, Configuration runtimeConfig) {
         if (connector == null) {
-            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds);
+            connector = new AsyncHttpConnector(client, conf, autoCertRefreshTimeSeconds, acceptGzipCompression);
+            connector.setFollowRedirects(followRedirects);
         }
         return connector;
     }
 
 
     public AsyncHttpConnector getConnector(int connectTimeoutMs, int readTimeoutMs, int requestTimeoutMs,
-            int autoCertRefreshTimeSeconds) {
+            int autoCertRefreshTimeSeconds, PulsarClientSharedResourcesImpl sharedResources) {
         return new AsyncHttpConnector(connectTimeoutMs, readTimeoutMs, requestTimeoutMs, autoCertRefreshTimeSeconds,
-                conf);
+                conf, acceptGzipCompression, sharedResources);
+    }
+
+    @VisibleForTesting
+    public AsyncHttpConnector getAsyncHttpConnector() {
+        return connector;
+    }
+
+    public void setFollowRedirects(boolean followRedirects) {
+        this.followRedirects = followRedirects;
+        if (connector != null) {
+            connector.setFollowRedirects(followRedirects);
+        }
     }
 }

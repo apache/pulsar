@@ -25,7 +25,10 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import io.prometheus.client.Collector;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,10 +38,15 @@ import java.util.regex.Pattern;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.awaitility.Awaitility;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.mockito.Mockito;
@@ -53,6 +61,7 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
     private ProxyService proxyService;
     private WebServer proxyWebServer;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeClass
@@ -66,10 +75,16 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setClusterName(TEST_CLUSTER);
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)),
+                proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
+                .createConfigurationMetadataStore();
 
         proxyService.start();
 
@@ -79,16 +94,33 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         proxyWebServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null);
+        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null,
+                proxyClientAuthentication);
         proxyWebServer.start();
+    }
+
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
 
     @Override
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         internalCleanup();
-        proxyWebServer.stop();
-        proxyService.close();
+        if (proxyWebServer != null) {
+            proxyWebServer.stop();
+        }
+        if (proxyService != null) {
+            proxyService.close();
+        }
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     /**
@@ -96,30 +128,40 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testMetrics() {
-        Counter.build("test_counter", "a test counter").create().register();
+        Counter counter = Counter.build("test_counter", "a test counter").create();
+        Collector collector = counter.register();
+        try {
+            Awaitility.await().pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+                Multimap<String, Metric> metrics = getMetrics();
 
+                // Check that ProxyService metrics are present
+                List<Metric> cm = (List<Metric>) metrics.get("pulsar_proxy_binary_bytes_total");
+                assertEquals(cm.size(), 1);
+                assertEquals(cm.get(0).tags.get("cluster"), TEST_CLUSTER);
+
+                // Check that any Prometheus metric registered in the default CollectorRegistry is present
+                List<Metric> cm2 = (List<Metric>) metrics.get("test_metrics");
+                assertEquals(cm2.size(), 1);
+                assertEquals(cm2.get(0).tags.get("label1"), "xyz");
+
+                // Check that PrometheusRawMetricsProvider metrics are present
+                List<Metric> cm3 = (List<Metric>) metrics.get("test_counter_total");
+                assertEquals(cm3.size(), 1);
+                assertEquals(cm3.get(0).tags.get("cluster"), TEST_CLUSTER);
+            });
+        } finally {
+            CollectorRegistry.defaultRegistry.unregister(collector);
+        }
+    }
+
+    private Multimap<String, Metric> getMetrics() {
+        @Cleanup
         Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/metrics").request()
                 .get();
         Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
         String response = r.readEntity(String.class).trim();
-
-        Multimap<String, Metric> metrics = parseMetrics(response);
-
-        // Check that ProxyService metrics are present
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_proxy_binary_bytes_total");
-        assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("cluster"), TEST_CLUSTER);
-
-        // Check that any Prometheus metric registered in the default CollectorRegistry is present
-        List<Metric> cm2 = (List<Metric>) metrics.get("test_metrics");
-        assertEquals(cm2.size(), 1);
-        assertEquals(cm2.get(0).tags.get("label1"), "xyz");
-
-        // Check that PrometheusRawMetricsProvider metrics are present
-        List<Metric> cm3 = (List<Metric>) metrics.get("test_counter_total");
-        assertEquals(cm3.size(), 1);
-        assertEquals(cm3.get(0).tags.get("cluster"), TEST_CLUSTER);
+        return parseMetrics(response);
     }
 
     /**

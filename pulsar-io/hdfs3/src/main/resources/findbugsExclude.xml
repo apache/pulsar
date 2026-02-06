@@ -19,4 +19,40 @@
 
 -->
 <FindBugsFilter>
+  <!-- Ignore violations that were present when the rule was enabled -->
+  <Match>
+    <Class name="org.apache.pulsar.io.hdfs3.HdfsResources"/>
+    <Method name="getConfiguration"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.hdfs3.HdfsResources"/>
+    <Method name="getFileSystem"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.hdfs3.HdfsResources"/>
+    <Method name="getUserGroupInformation"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.hdfs3.HdfsResources"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.hdfs3.HdfsResources"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.hdfs3.HdfsResources"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.hdfs3.sink.HdfsSyncThread"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

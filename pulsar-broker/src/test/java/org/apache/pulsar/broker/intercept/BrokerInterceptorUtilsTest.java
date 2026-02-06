@@ -18,22 +18,20 @@
  */
 package org.apache.pulsar.broker.intercept;
 
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.nio.file.Paths;
-
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
+import java.io.IOException;
+import java.nio.file.Paths;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class BrokerInterceptorUtilsTest {
@@ -52,7 +50,7 @@ public class BrokerInterceptorUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = MockBrokerInterceptor.class;
         when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
                 .thenReturn(listenerClass);
@@ -65,13 +63,13 @@ public class BrokerInterceptorUtilsTest {
             BrokerInterceptorWithClassLoader returnedPhWithCL = BrokerInterceptorUtils.load(metadata, "");
             BrokerInterceptor returnedPh = returnedPhWithCL.getInterceptor();
 
-            assertSame(mockLoader, returnedPhWithCL.getClassLoader());
+            assertSame(mockLoader, returnedPhWithCL.getNarClassLoader());
             assertTrue(returnedPh instanceof MockBrokerInterceptor);
         }
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadBrokerEventListenerWithBlankListerClass() throws Exception {
+    public void testLoadBrokerEventListenerWithBlankListenerClass() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setDescription("test-broker-listener");
 
@@ -83,7 +81,7 @@ public class BrokerInterceptorUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = MockBrokerInterceptor.class;
         when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
                 .thenReturn(listenerClass);
@@ -98,7 +96,7 @@ public class BrokerInterceptorUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadBrokerEventListenerWithWrongListerClass() throws Exception {
+    public void testLoadBrokerEventListenerWithWrongListenerClass() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setInterceptorClass(Runnable.class.getName());
         def.setDescription("test-broker-listener");
@@ -111,7 +109,7 @@ public class BrokerInterceptorUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(BrokerInterceptorUtils.BROKER_INTERCEPTOR_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = Runnable.class;
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
                 .thenReturn(listenerClass);

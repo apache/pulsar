@@ -157,7 +157,7 @@ start ()
     echo starting $command, logging to $logfile
     echo Note: Set immediateFlush to true in conf/log4j2.yaml will guarantee the logging event is flushing to disk immediately. The default behavior is switched off due to performance considerations.
     pulsar=$PULSAR_HOME/bin/pulsar
-    nohup $pulsar $command "$1" > "$out" 2>&1 < /dev/null &
+    nohup $pulsar $command "$@" > "$out" 2>&1 < /dev/null &
     echo $! > $pid
     sleep 1; head $out
     sleep 2;
@@ -216,7 +216,7 @@ stop ()
 
 case $startStop in
   (start)
-    start "$*"
+    start "$@"
     ;;
 
   (stop)
@@ -224,21 +224,20 @@ case $startStop in
     ;;
 
   (restart)
-    forceStopFlag=$(echo "$*"|grep "\-force")
-    if [[ "$forceStopFlag" != "" ]]
+    if [[ "$1" == "-force" ]]
     then
-      stop "-force"
+      stop -force
+      # remove "-force" from the arguments
+      shift
     else
       stop
     fi
     if [ "$?" == 0 ]
     then
-       sleep 3
-       paramaters="$*"
-       startParamaters=${paramaters//-force/}
-       start "$startParamaters"
+      sleep 3
+      start "$@"
     else
-       echo "WARNNING :  $command failed restart, for $command is not stopped completely."
+      echo "WARNNING :  $command failed restart, for $command is not stopped completely."
     fi
     ;;
 

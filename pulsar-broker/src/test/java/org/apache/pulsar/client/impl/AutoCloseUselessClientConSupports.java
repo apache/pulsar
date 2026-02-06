@@ -18,19 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.lang.reflect.Field;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -44,13 +40,13 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 
-public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
+public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
 
-    protected int BROKER_COUNT = 5;
+    protected static final int BROKER_COUNT = 5;
 
     @Override
     protected int numberOfAdditionalBrokers() {
-        return BROKER_COUNT -1;
+        return BROKER_COUNT - 1;
     }
 
     @Override
@@ -71,16 +67,8 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
     protected void trigReleaseConnection(PulsarClientImpl pulsarClient)
             throws InterruptedException, NoSuchFieldException, IllegalAccessException {
         // Wait for every request has been response.
-        Field field = ConnectionPool.class.getDeclaredField("pool");
-        field.setAccessible(true);
-        ConcurrentHashMap<InetSocketAddress,ConcurrentMap<Integer,
-                CompletableFuture<ClientCnx>>> pool =
-                (ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer,
-                        CompletableFuture<ClientCnx>>>) field.get(pulsarClient.getCnxPool());
-        final List<CompletableFuture<ClientCnx>> clientCnxWrapList =
-                pool.values().stream().flatMap(c -> c.values().stream()).collect(Collectors.toList());
         Awaitility.waitAtMost(Duration.ofSeconds(5)).until(() -> {
-            for (CompletableFuture<ClientCnx> clientCnxWrapFuture : clientCnxWrapList){
+            for (CompletableFuture<ClientCnx> clientCnxWrapFuture : pulsarClient.getCnxPool().getConnections()){
                 if (!clientCnxWrapFuture.isDone()){
                     continue;
                 }
@@ -106,13 +94,13 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
     /**
      * Create connections to all brokers using the "Unload Bundle"
      * If can't create it in a short time, use direct implements {@link #connectionToEveryBroker}
-     * Why provide this method: prevents instability on one side
+     * Why provide this method: prevents instability on one side.
      */
     protected void connectionToEveryBrokerWithUnloadBundle(PulsarClientImpl pulsarClient){
         try {
             Awaitility.waitAtMost(Duration.ofSeconds(2)).until(() -> {
-                int afterSubscribe_trans = pulsarClient.getCnxPool().getPoolSize();
-                if (afterSubscribe_trans == BROKER_COUNT) {
+                int afterSubscribeTrans = pulsarClient.getCnxPool().getPoolSize();
+                if (afterSubscribeTrans == BROKER_COUNT) {
                     return true;
                 }
                 for (PulsarAdmin pulsarAdmin : super.getAllAdmins()) {
@@ -128,7 +116,7 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
 
     /**
      * Create connections directly to all brokers
-     * Why provide this method: prevents instability on one side
+     * Why provide this method: prevents instability on one side.
      */
     protected void connectionToEveryBroker(PulsarClientImpl pulsarClient){
         for (PulsarService pulsarService : super.getAllBrokers()){
@@ -149,7 +137,7 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
     }
 
     /**
-     * Ensure producer and consumer works
+     * Ensure producer and consumer works.
      */
     protected void ensureProducerAndConsumerWorks(Producer producer, Consumer consumer)
             throws PulsarClientException, ExecutionException, InterruptedException {
@@ -161,47 +149,55 @@ public class AutoCloseUselessClientConSupports extends MultiBrokerBaseTest {
     }
 
     /**
-     * Ensure producer and consumer works
+     * Ensure producer and consumer works.
      */
-    protected void ensureProducerAndConsumerWorks(Producer producer_1, Producer producer_2, Consumer consumer)
+    protected void ensureProducerAndConsumerWorks(Producer producer1, Producer producer2, Consumer consumer)
             throws PulsarClientException, ExecutionException, InterruptedException {
-        String messageContent_1 = UUID.randomUUID().toString();
-        String messageContent_2 = UUID.randomUUID().toString();
+        String messageContent1 = UUID.randomUUID().toString();
+        String messageContent2 = UUID.randomUUID().toString();
         HashSet<String> expectReceived = new HashSet<>();
-        expectReceived.add(messageContent_1);
-        expectReceived.add(messageContent_2);
-        producer_1.send(messageContent_1.getBytes(StandardCharsets.UTF_8));
-        producer_2.send(messageContent_2.getBytes(StandardCharsets.UTF_8));
-        Message message_1 = (Message) consumer.receiveAsync().get();
-        consumer.acknowledgeAsync(message_1).get();
-        Message message_2 = (Message) consumer.receiveAsync().get();
-        consumer.acknowledgeAsync(message_2).get();
+        expectReceived.add(messageContent1);
+        expectReceived.add(messageContent2);
+        producer1.send(messageContent1.getBytes(StandardCharsets.UTF_8));
+        producer2.send(messageContent2.getBytes(StandardCharsets.UTF_8));
+        Message message1 = (Message) consumer.receiveAsync().get();
+        consumer.acknowledgeAsync(message1).get();
+        Message message2 = (Message) consumer.receiveAsync().get();
+        consumer.acknowledgeAsync(message2).get();
         HashSet<String> actualReceived = new HashSet<>();
-        actualReceived.add(new String(message_1.getData(), StandardCharsets.UTF_8));
-        actualReceived.add(new String(message_2.getData(), StandardCharsets.UTF_8));
+        actualReceived.add(new String(message1.getData(), StandardCharsets.UTF_8));
+        actualReceived.add(new String(message2.getData(), StandardCharsets.UTF_8));
         Assert.assertEquals(actualReceived, expectReceived);
     }
 
     /**
-     * Ensure transaction works
+     * Ensure transaction works.
      */
     protected void ensureTransactionWorks(PulsarClientImpl pulsarClient, Producer producer,
                                           Consumer consumer)
             throws PulsarClientException, ExecutionException, InterruptedException {
-        String messageContent_before = UUID.randomUUID().toString();
-        String messageContent_tx = UUID.randomUUID().toString();
+        String messageContentBefore = UUID.randomUUID().toString();
+        String messageContentTx = UUID.randomUUID().toString();
 
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
         // assert producer/consumer work OK
-        producer.send(messageContent_before.getBytes(StandardCharsets.UTF_8));
+        producer.send(messageContentBefore.getBytes(StandardCharsets.UTF_8));
         Message message = (Message) consumer.receiveAsync().get();
-        Assert.assertEquals(new String(message.getData(), StandardCharsets.UTF_8), messageContent_before);
-        producer.newMessage(transaction).value(messageContent_tx.getBytes(StandardCharsets.UTF_8)).sendAsync().get();
+        Assert.assertEquals(new String(message.getData(), StandardCharsets.UTF_8), messageContentBefore);
+        producer.newMessage(transaction).value(messageContentTx.getBytes(StandardCharsets.UTF_8)).sendAsync().get();
         consumer.acknowledgeAsync(message.getMessageId(), transaction);
         transaction.commit().get();
-        Message message_tx = (Message) consumer.receiveAsync().get();
-        Assert.assertEquals(new String(message_tx.getData(), StandardCharsets.UTF_8), messageContent_tx);
-        consumer.acknowledge(message_tx);
+        Message messageTx = (Message) consumer.receiveAsync().get();
+        Assert.assertEquals(new String(messageTx.getData(), StandardCharsets.UTF_8), messageContentTx);
+        consumer.acknowledge(messageTx);
+    }
+
+    protected void waitForTopicListWatcherStarted(Consumer<?> consumer) {
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<TopicListWatcher> completableFuture =
+                    ((PatternMultiTopicsConsumerImpl) consumer).getWatcherFuture();
+            assertThat(completableFuture).describedAs("Topic list watcher future should be done").isDone();
+        });
     }
 }

@@ -230,6 +230,50 @@ public interface PulsarClient extends Closeable {
      *
      * <p>Example:
      * <pre>{@code
+     *  TableView<byte[]> tableView = client.newTableViewBuilder(Schema.BYTES)
+     *            .topic("my-topic")
+     *            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+     *            .create();
+     *
+     *  tableView.forEach((k, v) -> System.out.println(k + ":" + v));
+     * }</pre>
+     *
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @return a {@link TableViewBuilder} object to configure and construct the {@link TableView} instance
+     * @deprecated Use {@link PulsarClient#newTableView(Schema)} to build and configure a {@link TableViewBuilder}
+     * instance
+     */
+    @Deprecated
+    <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema);
+
+    /**
+     * Create a table view builder for subscribing on a specific topic.
+     *
+     * <p>The TableView provides a key-value map view of a compacted topic. Messages without keys will
+     * be ignored.
+     *
+     * <p>Example:
+     * <pre>{@code
+     *  TableView<byte[]> tableView = client.newTableView()
+     *            .topic("my-topic")
+     *            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+     *            .create();
+     *
+     *  tableView.forEach((k, v) -> System.out.println(k + ":" + v));
+     * }</pre>
+     *
+     * @return a {@link TableViewBuilder} object to configure and construct the {@link TableView} instance
+     */
+    TableViewBuilder<byte[]> newTableView();
+
+    /**
+     * Create a table view builder with a specific schema for subscribing on a specific topic.
+     *
+     * <p>The TableView provides a key-value map view of a compacted topic. Messages without keys will
+     * be ignored.
+     *
+     * <p>Example:
+     * <pre>{@code
      *  TableView<byte[]> tableView = client.newTableView(Schema.BYTES)
      *            .topic("my-topic")
      *            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
@@ -241,7 +285,7 @@ public interface PulsarClient extends Closeable {
      * @param schema provide a way to convert between serialized data and domain objects
      * @return a {@link TableViewBuilder} object to configure and construct the {@link TableView} instance
      */
-    <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema);
+    <T> TableViewBuilder<T> newTableView(Schema<T> schema);
 
     /**
      * Update the service URL this client is using.
@@ -264,14 +308,33 @@ public interface PulsarClient extends Closeable {
      *
      * <p>This can be used to discover the partitions and create {@link Reader}, {@link Consumer} or {@link Producer}
      * instances directly on a particular partition.
-     *
+     * @Deprecated it is not suggested to use now; please use {@link #getPartitionsForTopic(String, boolean)}.
      * @param topic
      *            the topic name
      * @return a future that will yield a list of the topic partitions or {@link PulsarClientException} if there was any
      *         error in the operation.
+     *
      * @since 2.3.0
      */
-    CompletableFuture<List<String>> getPartitionsForTopic(String topic);
+    @Deprecated
+    default CompletableFuture<List<String>> getPartitionsForTopic(String topic) {
+        return getPartitionsForTopic(topic, true);
+    }
+
+    /**
+     * 1. Get the partitions if the topic exists. Return "[{partition-0}, {partition-1}....{partition-n}}]" if a
+     *   partitioned topic exists; return "[{topic}]" if a non-partitioned topic exists.
+     * 2. When {@param metadataAutoCreationEnabled} is "false", neither the partitioned topic nor non-partitioned
+     *   topic does not exist. You will get an {@link PulsarClientException.NotFoundException} or a
+     *   {@link PulsarClientException.TopicDoesNotExistException}.
+     *  2-1. You will get a {@link PulsarClientException.NotSupportedException} with metadataAutoCreationEnabled=false
+     *    on an old broker version which does not support getting partitions without partitioned metadata auto-creation.
+     * 3. When {@param metadataAutoCreationEnabled} is "true," it will trigger an auto-creation for this topic(using
+     *   the default topic auto-creation strategy you set for the broker), and the corresponding result is returned.
+     *   For the result, see case 1.
+     * @version 3.3.0.
+     */
+    CompletableFuture<List<String>> getPartitionsForTopic(String topic, boolean metadataAutoCreationEnabled);
 
     /**
      * Close the PulsarClient and release all the resources.
@@ -336,5 +399,5 @@ public interface PulsarClient extends Closeable {
      *             if transactions are not enabled
      * @since 2.7.0
      */
-    TransactionBuilder newTransaction() throws PulsarClientException;
+    TransactionBuilder newTransaction();
 }

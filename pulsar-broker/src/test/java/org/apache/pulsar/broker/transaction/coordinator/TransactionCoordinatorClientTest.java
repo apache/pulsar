@@ -24,14 +24,18 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient.State;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -61,7 +65,8 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     }
 
     @Test
-    public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException, InterruptedException {
+    public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException,
+            InterruptedException {
         try {
             transactionCoordinatorClient.start();
             Assert.fail("should failed here because the transaction metas store already started!");
@@ -83,7 +88,8 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
     @Test
     public void testCommitAndAbort() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
-        transactionCoordinatorClient.addPublishPartitionToTxn(txnID, List.of("persistent://public/default/testCommitAndAbort"));
+        transactionCoordinatorClient.addPublishPartitionToTxn(txnID,
+                List.of("persistent://public/default/testCommitAndAbort"));
         transactionCoordinatorClient.commit(txnID);
         try {
             transactionCoordinatorClient.abort(txnID);
@@ -106,5 +112,25 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
             Assert.assertTrue(TransactionCoordinatorClientException.unwrap(exception)
                     instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
         }
+    }
+
+    @Test
+    public void testClientStartWithRetry() throws Exception{
+        String validBrokerServiceUrl = pulsarServices[0].getBrokerServiceUrl();
+        String invalidBrokerServiceUrl = "localhost:0";
+        String brokerServiceUrl = validBrokerServiceUrl + "," + invalidBrokerServiceUrl;
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(brokerServiceUrl).build();
+        @Cleanup
+        TransactionCoordinatorClient transactionCoordinatorClient = new TransactionCoordinatorClientImpl(pulsarClient);
+
+        try {
+            transactionCoordinatorClient.start();
+        } catch (TransactionCoordinatorClientException e) {
+            Assert.fail("Shouldn't have exception at here", e);
+        }
+
+        Assert.assertEquals(transactionCoordinatorClient.getState(), State.READY);
     }
 }

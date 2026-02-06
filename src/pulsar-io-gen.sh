@@ -108,18 +108,25 @@ fi
 
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_HOME/pulsar-io/docs/target/pulsar-io-docs.jar:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
-OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF` -Djava.net.preferIPv4Stack=true"
+OPTS="-Djava.net.preferIPv4Stack=true $OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
+# Required to allow sun.misc.Unsafe on JDK 24 without warnings
+# Also required for enabling unsafe memory access for Netty since 4.1.121.Final
+if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
+  OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
+fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
 # log directory & file
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"Console"}
+PULSAR_LOG_CONSOLE_JSON_TEMPLATE=${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-perftest.log"}
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
+OPTS="$OPTS -Dpulsar.log.console.json.template=$PULSAR_LOG_CONSOLE_JSON_TEMPLATE"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE"
 

@@ -22,6 +22,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 
 public class MessageIdUtils {
+    @Deprecated
     public static final long getOffset(MessageId messageId) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
         long ledgerId = msgId.getLedgerId();
@@ -34,6 +35,7 @@ public class MessageIdUtils {
         return offset;
     }
 
+    @Deprecated
     public static final MessageId getMessageId(long offset) {
         // Demultiplex ledgerId and entryId from offset
         long ledgerId = offset >>> 28;

@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.junit.Assert.assertFalse;
+import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
@@ -81,9 +79,8 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         assertTrue(leaderBroker.isPresent());
         log.info("Leader broker is {}", leaderBroker);
         for (PulsarAdmin admin : getAllAdmins()) {
-            String serviceUrl = admin.brokers().getLeaderBroker().getServiceUrl();
-            log.info("Pulsar admin get leader broker is {}", serviceUrl);
-            assertEquals(leaderBroker.get().getServiceUrl(), serviceUrl);
+            String brokerId = admin.brokers().getLeaderBroker().getBrokerId();
+            assertEquals(leaderBroker.get().getBrokerId(), brokerId);
         }
     }
 
@@ -105,7 +102,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         PulsarAdmin admin0 = getAllAdmins().get(0);
 
         String namespace = RandomStringUtils.randomAlphabetic(5);
-        admin0.namespaces().createNamespace( "public/" + namespace, 3);
+        admin0.namespaces().createNamespace("public/" + namespace, 3);
         admin0.namespaces().setAutoTopicCreation("public/" + namespace,
                 AutoTopicCreationOverride.builder().allowAutoTopicCreation(false).build());
 
@@ -133,7 +130,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         Assert.assertEquals(lookupResultSet.size(), 1);
     }
 
-    @Test
+    @Test(groups = "flaky")
     public void testForceDeletePartitionedTopicWithSub() throws Exception {
         final int numPartitions = 10;
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));

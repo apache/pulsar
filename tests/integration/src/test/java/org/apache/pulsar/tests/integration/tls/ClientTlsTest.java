@@ -29,16 +29,25 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ClientTlsTest extends PulsarTestSuite {
-    private final static String tlsTrustCertsFilePath = loadCertificateAuthorityFile("certs/ca.cert.pem");
-    private final static String tlsKeyFilePath = loadCertificateAuthorityFile("client-keys/admin.key-pk8.pem");
-    private final static String tlsCertificateFilePath = loadCertificateAuthorityFile("client-keys/admin.cert.pem");
+    private static final String tlsTrustCertsFilePath = loadCertificateAuthorityFile("certs/ca.cert.pem");
+    private static final String tlsKeyFilePath = loadCertificateAuthorityFile("client-keys/admin.key-pk8.pem");
+    private static final String tlsCertificateFilePath = loadCertificateAuthorityFile("client-keys/admin.cert.pem");
 
     private static String loadCertificateAuthorityFile(String name) {
         return Resources.getResource("certificate-authority/" + name).getPath();
+    }
+
+    @Override
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(
+            String clusterName,
+            PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
+        specBuilder.enableTls(true);
+        return specBuilder;
     }
 
     @DataProvider(name = "adminUrls")

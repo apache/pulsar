@@ -68,7 +68,8 @@ abstract class AbstractHierarchicalLedgerManager {
             final AsyncCallback.VoidCallback finalCb, final Object context,
             final int successRc, final int failureRc) {
 
-        store.getChildren(path)
+        store.sync(path)
+                .thenCompose(__ -> store.getChildrenFromStore(path))
                 .thenAccept(levelNodes -> {
                     if (levelNodes.isEmpty()) {
                         finalCb.processResult(successRc, null, context);
@@ -162,7 +163,7 @@ abstract class AbstractHierarchicalLedgerManager {
      * Process ledgers in a single zk node.
      *
      * <p>
-     * for each ledger found in this zk node, processor#process(ledgerId) will be triggerred
+     * for each ledger found in this zk node, processor#process(ledgerId) will be triggered
      * to process a specific ledger. after all ledgers has been processed, the finalCb will
      * be called with provided context object. The RC passed to finalCb is decided by :
      * <ul>
@@ -188,7 +189,8 @@ abstract class AbstractHierarchicalLedgerManager {
             final String path, final BookkeeperInternalCallbacks.Processor<Long> processor,
             final AsyncCallback.VoidCallback finalCb, final Object ctx,
             final int successRc, final int failureRc) {
-        store.getChildren(path)
+        store.sync(path)
+                .thenCompose(__ -> store.getChildrenFromStore(path))
                 .thenAccept(ledgerNodes -> {
                     Set<Long> activeLedgers = HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes,
                             ledgerRootPath, path);
@@ -206,10 +208,11 @@ abstract class AbstractHierarchicalLedgerManager {
                             mcb = new BookkeeperInternalCallbacks.MultiCallback(activeLedgers.size(), finalCb, ctx,
                             successRc, failureRc);
                     // start loop over all ledgers
-                    for (Long ledger : activeLedgers) {
-                        processor.process(ledger, mcb);
-                    }
-
+                    scheduler.submit(() -> {
+                        for (Long ledger : activeLedgers) {
+                            processor.process(ledger, mcb);
+                        }
+                    });
                 }).exceptionally(ex -> {
                     finalCb.processResult(failureRc, null, ctx);
                     return null;

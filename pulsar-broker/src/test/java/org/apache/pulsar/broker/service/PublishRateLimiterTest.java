@@ -16,143 +16,137 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.EventLoop;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
-import org.apache.pulsar.common.util.RateLimiter;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.concurrent.ScheduledFuture;
-
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-
 @Test(groups = "broker")
 public class PublishRateLimiterTest {
-    private final String CLUSTER_NAME = "clusterName";
+    private static final String CLUSTER_NAME = "clusterName";
     private final Policies policies = new Policies();
     private final PublishRate publishRate = new PublishRate(10, 100);
     private final PublishRate newPublishRate = new PublishRate(20, 200);
+    private AtomicLong manualClockSource;
 
-    private PrecisPublishLimiter precisPublishLimiter;
+    private Producer producer;
+    private ServerCnx serverCnx;
     private PublishRateLimiterImpl publishRateLimiter;
+    private ServerCnxThrottleTracker throttleTracker;
+    private DefaultThreadFactory threadFactory = new DefaultThreadFactory("pulsar-io");
+    private EventLoop eventLoop = new DefaultEventLoop(threadFactory);
 
     @BeforeMethod
     public void setup() throws Exception {
         policies.publishMaxMessageRate = new HashMap<>();
         policies.publishMaxMessageRate.put(CLUSTER_NAME, publishRate);
+        manualClockSource = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
+        publishRateLimiter = new PublishRateLimiterImpl(() -> manualClockSource.get(),
+                producer -> {
+                    producer.getCnx().getThrottleTracker().markThrottled(
+                            ServerCnxThrottleTracker.ThrottleType.TopicPublishRate);
+                }, producer -> {
+            producer.getCnx().getThrottleTracker().unmarkThrottled(
+                    ServerCnxThrottleTracker.ThrottleType.TopicPublishRate);
+        });
+        publishRateLimiter.update(policies, CLUSTER_NAME);
+        producer = mock(Producer.class);
+        serverCnx = mock(ServerCnx.class);
+        ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
+        doAnswer(a -> eventLoop).when(channelHandlerContext).executor();
+        doAnswer(a -> channelHandlerContext).when(serverCnx).ctx();
+        doAnswer(a -> this.serverCnx).when(producer).getCnx();
+        throttleTracker = new ServerCnxThrottleTracker(this.serverCnx);
+        doAnswer(a -> throttleTracker).when(this.serverCnx).getThrottleTracker();
+        when(producer.getCnx()).thenReturn(serverCnx);
+        BrokerService brokerService = mock(BrokerService.class);
+        when(serverCnx.getBrokerService()).thenReturn(brokerService);
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        when(brokerService.executor()).thenReturn(eventLoopGroup);
+        when(eventLoopGroup.next()).thenReturn(eventLoop);
+        incrementSeconds(1);
+    }
 
-        precisPublishLimiter = new PrecisPublishLimiter(policies, CLUSTER_NAME, () -> System.out.print("Refresh permit"));
-        publishRateLimiter = new PublishRateLimiterImpl(policies, CLUSTER_NAME);
+    @AfterMethod
+    public void cleanup() throws Exception {
+        policies.publishMaxMessageRate.clear();
+        policies.publishMaxMessageRate = null;
+    }
+
+    @AfterMethod
+    public void tearDown() throws Exception {
+        eventLoop.shutdownGracefully();
+    }
+
+    private void incrementSeconds(int seconds) {
+        manualClockSource.addAndGet(TimeUnit.SECONDS.toNanos(seconds));
     }
 
     @Test
     public void testPublishRateLimiterImplExceed() throws Exception {
-        // increment not exceed
-        publishRateLimiter.incrementPublishCount(5, 50);
-        publishRateLimiter.checkPublishRate();
-        assertFalse(publishRateLimiter.isPublishRateExceeded());
-        publishRateLimiter.resetPublishCount();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        eventLoop.execute(() -> {
+            try {
+                // increment not exceed
+                publishRateLimiter.handlePublishThrottling(producer, 5, 50);
+                assertEquals(throttleTracker.throttledCount(), 0);
 
-        // numOfMessages increment exceeded
-        publishRateLimiter.incrementPublishCount(11, 100);
-        publishRateLimiter.checkPublishRate();
-        assertTrue(publishRateLimiter.isPublishRateExceeded());
-        publishRateLimiter.resetPublishCount();
+                incrementSeconds(1);
 
-        // msgSizeInBytes increment exceeded
-        publishRateLimiter.incrementPublishCount(9, 110);
-        publishRateLimiter.checkPublishRate();
-        assertTrue(publishRateLimiter.isPublishRateExceeded());
+                // numOfMessages increment exceeded
+                publishRateLimiter.handlePublishThrottling(producer, 11, 100);
+                assertEquals(throttleTracker.throttledCount(), 1);
 
+                incrementSeconds(1);
+
+                // msgSizeInBytes increment exceeded
+                publishRateLimiter.handlePublishThrottling(producer, 9, 110);
+                assertEquals(throttleTracker.throttledCount(), 2);
+
+                future.complete(null);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        future.get(5, TimeUnit.SECONDS);
     }
 
     @Test
-    public void testPublishRateLimiterImplUpdate() {
-        publishRateLimiter.incrementPublishCount(11, 110);
-        publishRateLimiter.checkPublishRate();
-        assertTrue(publishRateLimiter.isPublishRateExceeded());
+    public void testPublishRateLimiterImplUpdate() throws Exception {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        eventLoop.execute(() -> {
+            try {
+                publishRateLimiter.handlePublishThrottling(producer, 11, 110);
+                assertEquals(throttleTracker.throttledCount(), 1);
 
-        // update
-        publishRateLimiter.update(newPublishRate);
-        publishRateLimiter.incrementPublishCount(11, 110);
-        publishRateLimiter.checkPublishRate();
-        assertFalse(publishRateLimiter.isPublishRateExceeded());
+                // update
+                throttleTracker = new ServerCnxThrottleTracker(serverCnx);
+                publishRateLimiter.update(newPublishRate);
+                publishRateLimiter.handlePublishThrottling(producer, 11, 110);
+                assertEquals(throttleTracker.throttledCount(), 0);
 
-    }
-
-    @Test
-    public void testPrecisePublishRateLimiterUpdate() {
-        assertFalse(precisPublishLimiter.tryAcquire(15, 150));
-
-        //update
-        precisPublishLimiter.update(newPublishRate);
-        assertTrue(precisPublishLimiter.tryAcquire(15, 150));
-    }
-
-    @Test
-    public void testPrecisePublishRateLimiterAcquire() throws Exception {
-        Class precisPublishLimiterClass = Class.forName("org.apache.pulsar.broker.service.PrecisPublishLimiter");
-        Field topicPublishRateLimiterOnMessageField = precisPublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnMessage");
-        Field topicPublishRateLimiterOnByteField = precisPublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnByte");
-        topicPublishRateLimiterOnMessageField.setAccessible(true);
-        topicPublishRateLimiterOnByteField.setAccessible(true);
-
-        RateLimiter topicPublishRateLimiterOnMessage = (RateLimiter)topicPublishRateLimiterOnMessageField.get(precisPublishLimiter);
-        RateLimiter topicPublishRateLimiterOnByte = (RateLimiter)topicPublishRateLimiterOnByteField.get(precisPublishLimiter);
-
-        Method renewTopicPublishRateLimiterOnMessageMethod = topicPublishRateLimiterOnMessage.getClass().getDeclaredMethod("renew", null);
-        Method renewTopicPublishRateLimiterOnByteMethod = topicPublishRateLimiterOnByte.getClass().getDeclaredMethod("renew", null);
-        renewTopicPublishRateLimiterOnMessageMethod.setAccessible(true);
-        renewTopicPublishRateLimiterOnByteMethod.setAccessible(true);
-
-        // running tryAcquire in order to lazyInit the renewTask
-        precisPublishLimiter.tryAcquire(1, 10);
-
-        Field onMessageRenewTaskField = topicPublishRateLimiterOnMessage.getClass().getDeclaredField("renewTask");
-        Field onByteRenewTaskField = topicPublishRateLimiterOnByte.getClass().getDeclaredField("renewTask");
-        onMessageRenewTaskField.setAccessible(true);
-        onByteRenewTaskField.setAccessible(true);
-        ScheduledFuture<?> onMessageRenewTask = (ScheduledFuture<?>) onMessageRenewTaskField.get(topicPublishRateLimiterOnMessage);
-        ScheduledFuture<?> onByteRenewTask = (ScheduledFuture<?>) onByteRenewTaskField.get(topicPublishRateLimiterOnByte);
-
-        onMessageRenewTask.cancel(false);
-        onByteRenewTask.cancel(false);
-
-        // renewing the permits from previous tests
-        renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
-        renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
-
-        // tryAcquire not exceeded
-        assertTrue(precisPublishLimiter.tryAcquire(1, 10));
-        renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
-        renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
-
-        // tryAcquire numOfMessages exceeded
-        assertFalse(precisPublishLimiter.tryAcquire(11, 100));
-        renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
-        renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
-
-        // tryAcquire msgSizeInBytes exceeded
-        assertFalse(precisPublishLimiter.tryAcquire(10, 101));
-        renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
-        renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
-        renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
-        renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
-
-        // tryAcquire exceeded exactly
-        assertFalse(precisPublishLimiter.tryAcquire(10, 100));
-        renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
-        renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
-        renewTopicPublishRateLimiterOnMessageMethod.invoke(topicPublishRateLimiterOnMessage);
-        renewTopicPublishRateLimiterOnByteMethod.invoke(topicPublishRateLimiterOnByte);
-
-        // tryAcquire not exceeded
-        assertTrue(precisPublishLimiter.tryAcquire(9, 99));
+                future.complete(null);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        future.get(5, TimeUnit.SECONDS);
     }
 }

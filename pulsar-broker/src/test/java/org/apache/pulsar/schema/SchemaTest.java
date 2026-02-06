@@ -23,6 +23,7 @@ import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTes
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
@@ -32,6 +33,7 @@ import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Sets;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -46,6 +48,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.EqualsAndHashCode;
@@ -53,13 +57,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
+import org.apache.pulsar.broker.service.schema.SchemaStorageFormat;
+import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -69,7 +77,11 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
@@ -77,15 +89,21 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -97,20 +115,72 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        isTcpLookup = true;
         super.internalSetup();
 
         // Setup namespaces
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton(CLUSTER_NAME))
                 .build();
         admin.tenants().createTenant(PUBLIC_TENANT, tenantInfo);
+        admin.namespaces().createNamespace(PUBLIC_TENANT + "/my-ns");
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider(name = "topicDomain")
+    public static Object[] topicDomain() {
+        return new Object[] { "persistent://", "non-persistent://" };
+    }
+
+    @Test
+    public void testGetSchemaWhenCreateAutoProduceBytesProducer() throws Exception{
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topic = tenant + "/" + namespace + "/test-getSchema";
+        admin.namespaces().createNamespace(
+                tenant + "/" + namespace,
+                Sets.newHashSet(CLUSTER_NAME)
+        );
+
+        ProtobufSchema<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> protobufSchema =
+                ProtobufSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.class);
+        pulsarClient.newProducer(protobufSchema).topic(topic).create();
+        pulsarClient.newProducer(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES()).topic(topic).create();
+    }
+
+    @Test
+    public void testGetSchemaWithPatternTopic() throws Exception {
+        final String topicPrefix = "persistent://public/my-ns/test-getSchema";
+
+        int topicNums = 10;
+        for (int i = 0; i < topicNums; i++) {
+            String topic = topicPrefix + "-" + i;
+            admin.topics().createNonPartitionedTopic(topic);
+        }
+
+        Pattern pattern = Pattern.compile(topicPrefix + "-.*");
+        @Cleanup
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topicsPattern(pattern)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        List<ConsumerImpl<GenericRecord>> consumers =
+                ((MultiTopicsConsumerImpl<GenericRecord>) consumer).getConsumers();
+        Assert.assertEquals(topicNums, consumers.size());
+
+        for (int i = 0; i < topicNums; i++) {
+            String topic = topicPrefix + "-" + i;
+            admin.topics().delete(topic, true);
+        }
     }
 
     @Test
@@ -257,7 +327,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                         withPojo(Schemas.PersonTwo.class).build());
         admin.schemas().createSchema(fqtnTwo, Schema.KeyValue(Schema.STRING, schemaTwo).getSchemaInfo());
 
-        Producer<KeyValue<String, Schemas.PersonTwo>> producer = pulsarClient.newProducer(Schema.KeyValue(Schema.STRING, Schema.AVRO(
+        Producer<KeyValue<String, Schemas.PersonTwo>> producer =
+                pulsarClient.newProducer(Schema.KeyValue(Schema.STRING, Schema.AVRO(
                 SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
                         withPojo(Schemas.PersonTwo.class).build())))
@@ -269,7 +340,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         personTwo.setName("Tom");
 
 
-        Consumer<KeyValue<String, Schemas.PersonTwo>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.STRING, Schema.AVRO(
+        Consumer<KeyValue<String, Schemas.PersonTwo>> consumer =
+                pulsarClient.newConsumer(Schema.KeyValue(Schema.STRING, Schema.AVRO(
                 SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
                         withPojo(Schemas.PersonTwo.class).build())))
@@ -335,7 +407,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .topic(fqtnOne)
                 .create();
 
-        final Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(fqtnOne)
+        final Consumer<GenericRecord> consumer =
+                pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(fqtnOne)
                 .subscriptionName("sub")
                 .subscribe();
 
@@ -356,7 +429,35 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         // JSON schema with primitive class can consume
         assertEquals(consumer.receive().getValue().getNativeObject(), producerJsonIntegerValue);
         assertArrayEquals((byte[])  consumer.receive().getValue().getNativeObject(), producerJsonBytesValue);
-}
+    }
+
+    @Test
+    public void testAvroIntSchema() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + PUBLIC_TENANT + "/my-ns/tp");
+
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.AVRO(Integer.class)).topic(topicName).create();
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.AVRO(Integer.class)).topic(topicName)
+                .subscriptionName("sub").subscribe();
+
+        producer.send(1);
+        producer.send(2);
+        producer.send(3);
+
+        Message<Integer> msg1 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg1);
+        assertEquals(msg1.getValue(), 1);
+        Message<Integer> msg2 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg2);
+        assertEquals(msg2.getValue(), 2);
+        Message<Integer> msg3 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg3);
+        assertEquals(msg3.getValue(), 3);
+
+        // cleanup.
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
+    }
 
     @Test
     public void testJSONSchemaDeserialize() throws Exception {
@@ -459,7 +560,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(SchemaType.STRING, message2.getReaderSchema().get().getSchemaInfo().getType());
 
         assertEquals("foo", message.getValue());
-        assertEquals(message2.getValue().getClass().getName(), "org.apache.pulsar.client.impl.schema.GenericObjectWrapper");
+        assertEquals(message2.getValue().getClass().getName(),
+                "org.apache.pulsar.client.impl.schema.GenericObjectWrapper");
         assertEquals(SchemaType.STRING, message2.getValue().getSchemaType());
         assertEquals("foo", message2.getValue().getNativeObject());
 
@@ -537,7 +639,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         }
 
         assertEquals("foo".getBytes(StandardCharsets.UTF_8), message.getValue());
-        assertEquals(message2.getValue().getClass().getName(), "org.apache.pulsar.client.impl.schema.GenericObjectWrapper");
+        assertEquals(message2.getValue().getClass().getName(),
+                "org.apache.pulsar.client.impl.schema.GenericObjectWrapper");
         assertEquals(SchemaType.BYTES, message2.getValue().getSchemaType());
         assertEquals("foo".getBytes(StandardCharsets.UTF_8), message2.getValue().getNativeObject());
 
@@ -578,12 +681,14 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .create();
 
-        Consumer<KeyValue<String, Integer>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.STRING, Schema.INT32, keyValueEncodingType))
+        Consumer<KeyValue<String, Integer>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.STRING,
+                        Schema.INT32, keyValueEncodingType))
                 .subscriptionName("test-sub")
                 .topic(topic)
                 .subscribe();
 
-        Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME()) // keyValueEncodingType autodetected
+        Consumer<GenericRecord> consumer2 =
+                pulsarClient.newConsumer(Schema.AUTO_CONSUME()) // keyValueEncodingType autodetected
                 .subscriptionName("test-sub2")
                 .topic(topic)
                 .subscribe();
@@ -636,16 +741,20 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
 
         Producer<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> producer = pulsarClient
-                .newProducer(Schema.KeyValue(Schema.AVRO(Schemas.PersonOne.class), Schema.AVRO(Schemas.PersonTwo.class), keyValueEncodingType))
+                .newProducer(Schema.KeyValue(Schema.AVRO(Schemas.PersonOne.class),
+                        Schema.AVRO(Schemas.PersonTwo.class), keyValueEncodingType))
                 .topic(topic)
                 .create();
 
-        Consumer<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> consumer = pulsarClient.newConsumer(Schema.KeyValue(Schema.AVRO(Schemas.PersonOne.class), Schema.AVRO(Schemas.PersonTwo.class), keyValueEncodingType))
+        Consumer<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> consumer =
+                pulsarClient.newConsumer(Schema.KeyValue(Schema.AVRO(Schemas.PersonOne.class),
+                                Schema.AVRO(Schemas.PersonTwo.class), keyValueEncodingType))
                 .subscriptionName("test-sub")
                 .topic(topic)
                 .subscribe();
 
-        Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME()) // keyValueEncodingType autodetected
+        Consumer<GenericRecord> consumer2 =
+                pulsarClient.newConsumer(Schema.AUTO_CONSUME()) // keyValueEncodingType autodetected
                 .subscriptionName("test-sub2")
                 .topic(topic)
                 .subscribe();
@@ -657,8 +766,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> message = consumer.receive();
         Message<GenericRecord> message2 = consumer2.receive();
         log.info("message: {},{}", message.getValue(), message.getValue().getClass());
-        log.info("message2: {},{}", message2.getValue().getNativeObject(), message2.getValue().getNativeObject().getClass());
-        KeyValue<GenericRecord, GenericRecord> keyValue2 = (KeyValue<GenericRecord, GenericRecord>) message2.getValue().getNativeObject();
+        log.info("message2: {},{}", message2.getValue().getNativeObject(),
+                message2.getValue().getNativeObject().getClass());
+        KeyValue<GenericRecord, GenericRecord> keyValue2 =
+                (KeyValue<GenericRecord, GenericRecord>) message2.getValue().getNativeObject();
         assertEquals(message.getValue().getKey().id, keyValue2.getKey().getField("id"));
         assertEquals(message.getValue().getValue().id, keyValue2.getValue().getField("id"));
         assertEquals(message.getValue().getValue().name, keyValue2.getValue().getField("name"));
@@ -762,7 +873,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             assertNotNull(schema);
         }
 
-        List<Long> ledgers = ((BookkeeperSchemaStorage)this.getPulsar().getSchemaStorage())
+        List<Long> ledgers = ((BookkeeperSchemaStorage) this.getPulsar().getSchemaStorage())
                 .getSchemaLedgerList(TopicName.get(topic).getSchemaName());
         assertEquals(ledgers.size(), 2);
 
@@ -775,7 +886,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         for (Long ledger : ledgers) {
             try {
-                getPulsar().getBookKeeperClient().openLedger(ledger, BookKeeper.DigestType.CRC32, new byte[]{});
+                getPulsar().getBookKeeperClient().openLedger(ledger, BookKeeper.DigestType.CRC32,
+                        new byte[]{});
                 fail();
             } catch (BKException.BKNoSuchLedgerExistsException ignore) {
             }
@@ -801,15 +913,15 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         // persistent, partitioned v1/topic
         admin.topics().createPartitionedTopic(topic2, 1);
 
-        Producer<Schemas.PersonOne> p1_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+        Producer<Schemas.PersonOne> p11 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topic1)
                 .create();
 
-        Producer<Schemas.PersonThree> p1_2 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+        Producer<Schemas.PersonThree> p12 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
                 .topic(topic1)
                 .create();
 
-        Producer<Schemas.PersonThree> p2_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+        Producer<Schemas.PersonThree> p21 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
                 .topic(topic2)
                 .create();
 
@@ -850,7 +962,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertThat(e.getMessage())
                     .isNotNull()
-                    .startsWith("Topic has 2 connected producers/consumers");
+                    .startsWith("Topic has 2 clients");
         }
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 2);
@@ -860,15 +972,15 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertThat(e.getMessage())
                     .isNotNull()
-                    .startsWith("Topic has active producers/subscriptions");
+                    .startsWith("Topic has 1 client");
         }
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 1);
 
         // Close producer to avoid reconnect.
-        p1_1.close();
-        p1_2.close();
-        p2_1.close();
+        p11.close();
+        p12.close();
+        p21.close();
         // force and delete-schema when delete topic
         admin.topics().delete(topic1, true);
         assertEquals(this.getPulsar().getSchemaRegistryService()
@@ -893,20 +1005,21 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         // persistent, partitioned v2/topic
         admin.topics().createPartitionedTopic(topicTwo, 1);
 
-        Producer<Schemas.PersonOne> p1_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+        Producer<Schemas.PersonOne> p11 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicOne)
                 .create();
 
-        Producer<Schemas.PersonThree> p1_2 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+        Producer<Schemas.PersonThree> p12 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
                 .topic(topicOne)
                 .create();
-        Producer<Schemas.PersonThree> p2_1 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
+        Producer<Schemas.PersonThree> p21 = pulsarClient.newProducer(Schema.JSON(Schemas.PersonThree.class))
                 .topic(topicTwo)
                 .create();
 
         // Get 2 schemas of topicOne
         List<CompletableFuture<SchemaRegistry.SchemaAndMetadata>> schemaFutures1 =
-                this.getPulsar().getSchemaRegistryService().getAllSchemas(TopicName.get(topicOne).getSchemaName()).get();
+                this.getPulsar().getSchemaRegistryService().getAllSchemas(TopicName.get(topicOne)
+                        .getSchemaName()).get();
         FutureUtil.waitForAll(schemaFutures1).get();
         List<SchemaRegistry.SchemaAndMetadata> schemas1 = schemaFutures1.stream().map(future -> {
             try {
@@ -922,7 +1035,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         // Get 1 schema of topicTwo
         List<CompletableFuture<SchemaRegistry.SchemaAndMetadata>> schemaFutures2 =
-                this.getPulsar().getSchemaRegistryService().getAllSchemas(TopicName.get(topicTwo).getSchemaName()).get();
+                this.getPulsar().getSchemaRegistryService().getAllSchemas(TopicName.get(topicTwo)
+                        .getSchemaName()).get();
         FutureUtil.waitForAll(schemaFutures2).get();
         List<SchemaRegistry.SchemaAndMetadata> schemas2 = schemaFutures2.stream().map(future -> {
             try {
@@ -941,7 +1055,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete(topicOne, false);
             fail();
         } catch (Exception e) {
-            assertTrue(e.getMessage().startsWith("Topic has 2 connected producers/consumers"));
+            assertTrue(e.getMessage().startsWith("Topic has 2 clients"));
         }
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topicOne).getSchemaName()).get().size(), 2);
@@ -949,15 +1063,15 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             admin.topics().deletePartitionedTopic(topicTwo, false);
             fail();
         } catch (Exception e) {
-            assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
+            assertTrue(e.getMessage().startsWith("Topic has 1 client"));
         }
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topicTwo).getSchemaName()).get().size(), 1);
 
         // Close producer to avoid reconnect.
-        p1_1.close();
-        p1_2.close();
-        p2_1.close();
+        p11.close();
+        p12.close();
+        p21.close();
         // force delete topic and will delete schema by default
         admin.topics().delete(topicOne, true);
         assertEquals(this.getPulsar().getSchemaRegistryService()
@@ -984,24 +1098,29 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         producer.newMessage(Schema.STRING).value("test").send();
-        producer.newMessage(Schema.JSON(Schemas.PersonThree.class)).value(new Schemas.PersonThree(0, "ran")).send();
-        producer.newMessage(Schema.AVRO(Schemas.PersonThree.class)).value(new Schemas.PersonThree(0, "ran")).send();
-        producer.newMessage(Schema.AVRO(Schemas.PersonOne.class)).value(new Schemas.PersonOne(0)).send();
-        producer.newMessage(Schema.JSON(Schemas.PersonThree.class)).value(new Schemas.PersonThree(1, "tang")).send();
+        producer.newMessage(Schema.JSON(Schemas.PersonThree.class))
+                .value(new Schemas.PersonThree(0, "ran")).send();
+        producer.newMessage(Schema.AVRO(Schemas.PersonThree.class))
+                .value(new Schemas.PersonThree(0, "ran")).send();
+        producer.newMessage(Schema.AVRO(Schemas.PersonOne.class))
+                .value(new Schemas.PersonOne(0)).send();
+        producer.newMessage(Schema.JSON(Schemas.PersonThree.class))
+                .value(new Schemas.PersonThree(1, "tang")).send();
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BYTES).value("test".getBytes(StandardCharsets.UTF_8)).send();
         producer.newMessage(Schema.BOOL).value(true).send();
 
         Schema<Schemas.PersonThree> personThreeSchema = Schema.AVRO(Schemas.PersonThree.class);
         byte[] personThreeSchemaBytes = personThreeSchema.getSchemaInfo().getSchema();
-        org.apache.avro.Schema personThreeSchemaAvroNative = new Parser().parse(new ByteArrayInputStream(personThreeSchemaBytes));
+        org.apache.avro.Schema personThreeSchemaAvroNative =
+                new Parser().parse(new ByteArrayInputStream(personThreeSchemaBytes));
         AvroWriter<Schemas.PersonThree> writer = new AvroWriter<>(personThreeSchemaAvroNative);
         byte[] content = writer.write(new Schemas.PersonThree(0, "ran"));
         producer.newMessage(Schema.NATIVE_AVRO(personThreeSchemaAvroNative)).value(content).send();
 
         List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
         allSchemas.forEach(schemaInfo -> {
-            ((SchemaInfoImpl)schemaInfo).setTimestamp(0);
+            ((SchemaInfoImpl) schemaInfo).setTimestamp(0);
         });
         Assert.assertEquals(allSchemas.size(), 5);
         Assert.assertEquals(allSchemas.get(0), Schema.STRING.getSchemaInfo());
@@ -1084,7 +1203,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 new KeyValue<>(new Schemas.PersonOne(10), new Schemas.PersonFour(30, "kv-inline", 20)),
                 autoProducer, totalMsgCnt);
         generateDataByDifferentSchema(ns, "k_int_v_three_schema_separate",
-                Schema.KeyValue(Schema.INT32, Schema.JSON(Schemas.PersonThree.class), KeyValueEncodingType.SEPARATED),
+                Schema.KeyValue(Schema.INT32, Schema.JSON(Schemas.PersonThree.class),
+                        KeyValueEncodingType.SEPARATED),
                 new KeyValue<>(100, new Schemas.PersonThree(40, "kv-separate")),
                 autoProducer, totalMsgCnt);
 
@@ -1273,6 +1393,33 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertThrows(SchemaSerializationException.class, message2::getValue);
     }
 
+    /**
+     * This test just ensure that schema check still keeps the original logic: if there has any producer, but no schema
+     * was registered, the new consumer could not register new schema.
+     * TODO: I think this design should be improved: if a producer used "AUTO_PRODUCE_BYTES" schema, we should allow
+     *       the new consumer to register new schema. But before we can solve this problem, we need to modify
+     *       "CmdProducer" to let the Broker know that the Producer uses a schema of type "AUTO_PRODUCE_BYTES".
+     */
+    @Test(dataProvider = "topicDomain")
+    public void testAutoProduceAndSpecifiedConsumer(String domain) throws Exception {
+        final String namespace = PUBLIC_TENANT + "/ns_" + randomName(16);
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
+        final String topicName = domain + namespace + "/tp_" + randomName(16);
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        Producer producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        try {
+            pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub1").subscribe();
+            fail("Should throw ex: Failed to add schema to an active topic with empty(BYTES) schema");
+        } catch (Exception ex){
+            assertTrue(ex.getMessage().contains("Failed to add schema to an active topic with empty(BYTES) schema"));
+        }
+
+        // Cleanup.
+        producer.close();
+        admin.topics().delete(topicName);
+    }
+
     @Test
     public void testCreateSchemaInParallel() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
@@ -1280,6 +1427,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
 
         final String topic = getTopicName(ns, "testCreateSchemaInParallel");
+        @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(16);
         List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = new ArrayList<>(16);
         CountDownLatch latch = new CountDownLatch(16);
@@ -1321,7 +1469,6 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         });
         producers.clear();
         producers2.clear();
-        executor.shutdownNow();
     }
 
     @EqualsAndHashCode
@@ -1333,4 +1480,134 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    /**
+     * This test validates that consumer/producers should recover on topic whose
+     * schema ledgers are not able to open due to non-recoverable error.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testDeletedSchemaLedgerRecovery() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "test-multi-version-schema-one";
+        final String subName = "test";
+        final String topicName = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
+
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
+
+        // (1) create schema
+        Producer<Schemas.PersonTwo> producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(topicName).create();
+
+        Schemas.PersonTwo personTwo = new Schemas.PersonTwo();
+        personTwo.setId(1);
+        personTwo.setName("Tom");
+
+        Consumer<Schemas.PersonTwo> consumer = pulsarClient
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .subscriptionName(subName).topic(topicName).subscribe();
+
+        producer.send(personTwo);
+        producer.close();
+        consumer.close();
+
+        // (2) Delete schema ledger
+        MetadataCache<SchemaStorageFormat.SchemaLocator> locatorEntryCache = pulsar.getLocalMetadataStore()
+                .getMetadataCache(new MetadataSerde<SchemaStorageFormat.SchemaLocator>() {
+                    @Override
+                    public byte[] serialize(String path, SchemaStorageFormat.SchemaLocator value) {
+                        return value.toByteArray();
+                    }
+
+                    @Override
+                    public SchemaStorageFormat.SchemaLocator deserialize(String path, byte[] content, Stat stat)
+                            throws IOException {
+                        return SchemaStorageFormat.SchemaLocator.parseFrom(content);
+                    }
+                });
+        String path = "/schemas/public/" + namespace + "/test-multi-version-schema-one";
+        SchemaLocator schema = locatorEntryCache.get(path).get().get();
+        schema = locatorEntryCache.get(path).get().get();
+        long ledgerId = schema.getInfo().getPosition().getLedgerId();
+        pulsar.getBookKeeperClient().deleteLedger(ledgerId);
+
+        // (3) Topic should recover from deleted schema and should allow to create consumer and producer
+        consumer = pulsarClient
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .subscriptionName(subName).topic(topicName).subscribe();
+
+        producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(topicName).create();
+        assertNotNull(consumer);
+        assertNotNull(producer);
+        consumer.close();
+        producer.close();
+    }
+
+    @Test
+    public void testPendingQueueSizeIfIncompatible() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName(PUBLIC_TENANT + "/ns");
+        admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));
+        admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        final String topic = BrokerTestUtil.newUniqueName(namespace + "/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+
+        ProducerImpl producer = (ProducerImpl) pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .maxPendingMessages(1000).enableBatching(false).topic(topic).create();
+        producer.newMessage(Schema.STRING).value("msg-1").sendAsync();
+        AtomicReference<CompletableFuture<MessageId>> latestSend = new AtomicReference<>();
+        for (int i = 0; i < 100; i++) {
+            final String msg = "msg-with-broken-schema-" + i;
+            latestSend.set(producer.newMessage(Schema.BOOL).value(false).sendAsync().thenApply(v -> {
+                log.info("send complete {}", msg);
+                return null;
+            }).exceptionally(ex -> {
+                log.error("failed to send {}", msg, ex);
+                return null;
+            }));
+        }
+        // Verify: msgs with broken schema will be discarded.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(latestSend.get().isDone());
+            assertEquals(producer.getPendingQueueSize(), 0);
+        });
+
+        // Verify: msgs with compatible schema can be sent successfully.
+        producer.newMessage(Schema.STRING).value("msg-2").sendAsync();
+
+        // cleanup.
+        producer.close();
+        admin.topics().delete(topic, false);
+    }
+
+    @Test
+    public void testTopicSchemaMetadata() throws Exception {
+        final String tenant = PUBLIC_TENANT;
+        final String namespace = "test-namespace-" + randomName(16);
+        final String topicOne = "metadata-topic";
+        final String topicName = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
+
+        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet(CLUSTER_NAME));
+
+        @Cleanup
+        Producer<Schemas.PersonTwo> producer = pulsarClient
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                .topic(topicName).create();
+
+        SchemaMetadata metadata = admin.schemas().getSchemaMetadata(topicName);
+
+        assertNotNull(metadata);
+        assertNotNull(metadata.info);
+        assertNotEquals(metadata.info.getLedgerId(), 0);
+        assertEquals(metadata.info.getEntryId(), 0);
+        assertEquals(metadata.index.size(), 1);
+    }
 }

@@ -24,10 +24,12 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.net.URL;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
-
+import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -41,6 +43,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.slf4j.Logger;
@@ -68,6 +71,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
     @Test
     public void testServiceException() throws Exception {
         URL url = new URL("http://localhost:15000");
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
         BrokerStatsImpl client = (BrokerStatsImpl) spy(admin.brokerStats());
         try {
@@ -94,8 +98,6 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         assertTrue(client.getApiException(new ServerErrorException(503)) instanceof PulsarAdminException);
 
         log.info("Client: -- {}", client);
-
-        admin.close();
     }
 
     @Test
@@ -123,21 +125,40 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         }
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedger ledger = topic.getManagedLedger();
+        long firstLedgerId = ledger.getLedgersInfo().firstKey();
+        ledger.asyncAddLedgerProperty(firstLedgerId, "foo", "bar").get();
+
         PersistentTopicInternalStats internalStats = topic.getInternalStats(true).get();
         assertNotNull(internalStats.ledgers.get(0).metadata);
         // For the mock test, the default ensembles is ["192.0.2.1:1234","192.0.2.2:1234","192.0.2.3:1234"]
-        // The registed bookie ID is 192.168.1.1:5000
+        // The registered bookie ID is 192.168.1.1:5000
         assertTrue(internalStats.ledgers.get(0).underReplicated);
 
+        for (ManagedLedgerInternalStats.LedgerInfo ledgerInfo : internalStats.ledgers) {
+            if (ledgerInfo.ledgerId == firstLedgerId) {
+                Map<String, String> properties = ledgerInfo.properties;
+                assertNotNull(properties);
+                assertEquals(properties.get("foo"), "bar");
+            }
+        }
+
         CursorStats cursor = internalStats.cursors.get(subscriptionName);
+        assertTrue(cursor.active);
+
+        producer.close();
+        // Call close to ensure that all acknowledge requests are executed.
+        consumer.close();
+
+        topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        internalStats = topic.getInternalStats(true).get();
+        cursor = internalStats.cursors.get(subscriptionName);
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
         assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0
                 && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
         assertFalse(cursor.subscriptionHavePendingRead);
         assertFalse(cursor.subscriptionHavePendingReplayRead);
-        assertTrue(cursor.active);
-        producer.close();
-        consumer.close();
+        assertFalse(cursor.active);
         log.info("-- Exiting {} test --", methodName);
     }
 

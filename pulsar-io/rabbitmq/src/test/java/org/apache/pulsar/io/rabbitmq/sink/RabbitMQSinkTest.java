@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.io.rabbitmq.sink;
 
+import static org.mockito.Mockito.mock;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSink;
 import org.awaitility.Awaitility;
@@ -37,7 +40,7 @@ public class RabbitMQSinkTest {
     @BeforeMethod
     public void setUp() throws Exception {
         rabbitMQBrokerManager = new RabbitMQBrokerManager();
-        rabbitMQBrokerManager.startBroker("5673");
+        rabbitMQBrokerManager.startBroker();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -46,13 +49,13 @@ public class RabbitMQSinkTest {
     }
 
     @Test
-    public void TestOpenAndWriteSink() throws Exception {
+    public void testOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");
-        configs.put("port", "5673");
+        configs.put("port", String.valueOf(rabbitMQBrokerManager.getPort()));
         configs.put("virtualHost", "default");
-        configs.put("username", "guest");
-        configs.put("password", "guest");
+        configs.put("username", rabbitMQBrokerManager.getUser());
+        configs.put("password", rabbitMQBrokerManager.getPassword());
         configs.put("connectionName", "test-connection");
         configs.put("requestedChannelMax", "0");
         configs.put("requestedFrameMax", "0");
@@ -66,7 +69,9 @@ public class RabbitMQSinkTest {
 
         // open should success
         // rabbitmq service may need time to initialize
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> sink.open(configs, null));
+        SinkContext sinkContext = mock(SinkContext.class);
+        Awaitility.await().ignoreExceptions().pollDelay(Duration.ofSeconds(1))
+                .untilAsserted(() -> sink.open(configs, sinkContext));
 
         // write should success
         Record<byte[]> record = build("test-topic", "fakeKey", "fakeValue", "fakeRoutingKey");

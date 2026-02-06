@@ -68,7 +68,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
     protected static final String PROXY_ROLE = "proxy";
     protected static final String REGULAR_USER_ROLE = "client";
 
-    protected ZKContainer<?> cmdContainer;
+    protected ZKContainer cmdContainer;
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -76,7 +76,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         incrementSetupNumber();
         // Before starting the cluster, generate the secret key and the token
         // Use Zk container to have 1 container available before starting the cluster
-        this.cmdContainer = new ZKContainer<>("cli-setup");
+        this.cmdContainer = new ZKContainer("cli-setup");
         cmdContainer
                 .withNetwork(Network.newNetwork())
                 .withNetworkAliases(ZKContainer.NAME)
@@ -344,15 +344,15 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
         admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
 
-        final int TokenExpiryTimeSecs = 2;
-        String initialToken = this.createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+        final int tokenExpiryTimeSecs = 2;
+        String initialToken = this.createClientTokenWithExpiry(tokenExpiryTimeSecs, TimeUnit.SECONDS);
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .authentication(AuthenticationFactory.token(() -> {
                     try {
-                        return createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+                        return createClientTokenWithExpiry(tokenExpiryTimeSecs, TimeUnit.SECONDS);
                     } catch (Exception e) {
                         return null;
                     }
@@ -369,7 +369,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         producer1.close();
 
-        Thread.sleep(TimeUnit.SECONDS.toMillis(TokenExpiryTimeSecs));
+        Thread.sleep(TimeUnit.SECONDS.toMillis(tokenExpiryTimeSecs));
 
         @Cleanup
         Producer<String> producer2 = client.newProducer(Schema.STRING)

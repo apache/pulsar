@@ -20,15 +20,17 @@ package org.apache.pulsar.io.debezium;
 
 import io.debezium.relational.HistorizedRelationalDatabaseConnectorConfig;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.KafkaConnectSource;
 import org.apache.pulsar.io.kafka.connect.PulsarKafkaWorkerConfig;
 
+@Slf4j
 public abstract class DebeziumSource extends KafkaConnectSource {
     private static final String DEFAULT_CONVERTER = "org.apache.kafka.connect.json.JsonConverter";
-    private static final String DEFAULT_HISTORY = "org.apache.pulsar.io.debezium.PulsarDatabaseHistory";
+    private static final String DEFAULT_HISTORY = "org.apache.pulsar.io.debezium.PulsarSchemaHistory";
     private static final String DEFAULT_OFFSET_TOPIC = "debezium-offset-topic";
     private static final String DEFAULT_HISTORY_TOPIC = "debezium-history-topic";
 
@@ -60,39 +62,56 @@ public abstract class DebeziumSource extends KafkaConnectSource {
                 + (StringUtils.isEmpty(namespace) ? TopicName.DEFAULT_NAMESPACE : namespace);
     }
 
+    public static void tryLoadingConfigSecret(String secretName, Map<String, Object> config, SourceContext context) {
+        try {
+            String secret = context.getSecret(secretName);
+            if (secret != null) {
+                config.put(secretName, secret);
+                log.info("Config key {} set from secret.", secretName);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to read secret {}.", secretName, e);
+        }
+    }
+
     public abstract void setDbConnectorTask(Map<String, Object> config) throws Exception;
+
+    public abstract void setDbConnectorClass(Map<String, Object> config) throws Exception;
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         setDbConnectorTask(config);
+        setDbConnectorClass(config);
+        tryLoadingConfigSecret("database.user", config, sourceContext);
+        tryLoadingConfigSecret("database.password", config, sourceContext);
 
         // key.converter
         setConfigIfNull(config, PulsarKafkaWorkerConfig.KEY_CONVERTER_CLASS_CONFIG, DEFAULT_CONVERTER);
         // value.converter
         setConfigIfNull(config, PulsarKafkaWorkerConfig.VALUE_CONVERTER_CLASS_CONFIG, DEFAULT_CONVERTER);
 
-        // database.history : implementation class for database history.
-        setConfigIfNull(config, HistorizedRelationalDatabaseConnectorConfig.DATABASE_HISTORY.name(), DEFAULT_HISTORY);
+        // schema.history : implementation class for schema history.
+        setConfigIfNull(config, HistorizedRelationalDatabaseConnectorConfig.SCHEMA_HISTORY.name(), DEFAULT_HISTORY);
 
-        // database.history.pulsar.service.url
-        String pulsarUrl = (String) config.get(PulsarDatabaseHistory.SERVICE_URL.name());
+        // schema.history.internal.pulsar.service.url
+        String pulsarUrl = (String) config.get(PulsarSchemaHistory.SERVICE_URL.name());
 
         String topicNamespace = topicNamespace(sourceContext);
         // topic.namespace
         setConfigIfNull(config, PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG, topicNamespace);
 
         String sourceName = sourceContext.getSourceName();
-        // database.history.pulsar.topic: history topic name
-        setConfigIfNull(config, PulsarDatabaseHistory.TOPIC.name(),
+        // schema.history.internal.pulsar.topic: history topic name
+        setConfigIfNull(config, PulsarSchemaHistory.TOPIC.name(),
             topicNamespace + "/" + sourceName + "-" + DEFAULT_HISTORY_TOPIC);
         // offset.storage.topic: offset topic name
         setConfigIfNull(config, PulsarKafkaWorkerConfig.OFFSET_STORAGE_TOPIC_CONFIG,
             topicNamespace + "/" + sourceName + "-" + DEFAULT_OFFSET_TOPIC);
 
-        // pass pulsar.client.builder if database.history.pulsar.service.url is not provided
+        // pass pulsar.client.builder if schema.history.internal.pulsar.service.url is not provided
         if (StringUtils.isEmpty(pulsarUrl)) {
             String pulsarClientBuilder = SerDeUtils.serialize(sourceContext.getPulsarClientBuilder());
-            config.put(PulsarDatabaseHistory.CLIENT_BUILDER.name(), pulsarClientBuilder);
+            config.put(PulsarSchemaHistory.CLIENT_BUILDER.name(), pulsarClientBuilder);
         }
 
         super.open(config, sourceContext);

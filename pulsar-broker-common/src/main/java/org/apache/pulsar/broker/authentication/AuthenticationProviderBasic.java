@@ -46,6 +46,16 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
     private static final String CONF_PULSAR_PROPERTY_KEY = "basicAuthConf";
     private Map<String, String> users;
 
+    private AuthenticationMetrics authenticationMetrics;
+
+    private enum ErrorCode {
+        UNKNOWN,
+        EMPTY_AUTH_DATA,
+        INVALID_HEADER,
+        INVALID_AUTH_DATA,
+        INVALID_TOKEN,
+    }
+
     @Override
     public void close() throws IOException {
         // noop
@@ -67,6 +77,14 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(Context.builder().config(config).build());
+    }
+
+    @Override
+    public void initialize(Context context) throws IOException {
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
+        var config = context.getConfig();
         String data = config.getProperties().getProperty(CONF_PULSAR_PROPERTY_KEY);
         if (StringUtils.isEmpty(data)) {
             data = System.getProperty(CONF_SYSTEM_PROPERTY_KEY);
@@ -99,14 +117,20 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
     }
 
     @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
+    }
+
+    @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         AuthParams authParams = new AuthParams(authData);
         String userId = authParams.getUserId();
         String password = authParams.getPassword();
         String msg = "Unknown user or invalid password";
-
+        ErrorCode errorCode = ErrorCode.UNKNOWN;
         try {
             if (users.get(userId) == null) {
+                errorCode = ErrorCode.INVALID_AUTH_DATA;
                 throw new AuthenticationException(msg);
             }
 
@@ -117,18 +141,19 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
                 if (splitEncryptedPassword.size() != 4 || !encryptedPassword
                         .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
+                    errorCode = ErrorCode.INVALID_TOKEN;
                     throw new AuthenticationException(msg);
                 }
                 // For crypt algorithm
             } else if (!encryptedPassword.equals(Crypt.crypt(password.getBytes(), encryptedPassword.substring(0, 2)))) {
+                errorCode = ErrorCode.INVALID_TOKEN;
                 throw new AuthenticationException(msg);
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            incrementFailureMetric(errorCode);
             throw exception;
         }
-        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+        authenticationMetrics.recordSuccess();
         return userId;
     }
 
@@ -144,24 +169,29 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 String rawAuthToken = authData.getHttpHeader(HTTP_HEADER_NAME);
                 // parsing and validation
                 if (StringUtils.isBlank(rawAuthToken) || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
+                    incrementFailureMetric(ErrorCode.INVALID_HEADER);
                     throw new AuthenticationException("Authentication token has to be started with \"Basic \"");
                 }
                 String[] splitRawAuthToken = rawAuthToken.split(" ");
                 if (splitRawAuthToken.length != 2) {
+                    incrementFailureMetric(ErrorCode.INVALID_HEADER);
                     throw new AuthenticationException("Base64 encoded token is not found");
                 }
 
                 try {
                     authParams = new String(Base64.getDecoder().decode(splitRawAuthToken[1]));
                 } catch (Exception e) {
+                    incrementFailureMetric(ErrorCode.INVALID_HEADER);
                     throw new AuthenticationException("Base64 decoding is failure: " + e.getMessage());
                 }
             } else {
+                incrementFailureMetric(ErrorCode.EMPTY_AUTH_DATA);
                 throw new AuthenticationException("Authentication data source does not have data");
             }
 
             String[] parsedAuthParams = authParams.split(":");
             if (parsedAuthParams.length != 2) {
+                incrementFailureMetric(ErrorCode.INVALID_AUTH_DATA);
                 throw new AuthenticationException("Base64 decoded params are invalid");
             }
 

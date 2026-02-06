@@ -19,15 +19,15 @@
 package org.apache.pulsar.broker.service.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import java.io.IOException;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * {@link SchemaCompatibilityCheck} for {@link SchemaType#JSON}.
@@ -73,19 +73,12 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
         }
     }
 
-    private ObjectMapper objectMapper;
-    private ObjectMapper getObjectMapper() {
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-        }
-        return objectMapper;
-    }
-
+    private static final ObjectReader JSON_SCHEMA_READER =
+            ObjectMapperFactory.getMapper().reader().forType(JsonSchema.class);
     private void isCompatibleJsonSchema(SchemaData from, SchemaData to) throws IncompatibleSchemaException {
         try {
-            ObjectMapper objectMapper = getObjectMapper();
-            JsonSchema fromSchema = objectMapper.readValue(from.getData(), JsonSchema.class);
-            JsonSchema toSchema = objectMapper.readValue(to.getData(), JsonSchema.class);
+            JsonSchema fromSchema = JSON_SCHEMA_READER.readValue(from.getData());
+            JsonSchema toSchema = JSON_SCHEMA_READER.readValue(to.getData());
             if (!fromSchema.getId().equals(toSchema.getId())) {
                 throw new IncompatibleSchemaException(String.format("Incompatible Schema from %s + to %s",
                         new String(from.getData(), UTF_8), new String(to.getData(), UTF_8)));
@@ -102,15 +95,14 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
             fromParser.setValidateDefaults(false);
             Schema fromSchema = fromParser.parse(new String(schemaData.getData(), UTF_8));
             return true;
-        } catch (SchemaParseException e) {
+        } catch (Exception e) {
             return false;
         }
     }
 
     private boolean isJsonSchema(SchemaData schemaData) {
-        ObjectMapper objectMapper = getObjectMapper();
         try {
-            JsonSchema fromSchema = objectMapper.readValue(schemaData.getData(), JsonSchema.class);
+            JsonSchema fromSchema = JSON_SCHEMA_READER.readValue(schemaData.getData());
             return true;
         } catch (IOException e) {
            return false;

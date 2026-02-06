@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.websocket;
 
+import javax.servlet.http.HttpServletRequest;
+import lombok.Cleanup;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
-import org.eclipse.jetty.websocket.servlet.UpgradeHttpServletRequest;
-import org.testng.Assert;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -39,7 +40,7 @@ public class WebSocketHttpServletRequestWrapperTest {
 
     @Test
     public void testTokenParamWithBearerPrefix() {
-        UpgradeHttpServletRequest httpServletRequest = Mockito.mock(UpgradeHttpServletRequest.class);
+        HttpServletRequest httpServletRequest = Mockito.mock(HttpServletRequest.class);
         Mockito.when(httpServletRequest.getParameter(WebSocketHttpServletRequestWrapper.TOKEN))
                 .thenReturn(BEARER_TOKEN);
 
@@ -52,7 +53,7 @@ public class WebSocketHttpServletRequestWrapperTest {
 
     @Test
     public void testTokenParamWithOutBearerPrefix() {
-        UpgradeHttpServletRequest httpServletRequest = Mockito.mock(UpgradeHttpServletRequest.class);
+        HttpServletRequest httpServletRequest = Mockito.mock(HttpServletRequest.class);
         Mockito.when(httpServletRequest.getParameter(WebSocketHttpServletRequestWrapper.TOKEN))
                 .thenReturn(TOKEN);
 
@@ -70,10 +71,11 @@ public class WebSocketHttpServletRequestWrapperTest {
                 WebSocketProxyConfiguration.class);
         String publicKeyPath = "file://" + this.getClass().getClassLoader().getResource("my-public.key").getFile();
         config.getProperties().setProperty("tokenPublicKey", publicKeyPath);
+        @Cleanup
         WebSocketService service = new WebSocketService(config);
         service.start();
 
-        UpgradeHttpServletRequest httpServletRequest = Mockito.mock(UpgradeHttpServletRequest.class);
+        HttpServletRequest httpServletRequest = Mockito.mock(HttpServletRequest.class);
         Mockito.when(httpServletRequest.getRemoteAddr()).thenReturn("localhost");
         Mockito.when(httpServletRequest.getRemotePort()).thenReturn(8080);
         Mockito.when(httpServletRequest.getParameter(WebSocketHttpServletRequestWrapper.TOKEN))
@@ -81,8 +83,8 @@ public class WebSocketHttpServletRequestWrapperTest {
         WebSocketHttpServletRequestWrapper webSocketHttpServletRequestWrapper =
                 new WebSocketHttpServletRequestWrapper(httpServletRequest);
 
-        Assert.assertEquals(service.getAuthenticationService().authenticateHttpRequest(webSocketHttpServletRequestWrapper),
-                "test-user");
+        Assert.assertEquals(service.getAuthenticationService()
+                        .authenticateHttpRequest(webSocketHttpServletRequestWrapper), "test-user");
     }
 
 }

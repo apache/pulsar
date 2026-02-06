@@ -25,8 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>distribution</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-server-distribution</artifactId>
@@ -42,7 +41,31 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-metadata</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>jetcd-core-shaded</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-docs-tools</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-proxy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-broker-auth-oidc</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -59,29 +82,21 @@
     </dependency>
 
     <dependency>
-      <groupId>jline</groupId>
-      <artifactId>jline</artifactId>
-      <version>${jline.version}</version>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-bookkeeper-prometheus-metrics-provider</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.zookeeper</groupId>
-      <artifactId>zookeeper-prometheus-metrics</artifactId>
-      <version>${zookeeper.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>ch.qos.logback</groupId>
-          <artifactId>logback-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>ch.qos.logback</groupId>
-          <artifactId>logback-classic</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-tcnative</artifactId>
-        </exclusion>
-      </exclusions>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-zookeeper-prometheus-metrics</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>jline</groupId>
+      <artifactId>jline</artifactId>
+      <version>${jline.version}</version>
     </dependency>
 
     <dependency>
@@ -118,6 +133,12 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-testclient</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.zookeeper</groupId>
+          <artifactId>zookeeper</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -136,6 +157,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-layout-template-json</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
     </dependency>
@@ -143,6 +169,12 @@
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-graphite</artifactId>
+      <exclusions>
+        <exclusion>
+          <artifactId>amqp-client</artifactId>
+          <groupId>com.rabbitmq</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -162,12 +194,7 @@
 
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.bookkeeper.stats</groupId>
-      <artifactId>prometheus-metrics-provider</artifactId>
+      <artifactId>log4j-slf4j2-impl</artifactId>
     </dependency>
 
     <dependency>
@@ -246,6 +273,10 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk18on</artifactId>
     </dependency>
 
     <dependency>
@@ -356,22 +387,6 @@
       <activation>
         <activeByDefault>true</activeByDefault>
       </activation>
-      <!-- depend on pulsar-presto-distribution by default, unless core-modules profile is active -->
-      <dependencies>
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>pulsar-presto-distribution</artifactId>
-          <version>${project.version}</version>
-          <type>tar.gz</type>
-          <scope>provided</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>*</groupId>
-              <artifactId>*</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
-      </dependencies>
     </profile>
   </profiles>
 </project>

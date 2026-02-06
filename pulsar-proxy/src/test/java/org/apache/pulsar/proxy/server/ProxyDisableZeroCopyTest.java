@@ -18,32 +18,11 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.mockito.Mockito.doReturn;
-import java.util.Optional;
-import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.mockito.Mockito;
-import org.testng.annotations.BeforeClass;
-
 public class ProxyDisableZeroCopyTest extends ProxyTest {
 
     @Override
-    @BeforeClass
-    protected void setup() throws Exception {
-        internalSetup();
-
-        proxyConfig.setServicePort(Optional.ofNullable(0));
-        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
-        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
-        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+    protected void initializeProxyConfig() throws Exception {
+        super.initializeProxyConfig();
         proxyConfig.setProxyZeroCopyModeEnabled(false);
-
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
-
-        proxyService.start();
     }
 }

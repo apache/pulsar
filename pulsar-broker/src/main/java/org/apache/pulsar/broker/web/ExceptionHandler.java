@@ -19,38 +19,32 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.intercept.InterceptException;
-import org.eclipse.jetty.http.HttpVersion;
-import org.eclipse.jetty.http.MetaData;
+import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  *  Exception handler for handle exception.
  */
+@Slf4j
 public class ExceptionHandler {
 
     public void handle(ServletResponse response, Exception ex) throws IOException {
+        HttpServletResponse httpServletResponse = (HttpServletResponse) response;
         if (ex instanceof InterceptException) {
-            String reason = ex.getMessage();
-            byte[] content = reason.getBytes(StandardCharsets.UTF_8);
-            MetaData.Response info = new MetaData.Response();
-            info.setHttpVersion(HttpVersion.HTTP_1_1);
-            info.setReason(reason);
-            info.setStatus(((InterceptException) ex).getErrorCode());
-            info.setContentLength(content.length);
-            if (response instanceof org.eclipse.jetty.server.Response) {
-                ((org.eclipse.jetty.server.Response) response).getHttpChannel().sendResponse(info,
-                        ByteBuffer.wrap(content), true);
-            } else {
-                ((HttpServletResponse) response).sendError(((InterceptException) ex).getErrorCode(),
-                        ex.getMessage());
-            }
+            byte[] errorBytes = ObjectMapperFactory
+                    .getMapper().writer().writeValueAsBytes(new ErrorData(ex.getMessage()));
+            int errorCode = ((InterceptException) ex).getErrorCode();
+            httpServletResponse.setStatus(errorCode);
+            httpServletResponse.setContentType("application/json;charset=utf-8");
+            httpServletResponse.setContentLength(errorBytes.length);
+            httpServletResponse.getOutputStream().write(errorBytes);
         } else {
-            ((HttpServletResponse) response).sendError(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
+            httpServletResponse.sendError(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
                     ex.getMessage());
         }
     }

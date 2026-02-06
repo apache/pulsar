@@ -20,14 +20,19 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -40,7 +45,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Test(groups = "quarantine")
+@Test
 public class ZKSessionTest extends BaseMetadataStoreTest {
 
     @Test
@@ -96,6 +101,51 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
         e = sessionEvents.poll(1, TimeUnit.SECONDS);
         assertNull(e);
+    }
+
+    @Test
+    public void testNoDuplicateWatcherRegistrationAfterSessionReestablished() throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(2_000)
+                        .build());
+
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+
+        BlockingQueue<Notification> notifications = new LinkedBlockingQueue<>();
+        store.registerListener(notifications::add);
+
+        zks.stop();
+
+        SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.ConnectionLost);
+
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionLost);
+
+        zks.start();
+        boolean zkServerReady = zks.waitForServerUp(zks.getConnectionString(), 30_000);
+        assertTrue(zkServerReady);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.Reconnected);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionReestablished);
+
+        // perform a put operation to trigger watch notification
+        String path = "/a";
+        store.put(path, "value-a".getBytes(), Optional.of(-1L));
+
+        // receive creation notification
+        Notification n = notifications.poll(5, TimeUnit.SECONDS);
+        assertNotNull(n);
+        assertEquals(n.getPath(), path);
+        assertEquals(n.getType(), NotificationType.Created);
+
+        // no duplicate notification is received
+        n = notifications.poll(1, TimeUnit.SECONDS);
+        assertNull(n);
     }
 
     @Test
@@ -171,13 +221,67 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.SessionLost);
         // --- test  le1 can be leader
         Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading)); // reacquire leadership
+                .untilAsserted(()-> assertEquals(le1.getState(), LeaderElectionState.Leading)); // reacquire leadership
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
         Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
+                .untilAsserted(()-> assertEquals(le1.getState(), LeaderElectionState.Leading));
+        assertTrue(store.get(path).join().isPresent());
+    }
+
+
+    @Test
+    public void testElectAfterReconnected() throws Exception {
+        //  ---  init
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(2_000)
+                        .build());
+
+
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+        BlockingQueue<LeaderElectionState> leaderElectionEvents = new LinkedBlockingQueue<>();
+        String path = newKey();
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup
+        LeaderElection<String> le1 = coordinationService.getLeaderElection(String.class, path,
+                leaderElectionEvents::add);
+
+        // --- test manual elect
+        String proposed = "value-1";
+        le1.elect(proposed).join();
+        assertEquals(le1.getState(), LeaderElectionState.Leading);
+        LeaderElectionState les = leaderElectionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(les, LeaderElectionState.Leading);
+
+
+        // simulate no leader state
+        FieldUtils.writeDeclaredField(le1, "leaderElectionState", LeaderElectionState.NoLeader, true);
+
+        // reconnect
+        zks.stop();
+
+        SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.ConnectionLost);
+
+        zks.start();
+
+
+        // --- test  le1 can be leader
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.Reconnected);
+        Awaitility.await().atMost(Duration.ofSeconds(15))
+                .untilAsserted(()-> {
+                    assertEquals(le1.getState(), LeaderElectionState.Leading);
+                }); // reacquire leadership
+
+
         assertTrue(store.get(path).join().isPresent());
     }
 }

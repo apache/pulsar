@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.websocket;
 
-
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -30,8 +27,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-
-import static org.testng.Assert.assertEquals;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class WebSocketProxyConfigurationTest {
 
@@ -62,6 +62,7 @@ public class WebSocketProxyConfigurationTest {
             printWriter.println("metadataStoreCacheExpirySeconds=500");
             printWriter.println("zooKeeperSessionTimeoutMillis=-1");
             printWriter.println("zooKeeperCacheExpirySeconds=-1");
+            printWriter.println("cryptoKeyReaderFactoryClassName=");
         }
         testConfigFile.deleteOnExit();
         stream = new FileInputStream(testConfigFile);
@@ -69,6 +70,7 @@ public class WebSocketProxyConfigurationTest {
         stream.close();
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
+        assertNull(serviceConfig.getCryptoKeyReaderFactoryClassName());
 
         testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -79,6 +81,7 @@ public class WebSocketProxyConfigurationTest {
             printWriter.println("metadataStoreCacheExpirySeconds=30");
             printWriter.println("zooKeeperSessionTimeoutMillis=100");
             printWriter.println("zooKeeperCacheExpirySeconds=300");
+            printWriter.println("cryptoKeyReaderFactoryClassName=A.class");
         }
         testConfigFile.deleteOnExit();
         stream = new FileInputStream(testConfigFile);
@@ -86,5 +89,20 @@ public class WebSocketProxyConfigurationTest {
         stream.close();
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 100);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 300);
+        assertEquals(serviceConfig.getCryptoKeyReaderFactoryClassName(), "A.class");
+    }
+
+    @Test
+    public void testConfigurationConversionUsedByWebSocketProxyStarter() {
+        WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
+        // Use non-default values for testing
+        config.setTlsAllowInsecureConnection(true);
+        Assert.assertFalse(config.isTlsHostnameVerificationEnabled(), "Update me when default changes.");
+        config.setTlsHostnameVerificationEnabled(true);
+        ServiceConfiguration brokerConf = PulsarConfigurationLoader.convertFrom(config);
+        Assert.assertTrue(brokerConf.isTlsAllowInsecureConnection(),
+                "TlsAllowInsecureConnection should convert correctly");
+        Assert.assertTrue(brokerConf.isTlsHostnameVerificationEnabled(),
+                "TlsHostnameVerificationEnabled should convert correctly");
     }
 }

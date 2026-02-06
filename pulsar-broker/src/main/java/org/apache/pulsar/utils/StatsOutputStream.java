@@ -19,11 +19,12 @@
 package org.apache.pulsar.utils;
 
 import io.netty.buffer.ByteBuf;
-import java.util.Stack;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 public class StatsOutputStream extends SimpleTextOutputStream {
-    private final Stack<Boolean> separators = new Stack<>();
+    private final Deque<Boolean> separators = new ArrayDeque<>();
 
     public StatsOutputStream(ByteBuf buffer) {
         super(buffer);
@@ -31,7 +32,7 @@ public class StatsOutputStream extends SimpleTextOutputStream {
 
     public StatsOutputStream startObject() {
         checkSeparator();
-        separators.push(Boolean.FALSE);
+        separators.addLast(Boolean.FALSE);
         write('{');
         return this;
     }
@@ -39,19 +40,19 @@ public class StatsOutputStream extends SimpleTextOutputStream {
     public StatsOutputStream startObject(String key) {
         checkSeparator();
         write('"').writeEncoded(key).write("\":{");
-        separators.push(Boolean.FALSE);
+        separators.addLast(Boolean.FALSE);
         return this;
     }
 
     public StatsOutputStream endObject() {
-        separators.pop();
+        separators.removeLast();
         write('}');
         return this;
     }
 
     public StatsOutputStream startList() {
         checkSeparator();
-        separators.push(Boolean.FALSE);
+        separators.addLast(Boolean.FALSE);
         write('[');
         return this;
     }
@@ -59,12 +60,12 @@ public class StatsOutputStream extends SimpleTextOutputStream {
     public StatsOutputStream startList(String key) {
         checkSeparator();
         write('"').writeEncoded(key).write("\":[");
-        separators.push(Boolean.FALSE);
+        separators.addLast(Boolean.FALSE);
         return this;
     }
 
     public StatsOutputStream endList() {
-        separators.pop();
+        separators.removeLast();
         write(']');
         return this;
     }
@@ -121,10 +122,11 @@ public class StatsOutputStream extends SimpleTextOutputStream {
     private void checkSeparator() {
         if (separators.isEmpty()) {
             return;
-        } else if (separators.peek() == Boolean.TRUE) {
+        } else if (separators.peekLast() == Boolean.TRUE) {
             write(",");
         } else {
-            separators.set(separators.size() - 1, Boolean.TRUE);
+            separators.pollLast();
+            separators.addLast(Boolean.TRUE);
         }
     }
 }

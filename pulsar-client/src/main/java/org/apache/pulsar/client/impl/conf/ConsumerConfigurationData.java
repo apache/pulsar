@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.conf;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Sets;
 import io.swagger.annotations.ApiModelProperty;
 import java.io.Serializable;
@@ -40,9 +41,11 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessageListenerExecutor;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
@@ -65,7 +68,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "topicsPattern",
-            value = "Topic pattern"
+            value = "The regexp for the topic name(not contains partition suffix)."
     )
     private Pattern topicsPattern;
 
@@ -91,7 +94,12 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
     @JsonIgnore
+    private transient MessageListenerExecutor messageListenerExecutor;
+    @JsonIgnore
     private MessageListener<T> messageListener;
+
+    @JsonIgnore
+    private DecryptFailListener<T> decryptFailListener;
 
     @JsonIgnore
     private ConsumerEventListener consumerEventListener;
@@ -99,7 +107,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @ApiModelProperty(
             name = "negativeAckRedeliveryBackoff",
             value = "Interface for custom message is negativeAcked policy. You can specify `RedeliveryBackoff` for a"
-                    + "consumer."
+                    + " consumer."
     )
     @JsonIgnore
     private RedeliveryBackoff negativeAckRedeliveryBackoff;
@@ -151,6 +159,16 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "redelivered after a fixed timeout."
     )
     private long negativeAckRedeliveryDelayMicros = TimeUnit.MINUTES.toMicros(1);
+
+    @ApiModelProperty(
+            name = "negativeAckPrecisionBitCnt",
+            value = "The redelivery time precision bit count. The lower bits of the redelivery time will be"
+                    + "trimmed to reduce the memory occupation.\nThe default value is 8, which means the"
+                    + "redelivery time will be bucketed by 256ms, the redelivery time could be earlier(no later)"
+                    + "than the expected time, but no more than 256ms. \nIf set to k, the redelivery time will be"
+                    + "bucketed by 2^k ms.\nIf the value is 0, the redelivery time will be accurate to ms."
+    )
+    private int negativeAckPrecisionBitCnt = 8;
 
     @ApiModelProperty(
             name = "maxTotalReceiverQueueSizeAcrossPartitions",
@@ -235,7 +253,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "autoAckOldestChunkedMessageOnQueueFull",
-            value = "Whether to automatically acknowledge pending chunked messages when the threashold of"
+            value = "Whether to automatically acknowledge pending chunked messages when the threshold of"
                     + " `maxPendingChunkedMessage` is reached. If set to `false`, these messages will be redelivered"
                     + " by their broker."
     )
@@ -270,7 +288,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "Delivered encrypted message contains {@link EncryptionContext} which contains encryption and "
                     + "compression information in it using which application can decrypt consumed message payload."
     )
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+    private ConsumerCryptoFailureAction cryptoFailureAction;
 
     @ApiModelProperty(
             name = "properties",
@@ -310,7 +328,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             name = "patternAutoDiscoveryPeriod",
             value = "Topic auto discovery period when using a pattern for topic's consumer.\n"
                     + "\n"
-                    + "The default and minimum value is 1 minute."
+                    + "The default value is 1 minute, with a minimum of 1 second."
     )
     private int patternAutoDiscoveryPeriod = 60;
 
@@ -355,7 +373,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "When specifying the dead letter policy while not specifying `ackTimeoutMillis`, you can set the"
                     + " ack timeout to 30000 millisecond."
     )
-    private transient DeadLetterPolicy deadLetterPolicy;
+    private DeadLetterPolicy deadLetterPolicy;
 
     private boolean retryEnable = false;
 
@@ -378,14 +396,15 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             value = "If `replicateSubscriptionState` is enabled, a subscription state is replicated to geo-replicated"
                     + " clusters."
     )
-    private boolean replicateSubscriptionState = false;
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private Boolean replicateSubscriptionState;
 
     private boolean resetIncludeHead = false;
 
     @JsonIgnore
-    private transient KeySharedPolicy keySharedPolicy;
+    private KeySharedPolicy keySharedPolicy;
 
-    private boolean batchIndexAckEnabled = false;
+    private boolean batchIndexAckEnabled = true;
 
     private boolean ackReceiptEnabled = false;
 
@@ -433,5 +452,15 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ConsumerConfigurationData");
         }
+    }
+
+    /**
+     * Backward compatibility with the old `replicateSubscriptionState` field.
+     * @deprecated Using {@link #getReplicateSubscriptionState()} instead.
+     */
+    @JsonIgnore
+    @Deprecated
+    public boolean isReplicateSubscriptionState() {
+        return replicateSubscriptionState != null && replicateSubscriptionState;
     }
 }

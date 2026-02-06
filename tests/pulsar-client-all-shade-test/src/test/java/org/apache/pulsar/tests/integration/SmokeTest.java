@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.tests.integration;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -33,10 +36,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class SmokeTest extends TestRetrySupport {
 
@@ -81,11 +80,13 @@ public class SmokeTest extends TestRetrySupport {
 
     @Test
     public void checkAdmin() throws PulsarClientException, PulsarAdminException {
+        @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         List<String> expectedNamespacesList = new ArrayList<>();
         expectedNamespacesList.add("public/default");
         expectedNamespacesList.add("public/functions");
         Assert.assertEquals(admin.namespaces().getNamespaces("public"), expectedNamespacesList);
+        admin.brokerStats().getLoadReport();
     }
 
     @Override

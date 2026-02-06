@@ -43,7 +43,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -68,6 +68,8 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         assertEquals(cache.get("/my/leader-election").join(), Optional.of("test-1"));
 
         leaderElection.close();
+
+        assertEquals(leaderElection.getState(), LeaderElectionState.NoLeader);
 
         assertEquals(cache.get("/my/leader-election").join(), Optional.empty());
     }
@@ -133,7 +135,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     public void leaderNodeIsDeletedExternally(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -161,7 +163,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     public void closeAll(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
         CoordinationService cs = new CoordinationServiceImpl(store);
@@ -191,7 +193,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     public void revalidateLeaderWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String path = newKey();
 
@@ -203,7 +205,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
                 path, __ -> {
                 });
 
-        store.put(path, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("test-1"), Optional.of(-1L),
+        store.put(path, ObjectMapperFactory.getMapper().writer().writeValueAsBytes("test-1"), Optional.of(-1L),
                 EnumSet.of(CreateOption.Ephemeral)).join();
 
         LeaderElectionState les = le.elect("test-2").join();
@@ -238,7 +240,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
                 path, __ -> {
                 });
 
-        store2.put(path, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("test-1"), Optional.of(-1L),
+        store2.put(path, ObjectMapperFactory.getMapper().writer().writeValueAsBytes("test-1"), Optional.of(-1L),
                 EnumSet.of(CreateOption.Ephemeral)).join();
 
         LeaderElectionState les = le.elect("test-1").join();
@@ -274,7 +276,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
                 path, __ -> {
                 });
 
-        store2.put(path, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("test-1"), Optional.of(-1L),
+        store2.put(path, ObjectMapperFactory.getMapper().writer().writeValueAsBytes("test-1"), Optional.of(-1L),
                 EnumSet.of(CreateOption.Ephemeral)).join();
 
         LeaderElectionState les = le.elect("test-2").join();

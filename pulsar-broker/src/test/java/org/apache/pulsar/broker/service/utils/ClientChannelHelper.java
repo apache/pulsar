@@ -18,21 +18,31 @@
  */
 package org.apache.pulsar.broker.service.utils;
 
+import com.google.common.collect.Queues;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.util.Queue;
-
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
-import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
-import org.apache.pulsar.common.protocol.PulsarDecoder;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandMessage;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
+import org.apache.pulsar.common.api.proto.CommandPing;
+import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSend;
@@ -41,12 +51,8 @@ import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
-
-import com.google.common.collect.Queues;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.protocol.PulsarDecoder;
 
 public class ClientChannelHelper {
     private final EmbeddedChannel channel;
@@ -54,8 +60,8 @@ public class ClientChannelHelper {
     private final Queue<Object> queue = Queues.newArrayDeque();
 
     public ClientChannelHelper() {
-        int MaxMessageSize = 5 * 1024 * 1024;
-        channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4), decoder);
+        int maxMessageSize = 5 * 1024 * 1024;
+        channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(maxMessageSize, 0, 4, 0, 4), decoder);
     }
 
     public Object getCommand(Object obj) {
@@ -66,7 +72,7 @@ public class ClientChannelHelper {
     private final PulsarDecoder decoder = new PulsarDecoder() {
 
         @Override
-        protected void messageReceived() {
+        protected void messageReceived(BaseCommand cmd) {
         }
 
         @Override
@@ -77,6 +83,11 @@ public class ClientChannelHelper {
         @Override
         protected void handleConnected(CommandConnected connected) {
             queue.offer(new CommandConnected().copyFrom(connected));
+        }
+
+        @Override
+        protected void handleAuthChallenge(CommandAuthChallenge challenge) {
+            queue.offer(new CommandAuthChallenge().copyFrom(challenge));
         }
 
         @Override
@@ -167,6 +178,45 @@ public class ClientChannelHelper {
         @Override
         protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse response) {
             queue.offer(new CommandPartitionedTopicMetadataResponse().copyFrom(response));
+        }
+
+        @Override
+        protected void handleAddPartitionToTxnResponse(
+                CommandAddPartitionToTxnResponse commandAddPartitionToTxnResponse) {
+            queue.offer(new CommandAddPartitionToTxnResponse().copyFrom(commandAddPartitionToTxnResponse));
+        }
+
+        @Override
+        protected void handleAddSubscriptionToTxnResponse(
+                CommandAddSubscriptionToTxnResponse commandAddSubscriptionToTxnResponse) {
+            queue.offer(new CommandAddSubscriptionToTxnResponse().copyFrom(commandAddSubscriptionToTxnResponse));
+        }
+
+        @Override
+        protected void handleEndTxnResponse(CommandEndTxnResponse commandEndTxnResponse) {
+            queue.offer(new CommandEndTxnResponse().copyFrom(commandEndTxnResponse));
+        }
+
+        @Override
+        protected void handleEndTxnOnPartitionResponse(
+                CommandEndTxnOnPartitionResponse commandEndTxnOnPartitionResponse) {
+            queue.offer(new CommandEndTxnOnPartitionResponse().copyFrom(commandEndTxnOnPartitionResponse));
+        }
+
+        @Override
+        protected void handleEndTxnOnSubscriptionResponse(
+                CommandEndTxnOnSubscriptionResponse commandEndTxnOnSubscriptionResponse) {
+            queue.offer(new CommandEndTxnOnSubscriptionResponse().copyFrom(commandEndTxnOnSubscriptionResponse));
+        }
+
+        @Override
+        protected void handlePing(CommandPing ping) {
+            queue.offer(new CommandPing().copyFrom(ping));
+        }
+
+        @Override
+        protected void handlePong(CommandPong pong) {
+            return;
         }
     };
 

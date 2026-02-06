@@ -96,7 +96,7 @@ public interface LongPairSet {
     /**
      * Predicate to checks for a key-value pair where both of them have long types.
      */
-    public interface LongPairPredicate {
+    interface LongPairPredicate {
         boolean test(long v1, long v2);
     }
 
@@ -132,7 +132,7 @@ public interface LongPairSet {
      *
      */
     @FunctionalInterface
-    public interface LongPairFunction<T> {
+    interface LongPairFunction<T> {
 
         /**
          * Applies this function to the given arguments.

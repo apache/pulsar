@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Strings;
+import io.netty.resolver.AddressResolver;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -63,6 +64,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private final long intervalMs;
     private static final int TIMEOUT = 30_000;
     private final PulsarServiceNameResolver resolver;
+    private AddressResolver<InetSocketAddress> addressResolver;
 
     private AutoClusterFailover(AutoClusterFailoverBuilderImpl builder) {
         this.primary = builder.primary;
@@ -86,6 +88,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     @Override
     public void initialize(PulsarClient client) {
         this.pulsarClient = (PulsarClientImpl) client;
+        this.addressResolver = pulsarClient.getAddressResolver();
         ClientConfigurationData config = pulsarClient.getConfiguration();
         if (config != null) {
             this.primaryAuthentication = config.getAuthentication();
@@ -128,9 +131,15 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         try {
             resolver.updateServiceUrl(url);
             InetSocketAddress endpoint = resolver.resolveHost();
-            Socket socket = new Socket();
-            socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
-            socket.close();
+            if (!endpoint.isUnresolved()) {
+                // create an unresolved endpoint to ensure that DNS lookup is performed again
+                endpoint = InetSocketAddress.createUnresolved(endpoint.getHostString(), endpoint.getPort());
+            }
+            // Use Netty's DNS resolver and settings to resolve the host name
+            InetSocketAddress resolvedEndpoint = addressResolver.resolve(endpoint).get(TIMEOUT, TimeUnit.MILLISECONDS);
+            try (Socket socket = new Socket()) {
+                socket.connect(resolvedEndpoint, TIMEOUT);
+            }
             return true;
         } catch (Exception e) {
             log.warn("Failed to probe available, url: {}", url, e);
@@ -161,6 +170,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             }
 
             pulsarClient.updateServiceUrl(target);
+            pulsarClient.reloadLookUp();
             currentPulsarServiceUrl = target;
         } catch (IOException e) {
             log.error("Current Pulsar service is {}, "

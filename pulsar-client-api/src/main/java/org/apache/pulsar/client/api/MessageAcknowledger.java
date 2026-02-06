@@ -49,6 +49,10 @@ public interface MessageAcknowledger {
      *
      * @throws PulsarClientException.AlreadyClosedException}
      *             if the consumer was already closed
+     * @throws PulsarClientException.NotAllowedException
+     *             if `messageId` is not a {@link TopicMessageId} when multiple topics are subscribed
+     * @throws PulsarClientException.InvalidMessageException
+     *             if `messageId` is {@code null}
      */
     void acknowledge(MessageId messageId) throws PulsarClientException;
 
@@ -59,6 +63,10 @@ public interface MessageAcknowledger {
     /**
      * Acknowledge the consumption of a list of message.
      * @param messageIdList the list of message IDs.
+     * @throws PulsarClientException.NotAllowedException
+     *     if any message id in the list is not a {@link TopicMessageId} when multiple topics are subscribed
+     * @throws PulsarClientException.InvalidMessageException
+     *     if `messageIdList` is {@code null} or contains any {@code null} element
      */
     void acknowledge(List<MessageId> messageIdList) throws PulsarClientException;
 
@@ -82,6 +90,10 @@ public interface MessageAcknowledger {
      *            The {@code MessageId} to be cumulatively acknowledged
      * @throws PulsarClientException.AlreadyClosedException
      *             if the consumer was already closed
+     * @throws PulsarClientException.NotAllowedException
+     *             if `messageId` is not a {@link TopicMessageId} when multiple topics are subscribed
+     * @throws PulsarClientException.InvalidMessageException
+     *             if `messageId` is {@code null}
      */
     void acknowledgeCumulative(MessageId messageId) throws PulsarClientException;
 
@@ -91,11 +103,22 @@ public interface MessageAcknowledger {
 
     /**
      * The asynchronous version of {@link #acknowledge(MessageId)} with transaction support.
+     *
+     * @param messageId {@link MessageId} to be individual acknowledged
+     * @param txn {@link Transaction} the transaction to ack with, or {@code null} for non-transactional ack
+     * @return a future that completes when the acknowledge operation is sent.
+     *         The future will complete exceptionally with {@link PulsarClientException.InvalidMessageException}
+     *         if `messageId` is {@code null}.
      */
     CompletableFuture<Void> acknowledgeAsync(MessageId messageId, Transaction txn);
 
     /**
      * The asynchronous version of {@link #acknowledge(MessageId)}.
+     *
+     * @param messageId {@link MessageId} to be individual acknowledged
+     * @return a future that completes when the acknowledge operation is sent.
+     *         The future will complete exceptionally with {@link PulsarClientException.InvalidMessageException}
+     *         if `messageId` is {@code null}.
      */
     default CompletableFuture<Void> acknowledgeAsync(MessageId messageId) {
         return acknowledgeAsync(messageId, null);
@@ -103,26 +126,53 @@ public interface MessageAcknowledger {
 
     /**
      * The asynchronous version of {@link #acknowledge(List)} with transaction support.
+     *
+     * @param messageIdList the list of message IDs.
+     * @param txn {@link Transaction} the transaction to ack with, or {@code null} for non-transactional ack
+     * @return a future that completes when the acknowledge operation is sent.
+     *         The future will complete exceptionally with {@link PulsarClientException.InvalidMessageException}
+     *         if `messageIdList` is {@code null} or contains any {@code null} element.
      */
     CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList, Transaction txn);
 
     /**
      * The asynchronous version of {@link #acknowledge(List)}.
+     *
+     * @param messageIdList the list of message IDs.
+     * @return a future that completes when the acknowledge operation is sent.
+     *         The future will complete exceptionally with {@link PulsarClientException.InvalidMessageException}
+     *         if `messageIdList` is {@code null} or contains any {@code null} element.
      */
     CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList);
 
     /**
      * The asynchronous version of {@link #acknowledge(Message)}.
+     *
+     * @param message {@link Message} to be individual acknowledged
+     * @return a future that completes when the acknowledge operation is sent.
+     *         The future will complete exceptionally with {@link PulsarClientException.InvalidMessageException}
+     *         if `message` is {@code null} or its {@link Message#getMessageId()} returns {@code null}.
      */
     CompletableFuture<Void> acknowledgeAsync(Message<?> message);
 
     /**
      * The asynchronous version of {@link #acknowledge(Messages)}.
+     *
+     * @param messages {@link Messages} to be acknowledged
+     * @return a future that completes when the acknowledge operation is sent.
+     *         The future will complete exceptionally with {@link PulsarClientException.InvalidMessageException}
+     *         if `messages` is {@code null} or contains any {@code null} message.
      */
     CompletableFuture<Void> acknowledgeAsync(Messages<?> messages);
 
     /**
      * The asynchronous version of {@link #acknowledge(Messages)} with transaction support.
+     *
+     * @param messages {@link Messages} to be acknowledged
+     * @param txn {@link Transaction} the transaction to ack with, or {@code null} for non-transactional ack
+     * @return a future that completes when the acknowledge operation is sent.
+     *         The future will complete exceptionally with {@link PulsarClientException.InvalidMessageException}
+     *         if `messages` is {@code null} or contains any {@code null} message.
      */
     CompletableFuture<Void> acknowledgeAsync(Messages<?> messages, Transaction txn);
 
@@ -136,6 +186,9 @@ public interface MessageAcknowledger {
      * @param messageId
      *            The {@code MessageId} to be cumulatively acknowledged
      * @param txn {@link Transaction} the transaction to cumulative ack
+     * @return a future that completes when the acknowledge operation is sent.
+     *         The future will complete exceptionally with {@link PulsarClientException.InvalidMessageException}
+     *         if `messageId` is {@code null}.
      */
     CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId,
                                                        Transaction txn);

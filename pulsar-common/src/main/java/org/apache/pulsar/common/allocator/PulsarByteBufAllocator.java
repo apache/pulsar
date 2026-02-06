@@ -21,9 +21,13 @@ package org.apache.pulsar.common.allocator;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.PooledByteBufAllocator;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.allocator.ByteBufAllocatorBuilder;
@@ -43,6 +47,13 @@ public class PulsarByteBufAllocator {
     public static final String PULSAR_ALLOCATOR_EXIT_ON_OOM = "pulsar.allocator.exit_on_oom";
     public static final String PULSAR_ALLOCATOR_LEAK_DETECTION = "pulsar.allocator.leak_detection";
     public static final String PULSAR_ALLOCATOR_OUT_OF_MEMORY_POLICY = "pulsar.allocator.out_of_memory_policy";
+
+    // the highest level of leak detection policy will be used when it is set by any of the following property names
+    private static final String[] LEAK_DETECTION_PROPERTY_NAMES = {
+            PULSAR_ALLOCATOR_LEAK_DETECTION,
+            "io.netty.leakDetection.level", // io.netty.util.ResourceLeakDetector.PROP_LEVEL
+            "io.netty.leakDetectionLevel" // io.netty.util.ResourceLeakDetector.PROP_LEVEL_OLD
+    };
 
     public static final ByteBufAllocator DEFAULT;
 
@@ -64,8 +75,7 @@ public class PulsarByteBufAllocator {
         final OutOfMemoryPolicy outOfMemoryPolicy = OutOfMemoryPolicy.valueOf(
                 System.getProperty(PULSAR_ALLOCATOR_OUT_OF_MEMORY_POLICY, "FallbackToHeap"));
 
-        final LeakDetectionPolicy leakDetectionPolicy = LeakDetectionPolicy
-                .valueOf(System.getProperty(PULSAR_ALLOCATOR_LEAK_DETECTION, "Disabled"));
+        final LeakDetectionPolicy leakDetectionPolicy = resolveLeakDetectionPolicyWithHighestLevel(System::getProperty);
         if (log.isDebugEnabled()) {
             log.debug("Is Pooled: {} -- Exit on OOM: {}", isPooled, isExitOnOutOfMemory);
         }
@@ -97,5 +107,20 @@ public class PulsarByteBufAllocator {
         builder.outOfMemoryPolicy(outOfMemoryPolicy);
         return builder.build();
 
+    }
+
+    /**
+     * Resolve the leak detection policy. The value is resolved from the system properties in
+     * the order of LEAK_DETECTION_PROPERTY_NAMES.
+     * @return parsed leak detection policy
+     */
+    @VisibleForTesting
+    static LeakDetectionPolicy resolveLeakDetectionPolicyWithHighestLevel(Function<String, String> propertyResolver) {
+        return Arrays.stream(LEAK_DETECTION_PROPERTY_NAMES)
+                .map(propertyResolver)
+                .filter(Objects::nonNull)
+                .map(LeakDetectionPolicy::parseLevel)
+                .max(Comparator.comparingInt(Enum::ordinal))
+                .orElse(LeakDetectionPolicy.Disabled);
     }
 }

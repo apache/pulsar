@@ -23,6 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,7 +35,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.collections4.MapUtils;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
+import org.apache.pulsar.common.util.collections.OpenLongPairRangeSet;
 
 /**
  * Configuration class for a ManagedLedger.
@@ -61,9 +63,12 @@ public class ManagedLedgerConfig {
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
+    private Semaphore ledgerDeletionSemaphore;
+    private ExecutorService ledgerDeleteExecutor;
     private long retentionTimeMs = 0;
-    private int retentionSizeInMB = 0;
+    private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
+    private boolean ledgerForceRecovery;
     private boolean lazyCursorRecovery = false;
     private long metadataOperationsTimeoutSeconds = 60;
     private long readEntryTimeoutSeconds = 120;
@@ -79,16 +84,27 @@ public class ManagedLedgerConfig {
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
+    private long inactiveOffloadedLedgerEvictionTimeMs = 0;
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
+    @Getter
+    @Setter
+    private boolean cacheEvictionByExpectedReadCount = true;
+    @Getter
+    private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
-
+    private boolean triggerOffloadOnTopicLoad = false;
+    @Getter
+    @Setter
+    private String storageClassName;
     @Getter
     @Setter
     private String shadowSourceName;
+    @Getter
+    private boolean persistIndividualAckAsLongArray;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -96,6 +112,11 @@ public class ManagedLedgerConfig {
 
     public ManagedLedgerConfig setCreateIfMissing(boolean createIfMissing) {
         this.createIfMissing = createIfMissing;
+        return this;
+    }
+
+    public ManagedLedgerConfig setPersistIndividualAckAsLongArray(boolean persistIndividualAckAsLongArray) {
+        this.persistIndividualAckAsLongArray = persistIndividualAckAsLongArray;
         return this;
     }
 
@@ -281,7 +302,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * should use {@link ConcurrentOpenLongPairRangeSet} to store unacked ranges.
+     * should use {@link OpenLongPairRangeSet} to store unacked ranges.
      * @return
      */
     public boolean isUnackedRangesOpenCacheSetEnabled() {
@@ -394,9 +415,33 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * @return the semaphore used to limit concurrent ledger deletions
+     */
+    public Semaphore getLedgerDeletionSemaphore() {
+        return ledgerDeletionSemaphore;
+    }
+
+    public ManagedLedgerConfig setLedgerDeletionSemaphore(Semaphore semaphore) {
+        this.ledgerDeletionSemaphore = semaphore;
+        return this;
+    }
+
+    /**
+     * @return the executor service to be used for deleting ledgers
+     */
+    public ExecutorService getLedgerDeleteExecutor() {
+        return ledgerDeleteExecutor;
+    }
+
+    public ManagedLedgerConfig setLedgerDeleteExecutor(ExecutorService executor) {
+        this.ledgerDeleteExecutor = executor;
+        return this;
+    }
+
+    /**
      * Set the retention time for the ManagedLedger.
      * <p>
-     * Retention time and retention size ({@link #setRetentionSizeInMB(int)}) are together used to retain the
+     * Retention time and retention size ({@link #setRetentionSizeInMB(long)}) are together used to retain the
      * ledger data when there are no cursors or when all the cursors have marked the data for deletion.
      * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
      * the data marked for deletion.
@@ -438,7 +483,7 @@ public class ManagedLedgerConfig {
      * @param retentionSizeInMB
      *            quota for message retention
      */
-    public ManagedLedgerConfig setRetentionSizeInMB(int retentionSizeInMB) {
+    public ManagedLedgerConfig setRetentionSizeInMB(long retentionSizeInMB) {
         this.retentionSizeInMB = retentionSizeInMB;
         return this;
     }
@@ -447,7 +492,7 @@ public class ManagedLedgerConfig {
      * @return quota for message retention
      *
      */
-    public int getRetentionSizeInMB() {
+    public long getRetentionSizeInMB() {
         return retentionSizeInMB;
     }
 
@@ -465,6 +510,17 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * Skip managed ledger failure to recover managed ledger forcefully.
+     */
+    public boolean isLedgerForceRecovery() {
+        return ledgerForceRecovery;
+    }
+
+    public void setLedgerForceRecovery(boolean ledgerForceRecovery) {
+        this.ledgerForceRecovery = ledgerForceRecovery;
+    }
+
+    /**
      * @return max unacked message ranges that will be persisted and recovered.
      *
      */
@@ -477,6 +533,16 @@ public class ManagedLedgerConfig {
      */
     public int getMaxBatchDeletedIndexToPersist() {
         return maxBatchDeletedIndexToPersist;
+    }
+
+    /**
+     * Set max batch deleted index that will be persisted and recovered.
+     *
+     * @param maxBatchDeletedIndexToPersist
+     *            max batch deleted index that will be persisted and recovered.
+     */
+    public void setMaxBatchDeletedIndexToPersist(int maxBatchDeletedIndexToPersist) {
+        this.maxBatchDeletedIndexToPersist = maxBatchDeletedIndexToPersist;
     }
 
     public boolean isPersistentUnackedRangesWithMultipleEntriesEnabled() {
@@ -504,8 +570,10 @@ public class ManagedLedgerConfig {
         return maxUnackedRangesToPersistInMetadataStore;
     }
 
-    public void setMaxUnackedRangesToPersistInMetadataStore(int maxUnackedRangesToPersistInMetadataStore) {
+    public ManagedLedgerConfig setMaxUnackedRangesToPersistInMetadataStore(
+            int maxUnackedRangesToPersistInMetadataStore) {
         this.maxUnackedRangesToPersistInMetadataStore = maxUnackedRangesToPersistInMetadataStore;
+        return this;
     }
 
     /**
@@ -691,6 +759,14 @@ public class ManagedLedgerConfig {
         this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
     }
 
+    public long getInactiveOffloadedLedgerEvictionTimeMs() {
+        return inactiveOffloadedLedgerEvictionTimeMs;
+    }
+
+    public void setInactiveOffloadedLedgerEvictionTime(long inactiveOffloadedLedgerEvictionTime, TimeUnit unit) {
+        this.inactiveOffloadedLedgerEvictionTimeMs = unit.toMillis(inactiveOffloadedLedgerEvictionTime);
+    }
+
     /**
      * Minimum cursors with backlog after which broker is allowed to cache read entries to reuse them for other cursors'
      * backlog reads. (Default = 0, broker will not cache backlog reads)
@@ -746,6 +822,22 @@ public class ManagedLedgerConfig {
      */
     public void setMaxBacklogBetweenCursorsForCaching(int maxBacklogBetweenCursorsForCaching) {
         this.maxBacklogBetweenCursorsForCaching = maxBacklogBetweenCursorsForCaching;
+    }
+
+    /**
+     * Trigger offload on topic load.
+     * @return
+     */
+    public boolean isTriggerOffloadOnTopicLoad() {
+        return triggerOffloadOnTopicLoad;
+    }
+
+    /**
+     * Set trigger offload on topic load.
+     * @param triggerOffloadOnTopicLoad
+     */
+    public void setTriggerOffloadOnTopicLoad(boolean triggerOffloadOnTopicLoad) {
+        this.triggerOffloadOnTopicLoad = triggerOffloadOnTopicLoad;
     }
 
     public String getShadowSource() {

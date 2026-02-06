@@ -19,7 +19,7 @@
 
 
 Configuration:
-  status: INFO
+  status: ERROR
   monitorInterval: 30
   name: pulsar
   packages: io.prometheus.client.log4j2
@@ -40,6 +40,8 @@ Configuration:
         value: "info"
       - name: "pulsar.routing.appender.default"
         value: "Console"
+      - name: "pulsar.log.console.json.template"
+        value: "classpath:EcsLayout.json"
 
   # Example: logger-filter script
 #  Scripts:
@@ -53,10 +55,14 @@ Configuration:
 
     # Console
     Console:
-      name: Console
-      target: SYSTEM_OUT
-      PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+      - name: Console
+        target: SYSTEM_OUT
+        PatternLayout:
+          Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+      - name: ConsoleJson
+        target: SYSTEM_OUT
+        JsonTemplateLayout:
+          eventTemplateUri: ${sys:pulsar.log.console.json.template}
 
     # Rolling file appender configuration
     RollingFile:
@@ -78,7 +84,7 @@ Configuration:
             basePath: ${sys:pulsar.log.dir}
             maxDepth: 2
             IfFileName:
-              glob: "*/${sys:pulsar.log.file}*log.gz"
+              glob: "${sys:pulsar.log.file}*log.gz"
             IfLastModified:
               age: 30d
 
@@ -120,7 +126,7 @@ Configuration:
                             basePath: ${sys:pulsar.log.dir}
                             maxDepth: 2
                             IfFileName:
-                              glob: "*/${sys:pulsar.log.file}*log.gz"
+                              glob: "${sys:pulsar.log.file}*log.gz"
                             IfLastModified:
                               age: 30d
                   - ref: "${sys:pulsar.routing.appender.default}"

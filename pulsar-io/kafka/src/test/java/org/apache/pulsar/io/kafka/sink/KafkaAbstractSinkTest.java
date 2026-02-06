@@ -18,6 +18,20 @@
  */
 package org.apache.pulsar.io.kafka.sink;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
+import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -32,22 +46,11 @@ import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
-
-import static org.testng.Assert.*;
-
 public class KafkaAbstractSinkTest {
     private static class DummySink extends KafkaAbstractSink<String, byte[]> {
 
         @Override
-        public KeyValue extractKeyValue(Record record) {
+        public KeyValue<String, byte[]> extractKeyValue(Record<byte[]> record) {
             return new KeyValue<>(record.getKey().orElse(null), record.getValue());
         }
     }
@@ -57,25 +60,41 @@ public class KafkaAbstractSinkTest {
         void run() throws Throwable;
     }
 
-    private static <T extends Exception> void expectThrows(Class<T> expectedType, String expectedMessage, ThrowingRunnable runnable) {
+    private static <T extends Exception> void expectThrows(Class<T> expectedType, String expectedMessage,
+                                                           ThrowingRunnable runnable) {
         try {
             runnable.run();
             Assert.fail();
         } catch (Throwable e) {
             if (expectedType.isInstance(e)) {
                 T ex = expectedType.cast(e);
-                assertEquals(expectedMessage, ex.getMessage());
+                assertEquals(ex.getMessage(), expectedMessage);
                 return;
             }
-            throw new AssertionError("Unexpected exception type, expected " + expectedType.getSimpleName() + " but got " + e);
+            throw new AssertionError("Unexpected exception type, expected " + expectedType.getSimpleName()
+                    + " but got " + e);
         }
         throw new AssertionError("Expected exception");
     }
 
+    /**
+     * Creates a valid Kafka Sink configuration that is used by multiple test cases.
+     *
+     * @return a map containing all required Kafka sink configuration fields
+     */
+    private static Map<String, Object> validConfig() {
+        Map<String, Object> map = new HashMap<>();
+        map.put("bootstrapServers", "localhost:6667");
+        map.put("acks", "1");
+        map.put("topic", "topic_2");
+        map.put("batchSize", "16384");
+        map.put("maxRequestSize", "1048576");
+        return map;
+    }
+
     @Test
     public void testInvalidConfigWillThrownException() throws Exception {
-        KafkaAbstractSink sink = new DummySink();
-        Map<String, Object> config = new HashMap<>();
+        KafkaAbstractSink<String, byte[]> sink = new DummySink();
         SinkContext sc = new SinkContext() {
             @Override
             public int getInstanceId() {
@@ -123,7 +142,9 @@ public class KafkaAbstractSinkTest {
             }
 
             @Override
-            public String getSecret(String key) { return null; }
+            public String getSecret(String key) {
+                return null;
+            }
 
             @Override
             public void incrCounter(String key, long amount) {
@@ -164,23 +185,28 @@ public class KafkaAbstractSinkTest {
             public CompletableFuture<ByteBuffer> getStateAsync(String key) {
                 return null;
             }
-            
+
             @Override
             public void deleteState(String key) {
-            	
+
             }
-            
+
             @Override
             public CompletableFuture<Void> deleteStateAsync(String key) {
-            	return null;
+                return null;
             }
 
             @Override
             public PulsarClient getPulsarClient() {
                 return null;
             }
+
+            @Override
+            public void fatal(Throwable t) {
+
+            }
         };
-        ThrowingRunnable openAndClose = ()->{
+        Function<Map<String, Object>, ThrowingRunnable> runWith = config -> () -> {
             try {
                 sink.open(config, sc);
                 fail();
@@ -188,21 +214,54 @@ public class KafkaAbstractSinkTest {
                 sink.close();
             }
         };
-        expectThrows(NullPointerException.class, "Kafka topic is not set", openAndClose);
-        config.put("topic", "topic_2");
-        expectThrows(NullPointerException.class, "Kafka bootstrapServers is not set", openAndClose);
-        config.put("bootstrapServers", "localhost:6667");
-        expectThrows(NullPointerException.class, "Kafka acks mode is not set", openAndClose);
-        config.put("acks", "1");
-        config.put("batchSize", "-1");
-        expectThrows(IllegalArgumentException.class, "Invalid Kafka Producer batchSize : -1", openAndClose);
-        config.put("batchSize", "16384");
-        config.put("maxRequestSize", "-1");
-        expectThrows(IllegalArgumentException.class, "Invalid Kafka Producer maxRequestSize : -1", openAndClose);
-        config.put("maxRequestSize", "1048576");
-        config.put("acks", "none");
-        expectThrows(ConfigException.class, "Invalid value none for configuration acks: String must be one of: all, -1, 0, 1", openAndClose);
-        config.put("acks", "1");
+
+        // Table of test cases for key removal and modification tests
+        record Case(
+                Consumer<Map<String, Object>> mutate,
+                Class<? extends Exception> expectedType,
+                String expectedMessage
+        ) {}
+
+        List<Case> cases = List.of(
+                // Missing bootstrapServers
+                new Case(config -> config.remove("bootstrapServers"),
+                        IllegalArgumentException.class,
+                        "bootstrapServers cannot be null"),
+
+                // Missing acks
+                new Case(config -> config.remove("acks"),
+                        IllegalArgumentException.class,
+                        "acks cannot be null"),
+
+                // Missing topic
+                new Case(config -> config.remove("topic"),
+                        IllegalArgumentException.class,
+                        "topic cannot be null"),
+
+                // Bad batchSize
+                new Case(config -> config.put("batchSize", "-1"),
+                        IllegalArgumentException.class,
+                        "Invalid Kafka Producer batchSize : -1"),
+
+                // Bad maxRequestSize
+                new Case(config -> config.put("maxRequestSize", "-1"),
+                        IllegalArgumentException.class,
+                        "Invalid Kafka Producer maxRequestSize : -1"),
+
+                // Invalid acks value
+                new Case(config -> config.put("acks", "none"),
+                        ConfigException.class,
+                        "Invalid value none for configuration acks: String must be one of: all, -1, 0, 1")
+        );
+
+        for (Case currCase : cases) {
+            var config = validConfig(); // set fresh, valid, baseline each time
+            currCase.mutate.accept(config); // remove or change one field
+            expectThrows(currCase.expectedType, currCase.expectedMessage, runWith.apply(config));
+        }
+
+        // Finally verify a valid config passes cleanly
+        var config = validConfig();
         sink.open(config, sc);
         sink.close();
     }
@@ -239,7 +298,8 @@ public class KafkaAbstractSinkTest {
         assertEquals(config.getMaxRequestSize(), 1048576L);
         assertEquals(config.getSecurityProtocol(), SecurityProtocol.SASL_PLAINTEXT.name);
         assertEquals(config.getSaslMechanism(), "PLAIN");
-        assertEquals(config.getSaslJaasConfig(), "org.apache.kafka.common.security.plain.PlainLoginModule required \nusername=\"alice\" \npassword=\"pwd\";");
+        assertEquals(config.getSaslJaasConfig(), "org.apache.kafka.common.security.plain.PlainLoginModule "
+                + "required \nusername=\"alice\" \npassword=\"pwd\";");
         assertEquals(config.getSslEndpointIdentificationAlgorithm(), "");
         assertEquals(config.getSslTruststoreLocation(), "/etc/cert.pem");
         assertEquals(config.getSslTruststorePassword(), "cert_pwd");

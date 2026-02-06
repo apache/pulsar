@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import io.prometheus.client.jetty.JettyStatisticsCollector;
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.servlet.DispatcherType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -30,24 +33,36 @@ import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
+import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.functions.worker.PulsarWorkerOpenTelemetry;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
+import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
-import org.eclipse.jetty.server.ConnectionLimit;
+import org.eclipse.jetty.ee8.servlet.FilterHolder;
+import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.eclipse.jetty.http.UriCompliance;
+import org.eclipse.jetty.server.ConnectionFactory;
+import org.eclipse.jetty.server.ForwardedRequestCustomizer;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.NetworkConnectionLimit;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
+import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
-import org.eclipse.jetty.server.handler.HandlerCollection;
-import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.server.handler.QoSHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
-import org.eclipse.jetty.servlet.FilterHolder;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.servlets.QoSFilter;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -66,6 +81,8 @@ public class WorkerServer {
     private ServerConnector httpsConnector;
 
     private final FilterInitializer filterInitializer;
+    private PulsarSslFactory sslFactory;
+    private ScheduledExecutorService scheduledExecutorService;
 
     public WorkerServer(WorkerService workerService, AuthenticationService authenticationService) {
         this.workerConfig = workerService.getWorkerConfig();
@@ -85,38 +102,51 @@ public class WorkerServer {
     private void init() {
         server = new Server(webServerExecutor);
         if (workerConfig.getMaxHttpServerConnections() > 0) {
-            server.addBean(new ConnectionLimit(workerConfig.getMaxHttpServerConnections(), server));
+            server.addBean(new NetworkConnectionLimit(workerConfig.getMaxHttpServerConnections(), server));
         }
+
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setUriCompliance(UriCompliance.LEGACY);
+        if (workerConfig.isWebServiceTrustXForwardedFor()) {
+            httpConfig.addCustomizer(new ForwardedRequestCustomizer());
+        }
+        HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
 
         List<ServerConnector> connectors = new ArrayList<>();
         if (this.workerConfig.getWorkerPort() != null) {
             log.info("Configuring http server on port={}", this.workerConfig.getWorkerPort());
-            httpConnector = new ServerConnector(server);
+            List<ConnectionFactory> connectionFactories = new ArrayList<>();
+            if (workerConfig.isWebServiceHaProxyProtocolEnabled()) {
+                connectionFactories.add(new ProxyConnectionFactory());
+            }
+            connectionFactories.add(httpConnectionFactory);
+            httpConnector = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
             httpConnector.setPort(this.workerConfig.getWorkerPort());
             connectors.add(httpConnector);
         }
 
         List<Handler> handlers = new ArrayList<>(4);
         handlers.add(newServletContextHandler("/admin",
-            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
+            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer).get());
         handlers.add(newServletContextHandler("/admin/v2",
-            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer));
+            new ResourceConfig(Resources.getApiV2Resources()), workerService, filterInitializer).get());
         handlers.add(newServletContextHandler("/admin/v3",
-            new ResourceConfig(Resources.getApiV3Resources()), workerService, filterInitializer));
+            new ResourceConfig(Resources.getApiV3Resources()), workerService, filterInitializer).get());
         // don't require auth for metrics or config routes
         handlers.add(newServletContextHandler("/",
             new ResourceConfig(Resources.getRootResources()), workerService,
-            workerConfig.isAuthenticateMetricsEndpoint(), filterInitializer));
+            workerConfig.isAuthenticateMetricsEndpoint(), filterInitializer).get());
 
-        RequestLogHandler requestLogHandler = new RequestLogHandler();
-        requestLogHandler.setRequestLog(JettyRequestLogFactory.createRequestLogger());
-        handlers.add(0, new ContextHandlerCollection());
-        handlers.add(requestLogHandler);
+        boolean showDetailedAddresses = workerConfig.getWebServiceLogDetailedAddresses() != null
+                ? workerConfig.getWebServiceLogDetailedAddresses() :
+                (workerConfig.isWebServiceHaProxyProtocolEnabled() || workerConfig.isWebServiceTrustXForwardedFor());
+        server.setRequestLog(JettyRequestLogFactory.createRequestLogger(showDetailedAddresses, server));
+
 
         ContextHandlerCollection contexts = new ContextHandlerCollection();
-        contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
-        HandlerCollection handlerCollection = new HandlerCollection();
-        handlerCollection.setHandlers(new Handler[]{contexts, new DefaultHandler(), requestLogHandler});
+        contexts.setHandlers(handlers);
+        Handler.Collection handlerCollection = new Handler.Sequence();
+        handlerCollection.setHandlers(contexts, new DefaultHandler());
 
         // Metrics handler
         StatisticsHandler stats = new StatisticsHandler();
@@ -126,42 +156,48 @@ public class WorkerServer {
         } catch (IllegalArgumentException e) {
             // Already registered. Eg: in unit tests
         }
-        handlers.add(stats);
-        server.setHandler(stats);
+
+        Handler serverHandler = stats;
+        if (workerConfig.getMaxConcurrentHttpRequests() > 0) {
+            QoSHandler qoSHandler = new QoSHandler(serverHandler);
+            qoSHandler.setMaxRequestCount(workerConfig.getMaxConcurrentHttpRequests());
+            serverHandler = qoSHandler;
+        }
+        server.setHandler(serverHandler);
 
         if (this.workerConfig.getTlsEnabled()) {
             log.info("Configuring https server on port={}", this.workerConfig.getWorkerPortTls());
             try {
-                SslContextFactory sslCtxFactory;
-                if (workerConfig.isTlsEnabledWithKeyStore()) {
-                    sslCtxFactory = JettySslContextFactory.createServerSslContextWithKeystore(
-                            workerConfig.getTlsProvider(),
-                            workerConfig.getTlsKeyStoreType(),
-                            workerConfig.getTlsKeyStore(),
-                            workerConfig.getTlsKeyStorePassword(),
-                            workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.getTlsTrustStoreType(),
-                            workerConfig.getTlsTrustStore(),
-                            workerConfig.getTlsTrustStorePassword(),
-                            workerConfig.isTlsRequireTrustedClientCertOnConnect(),
-                            workerConfig.getWebServiceTlsCiphers(),
-                            workerConfig.getWebServiceTlsProtocols(),
-                            workerConfig.getTlsCertRefreshCheckDurationSec()
-                    );
-                } else {
-                    sslCtxFactory = JettySslContextFactory.createServerSslContext(
-                            workerConfig.getTlsProvider(),
-                            workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.getTlsTrustCertsFilePath(),
-                            workerConfig.getTlsCertificateFilePath(),
-                            workerConfig.getTlsKeyFilePath(),
-                            workerConfig.isTlsRequireTrustedClientCertOnConnect(),
-                            workerConfig.getWebServiceTlsCiphers(),
-                            workerConfig.getWebServiceTlsProtocols(),
-                            workerConfig.getTlsCertRefreshCheckDurationSec()
-                    );
+                PulsarSslConfiguration sslConfiguration = buildSslConfiguration(workerConfig);
+                this.sslFactory = new DefaultPulsarSslFactory();
+                this.sslFactory.initialize(sslConfiguration);
+                this.sslFactory.createInternalSslContext();
+                this.scheduledExecutorService = Executors
+                        .newSingleThreadScheduledExecutor(new ExecutorProvider
+                                .ExtendedThreadFactory("functions-worker-web-ssl-refresh"));
+                this.scheduledExecutorService.scheduleWithFixedDelay(this::refreshSslContext,
+                        workerConfig.getTlsCertRefreshCheckDurationSec(),
+                        workerConfig.getTlsCertRefreshCheckDurationSec(),
+                        TimeUnit.SECONDS);
+                SslContextFactory.Server sslCtxFactory =
+                        JettySslContextFactory.createSslContextFactory(this.workerConfig.getTlsProvider(),
+                                this.sslFactory, this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
+                                this.workerConfig.getWebServiceTlsCiphers(),
+                                this.workerConfig.getWebServiceTlsProtocols());
+                List<ConnectionFactory> connectionFactories = new ArrayList<>();
+                if (workerConfig.isWebServiceHaProxyProtocolEnabled()) {
+                    connectionFactories.add(new ProxyConnectionFactory());
                 }
-                httpsConnector = new ServerConnector(server, sslCtxFactory);
+                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+                connectionFactories.add(httpConnectionFactory);
+                // org.eclipse.jetty.server.AbstractConnectionFactory.getFactories contains similar logic
+                // this is needed for TLS authentication
+                if (httpConfig.getCustomizer(SecureRequestCustomizer.class) == null) {
+                    // disable SNI host check for backwards compatibility with Jetty 9.x
+                    boolean sniHostCheck = false;
+                    httpConfig.addCustomizer(new SecureRequestCustomizer(sniHostCheck));
+                }
+                httpsConnector = new ServerConnector(server, connectionFactories.toArray(new ConnectionFactory[0]));
                 httpsConnector.setPort(this.workerConfig.getWorkerPortTls());
                 connectors.add(httpsConnector);
             } catch (Exception e) {
@@ -179,15 +215,10 @@ public class WorkerServer {
         private final FilterHolder authenticationFilterHolder;
 
         FilterInitializer(WorkerConfig config, AuthenticationService authenticationService) {
-            if (config.getMaxConcurrentHttpRequests() > 0) {
-                FilterHolder filterHolder = new FilterHolder(QoSFilter.class);
-                filterHolder.setInitParameter("maxRequests", String.valueOf(config.getMaxConcurrentHttpRequests()));
-                filterHolders.add(filterHolder);
-            }
-
             if (config.isHttpRequestsLimitEnabled()) {
                 filterHolders.add(new FilterHolder(
-                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond(),
+                                OpenTelemetry.noop().getMeter(PulsarWorkerOpenTelemetry.INSTRUMENTATION_SCOPE_NAME))));
             }
 
             if (config.isAuthenticationEnabled()) {
@@ -209,9 +240,9 @@ public class WorkerServer {
     }
 
     static ServletContextHandler newServletContextHandler(String contextPath,
-                                                                 ResourceConfig config,
-                                                                 WorkerService workerService,
-                                                                 FilterInitializer filterInitializer) {
+                                                          ResourceConfig config,
+                                                          WorkerService workerService,
+                                                          FilterInitializer filterInitializer) {
         return newServletContextHandler(contextPath, config, workerService, true, filterInitializer);
     }
 
@@ -253,6 +284,9 @@ public class WorkerServer {
                 log.warn("Error stopping function web-server executor", e);
             }
         }
+        if (this.scheduledExecutorService != null) {
+            this.scheduledExecutorService.shutdownNow();
+        }
     }
 
     public Optional<Integer> getListenPortHTTP() {
@@ -269,5 +303,34 @@ public class WorkerServer {
         } else {
             return Optional.empty();
         }
+    }
+
+    protected void refreshSslContext() {
+        try {
+            this.sslFactory.update();
+        } catch (Exception e) {
+            log.error("Failed to refresh SSL context", e);
+        }
+    }
+
+    protected PulsarSslConfiguration buildSslConfiguration(WorkerConfig config) {
+        return PulsarSslConfiguration.builder()
+                .tlsKeyStoreType(config.getTlsKeyStoreType())
+                .tlsKeyStorePath(config.getTlsKeyStore())
+                .tlsKeyStorePassword(config.getTlsKeyStorePassword())
+                .tlsTrustStoreType(config.getTlsTrustStoreType())
+                .tlsTrustStorePath(config.getTlsTrustStore())
+                .tlsTrustStorePassword(config.getTlsTrustStorePassword())
+                .tlsCiphers(config.getWebServiceTlsCiphers())
+                .tlsProtocols(config.getWebServiceTlsProtocols())
+                .tlsTrustCertsFilePath(config.getTlsTrustCertsFilePath())
+                .tlsCertificateFilePath(config.getTlsCertificateFilePath())
+                .tlsKeyFilePath(config.getTlsKeyFilePath())
+                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
+                .requireTrustedClientCertOnConnect(config.isTlsRequireTrustedClientCertOnConnect())
+                .tlsEnabledWithKeystore(config.isTlsEnabledWithKeyStore())
+                .serverMode(true)
+                .isHttps(true)
+                .build();
     }
 }

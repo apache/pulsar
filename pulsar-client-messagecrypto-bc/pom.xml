@@ -25,13 +25,13 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-client-messagecrypto-bc</artifactId>
   <packaging>jar</packaging>
   <description>Message crypto for End to End encryption with BouncyCastleProvider</description>
+  <name>Pulsar Client Messagecrypto BC</name>
 
   <dependencies>
     <dependency>
@@ -39,6 +39,12 @@
       <artifactId>pulsar-common</artifactId>
       <version>${project.parent.version}</version>
       <scope>provided</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>io.prometheus</groupId>
+          <artifactId>simpleclient_caffeine</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>

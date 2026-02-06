@@ -18,24 +18,16 @@
  */
 package org.apache.pulsar.proxy.extensions;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
+import static org.mockito.Mockito.doReturn;
+import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.util.PortManager;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.pulsar.proxy.server.ProxyConfiguration;
-import org.apache.pulsar.proxy.server.ProxyService;
-import org.mockito.Mockito;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.InetSocketAddress;
@@ -50,10 +42,22 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
-import static org.mockito.Mockito.doReturn;
-import static org.testng.Assert.assertEquals;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.PortManager;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.proxy.server.ProxyConfiguration;
+import org.apache.pulsar.proxy.server.ProxyService;
+import org.mockito.Mockito;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "proxy")
@@ -121,6 +125,7 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
     private ProxyService proxyService;
     private boolean useSeparateThreadPoolForProxyExtensions;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     public SimpleProxyExtensionTestBase(boolean useSeparateThreadPoolForProxyExtensions) {
         this.useSeparateThreadPoolForProxyExtensions = useSeparateThreadPoolForProxyExtensions;
@@ -140,11 +145,17 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setClusterName(configClusterName);
+
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
+                .createConfigurationMetadataStore();
 
         proxyService.start();
     }
@@ -172,6 +183,9 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
     protected void cleanup() throws Exception {
         super.internalCleanup();
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
 
         if (tempDirectory != null) {
             FileUtils.deleteDirectory(tempDirectory);
@@ -189,9 +203,9 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
             ZipEntry manifest = new ZipEntry("META-INF/services/"
                     + ProxyExtensionsUtils.PROXY_EXTENSION_DEFINITION_FILE);
             zipfile.putNextEntry(manifest);
-            String yaml = "name: test\n" +
-                    "description: this is a test\n" +
-                    "extensionClass: " + MyProxyExtension.class.getName() + "\n";
+            String yaml = "name: test\n"
+                    + "description: this is a test\n"
+                    + "extensionClass: " + MyProxyExtension.class.getName() + "\n";
             zipfile.write(yaml.getBytes(StandardCharsets.UTF_8));
             zipfile.closeEntry();
         }

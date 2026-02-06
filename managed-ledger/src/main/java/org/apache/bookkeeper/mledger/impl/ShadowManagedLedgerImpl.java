@@ -19,22 +19,25 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.metadata.api.Stat;
@@ -50,9 +53,11 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     public ShadowManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper,
                                    MetaStore store, ManagedLedgerConfig config,
                                    OrderedScheduler scheduledExecutor,
-                                   String name, final Supplier<Boolean> mlOwnershipChecker) {
+                                   String name, final Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
         super(factory, bookKeeper, store, config, scheduledExecutor, name, mlOwnershipChecker);
         this.sourceMLName = config.getShadowSourceName();
+        // ShadowManagedLedgerImpl does not implement add entry timeout yet, so this variable will always be false.
+        this.currentLedgerTimeoutTriggered = new AtomicBoolean(false);
     }
 
     /**
@@ -65,13 +70,13 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     @Override
     synchronized void initialize(ManagedLedgerInitializeLedgerCallback callback, Object ctx) {
         log.info("Opening shadow managed ledger {} with source={}", name, sourceMLName);
-        executor.execute(safeRun(() -> doInitialize(callback, ctx)));
+        executor.execute(() -> doInitialize(callback, ctx));
     }
 
     private void doInitialize(ManagedLedgerInitializeLedgerCallback callback, Object ctx) {
         // Fetch the list of existing ledgers in the source managed ledger
         store.watchManagedLedgerInfo(sourceMLName, (managedLedgerInfo, stat) ->
-                executor.execute(safeRun(() -> processSourceManagedLedgerInfo(managedLedgerInfo, stat)))
+                executor.execute(() -> processSourceManagedLedgerInfo(managedLedgerInfo, stat))
         );
         store.getManagedLedgerInfo(sourceMLName, false, null, new MetaStore.MetaStoreCallback<>() {
             @Override
@@ -94,7 +99,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 }
 
                 if (mlInfo.hasTerminatedPosition()) {
-                    lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
+                    MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+                    lastConfirmedEntry =
+                            PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
                     log.info("[{}][{}] Recovering managed ledger terminated at {}", name, sourceMLName,
                             lastConfirmedEntry);
                 }
@@ -105,7 +112,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
 
                 final long lastLedgerId = ledgers.lastKey();
                 mbean.startDataLedgerOpenOp();
-                AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> executor.execute(safeRun(() -> {
+                AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> executor.execute(() -> {
                     mbean.endDataLedgerOpenOp();
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Opened source ledger {}", name, lastLedgerId);
@@ -124,7 +131,8 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                         currentLedger = lh;
 
                         if (managedLedgerInterceptor != null) {
-                            managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh)
+                            managedLedgerInterceptor
+                                    .onManagedLedgerLastLedgerInitialize(name, createLastEntryHandle(lh))
                                     .thenRun(() -> ShadowManagedLedgerImpl.super.initialize(callback, ctx))
                                     .exceptionally(ex -> {
                                         callback.initializeFailed(
@@ -144,7 +152,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                                 BKException.getMessage(rc));
                         callback.initializeFailed(createManagedLedgerException(rc));
                     }
-                }));
+                });
                 //open ledger in readonly mode.
                 bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(), opencb, null);
 
@@ -159,11 +167,6 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 }
             }
         });
-    }
-
-    @Override
-    protected boolean isLedgersReadonly() {
-        return true;
     }
 
     @Override
@@ -206,13 +209,13 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         if (currentLedger == null) {
             return;
         }
-        lastConfirmedEntry = new PositionImpl(currentLedger.getId(), currentLedger.getLastAddConfirmed());
+        lastConfirmedEntry = PositionFactory.create(currentLedger.getId(), currentLedger.getLastAddConfirmed());
         // bypass empty ledgers, find last ledger with Message if possible.
         while (lastConfirmedEntry.getEntryId() == -1) {
             Map.Entry<Long, LedgerInfo> formerLedger = ledgers.lowerEntry(lastConfirmedEntry.getLedgerId());
             if (formerLedger != null) {
                 LedgerInfo ledgerInfo = formerLedger.getValue();
-                lastConfirmedEntry = PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
+                lastConfirmedEntry = PositionFactory.create(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
             } else {
                 break;
             }
@@ -282,7 +285,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         sourceLedgersStat = stat;
 
         if (mlInfo.hasTerminatedPosition()) {
-            lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
+            MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+            lastConfirmedEntry =
+                    PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
             log.info("[{}][{}] Process managed ledger terminated at {}", name, sourceMLName, lastConfirmedEntry);
         }
 
@@ -321,7 +326,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             mbean.startDataLedgerOpenOp();
             //open ledger in readonly mode.
             bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(),
-                    (rc, lh, ctx1) -> executor.execute(safeRun(() -> {
+                    (rc, lh, ctx1) -> executor.execute(() -> {
                         mbean.endDataLedgerOpenOp();
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Opened new source ledger {}", name, lastLedgerId);
@@ -337,7 +342,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                             currentLedgerEntries = 0;
                             currentLedgerSize = 0;
                             initLastConfirmedEntry();
-                            updateLedgersIdsComplete();
+                            updateLedgersIdsComplete(null);
                             maybeUpdateCursorBeforeTrimmingConsumedLedger();
                         } else if (isNoSuchLedgerExistsException(rc)) {
                             log.warn("[{}] Source ledger not found: {}", name, lastLedgerId);
@@ -346,7 +351,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                             log.error("[{}] Failed to open source ledger {}: {}", name, lastLedgerId,
                                     BKException.getMessage(rc));
                         }
-                    })), null);
+                    }), null);
         }
 
         //handle old ledgers deleted.
@@ -370,7 +375,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
-    protected synchronized void updateLedgersIdsComplete() {
+    protected synchronized void updateLedgersIdsComplete(LedgerHandle originalCurrentLedger) {
         STATE_UPDATER.set(this, State.LedgerOpened);
         updateLastLedgerCreatedTimeAndScheduleRolloverTask();
 
@@ -401,5 +406,10 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     @Override
     protected void updateLastLedgerCreatedTimeAndScheduleRolloverTask() {
         this.lastLedgerCreatedTimestamp = clock.millis();
+    }
+
+    @Override
+    boolean shouldCacheAddedEntry() {
+        return false;
     }
 }

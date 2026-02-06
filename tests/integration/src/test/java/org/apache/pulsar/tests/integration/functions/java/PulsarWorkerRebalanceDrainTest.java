@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.functions.java;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import com.fasterxml.jackson.databind.MappingIterator;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,10 +29,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.databind.MappingIterator;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
+import org.apache.commons.collections4.map.HashedMap;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -41,26 +43,24 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runt
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest {
 
-    final String UrlProtocolPrefix = "http://";
-    final String WorkerRebalanceUrlSuffix = "/admin/v2/worker/rebalance";
-    final String WorkerDrainAtLeaderUrlSuffix = "/admin/v2/worker/leader/drain?workerId=";
-    final int NumFunctionsAssignedOnEachWorker = 2;
-    final int NumAdditionalWorkersAtSetup = 1;
+    final String urlProtocolPrefix = "http://";
+    final String workerRebalanceUrlSuffix = "/admin/v2/worker/rebalance";
+    final String workerDrainAtLeaderUrlSuffix = "/admin/v2/worker/leader/drain?workerId=";
+    final int numFunctionsAssignedOnEachWorker = 2;
+    final int numAdditionalWorkersAtSetup = 1;
 
     PulsarWorkerRebalanceDrainTest(FunctionRuntimeType functionRuntimeType) {
-		super(functionRuntimeType);
+        super(functionRuntimeType);
     }
 
     @Override
     public void setupCluster() throws Exception {
         super.setupCluster();
-        pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, NumAdditionalWorkersAtSetup);
+        pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numAdditionalWorkersAtSetup);
         log.debug("PulsarWorkerRebalanceDrainTest: set up a total of {} function workers, of type {}",
                 pulsarCluster.getAlWorkers().size(), functionRuntimeType);
     }
@@ -78,7 +78,8 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
     }
 
     private List<WorkerInfo> workerInfoDecode(String json) throws IOException {
-	    try (MappingIterator<WorkerInfo> it = ObjectMapperFactory.getThreadLocal().readerFor(WorkerInfo.class)
+        try (MappingIterator<WorkerInfo> it =
+                     ObjectMapperFactory.getMapper().getObjectMapper().readerFor(WorkerInfo.class)
                 .readValues(json)) {
             return it.readAll();
         }
@@ -90,13 +91,16 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         // It is ad hoc because there doesn't appear to be any class exported from the function-worker code
         // for this structure.
         // The list is expected to be of the following form (this is from a real example):
-        //   String json =
-        //       "pulsar-functions-worker-process-hurkp-1    "
-        //       + " [public/default/testDrainFunctionality-cipscktc:0, public/default/testDrainFunctionality-mzaudmyx:0] "
-        //       + "pulsar-functions-worker-process-hurkp-0    "
-        //       + " [public/default/testDrainFunctionality-morjleeh:0, public/default/testDrainFunctionality-owsxgiuo:0] "
-        //       + "pulsar-functions-worker-process-qmcao-0    "
-        //       + "[public/default/testDrainFunctionality-nsnqbnlc:0, public/default/testDrainFunctionality-tbakebis:0] ";
+//           String json =
+//               "pulsar-functions-worker-process-hurkp-1    "
+//               + " [public/default/testDrainFunctionality-cipscktc:0, "
+//                       + "public/default/testDrainFunctionality-mzaudmyx:0] "
+//               + "pulsar-functions-worker-process-hurkp-0    "
+//               + " [public/default/testDrainFunctionality-morjleeh:0, "
+//                       + "public/default/testDrainFunctionality-owsxgiuo:0] "
+//               + "pulsar-functions-worker-process-qmcao-0    "
+//               + "[public/default/testDrainFunctionality-nsnqbnlc:0, "
+//                       + "public/default/testDrainFunctionality-tbakebis:0] ";
 
         final int nextWorkerStart = 0;
         String remainingJson = json;
@@ -109,7 +113,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
             int nextFunctionListStart = remainingJson.indexOf("[");
             int nextFunctionListEnd = remainingJson.indexOf("]");
             nextWorker = remainingJson.substring(nextWorkerStart, nextFunctionListStart);
-            nextWorker = nextWorker.replaceAll("\\s+","");
+            nextWorker = nextWorker.replaceAll("\\s+", "");
             nextFunctionList = remainingJson.substring(nextFunctionListStart + 1, nextFunctionListEnd);
             String[] funcAssignments = nextFunctionList.split(",");
             Map<String, Collection<String>> curMap = new HashMap<>();
@@ -156,8 +160,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         return workerInfoDecode(result.getStdout()).get(0);
     }
 
-    private List<Map<String, Collection<String>>> getFunctionAssignments() throws Exception
-    {
+    private List<Map<String, Collection<String>>> getFunctionAssignments() throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "functions-worker",
@@ -202,11 +205,11 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         val worker = pulsarCluster.getWorker(leader.getWorkerId());
         assertTrue(worker != null);
 
-        String rebalanceUrl = UrlProtocolPrefix
+        String rebalanceUrl = urlProtocolPrefix
                 + "localhost"
                 + ":"
                 + leader.getPort()
-                + WorkerRebalanceUrlSuffix;
+                + workerRebalanceUrlSuffix;
         ContainerExecResult result = worker.execCmd(
                 PulsarCluster.CURL,
                 "-X",
@@ -224,11 +227,11 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         val worker = pulsarCluster.getWorker(leader.getWorkerId());
         assertTrue(worker != null);
 
-        String drainUrl = UrlProtocolPrefix
+        String drainUrl = urlProtocolPrefix
                 + "localhost"
                 + ":"
                 + leader.getPort()
-                + WorkerDrainAtLeaderUrlSuffix
+                + workerDrainAtLeaderUrlSuffix
                 + workerToDrain;
         ContainerExecResult result = worker.execCmd(
                 PulsarCluster.CURL,
@@ -243,7 +246,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
     }
 
     private void createFunctionWorker(String functionName, String topicPrefix) throws Exception {
-	    String suffix = functionName + randomName(8);
+        String suffix = functionName + randomName(8);
         String inputTopicName = "persistent://public/default/" + topicPrefix + "-input-" + suffix;
         String outputTopicName = topicPrefix + "-output-" + suffix;
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
@@ -251,9 +254,12 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
             admin.topics().createNonPartitionedTopic(outputTopicName);
         }
 
+        Map<String, String> inputTopicsSerde = new HashedMap<>();
+        inputTopicsSerde.put(inputTopicName, SERDE_CLASS);
+
         submitFunction(
-                Runtime.JAVA, inputTopicName, outputTopicName, functionName, null, SERDE_JAVA_CLASS,
-                SERDE_OUTPUT_CLASS, Collections.singletonMap(topicPrefix, outputTopicName)
+                Runtime.JAVA, inputTopicName, outputTopicName, functionName, null, SERDE_JAVA_CLASS, inputTopicsSerde,
+                SERDE_CLASS, Collections.singletonMap(topicPrefix, outputTopicName)
         );
     }
 
@@ -275,7 +281,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
     private void allocateFunctions(String callingTest, String topicPrefix) throws  Exception {
         // Allocate functions until there are NumFunctionsAssignedOnEachWorker on each worker, on the average.
         ContainerExecResult result;
-        int numFunctions = pulsarCluster.getAlWorkers().size() * NumFunctionsAssignedOnEachWorker;
+        int numFunctions = pulsarCluster.getAlWorkers().size() * numFunctionsAssignedOnEachWorker;
 
         for (int ix = 0; ix < numFunctions; ix++) {
             String functionName = callingTest + "-" + randomName(8);
@@ -315,7 +321,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
                 startFinfos.size(), startFuncCount);
         // Check that there are NumFunctionsAssignedOnEachWorker functions assigned to each worker,
         // since the assignment is round-robin by default.
-        assertEquals(getMinFuncAssignmentOnAnyWorker(startFinfos), NumFunctionsAssignedOnEachWorker);
+        assertEquals(getMinFuncAssignmentOnAnyWorker(startFinfos), numFunctionsAssignedOnEachWorker);
 
         // Add a few more workers, to test rebalance
         int initialNumWorkers = pulsarCluster.getAlWorkers().size();
@@ -354,7 +360,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
 
         // Since we increased the number of workers, the minFuncsPerWorker should evaluate to some
         // value less than the erstwhile NumFunctionsAssignedOnEachWorker.
-        assertTrue(minFuncsPerWorker < NumFunctionsAssignedOnEachWorker);
+        assertTrue(minFuncsPerWorker < numFunctionsAssignedOnEachWorker);
     }
 
     private void testDrain() throws Exception {

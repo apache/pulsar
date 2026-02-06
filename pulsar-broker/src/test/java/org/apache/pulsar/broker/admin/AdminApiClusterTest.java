@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.fail;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +39,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 @Slf4j
 public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
-    private final String CLUSTER = "test";
+    private static final String CLUSTER = "test";
 
     @BeforeMethod
     @Override
@@ -49,6 +53,18 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testCreateClusterBadRequest() {
+        try {
+            admin.clusters()
+                    .createCluster("bad_request", ClusterData.builder()
+                            .serviceUrl("pulsar://example.com").build());
+            fail("Unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            assertEquals(ex.getStatusCode(), 400);
+        }
     }
 
     @Test
@@ -92,5 +108,37 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> admin.clusters().getFailureDomain(CLUSTER, domainName));
 
         admin.clusters().deleteFailureDomain(CLUSTER, domainName);
+    }
+
+    @Test
+    public void testCreateCluster() throws PulsarAdminException {
+        List<ClusterData> clusterDataList = new ArrayList<>();
+        clusterDataList.add(ClusterData.builder()
+                .serviceUrl("http://pulsar.app:8080")
+                .serviceUrlTls("")
+                .brokerServiceUrl("pulsar://pulsar.app:6650")
+                .brokerServiceUrlTls("")
+                .build());
+        clusterDataList.add(ClusterData.builder()
+                .serviceUrl("")
+                .serviceUrlTls("https://pulsar.app:8443")
+                .brokerServiceUrl("")
+                .brokerServiceUrlTls("pulsar+ssl://pulsar.app:6651")
+                .build());
+        clusterDataList.add(ClusterData.builder()
+                .serviceUrl("")
+                .serviceUrlTls("")
+                .brokerServiceUrl("")
+                .brokerServiceUrlTls("")
+                .build());
+        clusterDataList.add(ClusterData.builder()
+                .serviceUrl(null)
+                .serviceUrlTls(null)
+                .brokerServiceUrl(null)
+                .brokerServiceUrlTls(null)
+                .build());
+        for (int i = 0; i < clusterDataList.size(); i++) {
+            admin.clusters().createCluster("cluster-test-" + i, clusterDataList.get(i));
+        }
     }
 }

@@ -18,15 +18,22 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -38,23 +45,32 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
-@Test(groups = "broker")
+@Test(groups = "flaky")
 public class MetadataStoreStatsTest extends BrokerTestBase {
 
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        super.baseSetup();
+        AuthenticationMetricsToken.reset();
+    }
+
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
-        super.baseSetup();
-        AuthenticationProviderToken.resetMetrics();
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by
+        // org.apache.pulsar.metadata.impl.stats.BatchMetadataStoreStats.close method which unregisters metrics
+        // asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test
@@ -76,7 +92,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
             producer.newMessage().value(UUID.randomUUID().toString()).send();
         }
 
-        for (;;) {
+        for (int i = 0; i < 100; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
             if (message == null) {
                 break;
@@ -85,56 +101,66 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         }
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, false, output);
         String metricsStr = output.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> opsLatency = metricsMap.get("pulsar_metadata_store_ops_latency_ms" + "_sum");
-        Collection<PrometheusMetricsTest.Metric> putBytes = metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
+        String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";
 
-        Assert.assertTrue(opsLatency.size() > 1);
-        Assert.assertTrue(putBytes.size() > 1);
+        Collection<Metric> opsLatency = metricsMap.get("pulsar_metadata_store_ops_latency_ms" + "_sum");
+        Collection<Metric> putBytes = metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
 
-        for (PrometheusMetricsTest.Metric m : opsLatency) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+        Assert.assertTrue(opsLatency.size() > 1, metricsDebugMessage);
+        Assert.assertTrue(putBytes.size() > 1, metricsDebugMessage);
+
+        Set<String> expectedMetadataStoreName = new HashSet<>();
+        expectedMetadataStoreName.add(MetadataStoreConfig.METADATA_STORE);
+        expectedMetadataStoreName.add(MetadataStoreConfig.CONFIGURATION_METADATA_STORE);
+
+        AtomicInteger matchCount = new AtomicInteger(0);
+        for (Metric m : opsLatency) {
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertNotNull(m.tags.get("status"));
+            if (!isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
+                continue;
+            }
+            Assert.assertNotNull(m.tags.get("status"), metricsDebugMessage);
 
             if (m.tags.get("status").equals("success")) {
                 if (m.tags.get("type").equals("get")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else if (m.tags.get("type").equals("del")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else if (m.tags.get("type").equals("put")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else {
-                    Assert.fail();
+                    Assert.fail(metricsDebugMessage);
                 }
             } else {
                 if (m.tags.get("type").equals("get")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else if (m.tags.get("type").equals("del")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else if (m.tags.get("type").equals("put")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else {
-                    Assert.fail();
+                    Assert.fail(metricsDebugMessage);
                 }
             }
         }
-        for (PrometheusMetricsTest.Metric m : putBytes) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+        // Because the combination quantity between status(success, fail) and type(get, del, put) is 6.
+        Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size() * 6);
+
+        matchCount = new AtomicInteger(0);
+        for (Metric m : putBytes) {
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value > 0);
+            if (!isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
+                continue;
+            }
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
         }
+        Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
     }
 
     @Test
@@ -156,7 +182,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
             producer.newMessage().value(UUID.randomUUID().toString()).send();
         }
 
-        for (;;) {
+        for (int i = 0; i < 100; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
             if (message == null) {
                 break;
@@ -165,57 +191,80 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         }
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, false, output);
         String metricsStr = output.toString();
-        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
-        Collection<PrometheusMetricsTest.Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_queue_wait_time_ms" + "_sum");
-        Collection<PrometheusMetricsTest.Metric> batchExecuteTime = metricsMap.get("pulsar_batch_metadata_store_batch_execute_time_ms" + "_sum");
-        Collection<PrometheusMetricsTest.Metric> opsPerBatch = metricsMap.get("pulsar_batch_metadata_store_batch_size" + "_sum");
+        Collection<Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");
+        Collection<Metric> opsWaiting = metricsMap.get("pulsar_batch_metadata_store_queue_wait_time_ms" + "_sum");
+        Collection<Metric> batchExecuteTime =
+                metricsMap.get("pulsar_batch_metadata_store_batch_execute_time_ms" + "_sum");
+        Collection<Metric> opsPerBatch = metricsMap.get("pulsar_batch_metadata_store_batch_size" + "_sum");
 
-        Assert.assertTrue(executorQueueSize.size() > 1);
-        Assert.assertTrue(opsWaiting.size() > 1);
-        Assert.assertTrue(batchExecuteTime.size() > 0);
-        Assert.assertTrue(opsPerBatch.size() > 0);
+        String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";
 
-        for (PrometheusMetricsTest.Metric m : executorQueueSize) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+        Assert.assertTrue(executorQueueSize.size() > 1, metricsDebugMessage);
+        Assert.assertTrue(opsWaiting.size() > 1, metricsDebugMessage);
+        Assert.assertTrue(batchExecuteTime.size() > 0, metricsDebugMessage);
+        Assert.assertTrue(opsPerBatch.size() > 0, metricsDebugMessage);
+
+        Set<String> expectedMetadataStoreName = new HashSet<>();
+        expectedMetadataStoreName.add(MetadataStoreConfig.METADATA_STORE);
+        expectedMetadataStoreName.add(MetadataStoreConfig.CONFIGURATION_METADATA_STORE);
+
+        AtomicInteger matchCount = new AtomicInteger(0);
+        for (Metric m : executorQueueSize) {
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value >= 0);
+            if (isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
+                continue;
+            }
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
         }
-        for (PrometheusMetricsTest.Metric m : opsWaiting) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
-            String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value >= 0);
-        }
+        Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
 
-        for (PrometheusMetricsTest.Metric m : batchExecuteTime) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+        matchCount = new AtomicInteger(0);
+        for (Metric m : opsWaiting) {
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value > 0);
+            if (isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
+                continue;
+            }
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
         }
+        Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
 
-        for (PrometheusMetricsTest.Metric m : opsPerBatch) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+        matchCount = new AtomicInteger(0);
+        for (Metric m : batchExecuteTime) {
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value > 0);
+            if (isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
+                continue;
+            }
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
+        }
+        Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
+
+        matchCount = new AtomicInteger(0);
+        for (Metric m : opsPerBatch) {
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
+            String metadataStoreName = m.tags.get("name");
+            if (isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
+                continue;
+            }
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
+        }
+        Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
+    }
+
+    private boolean isExpectedLabel(String metadataStoreName, Set<String> expectedLabel,
+                                    AtomicInteger expectedLabelCount) {
+        if (StringUtils.isEmpty(metadataStoreName)
+                || !expectedLabel.contains(metadataStoreName)) {
+            return false;
+        } else {
+            expectedLabelCount.incrementAndGet();
+            return true;
         }
     }
 

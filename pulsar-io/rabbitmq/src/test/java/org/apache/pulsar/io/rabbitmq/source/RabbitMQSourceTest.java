@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.io.rabbitmq.source;
 
+import static org.mockito.Mockito.mock;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.rabbitmq.RabbitMQBrokerManager;
 import org.apache.pulsar.io.rabbitmq.RabbitMQSource;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class RabbitMQSourceTest {
 
@@ -35,7 +37,7 @@ public class RabbitMQSourceTest {
     @BeforeMethod
     public void setUp() throws Exception {
         rabbitMQBrokerManager = new RabbitMQBrokerManager();
-        rabbitMQBrokerManager.startBroker("5672");
+        rabbitMQBrokerManager.startBroker();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -44,13 +46,13 @@ public class RabbitMQSourceTest {
     }
 
     @Test
-    public void TestOpenAndWriteSink() {
+    public void testOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");
-        configs.put("port", "5672");
+        configs.put("port", String.valueOf(rabbitMQBrokerManager.getPort()));
         configs.put("virtualHost", "default");
-        configs.put("username", "guest");
-        configs.put("password", "guest");
+        configs.put("username", rabbitMQBrokerManager.getUser());
+        configs.put("password", rabbitMQBrokerManager.getPassword());
         configs.put("queueName", "test-queue");
         configs.put("connectionName", "test-connection");
         configs.put("requestedChannelMax", "0");
@@ -66,7 +68,11 @@ public class RabbitMQSourceTest {
 
         // open should success
         // rabbitmq service may need time to initialize
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> source.open(configs, null));
+        SourceContext sourceContext = mock(SourceContext.class);
+        Awaitility.await().ignoreExceptions().pollDelay(Duration.ofSeconds(1))
+                .untilAsserted(() -> source.open(configs, sourceContext));
+        source.close();
     }
+
 
 }

@@ -68,8 +68,8 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                     localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
                     localData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
                     conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+                    conf.getLoadBalancerBandwidthInResourceWeight(),
+                    conf.getLoadBalancerBandwidthOutResourceWeight());
         }
 
         if (log.isDebugEnabled()) {
@@ -98,10 +98,9 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         }
         double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerMemoryResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwithInResourceWeight(),
-                conf.getLoadBalancerBandwithOutResourceWeight());
+                conf.getLoadBalancerBandwidthInResourceWeight(),
+                conf.getLoadBalancerBandwidthOutResourceWeight());
         historyUsage = historyUsage == null
                 ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
         if (log.isDebugEnabled()) {
@@ -111,8 +110,8 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                             + "OUT weight: {} ",
                     broker, historyUsage, historyPercentage, conf.getLoadBalancerCPUResourceWeight(),
                     conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+                    conf.getLoadBalancerBandwidthInResourceWeight(),
+                    conf.getLoadBalancerBandwidthOutResourceWeight());
         }
         brokerAvgResourceUsageWithWeight.put(broker, historyUsage);
         return historyUsage;
@@ -129,8 +128,9 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
-                                         ServiceConfiguration conf) {
+    public synchronized Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign,
+                                                      LoadData loadData,
+                                                      ServiceConfiguration conf) {
         if (candidates.isEmpty()) {
             log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
             return Optional.empty();
@@ -167,5 +167,9 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                     candidates);
         }
         return Optional.of(bestBrokers.get(ThreadLocalRandom.current().nextInt(bestBrokers.size())));
+    }
+    @Override
+    public synchronized void onActiveBrokersChange(Set<String> activeBrokers) {
+        brokerAvgResourceUsageWithWeight.keySet().removeIf((key) -> !activeBrokers.contains(key));
     }
 }

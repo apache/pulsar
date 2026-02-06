@@ -33,14 +33,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.Sources;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpRequestExecutor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.SourceStatus;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
@@ -51,12 +50,13 @@ import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     private final WebTarget source;
-    private final AsyncHttpClient asyncHttpClient;
+    private final AsyncHttpRequestExecutor asyncHttpRequestExecutor;
 
-    public SourcesImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public SourcesImpl(WebTarget web, Authentication auth, AsyncHttpRequestExecutor asyncHttpRequestExecutor,
+                       long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.source = web.path("/admin/v3/source");
-        this.asyncHttpClient = asyncHttpClient;
+        this.asyncHttpRequestExecutor = asyncHttpRequestExecutor;
     }
 
     @Override
@@ -118,14 +118,14 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
             RequestBuilder builder =
                     post(source.path(sourceConfig.getTenant())
                             .path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("sourceConfig", objectWriter()
                             .writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build())
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(source, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
@@ -189,13 +189,13 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
             RequestBuilder builder =
                     put(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())
                             .path(sourceConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("sourceConfig", objectWriter()
                             .writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
+                        objectWriter().writeValueAsString(options),
                         MediaType.APPLICATION_JSON));
             }
 
@@ -203,7 +203,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(source, builder).build())
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(source, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
@@ -256,7 +256,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
+                        objectWriter().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())

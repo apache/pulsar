@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.util.RetryUtil;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import lombok.Cleanup;
+import org.apache.pulsar.client.util.RetryUtil;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.BackoffBuilder;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.testng.annotations.Test;
 
 @Test(groups = "utils")
 public class RetryUtilTest {
@@ -37,6 +38,7 @@ public class RetryUtilTest {
 
     @Test
     public void testFailAndRetry() throws Exception {
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         CompletableFuture<Boolean> callback = new CompletableFuture<>();
         AtomicInteger atomicInteger = new AtomicInteger(0);
@@ -57,11 +59,11 @@ public class RetryUtilTest {
         }, backoff, executor, callback);
         assertTrue(callback.get());
         assertEquals(atomicInteger.get(), 5);
-        executor.shutdownNow();
     }
 
     @Test
     public void testFail() throws Exception {
+        @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         CompletableFuture<Boolean> callback = new CompletableFuture<>();
         Backoff backoff = new BackoffBuilder()
@@ -79,6 +81,5 @@ public class RetryUtilTest {
         }
         long time = System.currentTimeMillis() - start;
         assertTrue(time >= 5000 - 2000, "Duration:" + time);
-        executor.shutdownNow();
     }
 }

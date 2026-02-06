@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
@@ -37,8 +38,8 @@ import org.apache.pulsar.common.util.Codec;
 public class BrokersImpl extends BaseResource implements Brokers {
     private final WebTarget adminBrokers;
 
-    public BrokersImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public BrokersImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminBrokers = web.path("admin/v2/brokers");
     }
 
@@ -75,15 +76,15 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerUrl)
+    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(String cluster, String brokerId)
             throws PulsarAdminException {
-        return sync(() -> getOwnedNamespacesAsync(cluster, brokerUrl));
+        return sync(() -> getOwnedNamespacesAsync(cluster, brokerId));
     }
 
     @Override
     public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNamespacesAsync(
-            String cluster, String brokerUrl) {
-        WebTarget path = adminBrokers.path(cluster).path(brokerUrl).path("ownedNamespaces");
+            String cluster, String brokerId) {
+        WebTarget path = adminBrokers.path(cluster).path(brokerId).path("ownedNamespaces");
         return asyncGetRequest(path, new FutureCallback<Map<String, NamespaceOwnershipStatus>>(){});
     }
 
@@ -161,32 +162,41 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<Void> backlogQuotaCheckAsync() {
-        WebTarget path = adminBrokers.path("backlogQuotaCheck");
+        WebTarget path = adminBrokers.path("backlog-quota-check");
         return asyncGetRequest(path, new FutureCallback<Void>() {});
     }
 
     @Override
     @Deprecated
     public void healthcheck() throws PulsarAdminException {
-        healthcheck(TopicVersion.V1);
+        healthcheck(TopicVersion.V1, Optional.empty());
     }
 
     @Override
     @Deprecated
     public CompletableFuture<Void> healthcheckAsync() {
-        return healthcheckAsync(TopicVersion.V1);
+        return healthcheckAsync(TopicVersion.V1, Optional.empty());
     }
+
 
     @Override
     public void healthcheck(TopicVersion topicVersion) throws PulsarAdminException {
-        sync(() -> healthcheckAsync(topicVersion));
+        sync(() -> healthcheckAsync(topicVersion, Optional.empty()));
     }
 
     @Override
-    public CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion) {
+    public void healthcheck(TopicVersion topicVersion, Optional<String> brokerId) throws PulsarAdminException {
+        sync(() -> healthcheckAsync(topicVersion, brokerId));
+    }
+
+    @Override
+    public CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion, Optional<String> brokerId) {
         WebTarget path = adminBrokers.path("health");
         if (topicVersion != null) {
             path = path.queryParam("topicVersion", topicVersion);
+        }
+        if (brokerId.isPresent()) {
+            path = path.queryParam("brokerId", brokerId.get());
         }
         final CompletableFuture<Void> future = new CompletableFuture<>();
         asyncGetRequest(path,

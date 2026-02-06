@@ -66,7 +66,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerInfo> getCluster() {
-        return workers().getCluster(clientAppId());
+        return workers().getCluster(authParams());
     }
 
     @GET
@@ -81,13 +81,15 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/cluster/leader")
     @Produces(MediaType.APPLICATION_JSON)
     public WorkerInfo getClusterLeader() {
-        return workers().getClusterLeader(clientAppId());
+        return workers().getClusterLeader(authParams());
     }
 
     @GET
     @ApiOperation(
             value = "Fetches information about which Pulsar Functions are assigned to which Pulsar clusters",
-            response = Map.class
+            response = Map.class,
+            notes = "Returns a nested map structure which Swagger does not fully support for display."
+                    + "Structure: Map<String, Set<String>>. Please refer to this structure for details."
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
@@ -96,13 +98,14 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/assignments")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Collection<String>> getAssignments() {
-        return workers().getAssignments(clientAppId());
+        return workers().getAssignments(authParams());
     }
 
     @GET
     @ApiOperation(
             value = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
-            response = List.class
+            response = ConnectorDefinition.class,
+            responseContainer = "List"
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
@@ -112,7 +115,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     @Path("/connectors")
     @Produces(MediaType.APPLICATION_JSON)
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return workers().getListOfConnectors(clientAppId());
+        return workers().getListOfConnectors(authParams());
     }
 
     @PUT
@@ -120,13 +123,14 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
             value = "Triggers a rebalance of functions to workers"
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 408, message = "Request timeout")
     })
     @Path("/rebalance")
     public void rebalance() {
-        workers().rebalance(uri.getRequestUri(), clientAppId());
+        workers().rebalance(uri.getRequestUri(), authParams());
     }
 
     @PUT
@@ -134,6 +138,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
             value = "Drains the specified worker, i.e., moves its work-assignments to other workers"
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 408, message = "Request timeout"),
@@ -142,7 +147,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/leader/drain")
     public void drainAtLeader(@QueryParam("workerId") String workerId) {
-        workers().drain(uri.getRequestUri(), workerId, clientAppId(), true);
+        workers().drain(uri.getRequestUri(), workerId, authParams(), true);
     }
 
     @PUT
@@ -150,6 +155,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
             value = "Drains this worker, i.e., moves its work-assignments to other workers"
     )
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
             @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 408, message = "Request timeout"),
@@ -158,7 +164,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/drain")
     public void drain() {
-        workers().drain(uri.getRequestUri(), null, clientAppId(), false);
+        workers().drain(uri.getRequestUri(), null, authParams(), false);
     }
 
     @GET
@@ -172,7 +178,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/leader/drain")
     public LongRunningProcessStatus getDrainStatusFromLeader(@QueryParam("workerId") String workerId) {
-        return workers().getDrainStatus(uri.getRequestUri(), workerId, clientAppId(), true);
+        return workers().getDrainStatus(uri.getRequestUri(), workerId, authParams(), true);
     }
 
     @GET
@@ -186,7 +192,7 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/drain")
     public LongRunningProcessStatus getDrainStatus() {
-        return workers().getDrainStatus(uri.getRequestUri(), null, clientAppId(), false);
+        return workers().getDrainStatus(uri.getRequestUri(), null, authParams(), false);
     }
 
     @GET
@@ -199,6 +205,6 @@ public class Worker extends AdminResource implements Supplier<WorkerService> {
     })
     @Path("/cluster/leader/ready")
     public Boolean isLeaderReady() {
-        return workers().isLeaderReady(clientAppId());
+        return workers().isLeaderReady(authParams());
     }
 }

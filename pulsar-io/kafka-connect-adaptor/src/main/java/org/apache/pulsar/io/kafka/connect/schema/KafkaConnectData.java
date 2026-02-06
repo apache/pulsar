@@ -54,6 +54,14 @@ public class KafkaConnectData {
         return out;
     }
 
+
+    public static Object getKafkaConnectDataFromSchema(Object nativeObject, Schema kafkaSchema) {
+        if (kafkaSchema != null && nativeObject == null) {
+            return null;
+        }
+        return getKafkaConnectData(nativeObject, kafkaSchema);
+    }
+
     @SuppressWarnings("unchecked")
     public static Object getKafkaConnectData(Object nativeObject, Schema kafkaSchema) {
         if (kafkaSchema == null) {
@@ -380,6 +388,7 @@ public class KafkaConnectData {
         if (kafkaSchema.isOptional()) {
             return null;
         }
+
         throw new DataException("Invalid null value for required " + kafkaSchema.type() + " field");
     }
 }

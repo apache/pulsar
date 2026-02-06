@@ -23,6 +23,8 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
+import java.util.Iterator;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -39,7 +41,7 @@ public class OpSendMsgQueueTest {
     }
 
     private ProducerImpl.OpSendMsg createDummyOpSendMsg() {
-        return ProducerImpl.OpSendMsg.create(message, null, 0L, null);
+        return ProducerImpl.OpSendMsg.create(LatencyHistogram.NOOP, message, null, 0L, null);
     }
 
     @Test
@@ -81,5 +83,22 @@ public class OpSendMsgQueueTest {
 
         // then
         assertEquals(Lists.newArrayList(queue), Arrays.asList(opSendMsg, opSendMsg2, opSendMsg3, opSendMsg4));
+    }
+
+    @Test
+    public void testIteratorRemove() {
+        ProducerImpl.OpSendMsgQueue queue = new ProducerImpl.OpSendMsgQueue();
+        for (int i = 0; i < 10; i++) {
+            queue.add(createDummyOpSendMsg());
+        }
+
+        Iterator<ProducerImpl.OpSendMsg> iterator = queue.iterator();
+        while (iterator.hasNext()) {
+            iterator.next();
+            iterator.remove();
+        }
+        // Verify: the result of "messagesCount()" is 0 after removed all items.
+        assertEquals(queue.delegate.size(), 0);
+        assertEquals(queue.messagesCount(), 0);
     }
 }

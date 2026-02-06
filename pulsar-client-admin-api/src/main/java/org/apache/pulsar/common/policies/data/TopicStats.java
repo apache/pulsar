@@ -64,6 +64,31 @@ public interface TopicStats {
     /** Get the publish time of the earliest message over all the backlogs. */
     long getEarliestMsgPublishTimeInBacklogs();
 
+    /** the size in bytes of the topic backlog quota. */
+    long getBacklogQuotaLimitSize();
+
+    /** the topic backlog age quota, in seconds. */
+    long getBacklogQuotaLimitTime();
+
+    /**
+     * Age of oldest unacknowledged message, as recorded in last backlog quota check interval.
+     * <p>
+     * The age of the oldest unacknowledged (i.e. backlog) message, measured by the time elapsed from its published
+     * time, in seconds. This value is recorded every backlog quota check interval, hence it represents the value
+     * seen in the last check.
+     * </p>
+     */
+    long getOldestBacklogMessageAgeSeconds();
+
+    /**
+     * The subscription name containing oldest unacknowledged message as recorded in last backlog quota check.
+     * <p>
+     * The name of the subscription containing the oldest unacknowledged message. This value is recorded every backlog
+     * quota check interval, hence it represents the value seen in the last check.
+     * </p>
+     */
+    String getOldestBacklogMessageSubscriptionName();
+
     /** Space used to store the offloaded messages for the topic/. */
     long getOffloadedStorageSize();
 
@@ -94,4 +119,25 @@ public interface TopicStats {
 
     /** The broker that owns this topic. **/
     String getOwnerBroker();
+
+    long getDelayedMessageIndexSizeInBytes();
+
+    /**
+     * Get the topic creation timestamp in epoch milliseconds.
+     * This value represents when the topic was first durably created in the metadata store.
+     * This value is immutable for the lifetime of the topic.
+     *
+     * @return the topic creation timestamp in epoch milliseconds, or 0 if not available
+     */
+    long getTopicCreationTimeStamp();
+
+    /**
+     * Get the last publish timestamp in epoch milliseconds.
+     * This value represents the publish_time field of the last message successfully persisted by the broker
+     * for this topic.
+     * If no message has ever been published to the topic, this field will return 0.
+     *
+     * @return the last publish timestamp in epoch milliseconds, or 0 if no messages have been published
+     */
+    long getLastPublishTimeStamp();
 }

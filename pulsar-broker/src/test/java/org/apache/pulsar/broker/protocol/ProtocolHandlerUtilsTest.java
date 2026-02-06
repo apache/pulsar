@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
-
 import java.io.IOException;
 import java.nio.file.Paths;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -53,7 +52,7 @@ public class ProtocolHandlerUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
-            .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+            .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class handlerClass = MockProtocolHandler.class;
         when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName())))
             .thenReturn(handlerClass);
@@ -84,7 +83,7 @@ public class ProtocolHandlerUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class handlerClass = MockProtocolHandler.class;
         when(mockLoader.loadClass(eq(MockProtocolHandler.class.getName())))
                 .thenReturn(handlerClass);
@@ -117,7 +116,7 @@ public class ProtocolHandlerUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class handlerClass = Runnable.class;
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
                 .thenReturn(handlerClass);

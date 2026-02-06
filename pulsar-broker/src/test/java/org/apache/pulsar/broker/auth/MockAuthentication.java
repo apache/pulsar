@@ -29,7 +29,10 @@ import org.slf4j.LoggerFactory;
 
 public class MockAuthentication implements Authentication {
     private static final Logger log = LoggerFactory.getLogger(MockAuthentication.class);
-    private final String user;
+    private String user;
+
+    public MockAuthentication() {
+    }
 
     public MockAuthentication(String user) {
         this.user = user;
@@ -47,9 +50,13 @@ public class MockAuthentication implements Authentication {
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         return new AuthenticationDataProvider() {
             @Override
-            public boolean hasDataForHttp() { return true; }
+            public boolean hasDataForHttp() {
+                return true;
+            }
             @Override
-            public String getHttpAuthType() { return "mock"; }
+            public String getHttpAuthType() {
+                return "mock";
+            }
             @Override
             public Set<Map.Entry<String, String>> getHttpHeaders() {
                 return Map.of("mockuser", user).entrySet();
@@ -67,6 +74,7 @@ public class MockAuthentication implements Authentication {
 
     @Override
     public void configure(Map<String, String> authParams) {
+        this.user = authParams.get("user");
     }
 
     @Override

@@ -18,16 +18,20 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import static org.apache.bookkeeper.client.api.BKException.Code.NoSuchLedgerExistsException;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import lombok.Cleanup;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -79,7 +83,8 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket, additionalConfig)));
         Mockito.doReturn(blobStore).when(mockedConfig).getBlobStore(); // Use the REAL blobStore
         BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader
-                .create(mockedConfig, new HashMap<String, String>(), scheduler, this.offloaderStats);
+                .create(mockedConfig, new HashMap<String, String>(), scheduler, scheduler,
+                        this.offloaderStats, entryOffsetsCache);
         return offloader;
     }
 
@@ -88,12 +93,14 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket, additionalConfig)));
         Mockito.doReturn(mockedBlobStore).when(mockedConfig).getBlobStore();
         BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader
-                .create(mockedConfig, new HashMap<String, String>(), scheduler, this.offloaderStats);
+                .create(mockedConfig, new HashMap<String, String>(), scheduler, scheduler,
+                        this.offloaderStats, entryOffsetsCache);
         return offloader;
     }
 
     @Test
     public void testHappyCase() throws Exception {
+        @Cleanup
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
@@ -104,6 +111,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         long beginLedger = 0;
         long beginEntry = 0;
         log.error("try begin offload");
+        @Cleanup
         OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, new HashMap<>()).get();
         //Segment should closed because size in bytes full
@@ -120,6 +128,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
 
     @Test
     public void testReadAndWrite() throws Exception {
+        @Cleanup
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
@@ -133,6 +142,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
+        @Cleanup
         OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
@@ -156,7 +166,9 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
                         .setUidMsb(uuid.getMostSignificantBits())
                         .setComplete(true).setEndEntryId(9).build());
 
+        @Cleanup
         final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        @Cleanup
         final LedgerEntries ledgerEntries = readHandle.readAsync(0, 9).get();
 
         for (LedgerEntry ledgerEntry : ledgerEntries) {
@@ -169,6 +181,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
 
     @Test
     public void testReadAndWriteAcrossLedger() throws Exception {
+        @Cleanup
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "2000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
@@ -182,6 +195,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
+        @Cleanup
         OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
@@ -213,7 +227,9 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
                         .setUidMsb(uuid.getMostSignificantBits())
                         .setComplete(true).setEndEntryId(9).build());
 
+        @Cleanup
         final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        @Cleanup
         final LedgerEntries ledgerEntries = readHandle.readAsync(0, 9).get();
 
         for (LedgerEntry ledgerEntry : ledgerEntries) {
@@ -223,7 +239,9 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             assertEquals(storedData, entryBytes);
         }
 
+        @Cleanup
         final ReadHandle readHandle2 = offloader.readOffloaded(1, contextBuilder.build(), driverMeta).get();
+        @Cleanup
         final LedgerEntries ledgerEntries2 = readHandle2.readAsync(0, 9).get();
 
         for (LedgerEntry ledgerEntry : ledgerEntries2) {
@@ -236,11 +254,13 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
 
     @Test
     public void testReadAndWriteAcrossSegment() throws Exception {
+        @Cleanup
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
         }});
+        @Cleanup
         LedgerOffloader offloader2 = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
@@ -255,6 +275,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
+        @Cleanup
         OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
@@ -273,6 +294,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         assertEquals(offloadResult.endEntry, 9);
 
         //Segment should closed because size in bytes full
+        @Cleanup
         OffloadHandle offloadHandle2 = offloader2
                 .streamingOffload(ml, uuid2, beginLedger, 10, driverMeta).get();
         for (int i = 0; i < 10; i++) {
@@ -298,7 +320,9 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
                         .setComplete(true).setEndEntryId(19).build()
         );
 
+        @Cleanup
         final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        @Cleanup
         final LedgerEntries ledgerEntries = readHandle.readAsync(0, 19).get();
 
         for (LedgerEntry ledgerEntry : ledgerEntries) {
@@ -311,6 +335,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
 
     @Test
     public void testRandomRead() throws Exception {
+        @Cleanup
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
@@ -330,6 +355,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
+        @Cleanup
         OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
@@ -348,6 +374,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         assertEquals(offloadResult.endEntry, 9);
 
         //Segment should closed because size in bytes full
+        @Cleanup
         OffloadHandle offloadHandle2 = offloader2
                 .streamingOffload(ml, uuid2, beginLedger, 10, driverMeta).get();
         for (int i = 0; i < 10; i++) {
@@ -373,6 +400,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
                         .setComplete(true).setEndEntryId(19).build()
         );
 
+        @Cleanup
         final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
 
         for (int i = 0; i <= 19; i++) {
@@ -384,6 +412,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
                 begin = end;
                 end = temp;
             }
+            @Cleanup
             final LedgerEntries ledgerEntries = readHandle.readAsync(begin, end).get();
             for (LedgerEntry ledgerEntry : ledgerEntries) {
                 final EntryImpl storedEntry = (EntryImpl) entries.get((int) ledgerEntry.getEntryId());
@@ -396,6 +425,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
 
     @Test
     public void testInvalidEntryIds() throws Exception {
+        @Cleanup
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
             put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
@@ -409,6 +439,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
+        @Cleanup
         OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
@@ -432,6 +463,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
                         .setUidMsb(uuid.getMostSignificantBits())
                         .setComplete(true).setEndEntryId(9).build());
 
+        @Cleanup
         final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
         try {
             readHandle.read(-1, -1);
@@ -443,6 +475,60 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             readHandle.read(0, 20);
             Assert.fail("Shouldn't be able to read anything");
         } catch (Exception e) {
+        }
+    }
+
+    @Test
+    public void testReadNotExistLedger() throws Exception {
+        @Cleanup
+        LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
+        }});
+        ManagedLedger ml = createMockManagedLedger();
+        UUID uuid = UUID.randomUUID();
+        long beginLedger = 0;
+        long beginEntry = 0;
+
+        Map<String, String> driverMeta = new HashMap<String, String>() {{
+            put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
+        }};
+        @Cleanup
+        OffloadHandle offloadHandle = offloader
+                .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
+
+        // Segment should closed because size in bytes full
+        final LinkedList<Entry> entries = new LinkedList<>();
+        for (int i = 0; i < 10; i++) {
+            final byte[] data = new byte[100];
+            random.nextBytes(data);
+            final EntryImpl entry = EntryImpl.create(0, i, data);
+            offloadHandle.offerEntry(entry);
+            entries.add(entry);
+        }
+
+        final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
+        assertEquals(offloadResult.endLedger, 0);
+        assertEquals(offloadResult.endEntry, 9);
+        final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
+        contextBuilder.addOffloadSegment(
+                MLDataFormats.OffloadSegment.newBuilder()
+                        .setUidLsb(uuid.getLeastSignificantBits())
+                        .setUidMsb(uuid.getMostSignificantBits())
+                        .setComplete(true).setEndEntryId(9).build());
+
+        @Cleanup
+        final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+
+        // delete blob(ledger)
+        blobStore.removeBlob(BUCKET, uuid.toString());
+
+        try {
+            readHandle.read(0, 9);
+            fail("Should be read fail");
+        } catch (BKException e) {
+            assertEquals(e.getCode(), NoSuchLedgerExistsException);
         }
     }
 }

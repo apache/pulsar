@@ -22,16 +22,15 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import io.netty.channel.ChannelHandlerContext;
-
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.Cleanup;
+import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
@@ -50,7 +49,7 @@ public class ClientErrorsTest {
     MockBrokerService mockBrokerService;
     private static final int ASYNC_EVENT_COMPLETION_WAIT = 100;
 
-    private final String ASSERTION_ERROR = "AssertionError";
+    private static final String ASSERTION_ERROR = "AssertionError";
 
     @BeforeClass(alwaysRun = true)
     public void setup() {
@@ -141,7 +140,8 @@ public class ClientErrorsTest {
 
         mockBrokerService.setHandleProducer((ctx, producer) -> {
             if (counter.incrementAndGet() == 2) {
-                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                        SchemaVersion.Empty));
                 return;
             }
             ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.ServiceNotReady, "msg"));
@@ -271,7 +271,7 @@ public class ClientErrorsTest {
             if (subscribeCount == 1) {
                 ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
                 // Trigger reconnect
-                ctx.writeAndFlush(Commands.newCloseConsumer(subscribe.getConsumerId(), -1));
+                ctx.writeAndFlush(Commands.newCloseConsumer(subscribe.getConsumerId(), -1, null, null));
             } else if (subscribeCount != 2) {
                 // Respond to subsequent requests to prevent timeouts
                 ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
@@ -315,7 +315,8 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
 
         });
 
@@ -354,7 +355,8 @@ public class ClientErrorsTest {
             int i = counter.incrementAndGet();
             if (i == 1 || i == 5) {
                 // succeed on 1st and 5th attempts
-                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                        SchemaVersion.Empty));
                 return;
             }
             ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.PersistenceError, "msg"));
@@ -577,7 +579,8 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         });
 
         try {
@@ -609,11 +612,13 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         });
 
         mockBrokerService.setHandleSend((ctx, send, headersAndPayload) ->
-            ctx.writeAndFlush(Commands.newSendReceipt(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(), 0L, 0L))
+            ctx.writeAndFlush(Commands.newSendReceipt(send.getProducerId(), send.getSequenceId(),
+                    send.getHighestSequenceId(), 0L, 0L))
         );
 
         mockBrokerService.setHandleCloseProducer((ctx, closeProducer) -> {
@@ -669,7 +674,8 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         });
 
         mockBrokerService.setHandleCloseProducer((ctx, closeProducer) -> {
@@ -772,7 +778,8 @@ public class ClientErrorsTest {
         });
 
         mockBrokerService.setHandleProducer((ctx, produce) -> {
-            ctx.writeAndFlush(Commands.newProducerSuccess(produce.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(produce.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         });
 
         mockBrokerService.setHandleSend((ctx, sendCmd, headersAndPayload) -> {
@@ -830,5 +837,29 @@ public class ClientErrorsTest {
 
         mockBrokerService.resetHandleConnect();
         mockBrokerService.resetHandleSubscribe();
+    }
+
+    @Test
+    public void testCommandErrorMessageIsNull() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
+
+        mockBrokerService.setHandleProducer((ctx, producer) -> {
+            try {
+                ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, null));
+            } catch (Exception e) {
+                fail("Send error command failed", e);
+            }
+        });
+
+        try {
+            client.newProducer().topic("persistent://prop/use/ns/t1").create();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.AuthorizationException);
+            Map<String, String> map = JsonUtil.fromJson(e.getMessage(), Map.class);
+            assertEquals(map.get("errorMsg"), "");
+        }
+        mockBrokerService.resetHandleProducer();
     }
 }

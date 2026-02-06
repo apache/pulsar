@@ -19,15 +19,6 @@
 package org.apache.pulsar.tests.integration.io.sinks;
 
 import static org.testng.Assert.assertTrue;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch.core.SearchRequest;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
@@ -35,6 +26,13 @@ import co.elastic.clients.json.jackson.JacksonJsonpMapper;
 import co.elastic.clients.transport.ElasticsearchTransport;
 import co.elastic.clients.transport.rest_client.RestClientTransport;
 import com.google.common.collect.ImmutableMap;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -46,6 +44,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
@@ -100,6 +99,29 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
         }
     }
 
+    @Override
+    protected final ElasticsearchContainer createSinkService(PulsarCluster cluster) {
+        ElasticsearchContainer elasticContainer = createElasticContainer();
+        configureElasticContainer(elasticContainer);
+        return elasticContainer;
+    }
+
+    protected void configureElasticContainer(ElasticsearchContainer elasticContainer) {
+        if (!isOpenSearch()) {
+            elasticContainer.withEnv("ingest.geoip.downloader.enabled", "false");
+        }
+
+        // allow disk to fill up beyond default 90% threshold
+        elasticContainer.withEnv("cluster.routing.allocation.disk.threshold_enabled", "false");
+
+        elasticContainer.withLogConsumer(o -> log.info("elastic> {}", o.getUtf8String()));
+    }
+
+    protected boolean isOpenSearch() {
+        return false;
+    }
+
+    protected abstract ElasticsearchContainer createElasticContainer();
 
     @Override
     public void prepareSink() throws Exception {
@@ -139,13 +161,13 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
                 final SimplePojo keyPojo = new SimplePojo(
                         "f1_" + i,
                         "f2_" + i,
-                        Arrays.asList(i, i +1),
+                        Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
                         ImmutableMap.of("map1_k_" + i, "map1_kv_" + i));
                 final SimplePojo valuePojo = new SimplePojo(
                         "f1_" + i,
                         "f2_" + i,
-                        Arrays.asList(i, i +1),
+                        Arrays.asList(i, i + 1),
                         new HashSet<>(Arrays.asList((long) i)),
                         ImmutableMap.of("map1_v_" + i, "map1_vv_" + i));
                 producer.newMessage()
@@ -165,7 +187,7 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
                 // this is a JSON document, written to ElasticSearch
                 Map<String, String> valueMap = new HashMap<>();
                 valueMap.put("key" + i, "value" + i);
-                String value = ObjectMapperFactory.getThreadLocal().writeValueAsString(valueMap);
+                String value = ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(valueMap);
                 kvs.put(key, value);
                 producer.newMessage()
                         .key(key)

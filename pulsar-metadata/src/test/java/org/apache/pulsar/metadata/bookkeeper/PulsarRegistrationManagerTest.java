@@ -51,7 +51,8 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
 
     private void methodSetup(Supplier<String> urlSupplier) throws Exception {
         this.ledgersRootPath = "/ledgers-" + UUID.randomUUID();
-        this.store = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        this.store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
         this.registrationManager = new PulsarRegistrationManager(store, ledgersRootPath, new ServerConfiguration());
     }
 

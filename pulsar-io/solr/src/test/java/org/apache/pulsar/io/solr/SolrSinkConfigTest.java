@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.io.solr;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import com.google.common.collect.Lists;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -28,12 +28,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
 
 /**
- * SolrSinkConfig test
+ * SolrSinkConfig test.
  */
 public class SolrSinkConfigTest {
 
@@ -61,7 +61,31 @@ public class SolrSinkConfigTest {
         map.put("username", "fakeuser");
         map.put("password", "fake@123");
 
-        SolrSinkConfig config = SolrSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        SolrSinkConfig config = SolrSinkConfig.load(map, sinkContext);
+        assertNotNull(config);
+        assertEquals(config.getSolrUrl(), "localhost:2181,localhost:2182/chroot");
+        assertEquals(config.getSolrMode(), "SolrCloud");
+        assertEquals(config.getSolrCollection(), "techproducts");
+        assertEquals(config.getSolrCommitWithinMs(), Integer.parseInt("100"));
+        assertEquals(config.getUsername(), "fakeuser");
+        assertEquals(config.getPassword(), "fake@123");
+    }
+
+    @Test
+    public final void loadFromMapCredentialsFromSecretTest() throws IOException {
+        Map<String, Object> map = new HashMap<>();
+        map.put("solrUrl", "localhost:2181,localhost:2182/chroot");
+        map.put("solrMode", "SolrCloud");
+        map.put("solrCollection", "techproducts");
+        map.put("solrCommitWithinMs", "100");
+
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        Mockito.when(sinkContext.getSecret("username"))
+                .thenReturn("fakeuser");
+        Mockito.when(sinkContext.getSecret("password"))
+                .thenReturn("fake@123");
+        SolrSinkConfig config = SolrSinkConfig.load(map, sinkContext);
         assertNotNull(config);
         assertEquals(config.getSolrUrl(), "localhost:2181,localhost:2182/chroot");
         assertEquals(config.getSolrMode(), "SolrCloud");
@@ -81,12 +105,13 @@ public class SolrSinkConfigTest {
         map.put("username", "fakeuser");
         map.put("password", "fake@123");
 
-        SolrSinkConfig config = SolrSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        SolrSinkConfig config = SolrSinkConfig.load(map, sinkContext);
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "solrUrl property not set.")
+    @Test(expectedExceptions = IllegalArgumentException.class,
+        expectedExceptionsMessageRegExp = "solrUrl cannot be null")
     public final void missingValidValidateSolrModeTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrMode", "SolrCloud");
@@ -95,7 +120,8 @@ public class SolrSinkConfigTest {
         map.put("username", "fakeuser");
         map.put("password", "fake@123");
 
-        SolrSinkConfig config = SolrSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        SolrSinkConfig config = SolrSinkConfig.load(map, sinkContext);
         config.validate();
     }
 
@@ -110,12 +136,13 @@ public class SolrSinkConfigTest {
         map.put("username", "fakeuser");
         map.put("password", "fake@123");
 
-        SolrSinkConfig config = SolrSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        SolrSinkConfig config = SolrSinkConfig.load(map, sinkContext);
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "No enum constant org.apache.pulsar.io.solr.SolrAbstractSink.SolrMode.NOTSUPPORT")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
+            "No enum constant org.apache.pulsar.io.solr.SolrAbstractSink.SolrMode.NOTSUPPORT")
     public final void invalidClientModeTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrUrl", "localhost:2181,localhost:2182/chroot");
@@ -125,7 +152,8 @@ public class SolrSinkConfigTest {
         map.put("username", "fakeuser");
         map.put("password", "fake@123");
 
-        SolrSinkConfig config = SolrSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        SolrSinkConfig config = SolrSinkConfig.load(map, sinkContext);
         config.validate();
 
         SolrAbstractSink.SolrMode.valueOf(config.getSolrMode().toUpperCase());
@@ -141,7 +169,8 @@ public class SolrSinkConfigTest {
         map.put("username", "fakeuser");
         map.put("password", "fake@123");
 
-        SolrSinkConfig config = SolrSinkConfig.load(map);
+        SinkContext sinkContext = Mockito.mock(SinkContext.class);
+        SolrSinkConfig config = SolrSinkConfig.load(map, sinkContext);
         config.validate();
 
         String url = config.getSolrUrl();

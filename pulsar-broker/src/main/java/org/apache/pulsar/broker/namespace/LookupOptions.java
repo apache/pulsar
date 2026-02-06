@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
@@ -46,6 +47,7 @@ public class LookupOptions {
     private final boolean requestHttps;
 
     private final String advertisedListenerName;
+    private final Map<String, String> properties;
 
     public boolean hasAdvertisedListenerName() {
         return StringUtils.isNotBlank(advertisedListenerName);

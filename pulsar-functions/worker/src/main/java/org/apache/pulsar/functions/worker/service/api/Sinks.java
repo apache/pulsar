@@ -21,8 +21,7 @@ package org.apache.pulsar.functions.worker.service.api;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -46,8 +45,7 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * @param fileDetail A form-data content disposition header
      * @param sinkPkgUrl URL path of the Pulsar Sink package
      * @param sinkConfig Configuration of Pulsar Sink
-     * @param clientRole Client role for running the Pulsar Sink
-     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param authParams the authentication parameters associated with the request
      */
     void registerSink(String tenant,
                       String namespace,
@@ -56,35 +54,7 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                       FormDataContentDisposition fileDetail,
                       String sinkPkgUrl,
                       SinkConfig sinkConfig,
-                      String clientRole,
-                      AuthenticationDataSource clientAuthenticationDataHttps);
-
-    /**
-     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
-     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
-     * the signature of the AuthenticationDataSource.
-     */
-    @Deprecated
-    default void registerSink(String tenant,
-                      String namespace,
-                      String sinkName,
-                      InputStream uploadedInputStream,
-                      FormDataContentDisposition fileDetail,
-                      String sinkPkgUrl,
-                      SinkConfig sinkConfig,
-                      String clientRole,
-                      AuthenticationDataHttps clientAuthenticationDataHttps) {
-        registerSink(
-                tenant,
-                namespace,
-                sinkName,
-                uploadedInputStream,
-                fileDetail,
-                sinkPkgUrl,
-                sinkConfig,
-                clientRole,
-                (AuthenticationDataSource) clientAuthenticationDataHttps);
-    }
+                      AuthenticationParameters authParams);
 
     /**
      * Update a function.
@@ -95,8 +65,7 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * @param fileDetail A form-data content disposition header
      * @param sinkPkgUrl URL path of the Pulsar Sink package
      * @param sinkConfig Configuration of Pulsar Sink
-     * @param clientRole Client role for running the Pulsar Sink
-     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param authParams the authentication parameters associated with the request
      * @param updateOptions Options while updating the sink
      */
     void updateSink(String tenant,
@@ -106,57 +75,26 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                     FormDataContentDisposition fileDetail,
                     String sinkPkgUrl,
                     SinkConfig sinkConfig,
-                    String clientRole,
-                    AuthenticationDataSource clientAuthenticationDataHttps,
+                    AuthenticationParameters authParams,
                     UpdateOptionsImpl updateOptions);
-
-    /**
-     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
-     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
-     * the signature of the AuthenticationDataSource.
-     */
-    @Deprecated
-    default void updateSink(String tenant,
-                    String namespace,
-                    String sinkName,
-                    InputStream uploadedInputStream,
-                    FormDataContentDisposition fileDetail,
-                    String sinkPkgUrl,
-                    SinkConfig sinkConfig,
-                    String clientRole,
-                    AuthenticationDataHttps clientAuthenticationDataHttps,
-                    UpdateOptionsImpl updateOptions) {
-        updateSink(
-                tenant,
-                namespace,
-                sinkName,
-                uploadedInputStream,
-                fileDetail,
-                sinkPkgUrl,
-                sinkConfig,
-                clientRole,
-                (AuthenticationDataSource) clientAuthenticationDataHttps,
-                updateOptions);
-    }
 
     SinkInstanceStatusData getSinkInstanceStatus(String tenant,
                                                  String namespace,
                                                  String sinkName,
                                                  String instanceId,
                                                  URI uri,
-                                                 String clientRole,
-                                                 AuthenticationDataSource clientAuthenticationDataHttps);
+                                                 AuthenticationParameters authParams);
 
     SinkStatus getSinkStatus(String tenant,
                              String namespace,
                              String componentName,
                              URI uri,
-                             String clientRole,
-                             AuthenticationDataSource clientAuthenticationDataHttps);
+                             AuthenticationParameters authParams);
 
     SinkConfig getSinkInfo(String tenant,
                            String namespace,
-                           String componentName);
+                           String componentName,
+                           AuthenticationParameters authParams);
 
     List<ConnectorDefinition> getSinkList();
 

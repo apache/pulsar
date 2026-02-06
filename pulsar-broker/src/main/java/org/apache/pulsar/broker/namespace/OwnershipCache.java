@@ -36,12 +36,11 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
-import org.apache.pulsar.stats.CacheMetricsCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +72,7 @@ public class OwnershipCache {
     /**
      * The NamespaceEphemeralData objects that can be associated with the current owner, when the broker is disabled.
      */
-    private final NamespaceEphemeralData selfOwnerInfoDisabled;
+    private NamespaceEphemeralData selfOwnerInfoDisabled;
 
     private final LockManager<NamespaceEphemeralData> lockManager;
 
@@ -115,17 +114,19 @@ public class OwnershipCache {
      *
      * the local broker URL that will be set as owner for the <code>ServiceUnit</code>
      */
-    public OwnershipCache(PulsarService pulsar, NamespaceBundleFactory bundleFactory,
-                          NamespaceService namespaceService) {
+    public OwnershipCache(PulsarService pulsar, NamespaceService namespaceService) {
         this.namespaceService = namespaceService;
         this.pulsar = pulsar;
         this.ownerBrokerUrl = pulsar.getBrokerServiceUrl();
         this.ownerBrokerUrlTls = pulsar.getBrokerServiceUrlTls();
+        // At this moment, the variables "webServiceAddress" and "webServiceAddressTls" and so on have not been
+        // initialized, so we will get an empty "selfOwnerInfo" and an empty "selfOwnerInfoDisabled" here.
+        // But do not worry, these two fields will be set by the method "refreshSelfOwnerInfo" soon.
         this.selfOwnerInfo = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
-                pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 false, pulsar.getAdvertisedListeners());
         this.selfOwnerInfoDisabled = new NamespaceEphemeralData(ownerBrokerUrl, ownerBrokerUrlTls,
-                pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
+                pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                 true, pulsar.getAdvertisedListeners());
         this.lockManager = pulsar.getCoordinationService().getLockManager(NamespaceEphemeralData.class);
         this.locallyAcquiredLocks = new ConcurrentHashMap<>();
@@ -158,8 +159,7 @@ public class OwnershipCache {
      * @param suName
      *            name of the <code>ServiceUnit</code>
      * @return The ephemeral node data showing the current ownership info in <code>ZooKeeper</code>
-     * @throws Exception
-     *             throws exception if no ownership info is found
+     * or empty if no ownership info is found
      */
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suName) {
         CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(suName);
@@ -173,7 +173,22 @@ public class OwnershipCache {
 
         // If we're not the owner, we need to check if anybody else is
         String path = ServiceUnitUtils.path(suName);
-        return lockManager.readLock(path);
+        return lockManager.readLock(path).thenCompose(owner -> {
+            // If the current broker is the owner, attempt to reacquire ownership to avoid cache loss.
+            if (owner.isPresent() && owner.get().equals(selfOwnerInfo)) {
+                log.warn("Detected ownership loss for broker [{}] on namespace bundle [{}]. "
+                                + "Attempting to reacquire ownership to maintain cache consistency.",
+                        selfOwnerInfo, suName);
+                try {
+                    return tryAcquiringOwnership(suName).thenApply(Optional::ofNullable);
+                } catch (Exception e) {
+                    log.error("Failed to reacquire ownership for namespace bundle [{}] on broker [{}]: {}",
+                            suName, selfOwnerInfo, e.getMessage(), e);
+                    return CompletableFuture.failedFuture(e);
+                }
+            }
+            return CompletableFuture.completedFuture(owner);
+        });
     }
 
     /**
@@ -289,10 +304,10 @@ public class OwnershipCache {
 
     /**
      * Disable bundle in local cache and on zk.
-     *
-     * @param bundle
-     * @throws Exception
+     * @Deprecated This is a dangerous method  which is currently only used for test, it will occupy the ZK thread.
+     * Please switch to your own thread after calling this method.
      */
+    @Deprecated
     public CompletableFuture<Void> disableOwnership(NamespaceBundle bundle) {
         return updateBundleState(bundle, false)
                 .thenCompose(__ -> {
@@ -337,8 +352,11 @@ public class OwnershipCache {
 
     public synchronized boolean refreshSelfOwnerInfo() {
         this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
-                pulsar.getBrokerServiceUrlTls(), pulsar.getSafeWebServiceAddress(),
+                pulsar.getBrokerServiceUrlTls(), pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(), false, pulsar.getAdvertisedListeners());
+        this.selfOwnerInfoDisabled = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),
+                pulsar.getBrokerServiceUrlTls(), pulsar.getWebServiceAddress(),
+                pulsar.getWebServiceAddressTls(), true, pulsar.getAdvertisedListeners());
         return selfOwnerInfo.getNativeUrl() != null || selfOwnerInfo.getNativeUrlTls() != null;
     }
 }
