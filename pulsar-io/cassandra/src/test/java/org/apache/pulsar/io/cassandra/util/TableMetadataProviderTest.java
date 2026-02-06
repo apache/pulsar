@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.io.cassandra.util;
 
-import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
-
-import org.testng.annotations.Test;
-
 import static org.testng.Assert.assertNotNull;
 import static org.testng.AssertJUnit.assertEquals;
+import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
+import org.testng.annotations.Test;
 
 public class TableMetadataProviderTest {
 

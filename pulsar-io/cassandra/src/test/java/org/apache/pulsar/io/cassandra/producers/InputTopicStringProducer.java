@@ -20,20 +20,19 @@ package org.apache.pulsar.io.cassandra.producers;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import org.apache.pulsar.client.api.Schema;
-
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import org.apache.pulsar.client.api.Schema;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class InputTopicStringProducer extends InputTopicProducerThread<String> {
 
     private final Random rnd = new Random();
     int lastReadingId = rnd.nextInt(900000);
-    
+
     public InputTopicStringProducer(String brokerUrl, String inputTopic) {
         super(brokerUrl, inputTopic);
     }
@@ -62,7 +61,7 @@ public class InputTopicStringProducer extends InputTopicProducerThread<String> {
 
         Gson gson = new Gson();
         Type gsonType = new TypeToken<HashMap>(){}.getType();
-        return gson.toJson(elements,gsonType);
+        return gson.toJson(elements, gsonType);
     }
 
     @Override

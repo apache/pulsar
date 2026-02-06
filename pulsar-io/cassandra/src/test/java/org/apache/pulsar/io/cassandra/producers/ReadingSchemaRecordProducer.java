@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.io.cassandra.producers;
 
+import java.util.Random;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.util.Random;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class ReadingSchemaRecordProducer extends AbstractGenericRecordProducer {

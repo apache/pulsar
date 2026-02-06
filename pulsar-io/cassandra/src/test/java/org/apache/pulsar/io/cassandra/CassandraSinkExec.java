@@ -25,7 +25,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.io.cassandra.producers.InputTopicProducerThread;
@@ -92,7 +91,7 @@ public class CassandraSinkExec {
         return configs;
     }
 
-    private static final void sendData() throws InterruptedException {
+    private static void sendData() throws InterruptedException {
         TimeUnit.SECONDS.sleep(10);
         InputTopicProducerThread writer = new ReadingSchemaRecordProducer(BROKER_URL, INPUT_TOPIC);
         writer.run();

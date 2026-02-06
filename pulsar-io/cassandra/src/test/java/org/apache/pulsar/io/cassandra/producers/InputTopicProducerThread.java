@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.io.cassandra.producers;
 
+import java.util.Random;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-
-import java.util.Random;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 @Slf4j
