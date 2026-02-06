@@ -315,6 +315,7 @@ message FeatureFlags {
   optional bool supports_topic_watchers = 4 [default = false];
   optional bool supports_get_partitioned_metadata_without_auto_creation = 5 [default = false];
   optional bool supports_repl_dedup_by_lid_and_eid = 6 [default = false];
+  optional bool supports_topic_watcher_reconcile = 7 [default = false];
 }
 
 message CommandConnected {
@@ -653,7 +654,7 @@ message CommandTopicMigrated {
     required ResourceType resource_type = 2;
     optional string brokerServiceUrl      = 3;
     optional string brokerServiceUrlTls   = 4;
-    
+
 }
 
 
@@ -1148,6 +1149,6 @@ message BaseCommand {
     optional CommandWatchTopicListSuccess watchTopicListSuccess = 65;
     optional CommandWatchTopicUpdate watchTopicUpdate = 66;
     optional CommandWatchTopicListClose watchTopicListClose = 67;
-    
+
     optional CommandTopicMigrated topicMigrated = 68;
 }
