@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -41,6 +42,7 @@ import org.apache.pulsar.proxy.server.ProxyService;
 import org.testng.annotations.Test;
 
 @Test
+@Slf4j
 public class AutoCloseUselessClientConProxyTest extends AutoCloseUselessClientConSupports {
     private static final String TOPIC_NAME = BrokerTestUtil.newUniqueName("pattern_");
     private static final String TOPIC_FULL_NAME = "persistent://public/default/" + TOPIC_NAME;
@@ -107,6 +109,9 @@ public class AutoCloseUselessClientConProxyTest extends AutoCloseUselessClientCo
                 .topicsPattern(TOPIC_PATTERN)
                 .subscriptionName("my-subscription-y")
                 .subscribe();
+
+        waitForTopicListWatcherStarted(consumer);
+        waitForTopicListWatcherStarted(consumer2);
 
         int poolSizeAfterCreatingConsumersAndProducer = pulsarClient.getCnxPool().getPoolSize();
         // check that there are more than 3 connections
