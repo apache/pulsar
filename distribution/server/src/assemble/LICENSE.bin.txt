@@ -541,7 +541,7 @@ The Apache Software License, Version 2.0
     - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java17-2.21.0-alpha.jar
     - io.opentelemetry.instrumentation-opentelemetry-runtime-telemetry-java8-2.21.0-alpha.jar
     - io.opentelemetry.semconv-opentelemetry-semconv-1.37.0.jar
-    - com.google.cloud.opentelemetry-detector-resources-support-0.33.0.jar
+    - com.google.cloud.opentelemetry-detector-resources-support-0.36.0.jar
     - io.opentelemetry.contrib-opentelemetry-gcp-resources-1.48.0-alpha.jar
   * Spotify completable-futures
     - com.spotify-completable-futures-0.3.6.jar
