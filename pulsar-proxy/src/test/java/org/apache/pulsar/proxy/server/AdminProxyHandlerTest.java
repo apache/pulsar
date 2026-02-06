@@ -20,7 +20,9 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Field;
@@ -59,6 +61,20 @@ public class AdminProxyHandlerTest {
     }
 
     @Test
+    public void testRequestTimeout() {
+        ProxyConfiguration proxyConfiguration = spy(new ProxyConfiguration());
+        proxyConfiguration.setHttpProxyTimeout(120 * 1000);
+
+        adminProxyHandler = new AdminProxyHandler(proxyConfiguration,
+                mock(BrokerDiscoveryProvider.class), mock(Authentication.class));
+
+        HttpClient httpClient = mock(HttpClient.class);
+        adminProxyHandler.customizeHttpClient(httpClient);
+
+        assertEquals(adminProxyHandler.getTimeout(), 120 * 1000);
+    }
+
+    @Test
     public void replayableProxyContentProviderTest() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);
         doReturn(-1).when(request).getContentLength();
@@ -70,7 +86,7 @@ public class AdminProxyHandlerTest {
                             1024);
             Field field = replayableProxyContentProvider.getClass().getDeclaredField("bodyBuffer");
             field.setAccessible(true);
-            Assert.assertEquals(((ByteBuffer) field.get(replayableProxyContentProvider)).position(), 0);
+            assertEquals(((ByteBuffer) field.get(replayableProxyContentProvider)).position(), 0);
         } catch (IllegalArgumentException e) {
             Assert.fail("IllegalArgumentException should not be thrown");
         }
@@ -102,10 +118,10 @@ public class AdminProxyHandlerTest {
         }
 
         // then
-        Assert.assertEquals(consumedBytes, requestBodySize);
+        assertEquals(consumedBytes, requestBodySize);
         Field field = replayableProxyContentProvider.getClass().getDeclaredField("bodyBufferMaxSizeReached");
         field.setAccessible(true);
-        Assert.assertEquals(((boolean) field.get(replayableProxyContentProvider)), true);
+        assertEquals(((boolean) field.get(replayableProxyContentProvider)), true);
     }
 
     @Test
@@ -140,7 +156,7 @@ public class AdminProxyHandlerTest {
             byte[] consumedBytes = new byte[consumeBuffer.remaining()];
             consumeBuffer.get(consumedBytes);
             // then
-            Assert.assertEquals(consumedBytes, inputBuffer, "i=" + i);
+            assertEquals(consumedBytes, inputBuffer, "i=" + i);
         }
     }
 }
