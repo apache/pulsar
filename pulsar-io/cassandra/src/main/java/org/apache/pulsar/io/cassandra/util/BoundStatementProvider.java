@@ -20,14 +20,9 @@ package org.apache.pulsar.io.cassandra.util;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
-import org.apache.commons.beanutils.converters.IntegerConverter;
-import org.apache.commons.beanutils.converters.NumberConverter;
 
 @SuppressWarnings("rawtypes")
 public class BoundStatementProvider {
-
-    NumberConverter converter = new IntegerConverter();
-
     final TableMetadataProvider.TableDefinition tableDefinition;
 
     public BoundStatementProvider(TableMetadataProvider.TableDefinition tableDefinition) {
