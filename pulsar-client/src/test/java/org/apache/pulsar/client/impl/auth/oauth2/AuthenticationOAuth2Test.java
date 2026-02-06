@@ -85,6 +85,7 @@ public class AuthenticationOAuth2Test {
         params.put("issuerUrl", "http://localhost");
         params.put("audience", "http://localhost");
         params.put("scope", "http://localhost");
+        params.put("wellKnownMetadataPath", "/.well-known/custom-path");
         ObjectMapper mapper = new ObjectMapper();
         String authParams = mapper.writeValueAsString(params);
         this.auth.configure(authParams);
@@ -132,8 +133,48 @@ public class AuthenticationOAuth2Test {
 
     @Test
     public void testMetadataResolver() throws MalformedURLException {
-        URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(URI.create("http://localhost/path/oauth").toURL());
+        URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost/path/oauth").toURL(),
+                null);
         assertEquals("http://localhost/path/oauth/.well-known/openid-configuration", url.toString());
+
+        // custom wellKnownMetadataPath with full well-known prefix
+        URL customUrl = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost/path/oauth").toURL(),
+                "/.well-known/custom-path");
+        assertEquals("http://localhost/.well-known/custom-path/path/oauth", customUrl.toString());
+
+        // null wellKnownMetadataPath (should use default)
+        URL customUrl2 = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost/path/oauth").toURL(),
+                null);
+        assertEquals("http://localhost/path/oauth/.well-known/openid-configuration", customUrl2.toString());
+
+        // empty wellKnownMetadataPath (should use default)
+        URL customUrl3 = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost/path/oauth").toURL(),
+                "");
+        assertEquals("http://localhost/path/oauth/.well-known/openid-configuration", customUrl3.toString());
+
+        // using RFC8414 OAuth2 metadata path
+        URL oauthUrl = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost/path/oauth").toURL(),
+                DefaultMetadataResolver.OAUTH_WELL_KNOWN_METADATA_PATH);
+        assertEquals("http://localhost/.well-known/oauth-authorization-server/path/oauth", oauthUrl.toString());
+
+        // test with issuer URL without path
+        URL oauthUrlNoPath = DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost").toURL(),
+                DefaultMetadataResolver.OAUTH_WELL_KNOWN_METADATA_PATH);
+        assertEquals("http://localhost/.well-known/oauth-authorization-server", oauthUrlNoPath.toString());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = ".*Metadata path must start with.*")
+    public void testMetadataResolverWithInvalidPath() throws MalformedURLException {
+        DefaultMetadataResolver.getWellKnownMetadataUrl(
+                URI.create("http://localhost/path/oauth").toURL(),
+                "/custom-path");
     }
 
     @Test
