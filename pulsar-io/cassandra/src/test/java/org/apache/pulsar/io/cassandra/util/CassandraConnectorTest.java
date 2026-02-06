@@ -20,51 +20,43 @@ package org.apache.pulsar.io.cassandra.util;
 
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
-import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
+import lombok.Cleanup;
 import org.testng.annotations.Test;
 
-public class CassandraConnectorTest {
+public class CassandraConnectorTest extends AbstractCassandraTest {
 
-    private CassandraSinkConfig config;
-
-    @Test(enabled = false)
+    @Test
     public final void securedTest() {
-        config = new CassandraSinkConfig();
-        config.setRoots("localhost");
-        config.setUserName("cassandra");
-        config.setPassword("cassandra");
+        createSinkConfig();
 
+        @Cleanup
         CassandraConnector connector = new CassandraConnector(config);
         connector.connect();
         assertNotNull(connector.getSession());
     }
 
-    @Test(enabled = false)
+    @Test
     public final void getObservationPreparedStatementTest() {
-        config = new CassandraSinkConfig();
-        config.setRoots("localhost");
-        config.setUserName("cassandra");
-        config.setPassword("cassandra");
+        createSinkConfig();
         config.setColumnFamily("observation");
         config.setKeyspace("airquality");
 
+        @Cleanup
         CassandraConnector connector = new CassandraConnector(config);
         assertEquals("INSERT INTO airquality.observation (key, observed) VALUES (?, ?)",
                 connector.getPreparedStatement().getQueryString());
     }
 
-    @Test(enabled = false)
+    @Test
     public final void getReadingPreparedStatementTest() {
-        config = new CassandraSinkConfig();
-        config.setRoots("localhost");
-        config.setUserName("cassandra");
-        config.setPassword("cassandra");
+        createSinkConfig();
         config.setColumnFamily("reading");
         config.setKeyspace("airquality");
 
+        @Cleanup
         CassandraConnector connector = new CassandraConnector(config);
         assertEquals("INSERT INTO airquality.reading "
-                        + "(reporting_area, avg_ozone, avg_pm10, avg_pm25, date_observed, hour_observed, latitude, "
+                        + "(reporting_area, date_observed, hour_observed, avg_ozone, avg_pm10, avg_pm25, latitude, "
                         + "local_time_zone, longitude, max_ozone, max_pm10, max_pm25, min_ozone, min_pm10, min_pm25, "
                         + "readingid, state_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 connector.getPreparedStatement().getQueryString());

@@ -20,21 +20,19 @@ package org.apache.pulsar.io.cassandra.util;
 
 import static org.testng.Assert.assertNotNull;
 import static org.testng.AssertJUnit.assertEquals;
-import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
+import lombok.Cleanup;
 import org.testng.annotations.Test;
 
-public class TableMetadataProviderTest {
+public class TableMetadataProviderTest extends AbstractCassandraTest {
 
-    @Test(enabled = false)
+    @Test
     public final void getTableDefinitionTest() {
 
-        CassandraSinkConfig config = new CassandraSinkConfig();
-        config.setRoots("localhost");
-        config.setUserName("cassandra");
-        config.setPassword("cassandra");
+        createSinkConfig();
         config.setColumnFamily("observation");
         config.setKeyspace("airquality");
 
+        @Cleanup
         CassandraConnector connector = new CassandraConnector(config);
 
         TableMetadataProvider.TableDefinition table =
@@ -45,6 +43,6 @@ public class TableMetadataProviderTest {
         assertNotNull(table);
         assertEquals(17, table.getColumns().size());
         assertEquals(1, table.getPartitionKeyColumns().size());
-        assertEquals(1, table.getPrimaryKeyColumns().size());
+        assertEquals(3, table.getPrimaryKeyColumns().size());
     }
 }

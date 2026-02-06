@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
 
-public class CassandraConnector {
+public class CassandraConnector implements AutoCloseable {
 
     private Cluster cluster;
     private Session session;
