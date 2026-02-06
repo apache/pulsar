@@ -229,7 +229,6 @@ public class PulsarClientImpl implements PulsarClient {
             this.eventLoopGroup = eventLoopGroupReference;
             this.instrumentProvider = new InstrumentProvider(conf.getOpenTelemetry());
             clientClock = conf.getClock();
-            conf.getAuthentication().start();
             this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
                     PulsarClientResourcesConfigurer.createScheduledExecutorProvider(conf);
             if (connectionPool != null) {
@@ -271,6 +270,7 @@ public class PulsarClientImpl implements PulsarClient {
             } else {
                 this.timer = timer;
             }
+            conf.getAuthentication().start(buildAuthenticationInitContext());
             lookup = createLookup(conf.getServiceUrl());
 
             if (conf.getServiceUrlProvider() != null) {
@@ -306,6 +306,13 @@ public class PulsarClientImpl implements PulsarClient {
             closeCnxPool(connectionPoolReference);
             throw t;
         }
+    }
+    private AuthenticationInitContextImpl buildAuthenticationInitContext() {
+        return new AuthenticationInitContextImpl(
+                createdEventLoopGroup ? null : eventLoopGroup,
+                needStopTimer ? null : timer,
+                addressResolver == null ? null : DnsResolverUtil.adaptToNameResolver(addressResolver)
+        );
     }
 
     private void reduceConsumerReceiverQueueSize() {
@@ -1091,7 +1098,7 @@ public class PulsarClientImpl implements PulsarClient {
             conf.getAuthentication().close();
         }
         conf.setAuthentication(authentication);
-        conf.getAuthentication().start();
+        conf.getAuthentication().start(buildAuthenticationInitContext());
     }
 
     public void updateTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {

@@ -34,6 +34,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationInitContext;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import org.testng.annotations.BeforeMethod;
@@ -56,6 +57,7 @@ public class AuthenticationOAuth2Test {
         this.flow = mock(Flow.class);
         this.auth = new AuthenticationOAuth2(flow, this.clock);
     }
+
 
     @Test
     public void testGetAuthMethodName() {
@@ -140,5 +142,42 @@ public class AuthenticationOAuth2Test {
     public void testClose() throws Exception {
         this.auth.close();
         verify(this.flow).close();
+    }
+
+    @Test
+    public void testStartWithAuthenticationInitContext() throws Exception {
+        // Given: Mock AuthenticationInitContext
+        AuthenticationInitContext initContext = mock(AuthenticationInitContext.class);
+
+        // Configure with required parameters
+        Map<String, String> params = new HashMap<>();
+        params.put("type", "client_credentials");
+        params.put("privateKey", "data:base64,e30=");
+        params.put("issuerUrl", "http://localhost");
+        ObjectMapper mapper = new ObjectMapper();
+        String authParams = mapper.writeValueAsString(params);
+        auth.configure(authParams);
+
+        // When: Call start with context
+        auth.start(initContext);
+
+        // Then: Verify flow is initialized
+        assertNotNull(auth.flow);
+    }
+
+    @Test
+    public void testStartWithContextOnlyInitializesOnce() throws Exception {
+        // Given: Mock AuthenticationInitContext
+        AuthenticationInitContext initContext = mock(AuthenticationInitContext.class);
+
+        // Create a new auth instance with pre-existing flow
+        Flow existingFlow = mock(Flow.class);
+        AuthenticationOAuth2 auth = new AuthenticationOAuth2(existingFlow, this.clock);
+
+        // When: Call start with context (flow already exists)
+        auth.start(initContext);
+
+        // Then: Initialize should still be called
+        verify(existingFlow).initialize();
     }
 }
