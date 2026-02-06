@@ -240,7 +240,7 @@ flexible messaging model and an intuitive client API.</description>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <json-smart.version>2.5.2</json-smart.version>
-    <opensearch.version>2.16.0</opensearch.version>
+    <opensearch.version>2.19.4</opensearch.version>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.5</debezium.postgresql.version>
