@@ -437,7 +437,7 @@ public class AcknowledgementsGroupingTrackerTest {
             Thread isDuplicateThread = new Thread(() -> {
                 for (int j = 0; j < loops; j++) {
                     boolean duplicate = tracker.isDuplicate(batchMessageId1);
-                    assertResult.set(assertResult.get() || duplicate);
+                    assertResult.compareAndSet(false, duplicate);
                 }
             }, "isDuplicate-thread-" + i);
             isDuplicateThread.start();
