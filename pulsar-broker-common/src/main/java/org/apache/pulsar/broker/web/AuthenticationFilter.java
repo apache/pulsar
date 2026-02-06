@@ -60,9 +60,13 @@ public class AuthenticationFilter implements Filter {
         try {
             doFilter = authenticationService.authenticateHttpRequest(httpRequest, httpResponse);
         } catch (Exception e) {
-            httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
+            String msg = e.getMessage();
+            if (msg == null) {
+                msg = "Authentication required";
+            }
+            httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, msg);
             if (e instanceof AuthenticationException) {
-                LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), e.getMessage());
+                LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), msg);
             } else {
                 LOG.error("[{}] Error performing authentication for HTTP", request.getRemoteAddr(), e);
             }
