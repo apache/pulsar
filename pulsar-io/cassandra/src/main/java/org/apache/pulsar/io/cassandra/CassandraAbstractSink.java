@@ -42,7 +42,7 @@ import org.apache.pulsar.io.core.annotations.IOType;
         type = IOType.SINK,
         help = "The CassandraStringSink is used for moving messages from Pulsar to Cassandra.",
         configClass = CassandraSinkConfig.class)
-public abstract class CassandraSink<T> implements Sink<T> {
+public abstract class CassandraAbstractSink<T> implements Sink<T> {
 
     CassandraConnector connector;
     CassandraSinkConfig cassandraSinkConfig;

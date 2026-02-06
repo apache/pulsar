@@ -23,7 +23,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.cassandra.util.GenericRecordWrapper;
 import org.apache.pulsar.io.cassandra.util.RecordWrapper;
 
-public class CassandraGenericRecordSink extends CassandraSink<GenericRecord> {
+public class CassandraGenericRecordSink extends CassandraAbstractSink<GenericRecord> {
 
     @Override
     RecordWrapper<GenericRecord> wrapRecord(Record<GenericRecord> record) {

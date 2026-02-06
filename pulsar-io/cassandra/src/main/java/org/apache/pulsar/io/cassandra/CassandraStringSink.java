@@ -22,7 +22,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.cassandra.util.RecordWrapper;
 import org.apache.pulsar.io.cassandra.util.StringRecordWrapper;
 
-public class CassandraStringSink extends CassandraSink<String> {
+public class CassandraStringSink extends CassandraAbstractSink<String> {
 
     @Override
     RecordWrapper<String> wrapRecord(Record<String> record) {
