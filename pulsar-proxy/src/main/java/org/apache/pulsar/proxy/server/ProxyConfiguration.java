@@ -802,6 +802,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int httpProxyTimeout = 5 * 60 * 1000;
 
     @FieldContext(
+            minValue = 0,
+            category = CATEGORY_HTTP,
+            doc = "Http proxy idle timeout.\n\n"
+                    + "The idle timeout value for HTTP proxy is in millisecond."
+    )
+    private int httpProxyIdleTimeout = 30 * 1000;
+
+    @FieldContext(
            minValue = 1,
            category = CATEGORY_HTTP,
            doc = "Number of threads to use for HTTP requests processing"
@@ -824,6 +832,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + " Default is set to 8192."
     )
     private int httpServerAcceptQueueSize = 8192;
+
+    @FieldContext(
+            minValue = 0,
+            category = CATEGORY_HTTP,
+            doc = "Idle timeout for HTTP server connections in milliseconds."
+    )
+    private int httpServerIdleTimeout = 30 * 1000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
             + "(0 to disable limiting)")

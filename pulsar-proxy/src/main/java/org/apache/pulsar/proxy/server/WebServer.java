@@ -114,6 +114,7 @@ public class WebServer {
         }
         httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
         httpConfig.setRequestHeaderSize(config.getHttpMaxRequestHeaderSize());
+        httpConfig.setIdleTimeout(config.getHttpServerIdleTimeout());
 
         HttpConnectionFactory httpConnectionFactory = new HttpConnectionFactory(httpConfig);
         if (config.getWebServicePort().isPresent()) {
@@ -167,7 +168,10 @@ public class WebServer {
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
-        connectors.stream().forEach(c -> c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize()));
+        connectors.stream().forEach(c -> {
+            c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize());
+            c.setIdleTimeout(config.getHttpServerIdleTimeout());
+        });
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
 
         filterInitializer = new FilterInitializer(config, authenticationService);
