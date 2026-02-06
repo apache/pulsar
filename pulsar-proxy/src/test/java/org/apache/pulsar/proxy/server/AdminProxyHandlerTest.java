@@ -20,7 +20,9 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -57,6 +59,20 @@ public class AdminProxyHandlerTest {
         when(servletConfig.getServletName()).thenReturn("AdminProxyHandler");
         when(servletConfig.getServletContext()).thenReturn(mock(ServletContext.class));
         adminProxyHandler.init(servletConfig);
+    }
+
+    @Test
+    public void testRequestTimeout() {
+        ProxyConfiguration proxyConfiguration = spy(new ProxyConfiguration());
+        proxyConfiguration.setHttpProxyTimeout(120 * 1000);
+
+        adminProxyHandler = new AdminProxyHandler(proxyConfiguration,
+                mock(BrokerDiscoveryProvider.class), mock(Authentication.class));
+
+        HttpClient httpClient = mock(HttpClient.class);
+        adminProxyHandler.customizeHttpClient(httpClient);
+
+        assertEquals(adminProxyHandler.getTimeout(), 120 * 1000);
     }
 
     @Test
@@ -102,10 +118,10 @@ public class AdminProxyHandlerTest {
         }
 
         // then
-        Assert.assertEquals(consumedBytes, requestBodySize);
+        assertEquals(consumedBytes, requestBodySize);
         Field field = replayableProxyContentProvider.getClass().getDeclaredField("bodyBufferMaxSizeReached");
         field.setAccessible(true);
-        Assert.assertEquals(((boolean) field.get(replayableProxyContentProvider)), true);
+        assertEquals(((boolean) field.get(replayableProxyContentProvider)), true);
     }
 
     @Test
@@ -138,7 +154,7 @@ public class AdminProxyHandlerTest {
             byte[] consumedBytes = new byte[consumeBuffer.limit()];
             consumeBuffer.get(consumedBytes);
             // then
-            Assert.assertEquals(consumedBytes, inputBuffer);
+            assertEquals(consumedBytes, inputBuffer, "i=" + i);
         }
     }
 }
