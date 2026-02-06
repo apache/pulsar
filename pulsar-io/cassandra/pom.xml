@@ -80,6 +80,12 @@
       <scope>compile</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>cassandra</artifactId>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 
   <build>
