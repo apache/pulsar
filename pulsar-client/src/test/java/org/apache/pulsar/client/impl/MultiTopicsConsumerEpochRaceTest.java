@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -58,7 +59,6 @@ import org.testng.annotations.Test;
  * validations, so the epoch changes mid-batch. Without the fix, exactly one message is delivered
  * (bug). The test asserts totalDelivered != 1.
  */
-@Test(groups = "flaky")
 public class MultiTopicsConsumerEpochRaceTest {
 
     private static final String TOPIC_NAME = "topic-25204";
@@ -99,6 +99,7 @@ public class MultiTopicsConsumerEpochRaceTest {
         CountDownLatch afterFirstValidationLatch = new CountDownLatch(1);
         CountDownLatch releaseValidationLatch = new CountDownLatch(1);
         CountDownLatch redeliverDoneLatch = new CountDownLatch(1);
+        CountDownLatch redeliverRunnableStartedLatch = new CountDownLatch(1);
         CountDownLatch forEachCompleteLatch = new CountDownLatch(1);
         AtomicInteger validationCallCount = new AtomicInteger(0);
         AtomicInteger acceptedByEpochCount = new AtomicInteger(0);
@@ -115,7 +116,7 @@ public class MultiTopicsConsumerEpochRaceTest {
                 clientMock, conf, executorProvider, subscribeFuture, Schema.BYTES, null, true);
         multiConsumer.setEpochRaceTestLatches(
                 afterFirstValidationLatch, releaseValidationLatch, redeliverDoneLatch,
-                forEachCompleteLatch, validationCallCount, acceptedByEpochCount);
+                redeliverRunnableStartedLatch, forEachCompleteLatch, validationCallCount, acceptedByEpochCount);
 
         subscribeFuture.get(AWAIT_SECONDS, TimeUnit.SECONDS);
         assertTrue(multiConsumer.getConsumers().isEmpty(), "Empty topic set gives 0 consumers");
@@ -133,11 +134,7 @@ public class MultiTopicsConsumerEpochRaceTest {
         CompletableFuture<Messages<byte[]>> batchFuture = new CompletableFuture<>();
         when(mockConsumer.batchReceiveAsync()).thenReturn(batchFuture);
 
-        Field consumersField = MultiTopicsConsumerImpl.class.getDeclaredField("consumers");
-        consumersField.setAccessible(true);
-        java.util.Map<String, ConsumerImpl<byte[]>> consumersMap =
-                (java.util.Map<String, ConsumerImpl<byte[]>>) consumersField.get(multiConsumer);
-        consumersMap.put(TOPIC_NAME, mockConsumer);
+        multiConsumer.consumers.put(TOPIC_NAME, mockConsumer);
 
         Method startReceiving = MultiTopicsConsumerImpl.class.getDeclaredMethod(
                 "startReceivingMessages", List.class);
@@ -157,7 +154,8 @@ public class MultiTopicsConsumerEpochRaceTest {
 
         Thread redeliverThread = new Thread(multiConsumer::redeliverUnacknowledgedMessages, "redeliver-caller");
         redeliverThread.start();
-        Thread.sleep(500);
+        assertTrue(redeliverRunnableStartedLatch.await(AWAIT_SECONDS, TimeUnit.SECONDS),
+                "Redeliver runnable should have started");
         assertFalse(redeliverDoneLatch.await(100, TimeUnit.MILLISECONDS),
                 "Redeliver runnable must still be blocked (waiting for incomingQueueLock)");
 
@@ -166,7 +164,7 @@ public class MultiTopicsConsumerEpochRaceTest {
         assertTrue(forEachCompleteLatch.await(AWAIT_SECONDS, TimeUnit.SECONDS),
                 "Receive callback forEach should complete");
 
-        assertTrue(acceptedByEpochCount.get() == 2,
+        assertEquals(acceptedByEpochCount.get(), 2,
                 "Both messages accepted under stable epoch (acceptedByEpochCount == 2)");
         assertTrue(redeliverDoneLatch.await(5, TimeUnit.SECONDS),
                 "Redeliver runnable should complete shortly after batch releases lock");
@@ -194,6 +192,7 @@ public class MultiTopicsConsumerEpochRaceTest {
         private CountDownLatch afterFirstValidationLatch;
         private CountDownLatch releaseValidationLatch;
         private CountDownLatch redeliverDoneLatch;
+        private CountDownLatch redeliverRunnableStartedLatch;
         private CountDownLatch forEachCompleteLatch;
         private AtomicInteger validationCallCount;
         private AtomicInteger acceptedByEpochCount;
@@ -212,12 +211,14 @@ public class MultiTopicsConsumerEpochRaceTest {
         void setEpochRaceTestLatches(CountDownLatch afterFirstValidationLatch,
                 CountDownLatch releaseValidationLatch,
                 CountDownLatch redeliverDoneLatch,
+                CountDownLatch redeliverRunnableStartedLatch,
                 CountDownLatch forEachCompleteLatch,
                 AtomicInteger validationCallCount,
                 AtomicInteger acceptedByEpochCount) {
             this.afterFirstValidationLatch = afterFirstValidationLatch;
             this.releaseValidationLatch = releaseValidationLatch;
             this.redeliverDoneLatch = redeliverDoneLatch;
+            this.redeliverRunnableStartedLatch = redeliverRunnableStartedLatch;
             this.forEachCompleteLatch = forEachCompleteLatch;
             this.validationCallCount = validationCallCount;
             this.acceptedByEpochCount = acceptedByEpochCount;
@@ -255,6 +256,9 @@ public class MultiTopicsConsumerEpochRaceTest {
         @Override
         public void redeliverUnacknowledgedMessages() {
             internalPinnedExecutor.execute(() -> {
+                if (redeliverRunnableStartedLatch != null) {
+                    redeliverRunnableStartedLatch.countDown();
+                }
                 try {
                     incomingQueueLock.lock();
                     try {
