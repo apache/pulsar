@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.ConnectionHandler;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.testng.annotations.AfterMethod;
@@ -125,8 +126,7 @@ public class MultiTopicsConsumerEpochRaceTest {
         when(mockConsumer.getTopic()).thenReturn(TOPIC_NAME);
         doNothing().when(mockConsumer).increaseAvailablePermits(any(ClientCnx.class));
         ClientCnx cnxMock = mock(ClientCnx.class);
-        org.apache.pulsar.client.impl.ConnectionHandler connectionHandlerMock =
-                mock(org.apache.pulsar.client.impl.ConnectionHandler.class);
+        ConnectionHandler connectionHandlerMock = mock(ConnectionHandler.class);
         when(connectionHandlerMock.cnx()).thenReturn(cnxMock);
         when(mockConsumer.getConnectionHandler()).thenReturn(connectionHandlerMock);
         when(mockConsumer.getCurrentReceiverQueueSize()).thenReturn(10);
@@ -136,6 +136,7 @@ public class MultiTopicsConsumerEpochRaceTest {
 
         multiConsumer.consumers.put(TOPIC_NAME, mockConsumer);
 
+        // startReceivingMessages is private in production code; no stable test seam.
         Method startReceiving = MultiTopicsConsumerImpl.class.getDeclaredMethod(
                 "startReceivingMessages", List.class);
         startReceiving.setAccessible(true);
@@ -272,6 +273,7 @@ public class MultiTopicsConsumerEpochRaceTest {
                         clearIncomingMessages();
                         unAckedMessageTracker.clear();
                         try {
+                            // resumeReceivingFromPausedConsumersIfNeeded is private; no stable test seam.
                             Method resumeReceiving = MultiTopicsConsumerImpl.class.getDeclaredMethod(
                                     "resumeReceivingFromPausedConsumersIfNeeded");
                             resumeReceiving.setAccessible(true);
