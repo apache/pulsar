@@ -120,7 +120,7 @@ public class MultiTopicsConsumerEpochRaceTest {
                 redeliverRunnableStartedLatch, forEachCompleteLatch, validationCallCount, acceptedByEpochCount);
 
         subscribeFuture.get(AWAIT_SECONDS, TimeUnit.SECONDS);
-        assertTrue(multiConsumer.getConsumers().isEmpty(), "Empty topic set gives 0 consumers");
+        assertEquals(multiConsumer.getConsumers().size(), 0, "Empty topic set gives 0 consumers");
 
         ConsumerImpl<byte[]> mockConsumer = mock(ConsumerImpl.class);
         when(mockConsumer.getTopic()).thenReturn(TOPIC_NAME);
