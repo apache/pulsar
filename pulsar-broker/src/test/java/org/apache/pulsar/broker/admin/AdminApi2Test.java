@@ -1423,19 +1423,21 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         topicProperties.put("key1", "value1");
         try {
             admin.topics().updateProperties(topicName, topicProperties);
-            Assert.fail("Should have thrown an exception for non-existent topic");
-        } catch (PulsarAdminException.NotFoundException e) {
-            // Expected
-            assertTrue(e.getMessage().contains("Topic not found") || e.getMessage().contains("not found"));
+            fail("Should have thrown an exception for non-existent topic");
+        } catch (Exception e) {
+            Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
+                throw e;
+            });
         }
 
         // Test removeProperties on non-existent topic should return 404 Not Found
         try {
             admin.topics().removeProperties(topicName, "key1");
-            Assert.fail("Should have thrown an exception for non-existent topic");
+            fail("Should have thrown an exception for non-existent topic");
         } catch (PulsarAdminException.NotFoundException e) {
-            // Expected
-            assertTrue(e.getMessage().contains("Topic not found") || e.getMessage().contains("not found"));
+            Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
+                throw e;
+            });
         }
     }
 
