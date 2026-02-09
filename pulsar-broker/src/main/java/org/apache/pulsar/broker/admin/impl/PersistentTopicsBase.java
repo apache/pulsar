@@ -4351,8 +4351,7 @@ public class PersistentTopicsBase extends AdminResource {
         // we need to access the metadata of system topics to create readers and clean up topic data.
         // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
         authorizationFuture.thenCompose(__ ->
-                        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(),
-                                SystemTopicNames.isSystemTopic(topicName)))
+                        checkLocalOrGetPeerReplicationCluster(pulsar, topicName))
                 .thenCompose(res ->
                         pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
                 .thenAccept(metadata -> {
@@ -4383,19 +4382,18 @@ public class PersistentTopicsBase extends AdminResource {
         // and other vital information. Even after namespace starting deletion,,
         // we need to access the metadata of system topics to create readers and clean up topic data.
         // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
-        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(), isSystemTopic(topicName))
-            .thenCompose(res -> pulsar.getBrokerService()
-                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
-            .thenAccept(metadata -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Total number of partitions for topic {} is {}", topicName,
-                        metadata.partitions);
-                }
-                metadataFuture.complete(metadata);
-            }).exceptionally(ex -> {
-            metadataFuture.completeExceptionally(ex.getCause());
-            return null;
-        });
+        checkLocalOrGetPeerReplicationCluster(pulsar, topicName).thenCompose(res -> pulsar.getBrokerService()
+                        .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                .thenAccept(metadata -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Total number of partitions for topic {} is {}", topicName,
+                                metadata.partitions);
+                    }
+                    metadataFuture.complete(metadata);
+                }).exceptionally(ex -> {
+                    metadataFuture.completeExceptionally(ex.getCause());
+                    return null;
+                });
 
         return metadataFuture;
     }
