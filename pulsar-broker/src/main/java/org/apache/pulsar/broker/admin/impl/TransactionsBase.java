@@ -254,7 +254,7 @@ public abstract class TransactionsBase extends AdminResource {
 
             FutureUtil.waitForAll(producedPartitionsFutures).whenComplete((x, t) -> {
                 if (t != null) {
-                    transactionMetadataFuture.completeExceptionally(e);
+                    transactionMetadataFuture.completeExceptionally(t);
                     return;
                 }
 
