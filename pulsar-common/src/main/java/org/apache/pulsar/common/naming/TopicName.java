@@ -119,7 +119,7 @@ public class TopicName implements ServiceUnitId {
             if (!completeTopicName.contains("://")) {
                 // The short topic name can be:
                 // - <topic>
-                // - <property>/<namespace>/<topic>
+                // - <tenant>/<namespace>/<topic>
                 String[] parts = StringUtils.split(completeTopicName, '/');
                 if (parts.length == 3) {
                     completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
@@ -263,9 +263,9 @@ public class TopicName implements ServiceUnitId {
      * For partitions in a topic, return the base partitioned topic name.
      * Eg:
      * <ul>
-     *  <li><code>persistent://prop/cluster/ns/my-topic-partition-1</code> -->
-     *  <code>persistent://prop/cluster/ns/my-topic</code>
-     *  <li><code>persistent://prop/cluster/ns/my-topic</code> --> <code>persistent://prop/cluster/ns/my-topic</code>
+     *  <li><code>persistent://tenant/cluster/ns/my-topic-partition-1</code> -->
+     *  <code>persistent://tenant/cluster/ns/my-topic</code>
+     *  <li><code>persistent://tenant/cluster/ns/my-topic</code> --> <code>persistent://tenant/cluster/ns/my-topic</code>
      * </ul>
      */
     public String getPartitionedTopicName() {
@@ -437,7 +437,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
-     * Returns true if this a V2 topic name prop/ns/topic-name.
+     * Returns true if this a V2 topic name tenant/ns/topic-name.
      * @return true if V2
      */
     public boolean isV2() {
