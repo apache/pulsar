@@ -1169,6 +1169,35 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testUpdatePropertiesOnNonExistentTopic() throws Exception {
+        final String namespace = newUniqueName(defaultTenant + "/ns2");
+        final String topicName = "persistent://" + namespace + "/testUpdatePropertiesOnNonExistentTopic";
+        admin.namespaces().createNamespace(namespace, 20);
+
+        // Test updateProperties on non-existent topic should return 404 Not Found
+        Map<String, String> topicProperties = new HashMap<>();
+        topicProperties.put("key1", "value1");
+        try {
+            admin.topics().updateProperties(topicName, topicProperties);
+            fail("Should have thrown an exception for non-existent topic");
+        } catch (Exception e) {
+            Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
+                throw e;
+            });
+        }
+
+        // Test removeProperties on non-existent topic should return 404 Not Found
+        try {
+            admin.topics().removeProperties(topicName, "key1");
+            fail("Should have thrown an exception for non-existent topic");
+        } catch (PulsarAdminException.NotFoundException e) {
+            Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
+                throw e;
+            });
+        }
+    }
+
+    @Test
     public void testNonPersistentTopics() throws Exception {
         final String namespace = newUniqueName(defaultTenant + "/ns2");
         final String topicName = "non-persistent://" + namespace + "/topic";
