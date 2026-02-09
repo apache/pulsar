@@ -1486,7 +1486,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
 
-            // right now, chunked messages are only supported by non-shared subscription
             if (isChunkedMessage) {
                 uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
                 if (uncompressedPayload == null) {
