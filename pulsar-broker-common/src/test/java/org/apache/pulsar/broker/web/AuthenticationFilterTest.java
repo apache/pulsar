@@ -66,7 +66,7 @@ public class AuthenticationFilterTest {
 
         filter.doFilter(request, response, chain);
 
-        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, errorMsg);
+        verify(response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
     }
 
     @Test
