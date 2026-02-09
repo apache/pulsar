@@ -353,8 +353,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         TransactionBatchedWriteValidator.validate(config);
-        this.validateCustomMetricLabelKeys(config.getAllowedTopicPropertiesForMetrics());
         this.config = config;
+        this.validateCustomMetricLabelKeys(config.getAllowedTopicPropertiesForMetrics());
         this.clock = Clock.systemUTC();
 
         this.openTelemetry = new PulsarBrokerOpenTelemetry(config, openTelemetrySdkBuilderCustomizer);

@@ -2017,6 +2017,29 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertTrue(allowedKeys.isEmpty());
     }
 
+    @Test
+    public void testSetAllowedTopicPropertiesForMetricsWithEmptySet() throws PulsarAdminException {
+        String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
+        admin.namespaces().createNamespace(namespace);
+
+        // Set some keys first
+        Set<String> keysToSet = new HashSet<>();
+        keysToSet.add("sla_tier");
+        keysToSet.add("owner");
+        admin.namespaces().setAllowedTopicPropertiesForMetrics(namespace, keysToSet);
+
+        // Verify keys are set
+        Set<String> allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
+        assertEquals(2, allowedKeys.size());
+
+        // Set to empty set
+        admin.namespaces().setAllowedTopicPropertiesForMetrics(namespace, new HashSet<>());
+
+        // Verify keys are cleared
+        allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
+        assertTrue(allowedKeys.isEmpty());
+    }
+
     private void assertValidRetentionPolicyAsPartOfAllPolicies(Policies policies, int retentionTimeInMinutes,
                                                                int retentionSizeInMB) throws PulsarAdminException {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");

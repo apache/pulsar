@@ -20,12 +20,15 @@ package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
@@ -111,19 +114,20 @@ public class PrometheusMetricsLabelsTest extends BrokerTestBase {
         Map<String, String> labels = new HashMap<>();
         labels.put("sla_tier", "gold");
         labels.put("app_owner", "team-a");
-//        admin.topicPolicies().setCustomMetricLabels(topic1, labels);
         admin.topics().updateProperties(topic1, labels);
 
         labels = new HashMap<>();
         labels.put("sla_tier", "platinum");
         labels.put("app_owner", "team-b");
-//        admin.topicPolicies().setCustomMetricLabels(topic2, labels);
         admin.topics().updateProperties(topic2, labels);
 
         // Verify labels are set
         Awaitility.await().untilAsserted(() -> {
-//            Map<String, String> retrievedLabels = admin.topicPolicies().getCustomMetricLabels(topic1);
             Map<String, String> retrievedLabels = admin.topics().getProperties(topic1);
+            // filter out only allowed labels
+            retrievedLabels = retrievedLabels.entrySet().stream()
+                .filter(e -> ALLOWED_CUSTOM_METRIC_LABEL_KEYS.contains(e.getKey()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
             assertNotNull(retrievedLabels);
             assertEquals(retrievedLabels.size(), 2);
             assertEquals(retrievedLabels.get("sla_tier"), "gold");
@@ -158,5 +162,109 @@ public class PrometheusMetricsLabelsTest extends BrokerTestBase {
                 }
             }
         });
+    }
+
+    @Test
+    public void testNamespaceLevelAllowedTopicPropertiesForMetrics() throws Exception {
+        String namespace = "prop/ns-dynamic";
+        String topic1 = "persistent://" + namespace + "/my-topic1";
+
+        // Create namespace
+        admin.namespaces().createNamespace(namespace);
+
+        // Set allowed topic properties at namespace level
+        Set<String> allowedKeys = Set.of("team", "cost_center");
+        admin.namespaces().setAllowedTopicPropertiesForMetrics(namespace, allowedKeys);
+
+        // Create topic
+        admin.topics().createPartitionedTopic(topic1, 2);
+
+        @Cleanup
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic1).create();
+        @Cleanup
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+            .topic(topic1)
+            .subscriptionName("test")
+            .subscribe();
+
+        // Produce and consume messages
+        for (int i = 0; i < 5; i++) {
+            p1.send(("message-" + i).getBytes());
+        }
+        for (int i = 0; i < 5; i++) {
+            c1.acknowledge(c1.receive());
+        }
+
+        // Set topic properties with allowed keys
+        Map<String, String> labels = new HashMap<>();
+        labels.put("team", "engineering");
+        labels.put("cost_center", "cc-12345");
+        labels.put("not_allowed_key", "should_not_appear"); // This key should not appear in metrics
+        admin.topics().updateProperties(topic1, labels);
+
+        // Verify topic properties are set
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, String> retrievedLabels = admin.topics().getProperties(topic1);
+            assertEquals(retrievedLabels.get("team"), "engineering");
+            assertEquals(retrievedLabels.get("cost_center"), "cc-12345");
+        });
+
+        // Generate metrics and verify labels
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, PrometheusMetricsClient.Metric> metrics = parseMetrics(metricsStr);
+
+        // Verify that allowed keys appear in metrics
+        boolean foundTeamLabel = false;
+        boolean foundCostCenterLabel = false;
+        boolean notAllowedKeyNotFound = true;
+
+        for (PrometheusMetricsClient.Metric metric : metrics.values()) {
+            Map<String, String> tags = metric.tags;
+            if (tags.containsKey("topic") && tags.get("topic").startsWith(topic1)) {
+                if ("engineering".equals(tags.get("team"))) {
+                    foundTeamLabel = true;
+                }
+                if ("cc-12345".equals(tags.get("cost_center"))) {
+                    foundCostCenterLabel = true;
+                }
+                if (tags.containsKey("not_allowed_key")) {
+                    notAllowedKeyNotFound = false;
+                }
+            }
+        }
+
+        assertTrue(foundTeamLabel, "Custom label 'team' should appear in metrics");
+        assertTrue(foundCostCenterLabel, "Custom label 'cost_center' should appear in metrics");
+        assertTrue(notAllowedKeyNotFound, "Not allowed key 'not_allowed_key' should NOT appear in metrics");
+
+        // Now remove allowedTopicPropertiesForMetrics
+        admin.namespaces().removeAllowedTopicPropertiesForMetrics(namespace);
+
+        // Generate new metrics and verify labels are gone
+        statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, true, false, false, statsOut);
+        metricsStr = statsOut.toString();
+        metrics = parseMetrics(metricsStr);
+
+        // Verify that labels no longer appear in metrics
+        boolean teamLabelStillPresent = false;
+        boolean costCenterLabelStillPresent = false;
+
+        for (PrometheusMetricsClient.Metric metric : metrics.values()) {
+            Map<String, String> tags = metric.tags;
+            if (tags.containsKey("topic") && tags.get("topic").startsWith(topic1)) {
+                if (tags.containsKey("team")) {
+                    teamLabelStillPresent = true;
+                }
+                if (tags.containsKey("cost_center")) {
+                    costCenterLabelStillPresent = true;
+                }
+            }
+        }
+
+        assertFalse(teamLabelStillPresent, "Custom label 'team' should NOT appear in metrics after removal");
+        assertFalse(costCenterLabelStillPresent, "Custom label 'cost_center' should NOT appear in metrics after removal");
     }
 }
