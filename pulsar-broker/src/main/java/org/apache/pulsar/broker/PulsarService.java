@@ -353,7 +353,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
         TransactionBatchedWriteValidator.validate(config);
-        validateCustomMetricLabelKeys(config);
+        this.validateCustomMetricLabelKeys(config.getAllowedTopicPropertiesForMetrics());
         this.config = config;
         this.clock = Clock.systemUTC();
 
@@ -2281,10 +2281,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     // https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
-    private static void validateCustomMetricLabelKeys(ServiceConfiguration config) {
+    public void validateCustomMetricLabelKeys(Set<String> allowedCustomMetricLabelKeys) {
         boolean exposeCustomTopicMetricLabelsEnabled = config.isExposeCustomTopicMetricLabelsEnabled();
         if (exposeCustomTopicMetricLabelsEnabled) {
-            Set<String> allowedCustomMetricLabelKeys = config.getAllowedTopicPropertiesForMetrics();
             for (String labelKey : allowedCustomMetricLabelKeys) {
                 if (!isValidMetricsName(labelKey)) {
                     throw new IllegalArgumentException(String.format(

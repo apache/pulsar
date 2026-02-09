@@ -2335,6 +2335,7 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ALL,
                 PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
+        pulsar().validateCustomMetricLabelKeys(allowedKeys);
         mutatePolicy((policies) -> {
                     policies.allowed_topic_properties_for_metrics = allowedKeys != null
                             ? new HashSet<>(allowedKeys) : new HashSet<>();
