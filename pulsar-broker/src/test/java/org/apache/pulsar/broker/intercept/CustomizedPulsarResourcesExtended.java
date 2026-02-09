@@ -54,7 +54,7 @@ public class CustomizedPulsarResourcesExtended extends DefaultPulsarResourcesExt
 
         if (enabledTopicWatcher) {
             return CompletableFuture.failedFuture(new IllegalStateException(
-                    "Customized topic listing with properties is not supported when broker topic watcher is enabled"));
+                    "Customized topic listing with properties is not supported when broker topic watcher is enabled."));
         }
 
         List<String> list = queryTopicListByProperties(namespaceName.toString(), properties);
