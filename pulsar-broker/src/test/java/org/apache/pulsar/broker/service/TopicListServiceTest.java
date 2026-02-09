@@ -336,6 +336,20 @@ public class TopicListServiceTest {
 
     @Test
     public void testCommandWatchUpdateRetries() {
+        AtomicInteger failureCount = new AtomicInteger(0);
+        // Set up the stubbing before starting async work to avoid races with Mockito stubbing state.
+        doAnswer(invocationOnMock -> {
+            List<String> newTopicsArg = invocationOnMock.getArgument(1);
+            if (!newTopicsArg.isEmpty() && failureCount.incrementAndGet() < 3) {
+                Throwable failure = new AsyncSemaphore.PermitAcquireTimeoutException("Acquire timed out");
+                Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler =
+                        invocationOnMock.getArgument(4);
+                return permitAcquireErrorHandler.apply(failure);
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        }).when(pulsarCommandSender).sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any());
+
         topicListService.handleWatchTopicList(
                 NamespaceName.get("tenant/ns"),
                 13,
@@ -349,18 +363,6 @@ public class TopicListServiceTest {
 
         List<String> newTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(ListUtils.union(topics, newTopics));
-        AtomicInteger failureCount = new AtomicInteger(0);
-        doAnswer(invocationOnMock -> {
-            List<String> newTopicsArg = invocationOnMock.getArgument(1);
-            if (!newTopicsArg.isEmpty() && failureCount.incrementAndGet() < 3) {
-                Throwable failure = new AsyncSemaphore.PermitAcquireTimeoutException("Acquire timed out");
-                Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler =
-                        invocationOnMock.getArgument(4);
-                return permitAcquireErrorHandler.apply(failure);
-            } else {
-                return CompletableFuture.completedFuture(null);
-            }
-        }).when(pulsarCommandSender).sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any());
         notificationConsumer.accept(
                 new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
         notificationConsumer.accept(
