@@ -2662,12 +2662,20 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void setAllowedTopicPropertiesForMetrics(
+            @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Set of allowed topic property keys for metrics", required = true)
                     Set<String> allowedKeys) {
         validateNamespaceName(tenant, namespace);
-        internalSetAllowedTopicPropertiesForMetrics(allowedKeys);
+        internalSetAllowedTopicPropertiesForMetricsAsync(allowedKeys)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set allowed topic properties for metrics for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -2677,10 +2685,19 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
-    public void removeAllowedTopicPropertiesForMetrics(@PathParam("tenant") String tenant,
-                                                       @PathParam("namespace") String namespace) {
+    public void removeAllowedTopicPropertiesForMetrics(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetAllowedTopicPropertiesForMetrics(new HashSet<>());
+        internalSetAllowedTopicPropertiesForMetricsAsync(new HashSet<>())
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to remove allowed topic properties for metrics for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET

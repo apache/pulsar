@@ -2331,17 +2331,15 @@ public abstract class NamespacesBase extends AdminResource {
                 "subscriptionTypesEnabled");
     }
 
-    protected void internalSetAllowedTopicPropertiesForMetrics(Set<String> allowedKeys) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.ALL,
-                PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        pulsar().validateCustomMetricLabelKeys(allowedKeys);
-        mutatePolicy((policies) -> {
+    protected CompletableFuture<Void> internalSetAllowedTopicPropertiesForMetricsAsync(Set<String> allowedKeys) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALL, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> pulsar().validateCustomMetricLabelKeys(allowedKeys))
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.allowed_topic_properties_for_metrics = allowedKeys != null
                             ? new HashSet<>(allowedKeys) : new HashSet<>();
                     return policies;
-                }, (policies) -> policies.allowed_topic_properties_for_metrics,
-                "allowedTopicPropertiesForMetrics");
+                }));
     }
 
 
