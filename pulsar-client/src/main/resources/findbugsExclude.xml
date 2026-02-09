@@ -1016,4 +1016,8 @@
         <Class name="org.apache.pulsar.client.impl.ConsumerImpl"/>
         <Bug pattern="VO_VOLATILE_INCREMENT"/>
     </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.NegativeAcksTracker"/>
+        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+    </Match>
 </FindBugsFilter>
