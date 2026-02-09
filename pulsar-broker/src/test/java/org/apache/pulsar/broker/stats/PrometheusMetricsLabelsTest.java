@@ -72,7 +72,7 @@ public class PrometheusMetricsLabelsTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    public void testCustomMetricLabels() throws Exception {
+    public void testTopicPropertiesAsMetricLabels() throws Exception {
         String topic1 = "persistent://prop/ns-abc/my-topic1";
         String topic2 = "persistent://prop/ns-abc/my-topic2";
 

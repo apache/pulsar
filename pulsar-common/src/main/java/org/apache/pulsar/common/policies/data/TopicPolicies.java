@@ -89,13 +89,6 @@ public class TopicPolicies implements Cloneable {
 
     private Boolean schemaValidationEnforced;
 
-    /**
-     * Custom metric labels for Prometheus metrics.
-     * Key-value pairs that will be exposed as labels on topic metrics.
-     */
-    @Builder.Default
-    private Map<String, String> customMetricLabels = new HashMap<>();
-
     @SneakyThrows
     @Override
     public TopicPolicies clone() {
@@ -152,12 +145,6 @@ public class TopicPolicies implements Cloneable {
             }
         } else {
             cloned.subscriptionPolicies = new HashMap<>();
-        }
-
-        if (this.customMetricLabels != null) {
-            cloned.customMetricLabels = new HashMap<>(this.customMetricLabels);
-        } else {
-            cloned.customMetricLabels = new HashMap<>();
         }
 
         // Primitive types (Boolean, Integer, Long, String) and enums (SchemaCompatibilityStrategy)
@@ -272,7 +259,7 @@ public class TopicPolicies implements Cloneable {
     }
 
     public boolean isCustomMetricLabelsSet() {
-        return customMetricLabels != null && !customMetricLabels.isEmpty();
+        return false;
     }
 
     public Set<String> getReplicationClustersSet() {
@@ -284,12 +271,5 @@ public class TopicPolicies implements Cloneable {
             subscriptionPolicies = new ConcurrentHashMap<>();
         }
         return subscriptionPolicies;
-    }
-
-    public Map<String, String> getCustomMetricLabels() {
-        if (customMetricLabels == null) {
-            customMetricLabels = new HashMap<>();
-        }
-        return customMetricLabels;
     }
 }

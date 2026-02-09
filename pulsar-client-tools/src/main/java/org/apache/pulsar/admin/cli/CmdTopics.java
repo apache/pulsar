@@ -277,10 +277,6 @@ public class CmdTopics extends CmdBase {
         addCommand("trim-topic", new TrimTopic());
 
         addCommand("get-message-id-by-index", new GetMessageIdByIndex());
-
-        addCommand("get-custom-metric-labels", new GetCustomMetricLabels());
-        addCommand("set-custom-metric-labels", new SetCustomMetricLabels());
-        addCommand("remove-custom-metric-labels", new RemoveCustomMetricLabels());
     }
 
     @Command(description = "Get the list of topics under a namespace.")
@@ -3075,81 +3071,6 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(topicName);
             System.out.println(getAdmin().topics().getMessageIdByIndex(topic, index));
-        }
-    }
-
-    @Command(description = "Get custom metric labels for a topic")
-    private class GetCustomMetricLabels extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
-        private String topicName;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String topic = validateTopicName(topicName);
-            print(getAdmin().topicPolicies().getCustomMetricLabels(topic));
-        }
-    }
-
-    @Command(description = "Set custom metric labels for a topic")
-    private class SetCustomMetricLabels extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
-        private String topicName;
-
-        @Option(names = {"--labels",
-            "-l"}, description = "Custom metric labels (key=value pairs, comma separated, e.g. sla_tier=gold,"
-            + "app_owner=team-a)", required = true)
-        private String labelsStr;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String topic = validateTopicName(topicName);
-            Map<String, String> labels = new HashMap<>();
-
-            if (labelsStr != null && !labelsStr.trim().isEmpty()) {
-                String[] pairs = labelsStr.split(",");
-                for (String pair : pairs) {
-                    String[] kv = pair.split("=", 2);
-                    if (kv.length != 2) {
-                        throw new ParameterException("Invalid label format: " + pair + ". Expected format: key=value");
-                    }
-                    labels.put(kv[0].trim(), kv[1].trim());
-                }
-            }
-
-            getAdmin().topicPolicies().setCustomMetricLabels(topic, labels);
-        }
-    }
-
-    @Command(description = "Remove custom metric labels from a topic")
-    private class RemoveCustomMetricLabels extends CliCommand {
-        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
-        private String topicName;
-
-        @Option(names = {"--keys", "-k"}, description = "Label keys to remove"
-            + " (comma separated, e.g. sla_tier,app_owner). If not specified, "
-            + "all labels will be removed.", required = false)
-        private String keysStr;
-
-        @Option(names = {"--all", "-a"}, description = "Remove all labels", required = false)
-        private boolean removeAll;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String topic = validateTopicName(topicName);
-
-            if (!removeAll) {
-                List<String> keys = keysStr == null || keysStr.trim().isEmpty()
-                        ? Collections.emptyList()
-                        : Arrays.asList(keysStr.split(","));
-                keys = keys.stream().map(String::trim).collect(Collectors.toList());
-                if (keys.isEmpty()) {
-                    throw new ParameterException("No label keys specified for removal.");
-                }
-                getAdmin().topicPolicies().removeCustomMetricLabels(topic, false, keys);
-            } else {
-                // Remove all labels
-                getAdmin().topicPolicies().removeCustomMetricLabels(topic, true, null);
-            }
         }
     }
 }
