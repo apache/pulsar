@@ -366,8 +366,8 @@ The Apache Software License, Version 2.0
   * OpenCSV
     - opencsv-2.3.jar
   * Avro
-    - avro-1.11.4.jar
-    - avro-protobuf-1.11.4.jar
+    - avro-1.11.5.jar
+    - avro-protobuf-1.11.5.jar
   * Caffeine
     - caffeine-2.9.1.jar
   * Javax
