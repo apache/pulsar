@@ -399,6 +399,46 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Command(description = "Set allowed topic properties for metrics for a namespace")
+    private class SetAllowedTopicPropertiesForMetrics extends CliCommand {
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
+
+        @Option(names = {"--keys", "-k"}, description = "Allowed topic property keys list (comma separated values).",
+                required = true, split = ",")
+        private List<String> keys;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(namespaceName);
+            getAdmin().namespaces().setAllowedTopicPropertiesForMetrics(namespace, new HashSet<>(keys));
+        }
+    }
+
+    @Command(description = "Get allowed topic properties for metrics for a namespace")
+    private class GetAllowedTopicPropertiesForMetrics extends CliCommand {
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(namespaceName);
+            print(getAdmin().namespaces().getAllowedTopicPropertiesForMetrics(namespace));
+        }
+    }
+
+    @Command(description = "Remove allowed topic properties for metrics for a namespace")
+    private class RemoveAllowedTopicPropertiesForMetrics extends CliCommand {
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(namespaceName);
+            getAdmin().namespaces().removeAllowedTopicPropertiesForMetrics(namespace);
+        }
+    }
+
     @Command(description = "Set Message TTL for a namespace")
     private class SetMessageTTL extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
@@ -2692,6 +2732,10 @@ public class CmdNamespaces extends CmdBase {
         addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
         addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
         addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
+
+        addCommand("set-allowed-topic-properties-for-metrics", new SetAllowedTopicPropertiesForMetrics());
+        addCommand("get-allowed-topic-properties-for-metrics", new GetAllowedTopicPropertiesForMetrics());
+        addCommand("remove-allowed-topic-properties-for-metrics", new RemoveAllowedTopicPropertiesForMetrics());
 
         addCommand("set-allowed-clusters", new SetAllowedClusters());
         addCommand("get-allowed-clusters", new GetAllowedClusters());

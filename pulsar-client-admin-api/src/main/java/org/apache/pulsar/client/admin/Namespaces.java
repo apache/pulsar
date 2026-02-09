@@ -1562,6 +1562,83 @@ public interface Namespaces {
     CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String namespace);
 
     /**
+     * Set the allowed topic properties for metrics for a namespace.
+     * <p/>
+     * When set, only topic properties with keys in this set will be exposed as Prometheus metric labels.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param allowedKeys
+     *            Set of allowed topic property keys for metrics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setAllowedTopicPropertiesForMetrics(String namespace, Set<String> allowedKeys) throws PulsarAdminException;
+
+    /**
+     * Set the allowed topic properties for metrics for a namespace asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param allowedKeys
+     *            Set of allowed topic property keys for metrics
+     */
+    CompletableFuture<Void> setAllowedTopicPropertiesForMetricsAsync(String namespace, Set<String> allowedKeys);
+
+    /**
+     * Get the allowed topic properties for metrics for a namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return the set of allowed topic property keys for metrics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Set<String> getAllowedTopicPropertiesForMetrics(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the allowed topic properties for metrics for a namespace asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     * @return the future of the set of allowed topic property keys for metrics
+     */
+    CompletableFuture<Set<String>> getAllowedTopicPropertiesForMetricsAsync(String namespace);
+
+    /**
+     * Remove the allowed topic properties for metrics for a namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeAllowedTopicPropertiesForMetrics(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the allowed topic properties for metrics for a namespace asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Void> removeAllowedTopicPropertiesForMetricsAsync(String namespace);
+
+    /**
      * Removes the autoSubscriptionCreation policy for a given namespace.
      * <p/>
      * Allowing the broker to dictate the subscription auto-creation policy.

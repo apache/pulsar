@@ -2331,6 +2331,18 @@ public abstract class NamespacesBase extends AdminResource {
                 "subscriptionTypesEnabled");
     }
 
+    protected void internalSetAllowedTopicPropertiesForMetrics(Set<String> allowedKeys) {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.ALL,
+                PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+        mutatePolicy((policies) -> {
+                    policies.allowed_topic_properties_for_metrics = allowedKeys != null
+                            ? new HashSet<>(allowedKeys) : new HashSet<>();
+                    return policies;
+                }, (policies) -> policies.allowed_topic_properties_for_metrics,
+                "allowedTopicPropertiesForMetrics");
+    }
+
 
     private <T> void mutatePolicy(Function<Policies, Policies> policyTransformation,
                                   Function<Policies, T> getter,
