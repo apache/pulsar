@@ -66,30 +66,32 @@ class NegativeAcksTracker implements Closeable {
         }
     }
 
-    private synchronized void triggerRedelivery(Timeout t) {
-        if (nackedMessages.isEmpty()) {
-            this.timeout = null;
-            return;
+    private void triggerRedelivery(Timeout t) {
+        Set<MessageId> messagesToRedeliver = new HashSet<>();
+        synchronized (this) {
+            if (nackedMessages.isEmpty()) {
+                this.timeout = null;
+                return;
+            }
+
+            long now = System.nanoTime();
+            nackedMessages.forEach((msgId, timestamp) -> {
+                if (timestamp < now) {
+                    addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
+                    messagesToRedeliver.add(msgId);
+                }
+            });
+            this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
         }
 
-        // Group all the nacked messages into one single re-delivery request
-        Set<MessageId> messagesToRedeliver = new HashSet<>();
-        long now = System.nanoTime();
-        nackedMessages.forEach((msgId, timestamp) -> {
-            if (timestamp < now) {
-                addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
-                messagesToRedeliver.add(msgId);
-            }
-        });
-
+        // release the lock of NegativeAcksTracker before calling consumer.redeliverUnacknowledgedMessages,
+        // in which we may acquire the lock of consumer, leading to potential deadlock.
         if (!messagesToRedeliver.isEmpty()) {
             messagesToRedeliver.forEach(nackedMessages::remove);
             consumer.onNegativeAcksSend(messagesToRedeliver);
             log.info("[{}] {} messages will be re-delivered", consumer, messagesToRedeliver.size());
             consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
         }
-
-        this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
     }
 
     public synchronized void add(MessageId messageId) {
