@@ -16,16 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.cassandra;
+package org.apache.pulsar.io.cassandra.producers;
 
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.cassandra.util.RecordWrapper;
-import org.apache.pulsar.io.cassandra.util.StringRecordWrapper;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.common.schema.SchemaInfo;
 
-public class CassandraStringSink extends CassandraAbstractSink<String> {
+@SuppressWarnings({"unchecked", "rawtypes"})
+public abstract class AbstractGenericRecordProducer extends InputTopicProducerThread<GenericRecord> {
+
+    public AbstractGenericRecordProducer(String brokerUrl, String inputTopic) {
+        super(brokerUrl, inputTopic);
+    }
 
     @Override
-    RecordWrapper<String> wrapRecord(Record<String> record) {
-        return new StringRecordWrapper(record.getValue());
+    Schema getSchema() {
+        return Schema.generic(getGenericSchemaInfo());
     }
-}
+
+    @Override
+    abstract GenericRecord getValue();
+
+    abstract SchemaInfo getGenericSchemaInfo();
+
+ }

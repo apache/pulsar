@@ -16,16 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.cassandra;
-
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.cassandra.util.RecordWrapper;
-import org.apache.pulsar.io.cassandra.util.StringRecordWrapper;
-
-public class CassandraStringSink extends CassandraAbstractSink<String> {
-
-    @Override
-    RecordWrapper<String> wrapRecord(Record<String> record) {
-        return new StringRecordWrapper(record.getValue());
-    }
-}
+package org.apache.pulsar.io.cassandra.util;
