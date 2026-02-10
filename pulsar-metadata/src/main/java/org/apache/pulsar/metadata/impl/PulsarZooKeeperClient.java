@@ -122,8 +122,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
                     @Override
                     public ZooKeeper call() throws KeeperException, InterruptedException {
-                        log.info("Reconnecting zookeeper {}.", connectString);
                         lock.writeLock().lock();
+                        log.info("Reconnecting zookeeper {}.", connectString);
                         try {
                             // close the previous one
                             closeZkHandle();
