@@ -237,8 +237,12 @@ public class ServerCnxTest {
                 eq(NamespaceName.get("use", "ns-abc")), eq(CommandGetTopicsOfNamespace.Mode.ALL), any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfUserTopicsByProperties(
                 eq(NamespaceName.get("use", "ns-abc")), any(), any());
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfUserTopics(
+            eq(NamespaceName.get("use", "ns-abc")), any());
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
+            eq(NamespaceName.get("use", "ns-abc")), any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfPersistentTopics(
-                NamespaceName.get("use", "ns-abc"));
+            eq(NamespaceName.get("use", "ns-abc")));
         doReturn(CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists())).when(namespaceService)
                 .checkTopicExistsAsync(any());
 

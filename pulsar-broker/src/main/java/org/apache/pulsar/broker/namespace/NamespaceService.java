@@ -55,7 +55,6 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
@@ -1532,11 +1531,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<List<String>> getListOfTopicsByProperties(NamespaceName namespaceName, Mode mode,
                                                                        Map<String, String> properties) {
-        if (MapUtils.isEmpty(properties)) {
-            return getListOfTopics(namespaceName, mode);
-        } else {
-            return pulsar.getPulsarResourcesExtended().listTopicOfNamespace(namespaceName, mode, properties);
-        }
+       return pulsar.getPulsarResourcesExtended().listTopicOfNamespace(namespaceName, mode, properties);
     }
 
     public CompletableFuture<List<String>> getListOfUserTopicsByProperties(NamespaceName namespaceName, Mode mode,
