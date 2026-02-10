@@ -22,8 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -33,7 +31,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.namespace.TopicListingResult;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
@@ -41,10 +38,8 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
 /**
@@ -285,21 +280,6 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
         try {
             Thread.currentThread().setContextClassLoader(narClassLoader);
             this.interceptor.onFilter(request, response, chain);
-        } finally {
-            Thread.currentThread().setContextClassLoader(previousContext);
-        }
-    }
-
-    @Override
-    public CompletableFuture<Optional<TopicListingResult>> interceptGetTopicsOfNamespace(
-        NamespaceName namespace,
-        CommandGetTopicsOfNamespace.Mode mode,
-        Optional<String> topicsPattern,
-        Map<String, String> properties) {
-        final ClassLoader previousContext = Thread.currentThread().getContextClassLoader();
-        try {
-            Thread.currentThread().setContextClassLoader(narClassLoader);
-            return this.interceptor.interceptGetTopicsOfNamespace(namespace, mode, topicsPattern, properties);
         } finally {
             Thread.currentThread().setContextClassLoader(previousContext);
         }

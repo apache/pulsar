@@ -21,12 +21,8 @@ package org.apache.pulsar.broker.intercept;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
@@ -34,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.namespace.TopicListingResult;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.ServerCnx;
@@ -42,10 +37,8 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
-import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
-import org.apache.pulsar.common.naming.NamespaceName;
 
 /**
  * A collection of broker interceptor.
@@ -277,82 +270,6 @@ public class BrokerInterceptors implements BrokerInterceptor {
     public void initialize(PulsarService pulsarService) throws Exception {
         for (BrokerInterceptorWithClassLoader v : interceptors.values()) {
             v.initialize(pulsarService);
-        }
-    }
-
-   @Override
-   public CompletableFuture<Optional<TopicListingResult>> interceptGetTopicsOfNamespace(
-       NamespaceName namespace,
-       CommandGetTopicsOfNamespace.Mode mode,
-       Optional<String> topicsPattern,
-       Map<String, String> properties) {
-
-       if (!interceptorsEnabled()) {
-           // No interceptors configured, return PassThrough immediately
-           return CompletableFuture.completedFuture(Optional.empty());
-       }
-
-       CompletableFuture<Optional<TopicListingResult>> resultFuture = new CompletableFuture<>();
-
-       List<BrokerInterceptor> interceptorList = new ArrayList<>(interceptors.values());
-
-       // Start recursive processing
-       interceptRemainingGetTopicsOfNamespace(resultFuture, interceptorList, namespace, mode, topicsPattern,
-           properties, 0);
-
-       return resultFuture;
-   }
-
-    private void interceptRemainingGetTopicsOfNamespace(
-        CompletableFuture<Optional<TopicListingResult>> resultFuture,
-        List<BrokerInterceptor> list,
-        NamespaceName namespace,
-        CommandGetTopicsOfNamespace.Mode mode,
-        Optional<String> topicsPattern,
-        Map<String, String> properties,
-        int index) {
-        // Return PassThrough if no more interceptors to process
-        if (index >= list.size()) {
-            resultFuture.complete(Optional.empty());
-            return;
-        }
-
-        BrokerInterceptor interceptor = list.get(index);
-
-        try {
-            CompletableFuture<Optional<TopicListingResult>> future = interceptor
-                .interceptGetTopicsOfNamespace(namespace, mode, topicsPattern, properties);
-
-            // Prevent the plugin from directly returning null, skip to the next interceptor
-            if (future == null) {
-                interceptRemainingGetTopicsOfNamespace(resultFuture, list, namespace, mode, topicsPattern,
-                    properties, index + 1);
-                return;
-            }
-
-            future.whenComplete((result, ex) -> {
-                if (ex != null) {
-                    // Ignore the error and try the next one
-                    log.warn("Interceptor {} failed for namespace {}: {}", interceptor.getClass().getName(),
-                            namespace, ex.getMessage());
-                    interceptRemainingGetTopicsOfNamespace(resultFuture, list, namespace, mode, topicsPattern,
-                        properties, index + 1);
-                } else if (result != null && result.isPresent()) {
-                    // Interception successful (Found match) -> Complete Future and end recursion
-                    resultFuture.complete(result);
-                } else {
-                    // Interceptor selects PassThrough (result == null || result.isPassThrough) -> try the next one
-                    interceptRemainingGetTopicsOfNamespace(resultFuture, list, namespace, mode, topicsPattern,
-                        properties, index + 1);
-                }
-            });
-
-        } catch (Throwable t) {
-            // Ignore the error and try the next one
-            log.warn("Interceptor {} failed synchronously for namespace {}", interceptor.getClass().getName(),
-                namespace, t);
-            interceptRemainingGetTopicsOfNamespace(resultFuture, list, namespace, mode, topicsPattern, properties,
-                index + 1);
         }
     }
 

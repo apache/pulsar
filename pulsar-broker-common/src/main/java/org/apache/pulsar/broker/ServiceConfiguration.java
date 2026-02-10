@@ -1629,7 +1629,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "List of broker interceptor to load, which is a list of broker interceptor names"
     )
-    private Set<String> brokerInterceptors = new LinkedHashSet<>();
+    private Set<String> brokerInterceptors = new TreeSet<>();
 
     @FieldContext(
             category = CATEGORY_SERVER,
