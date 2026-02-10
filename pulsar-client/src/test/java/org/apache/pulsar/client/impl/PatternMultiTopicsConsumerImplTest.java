@@ -216,7 +216,7 @@ public class PatternMultiTopicsConsumerImplTest {
             }
             GetTopicsResult result = new GetTopicsResult(topicsCopy, calculatedHash, false, changed);
             return CompletableFuture.completedFuture(result);
-        }).when(mockLookup).getTopicsUnderNamespace(any(), any(), any(), any());
+        }).when(mockLookup).getTopicsUnderNamespace(any(), any(), any(), any(), any());
         doReturn(false).when(cnx).isSupportsTopicWatchers();
 
         PatternMultiTopicsConsumerImpl<byte[]> consumer =
