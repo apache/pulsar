@@ -139,6 +139,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected volatile PublishRateLimiter topicPublishRateLimiter;
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
+    /**
+     * Per-topic adaptive publish rate limiter, non-null only when
+     * {@code adaptivePublisherThrottlingEnabled=true}.  The field is {@code final}
+     * after construction so it is safely published to all threads via normal
+     * Java memory model rules.
+     */
+    private final AdaptivePublishRateLimiter adaptivePublishRateLimiter;
+
     @Getter
     protected boolean resourceGroupRateLimitingEnabled;
 
@@ -202,6 +210,21 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             }, producer -> {
                 producer.getCnx().getThrottleTracker().unmarkThrottled(ThrottleType.TopicPublishRate);
             });
+
+        // Adaptive throttle limiter: created only when the feature is enabled.
+        // Uses ThrottleType.AdaptivePublishRate (reentrant/reference-counted) so that
+        // adaptive and static throttle activations are tracked independently on the connection.
+        if (config.isAdaptivePublisherThrottlingEnabled()) {
+            adaptivePublishRateLimiter = new AdaptivePublishRateLimiter(
+                    brokerService.getPulsar().getMonotonicClock(),
+                    producer -> producer.getCnx().getThrottleTracker()
+                            .markThrottled(ThrottleType.AdaptivePublishRate),
+                    producer -> producer.getCnx().getThrottleTracker()
+                            .unmarkThrottled(ThrottleType.AdaptivePublishRate));
+        } else {
+            adaptivePublishRateLimiter = null;
+        }
+
         updateActiveRateLimiters();
 
         additionalSystemCursorNames = brokerService.pulsar().getConfiguration().getAdditionalSystemCursorNames();
@@ -952,7 +975,21 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         if (isResourceGroupRateLimitingEnabled()) {
             updatedRateLimiters.add(resourceGroupPublishLimiter);
         }
+        // Adaptive limiter is always in the list when the feature is enabled.
+        // It is a no-op when inactive (active == false), so it has zero overhead
+        // when no pressure is detected.
+        if (adaptivePublishRateLimiter != null) {
+            updatedRateLimiters.add(adaptivePublishRateLimiter);
+        }
         activeRateLimiters = updatedRateLimiters.stream().filter(Objects::nonNull).toList();
+    }
+
+    /**
+     * Returns the per-topic adaptive publish rate limiter, or {@code null} when
+     * adaptive throttling is disabled.
+     */
+    public AdaptivePublishRateLimiter getAdaptivePublishRateLimiter() {
+        return adaptivePublishRateLimiter;
     }
 
     public void updateDispatchRateLimiter() {

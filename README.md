@@ -53,6 +53,37 @@ Learn more about Pulsar at https://pulsar.apache.org
 - Transparent handling of partitioned topics
 - Transparent batching of messages
 
+## Experimental broker features
+
+### Adaptive publish throttling (disabled by default)
+
+The broker includes an opt-in adaptive publish-rate controller that dynamically
+reduces producer publish rates when JVM heap usage or per-topic backlog size
+approaches configurable watermarks.  It is additive to existing static rate
+limits and backlog quota enforcement and is safe to enable alongside them.
+
+**Quick start** — add the following to `conf/broker.conf` (broker restart required
+to enable; all tuning knobs can be changed dynamically at runtime):
+
+```properties
+# Enable the feature (requires restart)
+adaptivePublisherThrottlingEnabled=true
+
+# Recommended starting values — validate with observeOnly=true first
+adaptivePublisherThrottlingObserveOnly=true          # dry-run: log but do not throttle
+adaptivePublisherThrottlingMemoryHighWatermarkPct=0.85
+adaptivePublisherThrottlingMemoryLowWatermarkPct=0.70
+adaptivePublisherThrottlingBacklogHighWatermarkPct=0.90
+adaptivePublisherThrottlingBacklogLowWatermarkPct=0.75
+adaptivePublisherThrottlingMinRateFactor=0.10         # floor: never below 10 % of natural rate
+adaptivePublisherThrottlingMaxRateChangeFactor=0.25   # max 25 % change per 1 s cycle
+```
+
+Once the observe-only logs look correct, flip `adaptivePublisherThrottlingObserveOnly=false`
+via the dynamic config admin API without restarting the broker.  See
+[`ADAPTIVE_THROTTLE_PR.md`](ADAPTIVE_THROTTLE_PR.md) for the full config reference,
+metrics guide, and troubleshooting steps.
+
 ## Repositories
 
 This repository is the main repository of Apache Pulsar. Pulsar PMC also maintains other repositories for

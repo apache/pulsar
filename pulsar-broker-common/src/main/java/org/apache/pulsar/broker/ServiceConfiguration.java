@@ -1130,6 +1130,106 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
 
+    // --- Adaptive publish throttling ---
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = false,
+        doc = "Enable adaptive publish rate throttling. When enabled, the broker dynamically reduces "
+            + "publish rates for topics under memory or backlog pressure. This feature is additive to "
+            + "static rate limits and backlog quota policies. A broker restart is required to enable or "
+            + "disable. Use adaptivePublisherThrottlingObserveOnly=true to evaluate impact safely first."
+    )
+    private boolean adaptivePublisherThrottlingEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "When true, the adaptive throttle controller runs and emits metrics and logs, but never "
+            + "applies any actual throttling. Use this mode to validate watermarks and observe which "
+            + "topics would be throttled before committing to live throttling. Can be toggled at runtime "
+            + "via dynamic config as an emergency rollback mechanism. Only effective when "
+            + "adaptivePublisherThrottlingEnabled=true."
+    )
+    private boolean adaptivePublisherThrottlingObserveOnly = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Interval in milliseconds between adaptive throttle controller evaluation cycles. "
+            + "Only effective when adaptivePublisherThrottlingEnabled=true."
+    )
+    private int adaptivePublisherThrottlingIntervalMs = 1000;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "JVM heap usage fraction (0.0-1.0) above which adaptive throttling begins to apply "
+            + "memory pressure. The pressure factor increases linearly from 0 at "
+            + "adaptivePublisherThrottlingMemoryLowWatermarkPct to 1.0 at this threshold. "
+            + "Only effective when adaptivePublisherThrottlingEnabled=true."
+    )
+    private double adaptivePublisherThrottlingMemoryHighWatermarkPct = 0.85;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "JVM heap usage fraction (0.0-1.0) below which memory-based adaptive throttling is fully "
+            + "released (hysteresis low watermark). Must be less than "
+            + "adaptivePublisherThrottlingMemoryHighWatermarkPct. "
+            + "Only effective when adaptivePublisherThrottlingEnabled=true."
+    )
+    private double adaptivePublisherThrottlingMemoryLowWatermarkPct = 0.70;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Backlog size as a fraction of the configured backlog quota limit (0.0-1.0) above which "
+            + "adaptive throttling begins applying backlog pressure. Only topics with a configured backlog "
+            + "quota are affected. Only effective when adaptivePublisherThrottlingEnabled=true."
+    )
+    private double adaptivePublisherThrottlingBacklogHighWatermarkPct = 0.90;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Backlog size as a fraction of the configured backlog quota limit (0.0-1.0) below which "
+            + "backlog-based adaptive throttling is fully released (hysteresis low watermark). Must be "
+            + "less than adaptivePublisherThrottlingBacklogHighWatermarkPct. "
+            + "Only effective when adaptivePublisherThrottlingEnabled=true."
+    )
+    private double adaptivePublisherThrottlingBacklogLowWatermarkPct = 0.75;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Minimum effective publish rate as a fraction of the natural (unthrottled) rate. "
+            + "When maximum pressure is reached, the effective rate will never drop below "
+            + "naturalRate * minRateFactor. Value must be in (0.0, 1.0). "
+            + "Only effective when adaptivePublisherThrottlingEnabled=true."
+    )
+    private double adaptivePublisherThrottlingMinRateFactor = 0.10;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Maximum change in the effective publish rate per controller cycle, expressed as a fraction "
+            + "of the natural rate. Limits how quickly the rate ramps up or down, preventing sudden "
+            + "bursts after throttle release and preventing oscillation. "
+            + "Only effective when adaptivePublisherThrottlingEnabled=true."
+    )
+    private double adaptivePublisherThrottlingMaxRateChangeFactor = 0.25;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "When true, emit per-topic OpenTelemetry metrics for adaptive throttle state (natural rate, "
+            + "effective rate, pressure factors). This adds 6 time series per topic; evaluate cardinality "
+            + "impact before enabling in large clusters. Only effective when "
+            + "adaptivePublisherThrottlingEnabled=true."
+    )
+    private boolean adaptivePublisherThrottlingPerTopicMetricsEnabled = false;
+
     @FieldContext(category = CATEGORY_SERVER, doc =
             "The class name of the factory that creates DispatchRateLimiter implementations. Current options are "
                     + "org.apache.pulsar.broker.service.persistent.DispatchRateLimiterFactoryAsyncTokenBucket "
