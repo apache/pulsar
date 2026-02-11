@@ -1652,6 +1652,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         factory.close(this);
         STATE_UPDATER.set(this, State.Closed);
+        clearPendingAddEntries(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
         cancelScheduledTasks();
 
         LedgerHandle lh = currentLedger;
@@ -1746,19 +1747,39 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug().attr("version", stat).log("Updating of ledgers list after create complete");
                     ledgersStat = stat;
                     synchronized (ManagedLedgerImpl.this) {
-                        LedgerHandle originalCurrentLedger = currentLedger;
-                        ledgers.put(lh.getId(), newLedger);
-                        currentLedger = lh;
-                        currentLedgerTimeoutTriggered = new AtomicBoolean();
-                        currentLedgerEntries = 0;
-                        currentLedgerSize = 0;
-                        updateLedgersIdsComplete(originalCurrentLedger);
-                        mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
-                                - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
-                        // May need to update the cursor position
-                        maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                        try {
+                            State state = STATE_UPDATER.get(ManagedLedgerImpl.this);
+                            if (state == State.Closed || state.isFenced()) {
+                                log.debug()
+                                        .attr("name", name)
+                                        .log("skip ledger update after create complete ledger is closed or fenced");
+                                lh.closeAsync().exceptionally(e -> {
+                                    if (e != null) {
+                                        log.error()
+                                            .attr("ledgerName", name)
+                                            .attr("ledgerId", lh.getId())
+                                            .attr("error", e.getMessage())
+                                            .log("Failed to close ledger");
+                                    }
+                                    return null;
+                                });
+                            } else {
+                                LedgerHandle originalCurrentLedger = currentLedger;
+                                ledgers.put(lh.getId(), newLedger);
+                                currentLedger = lh;
+                                currentLedgerTimeoutTriggered = new AtomicBoolean();
+                                currentLedgerEntries = 0;
+                                currentLedgerSize = 0;
+                                updateLedgersIdsComplete(originalCurrentLedger);
+                                mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
+                                        - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
+                                // May need to update the cursor position
+                                maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                            }
+                        } finally {
+                            metadataMutex.unlock();
+                        }
                     }
-                    metadataMutex.unlock();
                 }
 
                 @Override
@@ -1927,6 +1948,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // The managed ledger was closed during the write operation
             clearPendingAddEntries(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
             return;
+        } else if (state.isFenced()) {
+            clearPendingAddEntries(new ManagedLedgerFencedException("Managed ledger is fenced"));
+            return;
         } else {
             // In case we get multiple write errors for different outstanding write request, we should close the ledger
             // just once
@@ -2052,7 +2076,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return managedLedgerInterceptor;
     }
 
-    void clearPendingAddEntries(ManagedLedgerException e) {
+    synchronized void clearPendingAddEntries(ManagedLedgerException e) {
         while (!pendingAddEntries.isEmpty()) {
             OpAddEntry op = pendingAddEntries.poll();
             op.failed(e);
@@ -4327,7 +4351,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return activeCursors.get(cursor.getName()) != null;
     }
 
-    private boolean currentLedgerIsFull() {
+    @VisibleForTesting
+    protected boolean currentLedgerIsFull() {
         if (!factory.isMetadataServiceAvailable()) {
             // We don't want to trigger metadata operations if we already know that we're currently disconnected
             return false;
@@ -4416,13 +4441,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @VisibleForTesting
     public synchronized void setFenced() {
-        log.info("Moving to Fenced state");
-        STATE_UPDATER.set(this, State.Fenced);
+        log.info().attr("ledgerName", name).log("Moving to Fenced state");
+        if (STATE_UPDATER.get(this) != State.Fenced) {
+            STATE_UPDATER.set(this, State.Fenced);
+            clearPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger "
+                + name + " is fenced"));
+        }
     }
 
     synchronized void setFencedForDeletion() {
-        log.info("Moving to FencedForDeletion state");
+        log.info().attr("ledgerName", name).log("Moving to FencedForDeletion state");
         STATE_UPDATER.set(this, State.FencedForDeletion);
+        if (STATE_UPDATER.get(this) != State.Fenced) {
+            STATE_UPDATER.set(this, State.Fenced);
+            clearPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger "
+                + name + " is fenced"));
+        }
     }
 
     MetaStore getStore() {
