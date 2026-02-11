@@ -1652,7 +1652,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         factory.close(this);
         STATE_UPDATER.set(this, State.Closed);
-        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerException("Managed ledger is closed")));
+        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerAlreadyClosedException("Managed ledger is closed")));
         cancelScheduledTasks();
 
         LedgerHandle lh = currentLedger;
@@ -1752,24 +1752,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.debug("[{}] Updating of ledgers list after create complete. version={}", name, stat);
                     }
                     ledgersStat = stat;
-                    // make sure that pendingAddEntries' opeartions are executed in the same thread
+                    // make sure that pendingAddEntries' operations are executed in the same thread
                     // to avoid potential concurrent issues
-                    executor.execute(() -> {
-                        synchronized (ManagedLedgerImpl.this) {
-                            LedgerHandle originalCurrentLedger = currentLedger;
-                            ledgers.put(lh.getId(), newLedger);
-                            currentLedger = lh;
-                            currentLedgerTimeoutTriggered = new AtomicBoolean();
-                            currentLedgerEntries = 0;
-                            currentLedgerSize = 0;
-                            updateLedgersIdsComplete(originalCurrentLedger);
-                            mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
-                                    - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
-                            // May need to update the cursor position
-                            maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                    State state = STATE_UPDATER.get(ManagedLedgerImpl.this);
+                    if (state == State.Closed || state.isFenced()) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Skipping ledger update after create complete because ledger is "
+                                + "closed or fenced", name);
                         }
-                        metadataMutex.unlock();
-                    });
+                    } else {
+                        executor.execute(() -> {
+                            synchronized (ManagedLedgerImpl.this) {
+                                LedgerHandle originalCurrentLedger = currentLedger;
+                                ledgers.put(lh.getId(), newLedger);
+                                currentLedger = lh;
+                                currentLedgerTimeoutTriggered = new AtomicBoolean();
+                                currentLedgerEntries = 0;
+                                currentLedgerSize = 0;
+                                updateLedgersIdsComplete(originalCurrentLedger);
+                                mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
+                                        - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
+                                // May need to update the cursor position
+                                maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                            }
+                            metadataMutex.unlock();
+                        });
+                    }
                 }
 
                 @Override
@@ -1942,7 +1950,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // The managed ledger was closed during the write operation
             clearPendingAddEntries(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
             return;
-        } else if (state == State.Fenced) {
+        } else if (state.isFenced()) {
             clearPendingAddEntries(new ManagedLedgerFencedException("Managed ledger is fenced"));
             return;
         } else {
