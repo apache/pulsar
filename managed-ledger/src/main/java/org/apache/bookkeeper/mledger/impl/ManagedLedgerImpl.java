@@ -1652,6 +1652,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         factory.close(this);
         STATE_UPDATER.set(this, State.Closed);
+        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerException("Managed ledger is closed")));
         cancelScheduledTasks();
 
         LedgerHandle lh = currentLedger;
@@ -1751,20 +1752,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.debug("[{}] Updating of ledgers list after create complete. version={}", name, stat);
                     }
                     ledgersStat = stat;
-                    synchronized (ManagedLedgerImpl.this) {
-                        LedgerHandle originalCurrentLedger = currentLedger;
-                        ledgers.put(lh.getId(), newLedger);
-                        currentLedger = lh;
-                        currentLedgerTimeoutTriggered = new AtomicBoolean();
-                        currentLedgerEntries = 0;
-                        currentLedgerSize = 0;
-                        updateLedgersIdsComplete(originalCurrentLedger);
-                        mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
-                                - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
-                        // May need to update the cursor position
-                        maybeUpdateCursorBeforeTrimmingConsumedLedger();
-                    }
-                    metadataMutex.unlock();
+                    // make sure that pendingAddEntries' opeartions are executed in the same thread
+                    // to avoid potential concurrent issues
+                    executor.execute(() -> {
+                        synchronized (ManagedLedgerImpl.this) {
+                            LedgerHandle originalCurrentLedger = currentLedger;
+                            ledgers.put(lh.getId(), newLedger);
+                            currentLedger = lh;
+                            currentLedgerTimeoutTriggered = new AtomicBoolean();
+                            currentLedgerEntries = 0;
+                            currentLedgerSize = 0;
+                            updateLedgersIdsComplete(originalCurrentLedger);
+                            mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
+                                    - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
+                            // May need to update the cursor position
+                            maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                        }
+                        metadataMutex.unlock();
+                    });
                 }
 
                 @Override
@@ -1937,6 +1942,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // The managed ledger was closed during the write operation
             clearPendingAddEntries(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
             return;
+        } else if (state == State.Fenced) {
+            clearPendingAddEntries(new ManagedLedgerFencedException("Managed ledger is fenced"));
+            return;
         } else {
             // In case we get multiple write errors for different outstanding write request, we should close the ledger
             // just once
@@ -2067,6 +2075,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         while (!pendingAddEntries.isEmpty()) {
             OpAddEntry op = pendingAddEntries.poll();
             op.failed(e);
+        }
+    }
+
+    void clearNotInitiatedPendingAddEntries(ManagedLedgerException e) {
+        Iterator<OpAddEntry> iterator = pendingAddEntries.iterator();
+        while (iterator.hasNext()) {
+            OpAddEntry op = iterator.next();
+            if (op.closeIfNotInitiated()) {
+                op.failed(e);
+                iterator.remove();
+            }
         }
     }
 
@@ -4418,11 +4437,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public synchronized void setFenced() {
         log.info("{} Moving to Fenced state", name);
         STATE_UPDATER.set(this, State.Fenced);
+        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger " + name + " is fenced")));
     }
 
     synchronized void setFencedForDeletion() {
         log.info("{} Moving to FencedForDeletion state", name);
         STATE_UPDATER.set(this, State.FencedForDeletion);
+        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger " + name + " is fenced for deletion")));
     }
 
     MetaStore getStore() {
