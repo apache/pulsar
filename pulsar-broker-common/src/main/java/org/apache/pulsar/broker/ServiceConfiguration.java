@@ -1275,7 +1275,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = false,
             category = CATEGORY_POLICIES,
-            doc = "Enables evaluating subscription pattern on broker side."
+            doc = "Enables evaluating subscription pattern on broker side. "
+                    + "Note: This config no longer controls watching topic list. "
+                    + "Please use `enableBrokerTopicListWatcher` to control that behavior."
     )
     private boolean enableBrokerSideSubscriptionPatternEvaluation = true;
 
