@@ -773,31 +773,27 @@ public abstract class PulsarWebResource {
                 .loadTopicsInBundle(false)
                 .build();
 
-        return nsService.isServiceUnitOwnedAsync(topicName).thenCompose(isTopicOwned0 -> {
-            log.info("[{}] Initial ownership check for topic: {}: isOwned={}, authoritative:{}",
-                    topicName, clientAppId(), isTopicOwned0, authoritative);
-            return nsService.getWebServiceUrlAsync(topicName, options)
+        return nsService.getWebServiceUrlAsync(topicName, options)
                 .thenApply(webUrl ->
-                    webUrl.orElseThrow(() -> {
-                        log.info("Unable to get web service url");
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                            "Failed to find ownership for topic:" + topicName);
-                    })
+                        webUrl.orElseThrow(() -> {
+                            log.info("Unable to get web service url");
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Failed to find ownership for topic:" + topicName);
+                        })
                 ).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
-                    .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
+                        .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
                 ).thenAccept(pair -> {
                     URL webUrl = pair.getLeft();
                     boolean isTopicOwned = pair.getRight();
-                    log.info("[{}] Post-lookup ownership check for topic: {}: isOwned={}",
-                            topicName, clientAppId(), isTopicOwned);
+
                     if (!isTopicOwned) {
                         boolean newAuthoritative = isLeaderBroker(pulsar());
                         // Replace the host and port of the current request and redirect
                         URI redirect = UriBuilder.fromUri(uri.getRequestUri())
-                            .host(webUrl.getHost())
-                            .port(webUrl.getPort())
-                            .replaceQueryParam("authoritative", newAuthoritative)
-                            .build();
+                                .host(webUrl.getHost())
+                                .port(webUrl.getPort())
+                                .replaceQueryParam("authoritative", newAuthoritative)
+                                .build();
                         // Redirect
                         if (log.isDebugEnabled()) {
                             log.debug("Redirecting the rest call to {}", redirect);
@@ -806,7 +802,7 @@ public abstract class PulsarWebResource {
                     }
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof IllegalArgumentException
-                        || ex.getCause() instanceof IllegalStateException) {
+                            || ex.getCause() instanceof IllegalStateException) {
                         if (log.isDebugEnabled()) {
                             log.debug("Failed to find owner for topic: {}", topicName, ex);
                         }
@@ -817,7 +813,6 @@ public abstract class PulsarWebResource {
                         throw new RestException(ex.getCause());
                     }
                 });
-        });
     }
 
     /**

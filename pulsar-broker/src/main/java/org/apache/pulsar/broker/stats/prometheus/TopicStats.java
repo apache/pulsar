@@ -33,7 +33,7 @@ import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
-public class TopicStats {
+class TopicStats {
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.SUBSCRIPTION_COUNTER)
     int subscriptionsCount;
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.PRODUCER_COUNTER)
