@@ -81,6 +81,7 @@ public abstract class DebeziumSource extends KafkaConnectSource {
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         setDbConnectorTask(config);
+        setDbConnectorClass(config);
         tryLoadingConfigSecret("database.user", config, sourceContext);
         tryLoadingConfigSecret("database.password", config, sourceContext);
 

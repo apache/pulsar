@@ -491,7 +491,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.debug("[{}] Opening ledger {}", name, id);
                     }
                     mbean.startDataLedgerOpenOp();
-                    bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null);
+                    bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null, true);
                 } else {
                     initializeBookKeeper(callback);
                 }
@@ -1918,7 +1918,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 handleBadVersion(new BadVersionException("the current ledger " + currentLedger.getId()
                     + " was concurrent modified by a other bookie client. The error code is: " + errorCode));
             }
-        }, null);
+        }, null, true);
     }
 
     synchronized void ledgerClosed(final LedgerHandle lh) {
@@ -2191,6 +2191,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
         return Optional.ofNullable(ledgers.get(ledgerId));
+    }
+
+    public CompletableFuture<ReadHandle> reopenReadHandle(long ledgerId) {
+        invalidateReadHandle(ledgerId);
+        return getLedgerHandle(ledgerId);
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
@@ -2731,7 +2736,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug("No need to reset cursor: {}, current ledger is the last ledger.", cursor);
                 }
             } else {
-                log.warn("Cursor: {} does not exist in the managed-ledger.", cursor);
+                // It's possible that the ledger at the mark-deleted position is empty and has been deleted already.
+                log.debug("Cursor: {} mark-deleted position ledger does not exist in the managed-ledger.", cursor);
             }
 
             int compareResult = lastAckedPosition.compareTo(markDeletedPosition);

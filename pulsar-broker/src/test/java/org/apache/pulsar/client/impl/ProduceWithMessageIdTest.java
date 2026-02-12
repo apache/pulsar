@@ -143,8 +143,8 @@ public class ProduceWithMessageIdTest extends ProducerConsumerBase {
             public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
                 log.info("sendComplete", e);
                 if (e == null){
-                    cdl.countDown();
                     sendMsgStats.set(opSendMsgStats);
+                    cdl.countDown();
                 }
             }
 

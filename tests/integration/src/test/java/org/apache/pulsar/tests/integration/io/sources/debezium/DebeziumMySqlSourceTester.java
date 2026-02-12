@@ -67,7 +67,6 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
         sourceConfig.put("value.converter", converterClassName);
         sourceConfig.put("topic.namespace", "debezium/mysql-"
                + (converterClassName.endsWith("AvroConverter") ? "avro" : "json"));
-        sourceConfig.put("connector.class", "io.debezium.connector.mysql.MySqlConnector");
     }
 
     @Override

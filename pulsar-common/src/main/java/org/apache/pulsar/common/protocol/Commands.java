@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -111,7 +112,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 
 @UtilityClass
 @Slf4j
@@ -322,6 +323,7 @@ public class Commands {
         connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
         connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
         connected.setFeatureFlags().setSupportsReplDedupByLidAndEid(true);
+        connected.setFeatureFlags().setSupportsTopicWatcherReconcile(supportsTopicWatchers);
         return cmd;
     }
 
@@ -1034,7 +1036,7 @@ public class Commands {
     }
 
     public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
-            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+            List<Triple<Long, Long, ConcurrentBitSet>> entries) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
         cmd.getAck()
                 .setConsumerId(consumerId)
@@ -1044,14 +1046,14 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSet>> entries) {
         BaseCommand cmd = localCmd(Type.ACK);
         CommandAck ack = cmd.setAck();
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
             long entryId = entries.get(i).getMiddle();
-            ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
+            ConcurrentBitSet bitSet = entries.get(i).getRight();
             MessageIdData msgId = ack.addMessageId()
                     .setLedgerId(ledgerId)
                     .setEntryId(entryId);
@@ -1060,7 +1062,6 @@ public class Commands {
                 for (int j = 0; j < ackSet.length; j++) {
                     msgId.addAckSet(ackSet[j]);
                 }
-                bitSet.recycle();
             }
         }
 
@@ -1068,7 +1069,7 @@ public class Commands {
     }
 
     public static ByteBuf newMultiMessageAck(long consumerId,
-                                             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries,
+                                             List<Triple<Long, Long, ConcurrentBitSet>> entries,
                                              long requestId) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
         cmd.getAck()
@@ -1628,7 +1629,7 @@ public class Commands {
      * @param topics topic names which are matching, the topic name contains the partition suffix.
      */
     public static BaseCommand newWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
-                                                       List<String> topics) {
+                                                       Collection<String> topics) {
         BaseCommand cmd = new BaseCommand().setType(Type.WATCH_TOPIC_LIST_SUCCESS);
         cmd.setWatchTopicListSuccess()
                 .setRequestId(requestId)
