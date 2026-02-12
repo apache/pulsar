@@ -1652,7 +1652,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         factory.close(this);
         STATE_UPDATER.set(this, State.Closed);
-        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerAlreadyClosedException("Managed ledger is closed")));
+        executor.execute(() ->
+            clearNotInitiatedPendingAddEntries(new ManagedLedgerAlreadyClosedException("Managed ledger is closed")));
         cancelScheduledTasks();
 
         LedgerHandle lh = currentLedger;
@@ -4446,13 +4447,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public synchronized void setFenced() {
         log.info("{} Moving to Fenced state", name);
         STATE_UPDATER.set(this, State.Fenced);
-        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger " + name + " is fenced")));
+        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger "
+                + name
+                + " is fenced")));
     }
 
     synchronized void setFencedForDeletion() {
         log.info("{} Moving to FencedForDeletion state", name);
         STATE_UPDATER.set(this, State.FencedForDeletion);
-        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger " + name + " is fenced for deletion")));
+        executor.execute(() -> clearNotInitiatedPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger "
+                + name
+                + " is fenced for deletion")));
     }
 
     MetaStore getStore() {
