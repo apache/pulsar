@@ -310,6 +310,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private final Clock clock;
 
     // The last active time (Unix time, milliseconds) of the cursor
+    // If the value is negative, it indicates the last inactive time and has not been active since then.
+    // If the value is positive, it indicates the last active time (the last time delete was called, markDelete).
+    // If "lastActive & 1" is "1", it means that the value has been persisted, otherwise, it just was changed in memory.
     private volatile long lastActive;
 
     public enum State {
@@ -550,6 +553,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<ManagedCursorInfo>() {
             @Override
             public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                updateLastActive(false);
                 updateCursorLedgerStat(info, stat);
 
                 if (log.isDebugEnabled()) {
@@ -585,7 +589,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                             recoveredProperties.put(property.getName(), property.getValue());
                         }
                     }
-
+                    if (info.hasLastActive()) {
+                        lastActive = info.getLastActive();
+                    }
                     recoveredCursor(recoveredPosition, recoveredProperties, recoveredCursorProperties, null);
                     callback.operationComplete();
                 } else {
@@ -663,7 +669,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                     callback.operationFailed(new ManagedLedgerException(e));
                     return;
                 }
-
+                if (positionInfo.hasLastActive()) {
+                    lastActive = positionInfo.getLastActive();
+                }
                 Map<String, Long> recoveredProperties = Collections.emptyMap();
                 if (positionInfo.getPropertiesCount() > 0) {
                     // Recover properties map
@@ -862,6 +870,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     void initialize(Position position, Map<String, Long> properties, Map<String, String> cursorProperties,
                     final VoidCallback callback) {
         recoveredCursor(position, properties, cursorProperties, null);
+        // When a cursor is creating, no consumers has connected, so we mark it as inactive state.
+        lastActive = -System.currentTimeMillis();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Consumer {} cursor initialized with counters: consumed {} mdPos {} rdPos {}",
                     ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
@@ -1650,7 +1660,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 ledger.getName(), newReadPosition, name);
                     }
                 }
-                updateLastActive();
                 callback.resetComplete(newReadPosition);
             }
 
@@ -2786,12 +2795,78 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public long getLastActive() {
+        return Math.abs(lastActive);
+    }
+
+    /**
+     * Get the last active time or inactive time of the cursor.
+     *
+     * @return If the value is negative, it indicates the last inactive time and has not been active since then.
+     *     If the value is positive, it indicates the last active time (the last time delete was called, markDelete).
+     */
+    @Override
+    public long getLastActiveOrInActive() {
         return lastActive;
     }
 
+    @Deprecated
     @Override
     public void updateLastActive() {
         lastActive = System.currentTimeMillis();
+    }
+
+    /**
+     * Update the last active time of the cursor.
+     * @param active there are two cases that the active state changes, is active or not.
+     *
+     */
+    @Override
+    public CompletableFuture<Void> updateLastActive(boolean active) {
+        long previousValue = lastActive;
+        if (active) {
+            lastActive = System.currentTimeMillis();
+            markLastActiveAsUnPersisted();
+            CompletableFuture<Void> res = new CompletableFuture<>();
+            if (previousValue < 0 && isLastActivePersisted(previousValue)) {
+                internalAsyncMarkDelete(markDeletePosition, getProperties(), new MarkDeleteCallback() {
+                    @Override
+                    public void markDeleteComplete(Object ctx) {
+                        res.complete(null);
+                    }
+
+                    @Override
+                    public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                        res.completeExceptionally(exception);
+                    }
+                }, null, null);
+                return res;
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        }
+
+        // Since it still is not active, we should not change the timestamp.
+        if (previousValue < 0) {
+            return CompletableFuture.completedFuture(null);
+        }
+        // "lastActive" will be persisted when cursor closes.
+        lastActive = -System.currentTimeMillis();
+        markLastActiveAsUnPersisted();
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private void markLastActiveAsUnPersisted() {
+        // -2 is 0xfffffffffffffffe.
+        lastActive = (lastActive & -2);
+    }
+
+    private void markLastActiveAsPersisted() {
+        // 1 is 0x1.
+        lastActive = (lastActive | 1);
+    }
+
+    public static boolean isLastActivePersisted(long timestamp) {
+        return (Math.abs(timestamp) % 2) == 1;
     }
 
     @Override
@@ -2965,7 +3040,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     new CursorAlreadyClosedException(name + " cursor already closed"))));
             return;
         }
-
+        markLastActiveAsPersisted();
         final Stat lastCursorLedgerStat = cursorLedgerStat;
 
         // When closing we store the last mark-delete position in the z-node itself, so we won't need the cursor ledger,
@@ -3446,11 +3521,13 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback,
                                  boolean ignoreClosedStateAfterFailure) {
+        markLastActiveAsPersisted();
         Position position = mdEntry.newPosition;
         Builder piBuilder = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
                 .setEntryId(position.getEntryId())
                 .addAllBatchedEntryDeletionIndexInfo(buildBatchEntryDeletionIndexInfoList())
-                .addAllProperties(buildPropertiesMap(mdEntry.properties));
+                .addAllProperties(buildPropertiesMap(mdEntry.properties))
+                .setLastActive(lastActive);
 
         Map<Long, long[]> internalRanges = null;
         /**
