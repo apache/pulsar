@@ -1983,7 +1983,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // Initially should be empty
         Set<String> allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
-        assertTrue(allowedKeys.isEmpty());
+        assertNull(allowedKeys);
 
         // Set allowed keys
         Set<String> keysToSet = new HashSet<>();
@@ -2014,7 +2014,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // Remove all keys
         admin.namespaces().removeAllowedTopicPropertiesForMetrics(namespace);
         allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
-        assertTrue(allowedKeys.isEmpty());
+        assertNull(allowedKeys);
     }
 
     @Test

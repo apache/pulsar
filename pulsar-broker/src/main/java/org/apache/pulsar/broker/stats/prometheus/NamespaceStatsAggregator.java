@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.stats.prometheus;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -149,13 +148,13 @@ public class NamespaceStatsAggregator {
     }
 
     private static Set<String> getAllowedTopicPropertiesForMetrics(PulsarService pulsar, TopicName topicName) {
-        Set<String> allowedKeys = new HashSet<>(pulsar.getConfiguration().getAllowedTopicPropertiesForMetrics());
+        Set<String> allowedKeys = pulsar.getConfiguration().getAllowedTopicPropertiesForMetrics();
 
         NamespaceResources namespaceResources = pulsar.getPulsarResources().getNamespaceResources();
         NamespaceName namespaceName = topicName.getNamespaceObject();
         Optional<Policies> policies = namespaceResources.getPoliciesIfCachedAndAsyncLoad(namespaceName);
         if (policies.isPresent() && policies.get().allowed_topic_properties_for_metrics != null) {
-            allowedKeys.addAll(policies.get().allowed_topic_properties_for_metrics);
+            allowedKeys = policies.get().allowed_topic_properties_for_metrics;
         }
 
         return allowedKeys;

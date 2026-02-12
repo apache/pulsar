@@ -2690,7 +2690,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetAllowedTopicPropertiesForMetricsAsync(new HashSet<>())
+        internalSetAllowedTopicPropertiesForMetricsAsync(null)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to remove allowed topic properties for metrics for namespace {}",

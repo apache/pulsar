@@ -2284,6 +2284,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     // https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
     public void validateCustomMetricLabelKeys(Set<String> allowedCustomMetricLabelKeys) {
+        if (allowedCustomMetricLabelKeys == null) {
+            return;
+        }
         boolean exposeCustomTopicMetricLabelsEnabled = config.isExposeCustomTopicMetricLabelsEnabled();
         if (exposeCustomTopicMetricLabelsEnabled) {
             for (String labelKey : allowedCustomMetricLabelKeys) {

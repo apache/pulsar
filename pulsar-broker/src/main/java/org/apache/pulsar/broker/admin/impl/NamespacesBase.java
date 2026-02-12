@@ -2338,7 +2338,7 @@ public abstract class NamespacesBase extends AdminResource {
             .thenAccept(__ -> pulsar().validateCustomMetricLabelKeys(allowedKeys))
             .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                 policies.allowed_topic_properties_for_metrics = allowedKeys != null
-                    ? new HashSet<>(allowedKeys) : new HashSet<>();
+                    ? new HashSet<>(allowedKeys) : null;
                 return policies;
             }));
     }

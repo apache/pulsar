@@ -128,7 +128,8 @@ public class Policies {
     public Set<String> subscription_types_enabled = new HashSet<>();
 
     @SuppressWarnings("checkstyle:MemberName")
-    public Set<String> allowed_topic_properties_for_metrics = new HashSet<>();
+    // Default to null to fallback to broker level configuration
+    public Set<String> allowed_topic_properties_for_metrics = null;
 
     public Map<String, String> properties = new HashMap<>();
 

@@ -1595,7 +1595,7 @@ public interface Namespaces {
      *
      * @param namespace
      *            Namespace name
-     * @return the set of allowed topic property keys for metrics
+     * @return the set of allowed topic property keys for metrics, return null if not set
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -1611,7 +1611,7 @@ public interface Namespaces {
      *
      * @param namespace
      *            Namespace name
-     * @return the future of the set of allowed topic property keys for metrics
+     * @return the future of the set of allowed topic property keys for metrics, the future completes to null if not set
      */
     CompletableFuture<Set<String>> getAllowedTopicPropertiesForMetricsAsync(String namespace);
 
