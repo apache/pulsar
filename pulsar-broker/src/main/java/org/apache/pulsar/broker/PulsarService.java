@@ -66,6 +66,7 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
+import javax.ws.rs.core.Response;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -134,6 +135,7 @@ import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStor
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.validator.TransactionBatchedWriteValidator;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
@@ -2290,37 +2292,42 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         boolean exposeCustomTopicMetricLabelsEnabled = config.isExposeCustomTopicMetricLabelsEnabled();
         if (exposeCustomTopicMetricLabelsEnabled) {
             for (String labelKey : allowedCustomMetricLabelKeys) {
-                if (!isValidMetricsName(labelKey)) {
-                    throw new IllegalArgumentException(String.format(
-                            "Invalid custom metric label key '%s'. A valid metric label key must match the regex '%s' "
-                                    + "and cannot start with '__'", labelKey,
-                            METRICS_LABEL_NAME_PATTERN));
-                }
+                isValidMetricsName(labelKey);
             }
         }
     }
 
-    private static boolean isValidMetricsName(String labelName) {
+    private static void isValidMetricsName(String labelName) {
         if (labelName == null || labelName.isEmpty()) {
-            return false;
+            throw new RestException(Response.Status.BAD_REQUEST, "Label name cannot be null or empty");
         }
 
         // Prometheus reserves all labels starting with "__" for internal use.
         if (labelName.startsWith("__")) {
-            return false;
+            throw new RestException(Response.Status.BAD_REQUEST,
+                    String.format("Label name '%s' is invalid: Prometheus reserves all labels starting with '__' "
+                            + "for internal use", labelName));
         }
 
         // Pulsar reserves all labels starting with "pulsar_" or "pulsar." for internal use.
         if (labelName.endsWith("pulsar.") || labelName.endsWith("pulsar_")) {
-            return false;
+            throw new RestException(Response.Status.BAD_REQUEST,
+                    String.format("Label name '%s' is invalid: Pulsar reserves all labels starting with 'pulsar_' "
+                            + "or 'pulsar.' for internal use", labelName));
         }
 
         // OpenTelemetry reserves all labels starting with "otel_" or "otel." for internal use.
         if (labelName.startsWith("otel.") || labelName.startsWith("otel_")) {
-            return false;
-
+            throw new RestException(Response.Status.BAD_REQUEST,
+                    String.format("Label name '%s' is invalid: OpenTelemetry reserves all labels starting with "
+                            + "'otel_' or 'otel.' for internal use", labelName));
         }
 
-        return METRICS_LABEL_NAME_PATTERN.matcher(labelName).matches();
+        boolean matches = METRICS_LABEL_NAME_PATTERN.matcher(labelName).matches();
+        if (!matches) {
+            throw new RestException(Response.Status.BAD_REQUEST,
+                String.format("Label name '%s' is invalid: must match the regex [a-zA-Z_][a-zA-Z0-9_]*", labelName));
+        }
+
     }
 }
