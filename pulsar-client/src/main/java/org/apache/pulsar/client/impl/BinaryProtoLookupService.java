@@ -49,6 +49,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -351,9 +352,10 @@ public class BinaryProtoLookupService implements LookupService {
 
     @Override
     public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace,
-                                                                                  Mode mode,
-                                                                                  String topicsPattern,
-                                                                                  String topicsHash) {
+                                                                      Mode mode,
+                                                                      String topicsPattern,
+                                                                      String topicsHash,
+                                                                      @Nullable Map<String, String> properties) {
         CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new BackoffBuilder()
@@ -362,7 +364,7 @@ public class BinaryProtoLookupService implements LookupService {
                 .setMax(1, TimeUnit.MINUTES)
                 .create();
         getTopicsUnderNamespace(namespace, backoff, opTimeoutMs, topicsFuture, mode,
-                topicsPattern, topicsHash);
+                topicsPattern, topicsHash, properties);
         return topicsFuture;
     }
 
@@ -378,13 +380,14 @@ public class BinaryProtoLookupService implements LookupService {
                                          CompletableFuture<GetTopicsResult> getTopicsResultFuture,
                                          Mode mode,
                                          String topicsPattern,
-                                         String topicsHash) {
+                                         String topicsHash,
+                                         @Nullable Map<String, String> properties) {
         long startTime = System.nanoTime();
 
         client.getCnxPool().getConnection(serviceNameResolver).thenAcceptAsync(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
-                namespace.toString(), requestId, mode, topicsPattern, topicsHash);
+                namespace.toString(), requestId, mode, topicsPattern, topicsHash, properties);
 
             clientCnx.newGetTopicsOfNamespace(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
@@ -415,7 +418,7 @@ public class BinaryProtoLookupService implements LookupService {
                                 + " {} ms", namespace, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
                 getTopicsUnderNamespace(namespace, backoff, remainingTime, getTopicsResultFuture,
-                        mode, topicsPattern, topicsHash);
+                        mode, topicsPattern, topicsHash, properties);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
         });

@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -47,6 +48,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -1527,14 +1529,29 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
+    public CompletableFuture<List<String>> getListOfTopicsByProperties(NamespaceName namespaceName, Mode mode,
+                                                                       Map<String, String> properties) {
+       return pulsar.getPulsarResourcesExtended().listTopicOfNamespace(namespaceName, mode, properties);
+    }
+
+    public CompletableFuture<List<String>> getListOfUserTopicsByProperties(NamespaceName namespaceName, Mode mode,
+                                                                           Map<String, String> properties) {
+        return getListOfUserTopicsInternal(cacheKeyWithProperties(namespaceName, mode, properties),
+            () -> getListOfTopicsByProperties(namespaceName, mode, properties));
+    }
+
     public CompletableFuture<List<String>> getListOfUserTopics(NamespaceName namespaceName, Mode mode) {
-        String key = String.format("%s://%s", mode, namespaceName);
+        return getListOfUserTopicsInternal(cacheKeyWithProperties(namespaceName, mode, null),
+            () -> getListOfTopics(namespaceName, mode));
+    }
+
+    private CompletableFuture<List<String>> getListOfUserTopicsInternal(
+        String key,
+        Supplier<CompletableFuture<List<String>>> topicsSupplier) {
         final MutableBoolean initializedByCurrentThread = new MutableBoolean();
         CompletableFuture<List<String>> queryRes = inProgressQueryUserTopics.computeIfAbsent(key, k -> {
             initializedByCurrentThread.setTrue();
-            return getListOfTopics(namespaceName, mode).thenApplyAsync(list -> {
-                return TopicList.filterSystemTopic(list);
-            }, pulsar.getExecutor());
+            return topicsSupplier.get().thenApplyAsync(TopicList::filterSystemTopic, pulsar.getExecutor());
         });
         if (initializedByCurrentThread.getValue()) {
             queryRes.whenComplete((ignore, ex) -> {
@@ -1542,6 +1559,19 @@ public class NamespaceService implements AutoCloseable {
             });
         }
         return queryRes;
+    }
+
+    private String cacheKeyWithProperties(NamespaceName namespaceName, Mode mode,
+                                          @Nullable Map<String, String> properties) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(mode).append("://").append(namespaceName);
+        if (properties != null && !properties.isEmpty()) {
+            Set<String> keys = new TreeSet<>(properties.keySet());
+            for (String key : keys) {
+                sb.append("|").append(key).append("=").append(properties.get(key));
+            }
+        }
+        return sb.toString();
     }
 
     public CompletableFuture<List<String>> getAllPartitions(NamespaceName namespaceName) {

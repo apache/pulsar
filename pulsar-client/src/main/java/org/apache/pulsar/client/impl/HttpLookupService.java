@@ -190,7 +190,8 @@ public class HttpLookupService implements LookupService {
 
     @Override
     public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
-                                                                      String topicsPattern, String topicsHash) {
+                                                                      String topicsPattern, String topicsHash,
+                                                                      Map<String, String> properties) {
         long startTime = System.nanoTime();
 
         CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();

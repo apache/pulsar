@@ -26,6 +26,9 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -42,6 +45,7 @@ import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.TopicName;
@@ -316,7 +320,8 @@ public class LookupProxyHandler {
         String topicsHash = commandGetTopicsOfNamespace.hasTopicsHash()
                 ? commandGetTopicsOfNamespace.getTopicsHash() : null;
         performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl,
-                10, topicsPattern, topicsHash, commandGetTopicsOfNamespace.getMode());
+                10, topicsPattern, topicsHash, commandGetTopicsOfNamespace.getMode(),
+            commandGetTopicsOfNamespace.getPropertiesList());
     }
 
     private void performGetTopicsOfNamespace(long clientRequestId,
@@ -325,7 +330,8 @@ public class LookupProxyHandler {
                                              int numberOfRetries,
                                              String topicsPattern,
                                              String topicsHash,
-                                             CommandGetTopicsOfNamespace.Mode mode) {
+                                             CommandGetTopicsOfNamespace.Mode mode,
+                                             List<KeyValue> properties) {
         if (numberOfRetries == 0) {
             writeAndFlush(Commands.newError(clientRequestId, ServerError.ServiceNotReady,
                     "Reached max number of redirections"));
@@ -346,8 +352,12 @@ public class LookupProxyHandler {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
+            Map<String, String> propertiesMap = new HashMap<>();
+            for (KeyValue kv : properties) {
+                propertiesMap.put(kv.getKey(), kv.getValue());
+            }
             command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode,
-                    topicsPattern, topicsHash);
+                    topicsPattern, topicsHash, propertiesMap);
 
             internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, clientCnx, command, requestId);
             proxyConnection.getConnectionPool().releaseConnection(clientCnx);

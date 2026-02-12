@@ -102,6 +102,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
@@ -151,6 +152,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -163,7 +165,8 @@ public class PersistentTopicsBase extends AdminResource {
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
 
-    protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle) {
+    protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle,
+                                                                   @Nullable Map<String, String> properties) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
             .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
             .thenAccept(exists -> {
@@ -171,7 +174,8 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
                 }
             })
-            .thenCompose(__ -> topicResources().listPersistentTopicsAsync(namespaceName))
+            .thenCompose(__ -> pulsar().getNamespaceService().getListOfTopicsByProperties(namespaceName,
+               CommandGetTopicsOfNamespace.Mode.PERSISTENT, properties))
             .thenApply(topics ->
                 topics.stream()
                     .filter(topic -> {
@@ -4423,7 +4427,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
                     }
                 })
-                .thenCompose(__ -> internalGetListAsync(Optional.empty()))
+                .thenCompose(__ -> internalGetListAsync(Optional.empty(), null))
                 .thenApply(topics -> {
                     if (!topics.contains(topicName.toString())) {
                         throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");

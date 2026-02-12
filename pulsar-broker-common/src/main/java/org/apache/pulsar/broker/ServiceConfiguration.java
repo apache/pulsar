@@ -492,6 +492,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int metadataStoreCacheExpirySeconds = 300;
 
+    private static final String DEFAULT_EXTENDED_RESOURCES_CLASS_NAME =
+            "org.apache.pulsar.broker.DefaultPulsarResourcesExtended";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The class name of the PulsarResourcesExtended implementation. "
+                    + "This class must implement org.apache.pulsar.broker.PulsarResourcesExtended."
+    )
+    private String pulsarResourcesExtendedClassName = DEFAULT_EXTENDED_RESOURCES_CLASS_NAME;
+
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Is metadata store read-only operations."
@@ -1265,9 +1275,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = false,
             category = CATEGORY_POLICIES,
-            doc = "Enables evaluating subscription pattern on broker side."
+            doc = "Enables evaluating subscription pattern on broker side. "
+                    + "Note: This config no longer controls watching topic list. "
+                    + "Please use `enableBrokerTopicListWatcher` to control that behavior."
     )
     private boolean enableBrokerSideSubscriptionPatternEvaluation = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Enables watching topic add/remove events on broker side for "
+                    + "subscription pattern evaluation."
+    )
+    private boolean enableBrokerTopicListWatcher = true;
 
     @FieldContext(
             dynamic = false,

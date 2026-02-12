@@ -301,6 +301,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private boolean shouldShutdownConfigurationMetadataStore;
 
     private PulsarResources pulsarResources;
+    private PulsarResourcesExtended pulsarResourcesExtended;
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
@@ -1032,6 +1033,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             this.metricsGenerator = new MetricsGenerator(this);
 
+            // Initialize PulsarResourcesExtended
+            pulsarResourcesExtended = loadPulsarResourcesExtended();
+
             // the broker is ready to accept incoming requests by Pulsar binary protocol and http/https
             final List<Runnable> runnables;
             synchronized (pendingTasksBeforeReadyForIncomingRequests) {
@@ -1156,6 +1160,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
         return pulsarResources;
+    }
+
+    protected PulsarResourcesExtended loadPulsarResourcesExtended() {
+        String className = config.getPulsarResourcesExtendedClassName();
+        PulsarResourcesExtended extendedResources = Reflections.createInstance(className,
+                PulsarResourcesExtended.class, Thread.currentThread().getContextClassLoader());
+        extendedResources.initialize(this);
+        return extendedResources;
     }
 
     private synchronized void createMetricsServlet() {
