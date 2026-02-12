@@ -2310,6 +2310,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             return false;
         }
 
+        // Pulsar reserves all labels starting with "pulsar_" or "pulsar." for internal use.
+        if (labelName.endsWith("pulsar.") || labelName.endsWith("pulsar_")) {
+            return false;
+        }
+
+        // OpenTelemetry reserves all labels starting with "otel_" or "otel." for internal use.
+        if (labelName.startsWith("otel.") || labelName.startsWith("otel_")) {
+            return false;
+
+        }
+
         return METRICS_LABEL_NAME_PATTERN.matcher(labelName).matches();
     }
 }
