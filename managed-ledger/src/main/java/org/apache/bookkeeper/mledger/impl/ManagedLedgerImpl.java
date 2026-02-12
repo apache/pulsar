@@ -4355,7 +4355,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return activeCursors.get(cursor.getName()) != null;
     }
 
-    private boolean currentLedgerIsFull() {
+    @VisibleForTesting
+    protected boolean currentLedgerIsFull() {
         if (!factory.isMetadataServiceAvailable()) {
             // We don't want to trigger metadata operations if we already know that we're currently disconnected
             return false;
