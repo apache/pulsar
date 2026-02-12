@@ -3529,13 +3529,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> allowedTopicPropertiesForMetrics = new HashSet<>();
 
-    @FieldContext(
-            category = CATEGORY_METRICS,
-            doc = "Maximum character length for a custom metric label value. "
-                    + "Default is 128."
-    )
-    private int maxCustomMetricLabelValueLength = 128;
-
     /**** --- Functions. --- ****/
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
