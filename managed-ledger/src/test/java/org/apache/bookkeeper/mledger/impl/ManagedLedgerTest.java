@@ -815,6 +815,43 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    public void testFencedManagedLedgerAfterAdd() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl realLedger = (ManagedLedgerImpl) factory1.open("my_test_ledger");
+        ManagedLedgerImpl ledger = spy(realLedger);
+
+        int sendNum = 10;
+        CountDownLatch sendLatch = new CountDownLatch(sendNum);
+        CountDownLatch fencedLatch = new CountDownLatch(1);
+        doAnswer(invocationOnMock -> {
+            for (int i = 0; i < sendNum; ++i) {
+                stopBookKeeper();
+                stopMetadataStore();
+                ledger.internalAsyncAddEntry(OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128), new AddEntryCallback() {
+                    @Override
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                        sendLatch.countDown();
+                    }
+
+                    @Override
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        sendLatch.countDown();
+                    }
+                }, null, new AtomicBoolean()));
+            }
+            Object o = invocationOnMock.callRealMethod();
+            fencedLatch.countDown();
+            return o;
+        }).when(ledger).setFenced();
+        ledger.setFenced();
+        fencedLatch.await();
+        sendLatch.await();
+        assertEquals(ledger.pendingAddEntries.size(), 0);
+    }
+
+    @Test(timeOut = 20000)
     public void deleteAndReopen() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
