@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import picocli.CommandLine;
@@ -91,8 +92,12 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
             // Use advertised address from command line
             config.setAdvertisedAddress(this.getAdvertisedAddress());
         } else if (isBlank(config.getAdvertisedAddress()) && isBlank(config.getAdvertisedListeners())) {
-            // Use advertised address as local hostname
-            config.setAdvertisedAddress("localhost");
+            try {
+                config.setAdvertisedAddress(ServiceConfigurationUtils.unsafeLocalhostResolve());
+            } catch (Exception e) {
+                log.warn("Failed to resolve FQDN, using 'localhost' as advertised address", e);
+                config.setAdvertisedAddress("localhost");
+            }
         } else {
             // Use advertised or advertisedListeners address from config file
         }
