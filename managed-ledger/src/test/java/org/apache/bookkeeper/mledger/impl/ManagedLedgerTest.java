@@ -773,12 +773,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = Mockito.spy(realLedger);
         AtomicBoolean onlyOnce = new AtomicBoolean(false);
         when(ledger.currentLedgerIsFull()).thenAnswer(invocation -> onlyOnce.compareAndSet(false, true));
-        //when(ledger.isNeededCreateNewLedgerAfterCloseLedger()).thenReturn(true);
         OpAddEntry realOp = OpAddEntry.createNoRetainBuffer(ledger,
                     ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean());
         OpAddEntry op = spy(realOp);
         CountDownLatch createLatch = new CountDownLatch(1);
-        ledger.internalAsyncAddEntry(op);
+        CountDownLatch closeLatch = new CountDownLatch(1);
         doAnswer(invocationOnMock -> {
             // Simulate that before the rollover is completed, new write requests arrive,
             // and after these write requests are added to pendingAddEntries, the ledger is closed.
@@ -791,11 +790,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 @Override
                 public void closeComplete(Object ctx) {
                     log.info("closeComplete finished, ledger state:{}", ledger.state);
+                    closeLatch.countDown();
                 }
 
                 @Override
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
                     log.info("closeFailed, ex:{}, state:{}", exception.getMessage(), ledger.state);
+                    closeLatch.countDown();
                 }
             }, null);
             log.info("after add, ledger state:{}", ledger.state);
@@ -807,7 +808,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.executor.execute(createLatch::countDown);
             return o;
         }).when(ledger).createComplete(anyInt(), any(), any());
+        ledger.internalAsyncAddEntry(op);
         createLatch.await();
+        closeLatch.await();
         Assert.assertEquals(ledger.pendingAddEntries.size(), 0);
     }
 
