@@ -2332,7 +2332,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetAllowedTopicPropertiesForMetricsAsync(Set<String> allowedKeys) {
-        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.CUSTOM_METRIC_LABELS,
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CUSTOM_METRIC_LABELS,
             PolicyOperation.WRITE)
             .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
             .thenAccept(__ -> pulsar().validateCustomMetricLabelKeys(allowedKeys))

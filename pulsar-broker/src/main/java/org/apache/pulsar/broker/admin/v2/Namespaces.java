@@ -2642,15 +2642,16 @@ public class Namespaces extends NamespacesBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.CUSTOM_METRIC_LABELS, PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> asyncResponse.resume(policies.allowed_topic_properties_for_metrics))
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to get allowed topic properties for metrics for namespace {}",
-                            clientAppId(), namespaceName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CUSTOM_METRIC_LABELS,
+            PolicyOperation.READ)
+            .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+            .thenAccept(policies -> asyncResponse.resume(policies.allowed_topic_properties_for_metrics))
+            .exceptionally(ex -> {
+                log.error("[{}] Failed to get allowed topic properties for metrics for namespace {}",
+                    clientAppId(), namespaceName, ex);
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
     }
 
     @POST
