@@ -258,10 +258,6 @@ public class TopicPolicies implements Cloneable {
         return schemaValidationEnforced != null;
     }
 
-    public boolean isCustomMetricLabelsSet() {
-        return false;
-    }
-
     public Set<String> getReplicationClustersSet() {
         return replicationClusters != null ? Sets.newTreeSet(this.replicationClusters) : null;
     }
