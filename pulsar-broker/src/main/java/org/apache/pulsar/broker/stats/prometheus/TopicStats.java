@@ -19,32 +19,21 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
-class TopicStats {
+public class TopicStats {
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.SUBSCRIPTION_COUNTER)
     int subscriptionsCount;
     @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.PRODUCER_COUNTER)
@@ -681,63 +670,5 @@ class TopicStats {
         }
 
         stream.writeSample(metricName, value, labelsAndValues);
-    }
-
-    public static Map<String, String> getCustomMetricLabelsMap(PulsarService pulsar, TopicName topicName) {
-        Map<String, String> properties = fetchTopicPropertiesFromCache(pulsar, topicName);
-        if (MapUtils.isEmpty(properties)) {
-            return Collections.emptyMap();
-        }
-        Map<String, String> customMetricLabels = new HashMap<>();
-        Set<String> allowedCustomLabelKeys = getAllowedTopicPropertiesForMetrics(pulsar, topicName);
-        for (Map.Entry<String, String> entry : properties.entrySet()) {
-            if (allowedCustomLabelKeys.contains(entry.getKey())) {
-                customMetricLabels.put(entry.getKey(), entry.getValue());
-            }
-        }
-        return customMetricLabels;
-    }
-
-    private static Set<String> getAllowedTopicPropertiesForMetrics(PulsarService pulsar, TopicName topicName) {
-        Set<String> allowedKeys = pulsar.getConfiguration().getAllowedTopicPropertiesForMetrics();
-
-        NamespaceResources namespaceResources = pulsar.getPulsarResources().getNamespaceResources();
-        NamespaceName namespaceName = topicName.getNamespaceObject();
-        Optional<Policies> policies = namespaceResources.getPoliciesIfCachedAndAsyncLoad(namespaceName);
-        if (policies.isPresent() && policies.get().allowed_topic_properties_for_metrics != null) {
-            allowedKeys = policies.get().allowed_topic_properties_for_metrics;
-        }
-
-        return allowedKeys;
-    }
-
-    private static Map<String, String> fetchTopicPropertiesFromCache(PulsarService pulsarService, TopicName topicName) {
-        // Only persistent topics have properties
-        if (!topicName.isPersistent()) {
-            return Collections.emptyMap();
-        }
-
-        if (!topicName.isPartitioned()) {
-            return getNonPartitionedPropertiesAsync(pulsarService, topicName);
-        }
-        TopicName partitionedTopicName = TopicName.getPartitionedTopicName(topicName.toString());
-        PartitionedTopicMetadata metadata = pulsarService.getBrokerService()
-            .fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(partitionedTopicName);
-        if (metadata.partitions == 0) {
-            return getNonPartitionedPropertiesAsync(pulsarService, topicName);
-        } else {
-            return metadata.properties;
-        }
-    }
-
-    private static Map<String, String> getNonPartitionedPropertiesAsync(PulsarService pulsarService,
-                                                                        TopicName topicName) {
-        Optional<Topic> topicOptional = pulsarService.getBrokerService().getTopicIfExists(topicName.toString())
-            .getNow(Optional.empty());
-        if (topicOptional.isPresent()) {
-            return ((PersistentTopic) topicOptional.get()).getManagedLedger().getProperties();
-        } else {
-            return Collections.emptyMap();
-        }
     }
 }

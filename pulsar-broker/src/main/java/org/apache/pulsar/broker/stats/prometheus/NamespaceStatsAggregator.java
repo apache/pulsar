@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.apache.pulsar.broker.service.AbstractTopic.getCustomMetricLabelsMap;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.HashMap;
 import java.util.Map;
@@ -104,7 +105,7 @@ public class NamespaceStatsAggregator {
                     if (pulsar.getConfiguration().isExposeCustomTopicMetricLabelsEnabled()) {
                         TopicName topicName = TopicName.get(name);
 
-                        Map<String, String> customLabelsMap = TopicStats.getCustomMetricLabelsMap(pulsar, topicName);
+                        Map<String, String> customLabelsMap = getCustomMetricLabelsMap(pulsar, topicName);
                         if (MapUtils.isNotEmpty(customLabelsMap)) {
                             customLabelAndValues = new String[customLabelsMap.size() * 2];
                             int index = 0;
