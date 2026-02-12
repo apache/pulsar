@@ -170,9 +170,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void updatePropertiesForAutoCreatedTopicTest() throws Exception {
         TopicName topicName = TopicName.get(
-            TopicDomain.persistent.value(),
-            NamespaceName.get(myNamespace),
-            "test-" + UUID.randomUUID()
+                TopicDomain.persistent.value(),
+                NamespaceName.get(myNamespace),
+                "test-" + UUID.randomUUID()
         );
         String testTopic = topicName.toString();
         @Cleanup
@@ -184,23 +184,23 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testTopicPolicyInitialValueWithNamespaceAlreadyLoaded() throws Exception {
+    public void testTopicPolicyInitialValueWithNamespaceAlreadyLoaded() throws Exception{
         TopicName topicName = TopicName.get(
-            TopicDomain.persistent.value(),
-            NamespaceName.get(myNamespace),
-            "test-" + UUID.randomUUID()
+                TopicDomain.persistent.value(),
+                NamespaceName.get(myNamespace),
+                "test-" + UUID.randomUUID()
         );
         String topic = topicName.toString();
 
         SystemTopicBasedTopicPoliciesService policyService =
-            (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
 
         //set up topic with maxSubscriptionsPerTopic = 10
         admin.topics().createNonPartitionedTopic(topic);
         admin.topicPolicies().setMaxSubscriptionsPerTopicAsync(topic, 10).get();
 
         //wait until topic loaded with right policy value.
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().untilAsserted(()-> {
             AbstractTopic topic1 = (AbstractTopic) pulsar.getBrokerService().getTopic(topic, true).get().get();
             assertEquals(topic1.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().get(), Integer.valueOf(10));
         });
@@ -213,7 +213,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertTrue(pulsar.getBrokerService().isTopicNsOwnedByBrokerAsync(topicName).join());
         assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic));
         //make sure namespace policy reader is fully started.
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().untilAsserted(()-> {
             assertTrue(policyService.getPoliciesCacheInit(topicName.getNamespaceObject()).isDone());
         });
 
@@ -227,23 +227,23 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testSetSizeBasedBacklogQuota() throws Exception {
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitSize(1024)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitSize(1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
         admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota, BacklogQuota
-            .BacklogQuotaType.destination_storage);
+                .BacklogQuotaType.destination_storage);
         log.info("Backlog quota set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
         for (int i = 0; i < testTopicPartitions; i++) {
             String partition = TopicName.get(testTopic).getPartition(i).toString();
             Topic topic = pulsar.getBrokerService().getTopic(partition, false).get().get();
             BacklogQuota backlogQuotaInTopic = topic.getBacklogQuota(BacklogQuota
-                .BacklogQuotaType.destination_storage);
+                    .BacklogQuotaType.destination_storage);
             log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInTopic, testTopic);
             Assert.assertEquals(backlogQuota, backlogQuotaInTopic);
         }
@@ -254,21 +254,21 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testSetTimeBasedBacklogQuota() throws Exception {
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitTime(1000)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitTime(1000)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
 
         admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota,
-            BacklogQuota.BacklogQuotaType.message_age);
+                BacklogQuota.BacklogQuotaType.message_age);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
         for (int i = 0; i < testTopicPartitions; i++) {
             String partition = TopicName.get(testTopic).getPartition(i).toString();
             Topic topic = pulsar.getBrokerService().getTopic(partition, false).get().get();
             BacklogQuota backlogQuotaInTopic = topic.getBacklogQuota(
-                BacklogQuota.BacklogQuotaType.message_age);
+                    BacklogQuota.BacklogQuotaType.message_age);
             Assert.assertEquals(backlogQuota, backlogQuotaInTopic);
         }
 
@@ -284,40 +284,40 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             Topic topic = pulsar.getBrokerService().getOrCreateTopic(partition).get();
             partitions.add(topic);
             BacklogQuota defaultBacklogQuota = topic.getBacklogQuota(BacklogQuota
-                .BacklogQuotaType.destination_storage);
+                    .BacklogQuotaType.destination_storage);
             defaultBacklogQuotas.add(defaultBacklogQuota);
         }
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitSize(1024)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitSize(1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
         admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota, BacklogQuota
-            .BacklogQuotaType.destination_storage);
+                .BacklogQuotaType.destination_storage);
         log.info("Backlog quota set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
 
         partitions.forEach(topic -> {
             BacklogQuota backlogQuotaInTopic = topic.getBacklogQuota(
-                BacklogQuota.BacklogQuotaType.destination_storage);
+                    BacklogQuota.BacklogQuotaType.destination_storage);
             log.info("Backlog quota {} in backlog quota manager on topic: {}", backlogQuotaInTopic, testTopic);
             Assert.assertEquals(backlogQuota, backlogQuotaInTopic);
         });
 
         admin.topicPolicies().removeBacklogQuota(testTopic, BacklogQuota.BacklogQuotaType.destination_storage);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.destination_storage)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage)));
         for (int i = 0; i < partitions.size(); i++) {
             BacklogQuota backlogQuotaInTopic =
-                partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage);
+                    partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage);
             log.info("Backlog quota {} in backlog quota manager on topic: {} after remove", backlogQuotaInTopic,
-                testTopic);
+                    testTopic);
             Assert.assertEquals(defaultBacklogQuotas.get(i), backlogQuotaInTopic);
         }
 
@@ -337,34 +337,34 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitTime(1000)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitTime(1000)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
 
         admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
 
         for (int i = 0; i < partitions.size(); i++) {
             Assert.assertEquals(partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age),
-                backlogQuota);
+                    backlogQuota);
             //destination_storage should keep the same.
             Assert.assertEquals(partitions.get(i).getBacklogQuota(
                     BacklogQuota.BacklogQuotaType.destination_storage),
-                defaultBacklogQuotas.get(i));
+                    defaultBacklogQuotas.get(i));
         }
 
         admin.topicPolicies().removeBacklogQuota(testTopic, BacklogQuota.BacklogQuotaType.message_age);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.message_age)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age)));
 
         for (int i = 0; i < partitions.size(); i++) {
             BacklogQuota backlogQuotaInTopic =
-                partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age);
+                    partitions.get(i).getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age);
             log.info("Backlog quota {} in backlog quota manager on topic: {} after remove", backlogQuotaInTopic,
-                testTopic);
+                    testTopic);
             Assert.assertEquals(defaultBacklogQuotas.get(i), backlogQuotaInTopic);
         }
 
@@ -378,47 +378,47 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention(namespace, retentionPolicies);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(namespace),
-                retentionPolicies));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(namespace),
+                        retentionPolicies));
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitSize(10 * 1024 * 1024)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitSize(10 * 1024 * 1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
             admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota,
-                BacklogQuota.BacklogQuotaType.destination_storage);
+                    BacklogQuota.BacklogQuotaType.destination_storage);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
 
         backlogQuota = BacklogQuota.builder()
-            .limitSize(10 * 1024 * 1024 + 1)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitSize(10 * 1024 * 1024 + 1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
             admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota,
-                BacklogQuota.BacklogQuotaType.destination_storage);
+                    BacklogQuota.BacklogQuotaType.destination_storage);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
 
         backlogQuota = BacklogQuota.builder()
-            .limitSize(10 * 1024 * 1024 - 1)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitSize(10 * 1024 * 1024 - 1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota,
-            BacklogQuota.BacklogQuotaType.destination_storage);
+                BacklogQuota.BacklogQuotaType.destination_storage);
 
         BacklogQuota finalBacklogQuota = backlogQuota;
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.destination_storage), finalBacklogQuota));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage), finalBacklogQuota));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -430,47 +430,47 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention(namespace, retentionPolicies);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(namespace),
-                retentionPolicies));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(namespace),
+                        retentionPolicies));
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitTime(10 * 60)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitTime(10 * 60)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
             admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota,
-                BacklogQuota.BacklogQuotaType.message_age);
+                    BacklogQuota.BacklogQuotaType.message_age);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
 
         backlogQuota = BacklogQuota.builder()
-            .limitTime(10 * 60 + 1)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitTime(10 * 60 + 1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         try {
             admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota,
-                BacklogQuota.BacklogQuotaType.message_age);
+                    BacklogQuota.BacklogQuotaType.message_age);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
         }
 
         backlogQuota = BacklogQuota.builder()
-            .limitTime(10 * 60 - 1)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitTime(10 * 60 - 1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
         admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota,
-            BacklogQuota.BacklogQuotaType.message_age);
+                BacklogQuota.BacklogQuotaType.message_age);
 
         BacklogQuota finalBacklogQuota = backlogQuota;
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.message_age), finalBacklogQuota));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age), finalBacklogQuota));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -486,7 +486,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "clientRequestType")
     public void testPriorityOfGlobalPolicies(String clientRequestType) throws Exception {
         final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-            (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         final JerseyClient httpClient = JerseyClientBuilder.createClient();
         // create topic and load it up.
         final String namespace = myNamespace;
@@ -494,11 +494,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final TopicName topicName = TopicName.get(topic);
         final String hostAndPort = pulsar.getWebServiceAddress();
         final String httpPath = "/admin/v2/persistent/" + namespace + "/" + TopicName.get(topic).getLocalName()
-            + "/maxConsumers";
+                + "/maxConsumers";
         admin.topics().createNonPartitionedTopic(topic);
         Producer producer = pulsarClient.newProducer().topic(topic).create();
         PersistentTopic persistentTopic =
-            (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
 
         // Set non global policy.
         // Verify: it affects.
@@ -506,15 +506,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             admin.topicPolicies(false).setMaxConsumers(topic, 10);
         } else {
             Response res = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "false")
-                .request()
-                .header("Content-Type", "application/json")
-                .post(Entity.json(10));
+                    .queryParam("isGlobal", "false")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(10));
             assertTrue(res.getStatus() == 200 || res.getStatus() == 204);
         }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 10);
+                    .getMaxConsumerPerTopic(), 10);
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
         });
@@ -525,17 +525,17 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             admin.topicPolicies(true).setMaxConsumers(topic, 20);
         } else {
             Response globalRes = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "true")
-                .request()
-                .header("Content-Type", "application/json")
-                .post(Entity.json(20));
+                    .queryParam("isGlobal", "true")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(20));
             assertTrue(globalRes.getStatus() == 200 || globalRes.getStatus() == 204);
         }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 10);
+                    .getMaxConsumerPerTopic(), 10);
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, GLOBAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 20);
+                    .getMaxConsumerPerTopic(), 20);
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
         });
@@ -546,15 +546,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             admin.topicPolicies(false).removeMaxConsumers(topic);
         } else {
             Response removeRes = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "false")
-                .request()
-                .header("Content-Type", "application/json")
-                .delete();
+                    .queryParam("isGlobal", "false")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .delete();
             assertTrue(removeRes.getStatus() == 200 || removeRes.getStatus() == 204);
         }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, GLOBAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 20);
+                    .getMaxConsumerPerTopic(), 20);
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 20);
         });
@@ -567,7 +567,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "clientRequestType")
     public void testPriorityOfGlobalPolicies2(String clientRequestType) throws Exception {
         final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-            (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         final JerseyClient httpClient = JerseyClientBuilder.createClient();
         // create topic and load it up.
         final String namespace = myNamespace;
@@ -575,11 +575,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final TopicName topicName = TopicName.get(topic);
         final String hostAndPort = pulsar.getWebServiceAddress();
         final String httpPath = "/admin/v2/persistent/" + namespace + "/" + TopicName.get(topic).getLocalName()
-            + "/maxConsumers";
+                + "/maxConsumers";
         admin.topics().createNonPartitionedTopic(topic);
         Producer producer = pulsarClient.newProducer().topic(topic).create();
         PersistentTopic persistentTopic =
-            (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
 
         // Set global policy.
         // Verify: it affects.
@@ -587,15 +587,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             admin.topicPolicies(true).setMaxConsumers(topic, 20);
         } else {
             Response globalRes = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "true")
-                .request()
-                .header("Content-Type", "application/json")
-                .post(Entity.json(20));
+                    .queryParam("isGlobal", "true")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(20));
             assertTrue(globalRes.getStatus() == 200 || globalRes.getStatus() == 204);
         }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, GLOBAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 20);
+                    .getMaxConsumerPerTopic(), 20);
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 20);
         });
@@ -606,17 +606,17 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             admin.topicPolicies(false).setMaxConsumers(topic, 10);
         } else {
             Response res = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "false")
-                .request()
-                .header("Content-Type", "application/json")
-                .post(Entity.json(10));
+                    .queryParam("isGlobal", "false")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .post(Entity.json(10));
             assertTrue(res.getStatus() == 200 || res.getStatus() == 204);
         }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 10);
+                    .getMaxConsumerPerTopic(), 10);
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, GLOBAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 20);
+                    .getMaxConsumerPerTopic(), 20);
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
         });
@@ -627,15 +627,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             admin.topicPolicies(true).removeMaxConsumers(topic);
         } else {
             Response removeRes = httpClient.target(hostAndPort).path(httpPath)
-                .queryParam("isGlobal", "true")
-                .request()
-                .header("Content-Type", "application/json")
-                .delete();
+                    .queryParam("isGlobal", "true")
+                    .request()
+                    .header("Content-Type", "application/json")
+                    .delete();
             assertTrue(removeRes.getStatus() == 200 || removeRes.getStatus() == 204);
         }
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 10);
+                    .getMaxConsumerPerTopic(), 10);
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
         });
@@ -654,7 +654,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
         pulsarClient.newProducer().topic(topic).create().close();
         final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-            (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
 
         // Set non-global policy of the limitation of max consumers.
         // Set global policy of the limitation of max producers.
@@ -662,11 +662,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies(true).setMaxProducers(topic, 20);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 10);
+                    .getMaxConsumerPerTopic(), 10);
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, GLOBAL_ONLY).join().get()
-                .getMaxProducerPerTopic(), 20);
+                    .getMaxProducerPerTopic(), 20);
             PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
             assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 20);
@@ -677,7 +677,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topic).create().close();
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
             assertEquals(hierarchyTopicPolicies.getMaxProducersPerTopic().get(), 20);
@@ -696,7 +696,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
         pulsarClient.newProducer().topic(topic).create().close();
         final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-            (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
 
         // Set non-global policy of the limitation of max consumers.
         // Set global policy of the persistence policies.
@@ -705,9 +705,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies(true).setRetention(topic, retentionPolicies);
         Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 10);
+                    .getMaxConsumerPerTopic(), 10);
             PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
             ManagedLedgerConfig mlConfig = persistentTopic.getManagedLedger().getConfig();
@@ -718,9 +718,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies(true).setPersistence(topic, persistencePolicy);
         Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
             assertEquals(topicPoliciesService.getTopicPoliciesAsync(topicName, LOCAL_ONLY).join().get()
-                .getMaxConsumerPerTopic(), 10);
+                    .getMaxConsumerPerTopic(), 10);
             PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
             ManagedLedgerConfig mlConfig = persistentTopic.getManagedLedger().getConfig();
@@ -737,7 +737,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topic).create().close();
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
+                    (PersistentTopic) pulsar.getBrokerService().getTopics().get(topic).get().get();
             HierarchyTopicPolicies hierarchyTopicPolicies = persistentTopic.getHierarchyTopicPolicies();
             ManagedLedgerConfig mlConfig = persistentTopic.getManagedLedger().getConfig();
             assertEquals(hierarchyTopicPolicies.getMaxConsumerPerTopic().get(), 10);
@@ -762,28 +762,28 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> brokerQuotaMap = ConfigHelper.backlogQuotaMap(conf);
         assertEquals(admin.topicPolicies().getBacklogQuotaMap(topic, true), brokerQuotaMap);
         BacklogQuota namespaceQuota = BacklogQuota.builder()
-            .limitSize(30)
-            .limitTime(10)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
-            .build();
+                .limitSize(30)
+                .limitTime(10)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                .build();
 
         admin.namespaces().setBacklogQuota(myNamespace, namespaceQuota);
         Awaitility.await().untilAsserted(() -> assertFalse(admin.namespaces()
-            .getBacklogQuotaMap(myNamespace).isEmpty()));
+                .getBacklogQuotaMap(myNamespace).isEmpty()));
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> namespaceQuotaMap = new HashMap<>();
         namespaceQuotaMap.put(BacklogQuota.BacklogQuotaType.destination_storage, namespaceQuota);
         namespaceQuotaMap.put(BacklogQuota.BacklogQuotaType.message_age, BacklogQuota.builder()
-            .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold).build());
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold).build());
         assertEquals(admin.topicPolicies().getBacklogQuotaMap(topic, true), namespaceQuotaMap);
 
         BacklogQuota topicQuota = BacklogQuota.builder()
-            .limitSize(40)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitSize(40)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         admin.topicPolicies().setBacklogQuota(topic, topicQuota,
-            BacklogQuota.BacklogQuotaType.destination_storage);
+                BacklogQuota.BacklogQuotaType.destination_storage);
         Awaitility.await().untilAsserted(() -> assertFalse(admin.topicPolicies()
-            .getBacklogQuotaMap(topic).isEmpty()));
+                .getBacklogQuotaMap(topic).isEmpty()));
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> topicQuotaMap = new HashMap<>();
         topicQuotaMap.put(BacklogQuota.BacklogQuotaType.destination_storage, topicQuota);
         assertEquals(admin.topicPolicies().getBacklogQuotaMap(topic, true), topicQuotaMap);
@@ -791,10 +791,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeBacklogQuota(myNamespace);
         admin.topicPolicies().removeBacklogQuota(topic, BacklogQuota.BacklogQuotaType.destination_storage);
         Awaitility.await().untilAsserted(() -> assertTrue(admin.namespaces().getBacklogQuotaMap(myNamespace)
-            .get(BacklogQuota.BacklogQuotaType.destination_storage) == null));
+                .get(BacklogQuota.BacklogQuotaType.destination_storage) == null));
         Awaitility.await().untilAsserted(() -> assertTrue(admin.topicPolicies().getBacklogQuotaMap(topic).isEmpty()));
         assertTrue(admin.topicPolicies().getBacklogQuotaMap(topic, true)
-            .get(BacklogQuota.BacklogQuotaType.destination_storage) == null);
+                .get(BacklogQuota.BacklogQuotaType.destination_storage) == null);
     }
 
     @Test(timeOut = 20000)
@@ -806,29 +806,29 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> brokerQuotaMap = ConfigHelper.backlogQuotaMap(conf);
         assertEquals(admin.topicPolicies().getBacklogQuotaMap(topic, true), brokerQuotaMap);
         BacklogQuota namespaceQuota = BacklogQuota.builder()
-            .limitTime(30)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
-            .build();
+                .limitTime(30)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                .build();
 
         admin.namespaces().setBacklogQuota(myNamespace, namespaceQuota,
-            BacklogQuota.BacklogQuotaType.message_age);
+                BacklogQuota.BacklogQuotaType.message_age);
         Awaitility.await().untilAsserted(() -> assertFalse(admin.namespaces()
-            .getBacklogQuotaMap(myNamespace).isEmpty()));
+                .getBacklogQuotaMap(myNamespace).isEmpty()));
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> namespaceQuotaMap = new HashMap<>();
         namespaceQuotaMap.put(BacklogQuota.BacklogQuotaType.message_age, namespaceQuota);
         namespaceQuotaMap.put(BacklogQuota.BacklogQuotaType.destination_storage, BacklogQuota.builder()
-            .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold).build());
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold).build());
         assertEquals(admin.topicPolicies().getBacklogQuotaMap(topic, true),
-            namespaceQuotaMap);
+                namespaceQuotaMap);
 
         BacklogQuota topicQuota = BacklogQuota.builder()
-            .limitTime(40)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitTime(40)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         admin.topicPolicies().setBacklogQuota(topic, topicQuota,
-            BacklogQuota.BacklogQuotaType.message_age);
+                BacklogQuota.BacklogQuotaType.message_age);
         Awaitility.await().untilAsserted(() -> assertFalse(admin.topicPolicies()
-            .getBacklogQuotaMap(topic).isEmpty()));
+                .getBacklogQuotaMap(topic).isEmpty()));
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> topicQuotaMap = new HashMap<>();
         topicQuotaMap.put(BacklogQuota.BacklogQuotaType.message_age, topicQuota);
         assertEquals(admin.topicPolicies().getBacklogQuotaMap(topic, true), topicQuotaMap);
@@ -836,12 +836,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeBacklogQuota(myNamespace, BacklogQuota.BacklogQuotaType.message_age);
         admin.topicPolicies().removeBacklogQuota(topic, BacklogQuota.BacklogQuotaType.message_age);
         Awaitility.await().untilAsserted(() -> assertTrue(admin.namespaces()
-            .getBacklogQuotaMap(myNamespace)
-            .get(BacklogQuota.BacklogQuotaType.message_age) == null));
+                .getBacklogQuotaMap(myNamespace)
+                .get(BacklogQuota.BacklogQuotaType.message_age) == null));
         Awaitility.await().untilAsserted(() -> assertTrue(admin.topicPolicies()
-            .getBacklogQuotaMap(topic).isEmpty()));
+                .getBacklogQuotaMap(topic).isEmpty()));
         assertTrue(admin.topicPolicies().getBacklogQuotaMap(topic, true)
-            .get(BacklogQuota.BacklogQuotaType.message_age) == null);
+                .get(BacklogQuota.BacklogQuotaType.message_age) == null);
     }
 
     @Test
@@ -851,16 +851,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention(namespace, retentionPolicies);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(namespace),
-                retentionPolicies));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(namespace),
+                        retentionPolicies));
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitSize(10 * 1024 * 1024)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitSize(10 * 1024 * 1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         try {
             admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota, BacklogQuota
-                .BacklogQuotaType.destination_storage);
+                    .BacklogQuotaType.destination_storage);
             Assert.fail();
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 412);
@@ -868,21 +868,21 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //Ensure that the cache has not been updated after a long time
         Awaitility.await().atLeast(1, TimeUnit.SECONDS);
         assertNull(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-            .get(BacklogQuota.BacklogQuotaType.destination_storage));
+                .get(BacklogQuota.BacklogQuotaType.destination_storage));
     }
 
     @Test
     public void testCheckRetentionSizeBasedQuota() throws Exception {
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitSize(10 * 1024 * 1024)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitSize(10 * 1024 * 1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
 
         admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota, BacklogQuota
-            .BacklogQuotaType.destination_storage);
+                .BacklogQuotaType.destination_storage);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
 
         RetentionPolicies retention = new RetentionPolicies(10, 10);
         log.info("Retention: {} will set to the topic: {}", retention, testTopic);
@@ -908,8 +908,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         RetentionPolicies finalRetention = retention;
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getRetention(testTopic), finalRetention));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getRetention(testTopic), finalRetention));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -917,14 +917,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCheckRetentionTimeBasedQuota() throws Exception {
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitTime(10 * 60)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitTime(10 * 60)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
 
         admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota, BacklogQuota.BacklogQuotaType.message_age);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.message_age), backlogQuota));
 
         RetentionPolicies retention = new RetentionPolicies(10, 10);
         log.info("Retention: {} will set to the topic: {}", retention, testTopic);
@@ -950,8 +950,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         RetentionPolicies finalRetention = retention;
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getRetention(testTopic), finalRetention));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getRetention(testTopic), finalRetention));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -965,8 +965,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Retention set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getRetention(testTopic), retention));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getRetention(testTopic), retention));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -1010,12 +1010,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Retention set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getRetention(testTopic),
-                retention));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getRetention(testTopic),
+                        retention));
 
         admin.topicPolicies().removeRetention(testTopic);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getRetention(testTopic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getRetention(testTopic)));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -1026,26 +1026,26 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topic).create().close();
 
         RetentionPolicies brokerPolicies =
-            new RetentionPolicies(conf.getDefaultRetentionTimeInMinutes(), conf.getDefaultRetentionSizeInMB());
+                new RetentionPolicies(conf.getDefaultRetentionTimeInMinutes(), conf.getDefaultRetentionSizeInMB());
         assertEquals(admin.topicPolicies().getRetention(topic, true), brokerPolicies);
 
         RetentionPolicies namespacePolicies = new RetentionPolicies(10, 20);
         admin.namespaces().setRetention(myNamespace, namespacePolicies);
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.topicPolicies().getRetention(topic, true), namespacePolicies));
+                -> assertEquals(admin.topicPolicies().getRetention(topic, true), namespacePolicies));
 
         RetentionPolicies topicPolicies = new RetentionPolicies(20, 30);
         admin.topicPolicies().setRetention(topic, topicPolicies);
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.topicPolicies().getRetention(topic, true), topicPolicies));
+                -> assertEquals(admin.topicPolicies().getRetention(topic, true), topicPolicies));
 
         admin.topicPolicies().removeRetention(topic);
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.topicPolicies().getRetention(topic, true), namespacePolicies));
+                -> assertEquals(admin.topicPolicies().getRetention(topic, true), namespacePolicies));
 
         admin.namespaces().removeRetention(myNamespace);
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.topicPolicies().getRetention(topic, true), brokerPolicies));
+                -> assertEquals(admin.topicPolicies().getRetention(topic, true), brokerPolicies));
     }
 
     @Test(timeOut = 20000)
@@ -1056,48 +1056,48 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespace));
 
         DispatchRate brokerDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(conf.getDispatchThrottlingRatePerSubscriptionInMsg())
-            .dispatchThrottlingRateInByte(conf.getDispatchThrottlingRatePerSubscriptionInByte())
-            .ratePeriodInSecond(1)
-            .build();
+                .dispatchThrottlingRateInMsg(conf.getDispatchThrottlingRatePerSubscriptionInMsg())
+                .dispatchThrottlingRateInByte(conf.getDispatchThrottlingRatePerSubscriptionInByte())
+                .ratePeriodInSecond(1)
+                .build();
         assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, true), brokerDispatchRate);
         DispatchRate namespaceDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(10)
-            .dispatchThrottlingRateInByte(11)
-            .ratePeriodInSecond(12)
-            .build();
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(11)
+                .ratePeriodInSecond(12)
+                .build();
 
         admin.namespaces().setSubscriptionDispatchRate(myNamespace, namespaceDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces()
-            .getSubscriptionDispatchRate(myNamespace)));
+                .getSubscriptionDispatchRate(myNamespace)));
         assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, true),
-            namespaceDispatchRate);
+                namespaceDispatchRate);
 
         DispatchRate topicDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(20)
-            .dispatchThrottlingRateInByte(21)
-            .ratePeriodInSecond(12)
-            .build();
+                .dispatchThrottlingRateInMsg(20)
+                .dispatchThrottlingRateInByte(21)
+                .ratePeriodInSecond(12)
+                .build();
         admin.topicPolicies().setSubscriptionDispatchRate(topic, topicDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topicPolicies()
-            .getSubscriptionDispatchRate(topic)));
+                .getSubscriptionDispatchRate(topic)));
         assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, true), topicDispatchRate);
 
         admin.namespaces().removeSubscriptionDispatchRate(myNamespace);
         admin.topicPolicies().removeSubscriptionDispatchRate(topic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces()
-            .getSubscriptionDispatchRate(myNamespace)));
+                .getSubscriptionDispatchRate(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies()
-            .getSubscriptionDispatchRate(topic)));
+                .getSubscriptionDispatchRate(topic)));
         assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, true),
-            brokerDispatchRate);
+                brokerDispatchRate);
 
         admin.namespaces().setSubscriptionDispatchRate(myNamespaceV1, namespaceDispatchRate);
         Awaitility.await().untilAsserted(() ->
-            assertNotNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
+                assertNotNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
         admin.namespaces().removeSubscriptionDispatchRate(myNamespaceV1);
         Awaitility.await().untilAsserted(() ->
-            assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
+                assertNull(admin.namespaces().getSubscriptionDispatchRate(myNamespaceV1)));
 
     }
 
@@ -1109,7 +1109,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.namespaces().getRetention(myNamespace));
 
         PersistentTopic persistentTopic =
-            (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         Method shouldTopicBeRetained = PersistentTopic.class.getDeclaredMethod("shouldTopicBeRetained");
         shouldTopicBeRetained.setAccessible(true);
         Field lastActive = PersistentTopic.class.getSuperclass().getDeclaredField("lastActive");
@@ -1122,37 +1122,37 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         RetentionPolicies retentionPolicies = new RetentionPolicies(1, 1);
         admin.namespaces().setRetention(myNamespace, retentionPolicies);
         Awaitility.await().untilAsserted(()
-            -> assertNotNull(admin.namespaces().getRetention(myNamespace)));
+                -> assertNotNull(admin.namespaces().getRetention(myNamespace)));
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         // set topic-level policy
         admin.topicPolicies().setRetention(topic, new RetentionPolicies(3, 1));
         Awaitility.await().untilAsserted(()
-            -> assertNotNull(admin.topicPolicies().getRetention(topic)));
+                -> assertNotNull(admin.topicPolicies().getRetention(topic)));
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         //topic-level disabled
         admin.topicPolicies().setRetention(topic, new RetentionPolicies(0, 0));
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.topicPolicies().getRetention(topic).getRetentionSizeInMB(), 0));
+                -> assertEquals(admin.topicPolicies().getRetention(topic).getRetentionSizeInMB(), 0));
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         // remove topic-level policy
         admin.topicPolicies().removeRetention(topic);
         Awaitility.await().untilAsserted(()
-            -> assertNull(admin.topicPolicies().getRetention(topic)));
+                -> assertNull(admin.topicPolicies().getRetention(topic)));
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         //namespace-level disabled
         admin.namespaces().setRetention(myNamespace, new RetentionPolicies(0, 0));
         Awaitility.await().untilAsserted(()
-            -> assertNotNull(admin.namespaces().getRetention(myNamespace)));
+                -> assertNotNull(admin.namespaces().getRetention(myNamespace)));
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         //change namespace-level policy
         admin.namespaces().setRetention(myNamespace, new RetentionPolicies(1, 1));
         Awaitility.await().untilAsserted(()
-            -> assertNotNull(admin.namespaces().getRetention(myNamespace)));
+                -> assertNotNull(admin.namespaces().getRetention(myNamespace)));
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
         // remove namespace-level policy
         admin.namespaces().removeRetention(myNamespace);
         Awaitility.await().untilAsserted(()
-            -> assertNull(admin.namespaces().getRetention(myNamespace)));
+                -> assertNull(admin.namespaces().getRetention(myNamespace)));
         //the default value of the broker-level is 0, so it is not retained by default
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
     }
@@ -1164,13 +1164,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getPersistence(topic));
         assertNull(admin.namespaces().getPersistence(myNamespace));
         PersistencePolicies brokerPolicy =
-            new PersistencePolicies(pulsar.getConfiguration().getManagedLedgerDefaultEnsembleSize(),
+                new PersistencePolicies(pulsar.getConfiguration().getManagedLedgerDefaultEnsembleSize(),
                 pulsar.getConfiguration().getManagedLedgerDefaultWriteQuorum(),
                 pulsar.getConfiguration().getManagedLedgerDefaultAckQuorum(),
                 pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
         assertEquals(admin.topicPolicies().getPersistence(topic, true), brokerPolicy);
         PersistencePolicies namespacePolicy =
-            new PersistencePolicies(5, 4, 3, 2);
+                new PersistencePolicies(5, 4, 3, 2);
 
         admin.namespaces().setPersistence(myNamespace, namespacePolicy);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getPersistence(myNamespace)));
@@ -1235,8 +1235,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setPersistence(myNamespace, persistencePoliciesForNamespace);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getPersistence(myNamespace),
-                persistencePoliciesForNamespace));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getPersistence(myNamespace),
+                        persistencePoliciesForNamespace));
 
         PersistencePolicies persistencePolicies = new PersistencePolicies(3, 3, 3, 0.1);
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
@@ -1244,12 +1244,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setPersistence(persistenceTopic, persistencePolicies);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getPersistence(persistenceTopic), persistencePolicies));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getPersistence(persistenceTopic), persistencePolicies));
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-            .topic(persistenceTopic)
-            .subscriptionName("test")
-            .subscribe();
+                .topic(persistenceTopic)
+                .subscriptionName("test")
+                .subscribe();
         admin.topics().unload(persistenceTopic);
         Topic t = pulsar.getBrokerService().getOrCreateTopic(persistenceTopic).get();
         PersistentTopic persistentTopic = (PersistentTopic) t;
@@ -1290,26 +1290,26 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getDispatchRate(topic));
         assertNull(admin.namespaces().getDispatchRate(myNamespace));
         DispatchRate brokerDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(conf.getDispatchThrottlingRatePerTopicInMsg())
-            .dispatchThrottlingRateInByte(conf.getDispatchThrottlingRatePerTopicInByte())
-            .ratePeriodInSecond(1)
-            .build();
+                .dispatchThrottlingRateInMsg(conf.getDispatchThrottlingRatePerTopicInMsg())
+                .dispatchThrottlingRateInByte(conf.getDispatchThrottlingRatePerTopicInByte())
+                .ratePeriodInSecond(1)
+                .build();
         assertEquals(admin.topicPolicies().getDispatchRate(topic, true), brokerDispatchRate);
         DispatchRate namespaceDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(10)
-            .dispatchThrottlingRateInByte(11)
-            .ratePeriodInSecond(12)
-            .build();
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(11)
+                .ratePeriodInSecond(12)
+                .build();
 
         admin.namespaces().setDispatchRate(myNamespace, namespaceDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces().getDispatchRate(myNamespace)));
         assertEquals(admin.topicPolicies().getDispatchRate(topic, true), namespaceDispatchRate);
 
         DispatchRate topicDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(20)
-            .dispatchThrottlingRateInByte(21)
-            .ratePeriodInSecond(22)
-            .build();
+                .dispatchThrottlingRateInMsg(20)
+                .dispatchThrottlingRateInByte(21)
+                .ratePeriodInSecond(22)
+                .build();
         admin.topicPolicies().setDispatchRate(topic, topicDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topicPolicies().getDispatchRate(topic)));
         assertEquals(admin.topicPolicies().getDispatchRate(topic, true), topicDispatchRate);
@@ -1327,8 +1327,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setPersistence(myNamespace, persistencePoliciesForNamespace);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getPersistence(myNamespace),
-                persistencePoliciesForNamespace));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getPersistence(myNamespace),
+                        persistencePoliciesForNamespace));
 
         PersistencePolicies persistencePolicies = new PersistencePolicies(3, 3, 3, 0.1);
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
@@ -1336,14 +1336,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setPersistence(persistenceTopic, persistencePolicies);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getPersistence(persistenceTopic), persistencePolicies));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getPersistence(persistenceTopic), persistencePolicies));
 
         admin.topicPolicies().removePersistence(persistenceTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
-                .getPersistence(persistenceTopic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
+                        .getPersistence(persistenceTopic)));
 
         admin.lookups().lookupTopic(persistenceTopic);
         Topic t = pulsar.getBrokerService().getOrCreateTopic(persistenceTopic).get();
@@ -1376,11 +1376,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getMaxProducers(topic));
         assertNull(admin.namespaces().getMaxProducersPerTopic(myNamespace));
         assertEquals(admin.topicPolicies().getMaxProducers(topic, true).intValue(),
-            conf.getMaxProducersPerTopic());
+                conf.getMaxProducersPerTopic());
 
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 7);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces()
-            .getMaxProducersPerTopic(myNamespace)));
+                .getMaxProducersPerTopic(myNamespace)));
         assertEquals(admin.topicPolicies().getMaxProducers(topic, true).intValue(), 7);
 
         admin.topicPolicies().setMaxProducers(topic, 1000);
@@ -1390,10 +1390,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeMaxProducersPerTopic(myNamespace);
         admin.topicPolicies().removeMaxProducers(topic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces()
-            .getMaxProducersPerTopic(myNamespace)));
+                .getMaxProducersPerTopic(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies().getMaxProducers(topic)));
         assertEquals(admin.topicPolicies().getMaxProducers(topic, true).intValue(),
-            conf.getMaxProducersPerTopic());
+                conf.getMaxProducersPerTopic());
     }
 
     private void waitTopicPoliciesApplied(String topic, int partitions,
@@ -1439,9 +1439,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         });
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                    .getMaxProducers(persistenceTopic),
-                maxProducers));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                                .getMaxProducers(persistenceTopic),
+                        maxProducers));
 
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
@@ -1500,8 +1500,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxProducers(persistenceTopic, maxProducers);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getMaxProducers(persistenceTopic), maxProducers));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getMaxProducers(persistenceTopic), maxProducers));
 
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(persistenceTopic).create();
@@ -1521,16 +1521,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().removeMaxProducers(persistenceTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
-                .getMaxProducers(persistenceTopic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
+                        .getMaxProducers(persistenceTopic)));
 
         producer3 = pulsarClient.newProducer().topic(persistenceTopic).create();
         Assert.assertNotNull(producer3);
         admin.namespaces().setMaxProducersPerTopic(myNamespace, 3);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
-                .getMaxProducersPerTopic(myNamespace).intValue(), 3));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
+                        .getMaxProducersPerTopic(myNamespace).intValue(), 3));
 
         log.info("MaxProducers: {} will set to the namespace: {}", 3, myNamespace);
         try {
@@ -1552,19 +1552,19 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetSetDispatchRate() throws Exception {
         DispatchRate dispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(100)
-            .dispatchThrottlingRateInByte(1000)
-            .ratePeriodInSecond(1)
-            .relativeToPublishRate(true)
-            .build();
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1000)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
         log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
 
         admin.topicPolicies().setDispatchRate(testTopic, dispatchRate);
         log.info("Dispatch Rate set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getDispatchRate(testTopic), dispatchRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getDispatchRate(testTopic), dispatchRate));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -1572,24 +1572,24 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testRemoveDispatchRate() throws Exception {
         DispatchRate dispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(100)
-            .dispatchThrottlingRateInByte(1000)
-            .ratePeriodInSecond(1)
-            .relativeToPublishRate(true)
-            .build();
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1000)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
         log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
 
         admin.topicPolicies().setDispatchRate(testTopic, dispatchRate);
         log.info("Dispatch Rate set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getDispatchRate(testTopic), dispatchRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getDispatchRate(testTopic), dispatchRate));
 
         admin.topicPolicies().removeDispatchRate(testTopic);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
-                .getDispatchRate(testTopic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
+                        .getDispatchRate(testTopic)));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -1600,59 +1600,59 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
 
         DispatchRate dispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(200)
-            .dispatchThrottlingRateInByte(20000)
-            .ratePeriodInSecond(1)
-            .relativeToPublishRate(true)
-            .build();
+                .dispatchThrottlingRateInMsg(200)
+                .dispatchThrottlingRateInByte(20000)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
         admin.namespaces().setDispatchRate(myNamespace, dispatchRate);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
-                .getDispatchRate(myNamespace).getDispatchThrottlingRateInMsg(), 200));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
+                        .getDispatchRate(myNamespace).getDispatchThrottlingRateInMsg(), 200));
 
         dispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(100)
-            .dispatchThrottlingRateInByte(10000)
-            .ratePeriodInSecond(1)
-            .relativeToPublishRate(true)
-            .build();
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(10000)
+                .ratePeriodInSecond(1)
+                .relativeToPublishRate(true)
+                .build();
         admin.topicPolicies().setDispatchRate(topic, dispatchRate);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNotNull(admin.topicPolicies()
-                .getDispatchRate(topic)));
+                .untilAsserted(() -> Assert.assertNotNull(admin.topicPolicies()
+                        .getDispatchRate(topic)));
 
         //1 Set ns level policy, topic level should not be overwritten
         dispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(300)
-            .dispatchThrottlingRateInByte(30000)
-            .ratePeriodInSecond(2)
-            .relativeToPublishRate(true)
-            .build();
+                .dispatchThrottlingRateInMsg(300)
+                .dispatchThrottlingRateInByte(30000)
+                .ratePeriodInSecond(2)
+                .relativeToPublishRate(true)
+                .build();
         admin.namespaces().setDispatchRate(myNamespace, dispatchRate);
 
         Awaitility.await()
-            .untilAsserted(() -> {
-                DispatchRateLimiter limiter = pulsar.getBrokerService().getTopicIfExists(topic)
-                    .get().get().getDispatchRateLimiter().get();
-                Assert.assertEquals(limiter.getDispatchRateOnByte(), 10000);
-                Assert.assertEquals(limiter.getDispatchRateOnMsg(), 100);
-            });
+                .untilAsserted(() -> {
+                    DispatchRateLimiter limiter = pulsar.getBrokerService().getTopicIfExists(topic)
+                            .get().get().getDispatchRateLimiter().get();
+                    Assert.assertEquals(limiter.getDispatchRateOnByte(), 10000);
+                    Assert.assertEquals(limiter.getDispatchRateOnMsg(), 100);
+                });
 
         admin.topicPolicies().removeDispatchRate(topic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getDispatchRate(topic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getDispatchRate(topic)));
 
         //2 Remove level policy, DispatchRateLimiter should us ns level policy
         Awaitility.await()
-            .untilAsserted(() -> {
-                DispatchRateLimiter limiter = pulsar.getBrokerService().getTopicIfExists(topic)
-                    .get().get().getDispatchRateLimiter().get();
-                Assert.assertEquals(limiter.getDispatchRateOnByte(), 30000);
-                Assert.assertEquals(limiter.getDispatchRateOnMsg(), 300);
-            });
+                .untilAsserted(() -> {
+                    DispatchRateLimiter limiter = pulsar.getBrokerService().getTopicIfExists(topic)
+                            .get().get().getDispatchRateLimiter().get();
+                    Assert.assertEquals(limiter.getDispatchRateOnByte(), 30000);
+                    Assert.assertEquals(limiter.getDispatchRateOnMsg(), 300);
+                });
     }
 
     @Test(timeOut = 20000)
@@ -1662,39 +1662,39 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // set namespace level inactive topic policies
         InactiveTopicPolicies inactiveTopicPolicies =
-            new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up,
-                100, true);
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up,
+                        100, true);
         admin.namespaces().setInactiveTopicPolicies(myNamespace, inactiveTopicPolicies);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
-                    .getInactiveTopicPolicies(myNamespace).getInactiveTopicDeleteMode(),
-                InactiveTopicDeleteMode.delete_when_subscriptions_caught_up));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
+                                .getInactiveTopicPolicies(myNamespace).getInactiveTopicDeleteMode(),
+                        InactiveTopicDeleteMode.delete_when_subscriptions_caught_up));
 
         // set namespace retention policies
         final RetentionPolicies retentionPolicies = new RetentionPolicies(10, -1);
         admin.namespaces().setRetention(myNamespace, retentionPolicies);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(myNamespace),
-                retentionPolicies));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getRetention(myNamespace),
+                        retentionPolicies));
 
         // set topic level inactive topic policies
         inactiveTopicPolicies =
-            new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,
-                200, false);
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,
+                        200, false);
         admin.topicPolicies().setInactiveTopicPolicies(topic, inactiveTopicPolicies);
 
         InactiveTopicPolicies finalInactiveTopicPolicies = inactiveTopicPolicies;
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getInactiveTopicPolicies(topic),
-                finalInactiveTopicPolicies));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getInactiveTopicPolicies(topic),
+                        finalInactiveTopicPolicies));
 
         // set topic level retention policies
         final RetentionPolicies finalRetentionPolicies = new RetentionPolicies(20, -1);
         admin.topicPolicies().setRetention(topic, finalRetentionPolicies);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getRetention(topic),
-                finalRetentionPolicies));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getRetention(topic),
+                        finalRetentionPolicies));
 
         // restart broker, policy should still take effect
         restartBroker();
@@ -1704,16 +1704,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // check inactive topic policies and retention policies.
         Awaitility.await()
-            .untilAsserted(() -> {
-                PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                    .getTopicIfExists(topic).get().get();
-                ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
-                Assert.assertEquals(persistentTopic.getInactiveTopicPolicies(), finalInactiveTopicPolicies);
-                Assert.assertEquals(managedLedgerConfig.getRetentionSizeInMB(),
-                    finalRetentionPolicies.getRetentionSizeInMB());
-                Assert.assertEquals(managedLedgerConfig.getRetentionTimeMillis(),
-                    TimeUnit.MINUTES.toMillis(finalRetentionPolicies.getRetentionTimeInMinutes()));
-            });
+                .untilAsserted(() -> {
+                    PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                            .getTopicIfExists(topic).get().get();
+                    ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+                    Assert.assertEquals(persistentTopic.getInactiveTopicPolicies(), finalInactiveTopicPolicies);
+                    Assert.assertEquals(managedLedgerConfig.getRetentionSizeInMB(),
+                            finalRetentionPolicies.getRetentionSizeInMB());
+                    Assert.assertEquals(managedLedgerConfig.getRetentionTimeMillis(),
+                            TimeUnit.MINUTES.toMillis(finalRetentionPolicies.getRetentionTimeInMinutes()));
+                });
 
         producer.close();
     }
@@ -1723,89 +1723,89 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
         DispatchRate dispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(1000)
-            .dispatchThrottlingRateInByte(1024 * 1024)
-            .ratePeriodInSecond(1)
-            .build();
+                .dispatchThrottlingRateInMsg(1000)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
         log.info("Subscription Dispatch Rate: {} will set to the topic: {}", dispatchRate, topic);
 
         admin.topicPolicies().setSubscriptionDispatchRate(topic, dispatchRate);
         log.info("Subscription dispatch rate set success on topic: {}", topic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getSubscriptionDispatchRate(topic), dispatchRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getSubscriptionDispatchRate(topic), dispatchRate));
 
         String subscriptionName = "test_subscription_rate";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subscriptionName)
-            .topic(topic).subscribe();
+                .topic(topic).subscribe();
 
         DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
-            .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
+                .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
         Assert.assertNotNull(dispatchRateLimiter);
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(),
-            dispatchRate.getDispatchThrottlingRateInByte());
+                dispatchRate.getDispatchThrottlingRateInByte());
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(),
-            dispatchRate.getDispatchThrottlingRateInMsg());
+                dispatchRate.getDispatchThrottlingRateInMsg());
 
         consumer.close();
         admin.topics().delete(topic, true);
     }
 
     @Test
-    public void testSubscriptionLevelDispatchRate() throws Exception {
+    public void testSubscriptionLevelDispatchRate() throws Exception{
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
 
         String subscriptionName = "testSubscriptionLevelDispatchRate";
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subscriptionName)
-            .topic(topic).subscribe();
+                .topic(topic).subscribe();
         AbstractTopic abstractTopic = (AbstractTopic) pulsar.getBrokerService()
-            .getTopicIfExists(topic).get().get();
+                .getTopicIfExists(topic).get().get();
 
         DispatchRate topicLevelRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(100)
-            .dispatchThrottlingRateInByte(1024)
-            .ratePeriodInSecond(1)
-            .build();
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1024)
+                .ratePeriodInSecond(1)
+                .build();
         admin.topicPolicies().setSubscriptionDispatchRate(topic, topicLevelRate);
         Awaitility.await().untilAsserted(() ->
-            Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic),
-                topicLevelRate));
+                Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic),
+                        topicLevelRate));
 
         // topic level is set, applied value should be topic level setting.
         Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName,
-                true),
-            topicLevelRate);
+                        true),
+                topicLevelRate);
         // subscription level setting is not set.
         Assert.assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName));
 
         DispatchRate subLevelRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(1000)
-            .dispatchThrottlingRateInByte(1024 * 1024)
-            .ratePeriodInSecond(1)
-            .build();
+                .dispatchThrottlingRateInMsg(1000)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
 
         admin.topicPolicies().setSubscriptionDispatchRate(topic, subscriptionName, subLevelRate);
         Awaitility.await().untilAsserted(() ->
-            Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName),
-                subLevelRate));
+                Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName),
+                        subLevelRate));
 
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(
-            abstractTopic.getSubscriptionDispatchRate(subscriptionName), subLevelRate));
+                abstractTopic.getSubscriptionDispatchRate(subscriptionName), subLevelRate));
 
         DispatchRateLimiter dispatchRateLimiter = abstractTopic.getSubscription(subscriptionName)
-            .getDispatcher().getRateLimiter().get();
+                .getDispatcher().getRateLimiter().get();
         Assert.assertNotNull(dispatchRateLimiter);
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), subLevelRate
-            .getDispatchThrottlingRateInByte());
+                .getDispatchThrottlingRateInByte());
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), subLevelRate
-            .getDispatchThrottlingRateInMsg());
+                .getDispatchThrottlingRateInMsg());
 
         admin.topicPolicies().removeSubscriptionDispatchRate(topic, subscriptionName);
         Awaitility.await().untilAsserted(() ->
-            Assert.assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName)));
+                Assert.assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName)));
 
         admin.topics().delete(topic, true);
     }
@@ -1816,30 +1816,30 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
 
         DispatchRate dispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(1000)
-            .dispatchThrottlingRateInByte(1024 * 1024)
-            .ratePeriodInSecond(1)
-            .build();
+                .dispatchThrottlingRateInMsg(1000)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
         log.info("Subscription Dispatch Rate: {} will set to the topic: {}", dispatchRate, topic);
 
         String subscriptionName = "test_subscription_rate";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subscriptionName)
-            .topic(topic).subscribe();
+                .topic(topic).subscribe();
 
         admin.topicPolicies().setSubscriptionDispatchRate(topic, dispatchRate);
         log.info("Subscription dispatch rate set success on topic: {}", topic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getSubscriptionDispatchRate(topic), dispatchRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getSubscriptionDispatchRate(topic), dispatchRate));
 
         DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
-            .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
+                .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
         Assert.assertNotNull(dispatchRateLimiter);
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate
-            .getDispatchThrottlingRateInByte());
+                .getDispatchThrottlingRateInByte());
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate
-            .getDispatchThrottlingRateInMsg());
+                .getDispatchThrottlingRateInMsg());
 
         consumer.close();
         admin.topics().delete(topic, true);
@@ -1851,45 +1851,45 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
 
         DispatchRate dispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(1000)
-            .dispatchThrottlingRateInByte(1024 * 1024)
-            .ratePeriodInSecond(1)
-            .build();
+                .dispatchThrottlingRateInMsg(1000)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
         log.info("Subscription Dispatch Rate: {} will set to the topic: {}", dispatchRate, topic);
 
         admin.topicPolicies().setSubscriptionDispatchRate(topic, dispatchRate);
         log.info("Subscription dispatch rate set success on topic: {}", topic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getSubscriptionDispatchRate(topic), dispatchRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getSubscriptionDispatchRate(topic), dispatchRate));
 
         String subscriptionName = "test_subscription_rate";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subscriptionName)
-            .topic(topic).subscribe();
+                .topic(topic).subscribe();
 
         DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
-            .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
+                .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
         Assert.assertNotNull(dispatchRateLimiter);
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), dispatchRate
-            .getDispatchThrottlingRateInByte());
+                .getDispatchThrottlingRateInByte());
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), dispatchRate
-            .getDispatchThrottlingRateInMsg());
+                .getDispatchThrottlingRateInMsg());
 
         // remove subscription dispatch rate
         admin.topicPolicies().removeSubscriptionDispatchRate(topic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
-                .getSubscriptionDispatchRate(topic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
+                        .getSubscriptionDispatchRate(topic)));
 
         Awaitility.await().untilAsserted(() -> {
             DispatchRateLimiter drl = pulsar.getBrokerService().getTopicIfExists(topic)
-                .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
+                    .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
             Assert.assertNotEquals(drl.getDispatchRateOnMsg(),
-                dispatchRate.getDispatchThrottlingRateInMsg());
+                    dispatchRate.getDispatchThrottlingRateInMsg());
             Assert.assertNotEquals(drl.getDispatchRateOnByte(),
-                dispatchRate.getDispatchThrottlingRateInByte());
+                    dispatchRate.getDispatchThrottlingRateInByte());
         });
 
         consumer.close();
@@ -1902,63 +1902,63 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
 
         // set namespace level subscription dispatch rate
-        DispatchRate namespaceDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(100)
-            .dispatchThrottlingRateInByte(1024 * 1024)
-            .ratePeriodInSecond(1)
-            .build();
+        DispatchRate namespaceDispatchRate =                     DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
         admin.namespaces().setSubscriptionDispatchRate(myNamespace, namespaceDispatchRate);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
-                .getSubscriptionDispatchRate(myNamespace), namespaceDispatchRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
+                        .getSubscriptionDispatchRate(myNamespace), namespaceDispatchRate));
 
         String subscriptionName = "test_subscription_rate";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subscriptionName)
-            .topic(topic).subscribe();
+                .topic(topic).subscribe();
 
         // get subscription dispatch Rate limiter
         DispatchRateLimiter dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic)
-            .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
+                .get().get().getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), namespaceDispatchRate
-            .getDispatchThrottlingRateInMsg());
+                .getDispatchThrottlingRateInMsg());
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), namespaceDispatchRate
-            .getDispatchThrottlingRateInByte());
+                .getDispatchThrottlingRateInByte());
 
         // set topic level subscription dispatch rate
         DispatchRate topicDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(200)
-            .dispatchThrottlingRateInByte(2 * 1024 * 1024)
-            .ratePeriodInSecond(1)
-            .build();
+                .dispatchThrottlingRateInMsg(200)
+                .dispatchThrottlingRateInByte(2 * 1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
         admin.topicPolicies().setSubscriptionDispatchRate(topic, topicDispatchRate);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getSubscriptionDispatchRate(topic), topicDispatchRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getSubscriptionDispatchRate(topic), topicDispatchRate));
 
         // get subscription dispatch rate limiter
         dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get()
-            .getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
+                .getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), topicDispatchRate
-            .getDispatchThrottlingRateInByte());
+                .getDispatchThrottlingRateInByte());
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), topicDispatchRate
-            .getDispatchThrottlingRateInMsg());
+                .getDispatchThrottlingRateInMsg());
 
         // remove topic level subscription dispatch rate limiter
         admin.topicPolicies().removeSubscriptionDispatchRate(topic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
-                .getSubscriptionDispatchRate(topic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
+                        .getSubscriptionDispatchRate(topic)));
 
         // get subscription dispatch rate limiter
         dispatchRateLimiter = pulsar.getBrokerService().getTopicIfExists(topic).get().get()
-            .getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
+                .getSubscription(subscriptionName).getDispatcher().getRateLimiter().get();
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(),
-            namespaceDispatchRate.getDispatchThrottlingRateInByte());
+                namespaceDispatchRate.getDispatchThrottlingRateInByte());
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(),
-            namespaceDispatchRate.getDispatchThrottlingRateInMsg());
+                namespaceDispatchRate.getDispatchThrottlingRateInMsg());
 
         consumer.close();
         admin.topics().delete(topic, true);
@@ -1973,8 +1973,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Compaction threshold set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getCompactionThreshold(testTopic), compactionThreshold));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getCompactionThreshold(testTopic), compactionThreshold));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -1988,14 +1988,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Compaction threshold set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getCompactionThreshold(testTopic), compactionThreshold));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getCompactionThreshold(testTopic), compactionThreshold));
 
         admin.topicPolicies().removeCompactionThreshold(testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
-                .getCompactionThreshold(testTopic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
+                        .getCompactionThreshold(testTopic)));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -2009,8 +2009,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("MaxConsumersPerSubscription set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getMaxConsumersPerSubscription(testTopic), maxConsumersPerSubscription));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getMaxConsumersPerSubscription(testTopic), maxConsumersPerSubscription));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -2024,22 +2024,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("MaxConsumersPerSubscription set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getMaxConsumersPerSubscription(testTopic), maxConsumersPerSubscription));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getMaxConsumersPerSubscription(testTopic), maxConsumersPerSubscription));
 
         admin.topicPolicies().removeMaxConsumersPerSubscription(testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
-                .getMaxConsumersPerSubscription(testTopic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
+                        .getMaxConsumersPerSubscription(testTopic)));
 
         admin.namespaces().setMaxConsumersPerSubscription(myNamespaceV1, 20);
         Awaitility.await().untilAsserted(() ->
-            assertEquals(admin.namespaces().getMaxConsumersPerSubscription(myNamespaceV1).intValue(),
-                20));
+                assertEquals(admin.namespaces().getMaxConsumersPerSubscription(myNamespaceV1).intValue(),
+                        20));
         admin.namespaces().removeMaxConsumersPerSubscription(myNamespaceV1);
         Awaitility.await().untilAsserted(() ->
-            assertNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespaceV1)));
+                assertNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespaceV1)));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -2053,8 +2053,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Publish Rate set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getPublishRate(testTopic),
-                publishRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getPublishRate(testTopic),
+                        publishRate));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -2068,13 +2068,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Publish Rate set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getPublishRate(testTopic),
-                publishRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getPublishRate(testTopic),
+                        publishRate));
 
         admin.topicPolicies().removePublishRate(testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getPublishRate(testTopic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getPublishRate(testTopic)));
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
@@ -2092,7 +2092,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
-
     @Test
     public void testGetMaxConsumersApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
@@ -2100,34 +2099,34 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getMaxConsumers(topic));
         assertNull(admin.namespaces().getMaxConsumersPerTopic(myNamespace));
         assertEquals(admin.topicPolicies().getMaxConsumers(topic, true).intValue(),
-            conf.getMaxConsumersPerTopic());
+                conf.getMaxConsumersPerTopic());
 
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 7);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces()
-            .getMaxConsumersPerTopic(myNamespace)));
+                .getMaxConsumersPerTopic(myNamespace)));
         assertEquals(admin.topicPolicies().getMaxConsumers(topic, true).intValue(), 7);
 
         admin.topicPolicies().setMaxConsumers(topic, 1000);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topicPolicies()
-            .getMaxConsumers(topic)));
+                .getMaxConsumers(topic)));
         assertEquals(admin.topicPolicies().getMaxConsumers(topic, true).intValue(), 1000);
 
         admin.namespaces().removeMaxConsumersPerTopic(myNamespace);
         admin.topicPolicies().removeMaxConsumers(topic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces()
-            .getMaxConsumersPerTopic(myNamespace)));
+                .getMaxConsumersPerTopic(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies()
-            .getMaxConsumers(topic)));
+                .getMaxConsumers(topic)));
         assertEquals(admin.topicPolicies().getMaxConsumers(topic, true).intValue(),
-            conf.getMaxConsumersPerTopic());
+                conf.getMaxConsumersPerTopic());
     }
 
     @Test
     public void testSetMaxConsumers() throws Exception {
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 1);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
-                .getMaxConsumersPerTopic(myNamespace).intValue(), 1));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces()
+                        .getMaxConsumersPerTopic(myNamespace).intValue(), 1));
         log.info("MaxConsumers: {} will set to the namespace: {}", 1, myNamespace);
         Integer maxConsumers = 2;
         log.info("MaxConsumers: {} will set to the topic: {}", maxConsumers, persistenceTopic);
@@ -2135,18 +2134,18 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxConsumers(persistenceTopic, maxConsumers);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getMaxConsumers(persistenceTopic), maxConsumers));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getMaxConsumers(persistenceTopic), maxConsumers));
 
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().subscriptionName("sub1")
-            .topic(persistenceTopic).subscribe();
+                .topic(persistenceTopic).subscribe();
         Consumer<byte[]> consumer2 = pulsarClient.newConsumer().subscriptionName("sub2")
-            .topic(persistenceTopic).subscribe();
+                .topic(persistenceTopic).subscribe();
         Consumer<byte[]> consumer3 = null;
 
         try {
             consumer3 = pulsarClient.newConsumer().subscriptionName("sub3")
-                .topic(persistenceTopic).subscribe();
+                    .topic(persistenceTopic).subscribe();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("Topic reached max consumers limit");
@@ -2168,18 +2167,18 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxConsumers(persistenceTopic, maxConsumers);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getMaxConsumers(persistenceTopic), maxConsumers));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getMaxConsumers(persistenceTopic), maxConsumers));
 
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().subscriptionName("sub1")
-            .topic(persistenceTopic).subscribe();
+                .topic(persistenceTopic).subscribe();
         Consumer<byte[]> consumer2 = pulsarClient.newConsumer().subscriptionName("sub2")
-            .topic(persistenceTopic).subscribe();
+                .topic(persistenceTopic).subscribe();
         Consumer<byte[]> consumer3 = null;
 
         try {
             consumer3 = pulsarClient.newConsumer().subscriptionName("sub3")
-                .topic(persistenceTopic).subscribe();
+                    .topic(persistenceTopic).subscribe();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("Topic reached max consumers limit");
@@ -2191,11 +2190,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().removeMaxConsumers(persistenceTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
-                .getMaxConsumers(persistenceTopic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
+                        .getMaxConsumers(persistenceTopic)));
 
         consumer3 = pulsarClient.newConsumer().subscriptionName("sub3")
-            .topic(persistenceTopic).subscribe();
+                .topic(persistenceTopic).subscribe();
         Assert.assertNotNull(consumer3);
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 3);
         log.info("MaxConsumers: {} will set to the namespace: {}", 3, myNamespace);
@@ -2203,7 +2202,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Consumer<byte[]> consumer4 = null;
         try {
             consumer4 = pulsarClient.newConsumer().subscriptionName("sub4")
-                .topic(persistenceTopic).subscribe();
+                    .topic(persistenceTopic).subscribe();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("Topic reached max consumers limit on namespace level.");
@@ -2223,7 +2222,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(persistenceTopic);
         admin.lookups().lookupTopic(persistenceTopic);
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(persistenceTopic)
-            .get().get();
+                .get().get();
         Field field = PersistentTopic.class.getDeclaredField("subscribeRateLimiter");
         field.setAccessible(true);
         Optional<SubscribeRateLimiter> limiter = (Optional<SubscribeRateLimiter>) field.get(topic);
@@ -2233,24 +2232,24 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // Enable / Disable subscribe rate in namespace-level
         final SubscribeRate subscribeRate = new SubscribeRate(1, 100);
         admin.namespaces().setSubscribeRate(myNamespace, subscribeRate);
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().untilAsserted(()-> {
             Optional<SubscribeRateLimiter> limiter1 = (Optional<SubscribeRateLimiter>) field.get(topic);
             assertTrue(limiter1.isPresent());
         });
         admin.namespaces().removeSubscribeRate(myNamespace);
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().untilAsserted(()-> {
             Optional<SubscribeRateLimiter> limiter2 = (Optional<SubscribeRateLimiter>) field.get(topic);
             assertFalse(limiter2.isPresent());
         });
 
         // Enable / Disable subscribe rate in topic-level
         admin.topicPolicies().setSubscribeRate(persistenceTopic, subscribeRate);
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().untilAsserted(()-> {
             Optional<SubscribeRateLimiter> limiter1 = (Optional<SubscribeRateLimiter>) field.get(topic);
             assertTrue(limiter1.isPresent());
         });
         admin.topicPolicies().removeSubscribeRate(persistenceTopic);
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().untilAsserted(()-> {
             Optional<SubscribeRateLimiter> limiter2 = (Optional<SubscribeRateLimiter>) field.get(topic);
             assertFalse(limiter2.isPresent());
         });
@@ -2265,30 +2264,30 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setSubscribeRate(myNamespace, subscribeRate1);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getSubscribeRate(myNamespace),
-                subscribeRate1));
+                .untilAsserted(() -> Assert.assertEquals(admin.namespaces().getSubscribeRate(myNamespace),
+                        subscribeRate1));
 
-        SubscribeRate subscribeRate2 = new SubscribeRate(2, 30);
+        SubscribeRate subscribeRate2 =  new SubscribeRate(2, 30);
         log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate2, persistenceTopic);
         admin.topicPolicies().setSubscribeRate(persistenceTopic, subscribeRate2);
         log.info("Subscribe Rate set success on topic: {}", persistenceTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getSubscribeRate(persistenceTopic), subscribeRate2));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getSubscribeRate(persistenceTopic), subscribeRate2));
 
         PulsarClient pulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);
         PulsarClient pulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);
         PulsarClient pulsarClient3 = newPulsarClient(lookupUrl.toString(), 0);
 
         Consumer consumer1 = pulsarClient1.newConsumer().subscriptionName("sub1")
-            .topic(persistenceTopic).consumerName("test").subscribe();
+                .topic(persistenceTopic).consumerName("test").subscribe();
         Assert.assertNotNull(consumer1);
         consumer1.close();
         pulsarClient1.shutdown();
 
         Consumer consumer2 = pulsarClient2.newConsumer().subscriptionName("sub1")
-            .topic(persistenceTopic).consumerName("test").subscribe();
+                .topic(persistenceTopic).consumerName("test").subscribe();
         Assert.assertNotNull(consumer2);
         consumer2.close();
         pulsarClient2.shutdown();
@@ -2297,7 +2296,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         try {
             consumer3 = pulsarClient3.newConsumer().subscriptionName("sub1")
-                .topic(persistenceTopic).consumerName("test").subscribe();
+                    .topic(persistenceTopic).consumerName("test").subscribe();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("subscribe rate reached max subscribe rate limit");
@@ -2317,15 +2316,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getSubscribeRate(topic));
         assertNull(admin.namespaces().getSubscribeRate(myNamespace));
         SubscribeRate brokerPolicy = new SubscribeRate(
-            pulsar.getConfiguration().getSubscribeThrottlingRatePerConsumer(),
-            pulsar.getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
+                pulsar.getConfiguration().getSubscribeThrottlingRatePerConsumer(),
+                pulsar.getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
         );
         assertEquals(admin.topicPolicies().getSubscribeRate(topic, true), brokerPolicy);
         SubscribeRate namespacePolicy = new SubscribeRate(10, 11);
 
         admin.namespaces().setSubscribeRate(myNamespace, namespacePolicy);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces()
-            .getSubscribeRate(myNamespace)));
+                .getSubscribeRate(myNamespace)));
         assertEquals(admin.topicPolicies().getSubscribeRate(topic, true), namespacePolicy);
 
         SubscribeRate topicPolicy = new SubscribeRate(20, 21);
@@ -2351,8 +2350,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topic).create().close();
         List<Consumer<String>> consumerList = new ArrayList<>();
         ConsumerBuilder<String> builder = pulsarClient.newConsumer(Schema.STRING)
-            .subscriptionType(SubscriptionType.Shared)
-            .topic(topic).subscriptionName(mySub);
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic).subscriptionName(mySub);
         consumerList.add(builder.subscribe());
         try {
             builder.subscribe();
@@ -2362,7 +2361,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().setMaxConsumersPerSubscription(myNamespace, maxConsumerInNs);
         Awaitility.await().untilAsserted(() ->
-            assertNotNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespace)));
+                assertNotNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespace)));
         consumerList.add(builder.subscribe());
         try {
             builder.subscribe();
@@ -2372,12 +2371,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //disabled
         admin.namespaces().setMaxConsumersPerSubscription(myNamespace, 0);
         Awaitility.await().untilAsserted(() ->
-            assertEquals(admin.namespaces().getMaxConsumersPerSubscription(myNamespace).intValue(), 0));
+                assertEquals(admin.namespaces().getMaxConsumersPerSubscription(myNamespace).intValue(), 0));
         consumerList.add(builder.subscribe());
         //set topic-level
         admin.topicPolicies().setMaxConsumersPerSubscription(topic, maxConsumerInTopic);
         Awaitility.await().untilAsserted(() ->
-            assertNotNull(admin.topicPolicies().getMaxConsumersPerSubscription(topic)));
+                assertNotNull(admin.topicPolicies().getMaxConsumersPerSubscription(topic)));
         consumerList.add(builder.subscribe());
         try {
             builder.subscribe();
@@ -2387,12 +2386,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //remove topic policies
         admin.topicPolicies().removeMaxConsumersPerSubscription(topic);
         Awaitility.await().untilAsserted(() ->
-            assertNull(admin.topicPolicies().getMaxConsumersPerSubscription(topic)));
+                assertNull(admin.topicPolicies().getMaxConsumersPerSubscription(topic)));
         consumerList.add(builder.subscribe());
         //remove namespace policies, then use broker-level
         admin.namespaces().removeMaxConsumersPerSubscription(myNamespace);
         Awaitility.await().untilAsserted(() ->
-            assertNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespace)));
+                assertNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespace)));
         try {
             builder.subscribe();
             fail("should fail");
@@ -2414,21 +2413,21 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("Subscribe Rate set success on topic: {}", persistenceTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
-                .getSubscribeRate(persistenceTopic), subscribeRate));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies()
+                        .getSubscribeRate(persistenceTopic), subscribeRate));
 
         PulsarClient pulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);
         PulsarClient pulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);
         PulsarClient pulsarClient3 = newPulsarClient(lookupUrl.toString(), 0);
 
         Consumer<byte[]> consumer1 = pulsarClient1.newConsumer().subscriptionName("sub1")
-            .topic(persistenceTopic).consumerName("test").subscribe();
+                .topic(persistenceTopic).consumerName("test").subscribe();
         Assert.assertNotNull(consumer1);
         consumer1.close();
         pulsarClient1.shutdown();
 
         Consumer<byte[]> consumer2 = pulsarClient2.newConsumer().subscriptionName("sub1")
-            .topic(persistenceTopic).consumerName("test").subscribe();
+                .topic(persistenceTopic).consumerName("test").subscribe();
         Assert.assertNotNull(consumer2);
         consumer2.close();
         pulsarClient2.shutdown();
@@ -2437,7 +2436,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         try {
             consumer3 = pulsarClient3.newConsumer().subscriptionName("sub1")
-                .topic(persistenceTopic).consumerName("test").subscribe();
+                    .topic(persistenceTopic).consumerName("test").subscribe();
             Assert.fail();
         } catch (PulsarClientException e) {
             log.info("subscribe rate reached max subscribe rate limit");
@@ -2446,8 +2445,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topicPolicies().removeSubscribeRate(persistenceTopic);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
-                .getSubscribeRate(persistenceTopic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies()
+                        .getSubscribeRate(persistenceTopic)));
 
         admin.topics().unload(persistenceTopic);
 
@@ -2456,25 +2455,25 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         PulsarClient pulsarClient6 = newPulsarClient(lookupUrl.toString(), 0);
 
         consumer3 = pulsarClient3.newConsumer().subscriptionName("sub2")
-            .topic(persistenceTopic).consumerName("test").subscribe();
+                .topic(persistenceTopic).consumerName("test").subscribe();
         Assert.assertNotNull(consumer3);
         consumer3.close();
         pulsarClient3.shutdown();
 
         Consumer<byte[]> consumer4 = pulsarClient4.newConsumer().subscriptionName("sub2")
-            .topic(persistenceTopic).consumerName("test").subscribe();
+                .topic(persistenceTopic).consumerName("test").subscribe();
         Assert.assertNotNull(consumer4);
         consumer4.close();
         pulsarClient4.shutdown();
 
         Consumer<byte[]> consumer5 = pulsarClient5.newConsumer().subscriptionName("sub2")
-            .topic(persistenceTopic).consumerName("test").subscribe();
+                .topic(persistenceTopic).consumerName("test").subscribe();
         Assert.assertNotNull(consumer5);
         consumer5.close();
         pulsarClient5.shutdown();
 
         Consumer<byte[]> consumer6 = pulsarClient6.newConsumer().subscriptionName("sub2")
-            .topic(persistenceTopic).consumerName("test").subscribe();
+                .topic(persistenceTopic).consumerName("test").subscribe();
         Assert.assertNotNull(consumer6);
         consumer6.close();
         pulsarClient6.shutdown();
@@ -2504,10 +2503,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setPublishRate(myNamespace, publishMsgRate);
 
         Awaitility.await()
-            .until(() -> {
-                PublishRateLimiterImpl limiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
-                return (int) limiter.getTokenBucketOnMessage().getRate() == 10;
-            });
+                .until(() -> {
+                    PublishRateLimiterImpl limiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
+                    return (int) limiter.getTokenBucketOnMessage().getRate() == 10;
+                });
 
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishRateLimiter.getTokenBucketOnMessage().getRate(), 10);
@@ -2518,7 +2517,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setPublishRate(topicName, publishMsgRate2);
 
         Awaitility.await()
-            .until(() -> admin.topicPolicies().getPublishRate(topicName) != null);
+                .until(() -> admin.topicPolicies().getPublishRate(topicName) != null);
 
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishRateLimiter.getTokenBucketOnMessage().getRate(), 11);
@@ -2528,7 +2527,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().removePublishRate(topicName);
 
         Awaitility.await()
-            .until(() -> admin.topicPolicies().getPublishRate(topicName) == null);
+                .until(() -> admin.topicPolicies().getPublishRate(topicName) == null);
 
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishRateLimiter.getTokenBucketOnMessage().getRate(), 10);
@@ -2538,10 +2537,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removePublishRate(myNamespace);
 
         Awaitility.await()
-            .until(() -> {
-                PublishRateLimiterImpl limiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
-                return (int) limiter.getTokenBucketOnMessage().getRate() == 5;
-            });
+                .until(() -> {
+                    PublishRateLimiterImpl limiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
+                    return (int) limiter.getTokenBucketOnMessage().getRate() == 5;
+                });
 
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishRateLimiter.getTokenBucketOnMessage().getRate(), 5);
@@ -2549,13 +2548,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
-    public void testTopicMaxMessageSizeApi() throws Exception {
+    public void testTopicMaxMessageSizeApi() throws Exception{
         admin.topics().createNonPartitionedTopic(persistenceTopic);
         assertNull(admin.topicPolicies().getMaxMessageSize(persistenceTopic));
         admin.topicPolicies().setMaxMessageSize(persistenceTopic, 10);
         Awaitility.await().until(()
-            -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-            TopicName.get(persistenceTopic)) != null);
+                -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                TopicName.get(persistenceTopic)) != null);
         assertEquals(admin.topicPolicies().getMaxMessageSize(persistenceTopic).intValue(), 10);
 
         admin.topicPolicies().removeMaxMessageSize(persistenceTopic);
@@ -2578,19 +2577,19 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @DataProvider(name = "persistentAndPartition")
     public Object[][] implementations() {
         return new Object[][]{
-            {TopicDomain.persistent, true},
-            {TopicDomain.persistent, false},
-            {TopicDomain.non_persistent, true},
-            {TopicDomain.non_persistent, false},
+                {TopicDomain.persistent, true},
+                {TopicDomain.persistent, false},
+                {TopicDomain.non_persistent, true},
+                {TopicDomain.non_persistent, false},
         };
     }
 
     @Test(dataProvider = "persistentAndPartition")
     public void testTopicMaxMessageSize(TopicDomain topicDomain, boolean isPartitioned) throws Exception {
         final String topic = TopicName.get(
-            topicDomain.value(),
-            NamespaceName.get(myNamespace),
-            "test-" + UUID.randomUUID()
+                topicDomain.value(),
+                NamespaceName.get(myNamespace),
+                "test-" + UUID.randomUUID()
         ).toString();
 
         if (isPartitioned) {
@@ -2602,24 +2601,24 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // set msg size
         admin.topicPolicies().setMaxMessageSize(topic, 10);
         Awaitility.await().until(() -> TopicPolicyTestUtils.getTopicPolicies(pulsar
-            .getTopicPoliciesService(), TopicName.get(topic)) != null);
+                .getTopicPoliciesService(), TopicName.get(topic)) != null);
         if (isPartitioned) {
             for (int i = 0; i < 3; i++) {
                 String partitionName = TopicName.get(topic).getPartition(i).toString();
                 Awaitility.await().untilAsserted(() -> {
                     AbstractTopic partition =
-                        (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(partitionName)
-                            .get().get();
+                            (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(partitionName)
+                                    .get().get();
                     assertEquals(partition.getHierarchyTopicPolicies().getTopicMaxMessageSize().get(),
-                        Integer.valueOf(10));
+                            Integer.valueOf(10));
                 });
             }
         } else {
             Awaitility.await().untilAsserted(() -> {
                 AbstractTopic abstractTopic =
-                    (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+                        (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
                 assertEquals(abstractTopic.getHierarchyTopicPolicies().getTopicMaxMessageSize().get(),
-                    Integer.valueOf(10));
+                        Integer.valueOf(10));
             });
         }
 
@@ -2652,14 +2651,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 String partitionName = TopicName.get(topic).getPartition(i).toString();
                 Awaitility.await().untilAsserted(() -> {
                     AbstractTopic partition =
-                        (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(partitionName).get().get();
+                            (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(partitionName).get().get();
                     assertNull(partition.getHierarchyTopicPolicies().getTopicMaxMessageSize().getTopicValue());
                 });
             }
         } else {
             Awaitility.await().untilAsserted(() -> {
                 AbstractTopic abstractTopic =
-                    (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+                        (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
                 assertNull(abstractTopic.getHierarchyTopicPolicies().getTopicMaxMessageSize().getTopicValue());
             });
         }
@@ -2688,10 +2687,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         int maxSubInNamespace = 2;
         List<Consumer> consumers = new ArrayList<>();
         ConsumerBuilder consumerBuilder = pulsarClient.newConsumer().subscriptionMode(subMode)
-            .subscriptionType(SubscriptionType.Shared).topic(topic);
+                .subscriptionType(SubscriptionType.Shared).topic(topic);
         admin.namespaces().setMaxSubscriptionsPerTopic(myNamespace, maxSubInNamespace);
         Awaitility.await().untilAsserted(()
-            -> assertNotNull(admin.namespaces().getMaxSubscriptionsPerTopic(myNamespace)));
+                -> assertNotNull(admin.namespaces().getMaxSubscriptionsPerTopic(myNamespace)));
         for (int i = 0; i < maxSubInNamespace; i++) {
             consumers.add(consumerBuilder.subscriptionName("sub" + i).subscribe());
         }
@@ -2720,8 +2719,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // set max subscriptions
         admin.topicPolicies().setMaxSubscriptionsPerTopic(topic, 10);
         Awaitility.await().until(()
-            -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-            TopicName.get(topic)) != null);
+                -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                TopicName.get(topic)) != null);
         assertEquals(admin.topicPolicies().getMaxSubscriptionsPerTopic(topic).intValue(), 10);
         // remove max subscriptions
         admin.topicPolicies().removeMaxSubscriptionsPerTopic(topic);
@@ -2744,32 +2743,32 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final int topicLevelMaxSubNum = 2;
         admin.topicPolicies().setMaxSubscriptionsPerTopic(topic, topicLevelMaxSubNum);
         Awaitility.await().until(()
-            -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-            TopicName.get(topic)) != null);
+                -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                TopicName.get(topic)) != null);
         List<Consumer<String>> consumerList = new ArrayList<>();
         String subName = "my-sub-";
         for (int i = 0; i < topicLevelMaxSubNum; i++) {
             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionName(subName + i)
-                .topic(topic).subscribe();
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscriptionName(subName + i)
+                    .topic(topic).subscribe();
             consumerList.add(consumer);
         }
         // should fail
         try (PulsarClient client = PulsarClient.builder().operationTimeout(2, TimeUnit.SECONDS)
-            .serviceUrl(brokerUrl.toString()).build()) {
+                .serviceUrl(brokerUrl.toString()).build()) {
             consumerList.add(client.newConsumer(Schema.STRING)
-                .subscriptionName(UUID.randomUUID().toString())
-                .topic(topic).subscribe());
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe());
             fail("should fail");
         } catch (PulsarClientException ignore) {
             assertEquals(consumerList.size(), topicLevelMaxSubNum);
         }
         //create a consumer with the same subscription name, it should succeed
         pulsarClient.newConsumer(Schema.STRING)
-            .subscriptionType(SubscriptionType.Shared)
-            .subscriptionName(subName + "0")
-            .topic(topic).subscribe().close();
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName + "0")
+                .topic(topic).subscribe().close();
 
         //Clean up
         for (Consumer<String> c : consumerList) {
@@ -2795,16 +2794,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         produceMsg(producer, msgNum);
         //set namespace-level policy, the restriction should take effect
         admin.namespaces().setMaxUnackedMessagesPerSubscription(myNamespace,
-            maxUnackedMsgNumOnNamespace);
+                maxUnackedMsgNumOnNamespace);
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace)
-            .intValue(), maxUnackedMsgNumOnNamespace));
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace)
+                .intValue(), maxUnackedMsgNumOnNamespace));
         List<Message<?>> messages;
         String subName = "sub-" + UUID.randomUUID();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic)
-            .subscriptionName(subName).receiverQueueSize(1)
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-            .subscriptionType(SubscriptionType.Shared);
+                .subscriptionName(subName).receiverQueueSize(1)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Shared);
         @Cleanup
         Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
         messages = getMsgReceived(consumer1, msgNum);
@@ -2813,24 +2812,24 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //disable namespace-level policy, should unlimited
         admin.namespaces().setMaxUnackedMessagesPerSubscription(myNamespace, 0);
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace).intValue(),
-            0));
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace).intValue(),
+                0));
         messages = getMsgReceived(consumer1, 40);
         assertEquals(messages.size(), 40);
         ackMessages(consumer1, messages);
 
         //set topic-level and namespace-level policy, topic-level should has higher priority
         admin.namespaces().setMaxUnackedMessagesPerSubscription(myNamespace,
-            maxUnackedMsgNumOnNamespace);
+                maxUnackedMsgNumOnNamespace);
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace).intValue()
-            , maxUnackedMsgNumOnNamespace));
+                -> assertEquals(admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace).intValue()
+                , maxUnackedMsgNumOnNamespace));
         admin.topicPolicies().setMaxUnackedMessagesOnSubscription(topic, maxUnackedMsgOnTopic);
         Awaitility.await().untilAsserted(()
-            -> assertNotNull(admin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic)));
+                -> assertNotNull(admin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic)));
         //check the value applied
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic)
-            .get().get();
+                .get().get();
         assertEquals(persistentTopic.getMaxUnackedMessagesOnSubscription(), maxUnackedMsgOnTopic);
         messages = getMsgReceived(consumer1, Integer.MAX_VALUE);
         assertEquals(messages.size(), maxUnackedMsgOnTopic);
@@ -2840,13 +2839,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().removeMaxUnackedMessagesPerSubscription(myNamespace);
         admin.topicPolicies().removeMaxUnackedMessagesOnSubscription(topic);
         Awaitility.await().until(()
-            -> admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace) == null
-            && admin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic) == null);
+                -> admin.namespaces().getMaxUnackedMessagesPerSubscription(myNamespace) == null
+                && admin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic) == null);
         messages = getMsgReceived(consumer1, Integer.MAX_VALUE);
         assertEquals(messages.size(), defaultMaxUnackedMsgOnBroker);
     }
 
-    private void produceMsg(Producer producer, int msgNum) throws Exception {
+    private void produceMsg(Producer producer, int msgNum) throws Exception{
         for (int i = 0; i < msgNum; i++) {
             producer.send("msg".getBytes());
         }
@@ -2864,7 +2863,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         return messages;
     }
 
-    private void ackMessages(Consumer<?> consumer, List<Message<?>> messages) throws Exception {
+    private void ackMessages(Consumer<?> consumer, List<Message<?>> messages) throws Exception{
         for (Message<?> message : messages) {
             consumer.acknowledge(message);
         }
@@ -2882,21 +2881,21 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final int topicLevelMaxSubNum = 2;
         admin.topicPolicies().setMaxSubscriptionsPerTopic(topic, topicLevelMaxSubNum);
         Awaitility.await().until(()
-            -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-            TopicName.get(topic)) != null);
+                -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                TopicName.get(topic)) != null);
 
         List<Consumer<String>> consumerList = new ArrayList<>();
         for (int i = 0; i < topicLevelMaxSubNum; i++) {
             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .subscriptionName(UUID.randomUUID().toString())
-                .topic(topic).subscribe();
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe();
             consumerList.add(consumer);
         }
         try (PulsarClient client = PulsarClient.builder().operationTimeout(2, TimeUnit.SECONDS)
-            .serviceUrl(brokerUrl.toString()).build()) {
+                .serviceUrl(brokerUrl.toString()).build()) {
             consumerList.add(client.newConsumer(Schema.STRING)
-                .subscriptionName(UUID.randomUUID().toString())
-                .topic(topic).subscribe());
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe());
             fail("should fail");
         } catch (PulsarClientException ignore) {
             assertEquals(consumerList.size(), topicLevelMaxSubNum);
@@ -2905,15 +2904,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final int namespaceLevelMaxSub = 3;
         admin.namespaces().setMaxSubscriptionsPerTopic(myNamespace, namespaceLevelMaxSub);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic)
-            .get().get();
+                .get().get();
         Awaitility.await().until(() -> Integer.valueOf(namespaceLevelMaxSub)
-            .equals(persistentTopic.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().getNamespaceValue()));
+                .equals(persistentTopic.getHierarchyTopicPolicies().getMaxSubscriptionsPerTopic().getNamespaceValue()));
 
         try (PulsarClient client = PulsarClient.builder().operationTimeout(1000, TimeUnit.MILLISECONDS)
-            .serviceUrl(brokerUrl.toString()).build()) {
+                .serviceUrl(brokerUrl.toString()).build()) {
             client.newConsumer(Schema.STRING)
-                .subscriptionName(UUID.randomUUID().toString())
-                .topic(topic).subscribe();
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe();
             fail("should fail");
         } catch (PulsarClientException ignore) {
             assertEquals(consumerList.size(), topicLevelMaxSubNum);
@@ -2921,13 +2920,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //Removed topic-level policy, namespace-level should take effect
         admin.topicPolicies().removeMaxSubscriptionsPerTopic(topic);
         consumerList.add(pulsarClient.newConsumer(Schema.STRING)
-            .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe());
+                .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe());
         assertEquals(consumerList.size(), namespaceLevelMaxSub);
         try (PulsarClient client = PulsarClient.builder().operationTimeout(1000, TimeUnit.MILLISECONDS)
-            .serviceUrl(brokerUrl.toString()).build()) {
+                .serviceUrl(brokerUrl.toString()).build()) {
             consumerList.add(client.newConsumer(Schema.STRING)
-                .subscriptionName(UUID.randomUUID().toString())
-                .topic(topic).subscribe());
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe());
             fail("should fail");
         } catch (PulsarClientException ignore) {
             assertEquals(consumerList.size(), namespaceLevelMaxSub);
@@ -2935,17 +2934,17 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //Removed namespace-level policy, broker-level should take effect
         admin.namespaces().removeMaxSubscriptionsPerTopic(myNamespace);
         Awaitility.await().until(() -> persistentTopic
-            .getHierarchyTopicPolicies()
-            .getMaxSubscriptionsPerTopic()
-            .getNamespaceValue() == null);
+                .getHierarchyTopicPolicies()
+                .getMaxSubscriptionsPerTopic()
+                .getNamespaceValue() == null);
         consumerList.add(pulsarClient.newConsumer(Schema.STRING)
-            .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe());
+                .subscriptionName(UUID.randomUUID().toString()).topic(topic).subscribe());
         assertEquals(consumerList.size(), brokerLevelMaxSub);
         try (PulsarClient client = PulsarClient.builder().operationTimeout(1000, TimeUnit.MILLISECONDS)
-            .serviceUrl(brokerUrl.toString()).build()) {
+                .serviceUrl(brokerUrl.toString()).build()) {
             consumerList.add(client.newConsumer(Schema.STRING)
-                .subscriptionName(UUID.randomUUID().toString())
-                .topic(topic).subscribe());
+                    .subscriptionName(UUID.randomUUID().toString())
+                    .topic(topic).subscribe());
             fail("should fail");
         } catch (PulsarClientException ignore) {
             assertEquals(consumerList.size(), brokerLevelMaxSub);
@@ -2965,17 +2964,17 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getReplicatorDispatchRate(topic));
 
         DispatchRate dispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(100)
-            .dispatchThrottlingRateInByte(200)
-            .ratePeriodInSecond(10)
-            .build();
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(200)
+                .ratePeriodInSecond(10)
+                .build();
         admin.topicPolicies().setReplicatorDispatchRate(topic, dispatchRate);
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.topicPolicies().getReplicatorDispatchRate(topic), dispatchRate));
+                -> assertEquals(admin.topicPolicies().getReplicatorDispatchRate(topic), dispatchRate));
 
         admin.topicPolicies().removeReplicatorDispatchRate(topic);
         Awaitility.await().untilAsserted(()
-            -> assertNull(admin.topicPolicies().getReplicatorDispatchRate(topic)));
+                -> assertNull(admin.topicPolicies().getReplicatorDispatchRate(topic)));
     }
 
     @Test(timeOut = 20000)
@@ -2985,45 +2984,45 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getReplicatorDispatchRate(topic));
         assertNull(admin.namespaces().getReplicatorDispatchRate(myNamespace));
         DispatchRate brokerDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(pulsar.getConfiguration()
-                .getDispatchThrottlingRatePerReplicatorInMsg())
-            .dispatchThrottlingRateInByte(pulsar.getConfiguration()
-                .getDispatchThrottlingRatePerReplicatorInByte())
-            .ratePeriodInSecond(1)
-            .build();
+                .dispatchThrottlingRateInMsg(pulsar.getConfiguration()
+                        .getDispatchThrottlingRatePerReplicatorInMsg())
+                .dispatchThrottlingRateInByte(pulsar.getConfiguration()
+                        .getDispatchThrottlingRatePerReplicatorInByte())
+                .ratePeriodInSecond(1)
+                .build();
         assertEquals(admin.topicPolicies().getReplicatorDispatchRate(topic, true),
-            brokerDispatchRate);
+                brokerDispatchRate);
         DispatchRate namespaceDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(10)
-            .dispatchThrottlingRateInByte(11)
-            .ratePeriodInSecond(12)
-            .build();
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(11)
+                .ratePeriodInSecond(12)
+                .build();
 
         admin.namespaces().setReplicatorDispatchRate(myNamespace, namespaceDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces()
-            .getReplicatorDispatchRate(myNamespace)));
+                .getReplicatorDispatchRate(myNamespace)));
         assertEquals(admin.topicPolicies().getReplicatorDispatchRate(topic, true),
-            namespaceDispatchRate);
+                namespaceDispatchRate);
 
         DispatchRate topicDispatchRate = DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(20)
-            .dispatchThrottlingRateInByte(21)
-            .ratePeriodInSecond(22)
-            .build();
+                .dispatchThrottlingRateInMsg(20)
+                .dispatchThrottlingRateInByte(21)
+                .ratePeriodInSecond(22)
+                .build();
         admin.topicPolicies().setReplicatorDispatchRate(topic, topicDispatchRate);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topicPolicies()
-            .getReplicatorDispatchRate(topic)));
+                .getReplicatorDispatchRate(topic)));
         assertEquals(admin.topicPolicies().getReplicatorDispatchRate(topic, true),
-            topicDispatchRate);
+                topicDispatchRate);
 
         admin.namespaces().removeReplicatorDispatchRate(myNamespace);
         admin.topicPolicies().removeReplicatorDispatchRate(topic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces()
-            .getReplicatorDispatchRate(myNamespace)));
+                .getReplicatorDispatchRate(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies()
-            .getReplicatorDispatchRate(topic)));
+                .getReplicatorDispatchRate(topic)));
         assertEquals(admin.topicPolicies().getReplicatorDispatchRate(topic, true),
-            brokerDispatchRate);
+                brokerDispatchRate);
     }
 
     @Test(timeOut = 30000)
@@ -3043,15 +3042,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 1);
         pulsarClient.newConsumer().topic(topic).subscriptionName("test")
-            .subscribe().close();
+                .subscribe().close();
         Set<SubscriptionType> subscriptionTypeSet = new HashSet<>();
         subscriptionTypeSet.add(SubscriptionType.Key_Shared);
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topicPolicies()
-            .getSubscriptionTypesEnabled(topic)));
+                .getSubscriptionTypesEnabled(topic)));
 
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-            .getTopicReference(TopicName.get(topic).getPartition(0).toString()).get();
+                .getTopicReference(TopicName.get(topic).getPartition(0).toString()).get();
         Set<String> old = new HashSet<>(pulsar.getConfiguration().getSubscriptionTypesEnabled());
         try {
             pulsar.getConfiguration().getSubscriptionTypesEnabled().clear();
@@ -3062,10 +3061,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
 
         Awaitility.await().untilAsserted(() ->
-            assertFalse(admin.topics().getSubscriptionTypesEnabled(topic).isEmpty()));
+                assertFalse(admin.topics().getSubscriptionTypesEnabled(topic).isEmpty()));
         admin.topics().removeSubscriptionTypesEnabled(topic);
         Awaitility.await().untilAsserted(() ->
-            assertTrue(admin.topics().getSubscriptionTypesEnabled(topic).isEmpty()));
+                assertTrue(admin.topics().getSubscriptionTypesEnabled(topic).isEmpty()));
     }
 
     @Test(timeOut = 30000)
@@ -3076,22 +3075,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
         try {
             pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Shared)
-                .subscriptionName("test").subscribe();
+                    .subscriptionName("test").subscribe();
             fail();
         } catch (PulsarClientException pulsarClientException) {
             assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
         }
         pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Exclusive)
-            .subscriptionName("test")
-            .subscribe().close();
+                .subscriptionName("test")
+                .subscribe().close();
 
         //update broker level dynamic update config
         admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Shared");
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().untilAsserted(()->{
             assertTrue(pulsar.getConfiguration().getSubscriptionTypesEnabled().contains("Shared"));
         });
         pulsarClient.newConsumer().topic(topic).subscriptionType(SubscriptionType.Shared)
-            .subscriptionName("test").subscribe().close();
+                .subscriptionName("test").subscribe().close();
 
         assertNull(admin.topicPolicies().getSubscriptionTypesEnabled(topic));
         // set enable failover sub type
@@ -3100,11 +3099,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
 
         Awaitility.await().until(()
-            -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-            TopicName.get(topic)) != null);
+                -> TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                TopicName.get(topic)) != null);
         waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
             assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().get()
-                .contains(CommandSubscribe.SubType.Failover));
+                    .contains(CommandSubscribe.SubType.Failover));
         });
         subscriptionTypeSet = admin.topicPolicies().getSubscriptionTypesEnabled(topic);
         assertTrue(subscriptionTypeSet.contains(SubscriptionType.Failover));
@@ -3112,8 +3111,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(subscriptionTypeSet.size(), 1);
         try {
             pulsarClient.newConsumer().topic(topic)
-                .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
-                .subscribe();
+                    .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
+                    .subscribe();
             fail();
         } catch (PulsarClientException pulsarClientException) {
             assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
@@ -3124,11 +3123,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
         waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
             assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().get()
-                .contains(CommandSubscribe.SubType.Shared));
+                    .contains(CommandSubscribe.SubType.Shared));
         });
         pulsarClient.newConsumer().topic(topic)
-            .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
-            .subscribe().close();
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
+                .subscribe().close();
 
         // test namespace and topic policy
         subscriptionTypeSet.add(SubscriptionType.Shared);
@@ -3139,13 +3138,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setSubscriptionTypesEnabled(topic, subscriptionTypeSet);
         waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> {
             assertTrue(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getTopicValue()
-                .contains(CommandSubscribe.SubType.Failover));
+                    .contains(CommandSubscribe.SubType.Failover));
         });
 
         try {
             pulsarClient.newConsumer().topic(topic)
-                .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
-                .subscribe();
+                    .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
+                    .subscribe();
             fail();
         } catch (PulsarClientException pulsarClientException) {
             assertTrue(pulsarClientException instanceof PulsarClientException.NotAllowedException);
@@ -3157,8 +3156,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             assertNull(hierarchyTopicPolicies.getSubscriptionTypesEnabled().getTopicValue());
         });
         pulsarClient.newConsumer().topic(topic)
-            .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
-            .subscribe().close();
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
+                .subscribe().close();
     }
 
     @Test(timeOut = 20000)
@@ -3172,8 +3171,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Producer producer = pulsarClient.newProducer().topic(topic).create();
         final String subName = "my-sub";
         ConsumerBuilder builder = pulsarClient.newConsumer()
-            .subscriptionType(SubscriptionType.Shared)
-            .subscriptionName(subName).topic(topic);
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subName).topic(topic);
         Consumer consumer = builder.subscribe();
 
         try {
@@ -3187,7 +3186,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> {
             assertNotNull(admin.namespaces().getMaxConsumersPerSubscription(myNamespace));
             assertEquals(admin.namespaces().getMaxConsumersPerSubscription(myNamespace).intValue(),
-                maxConsumerPerSubInNs);
+                    maxConsumerPerSubInNs);
         });
         Consumer consumer2 = builder.subscribe();
         try {
@@ -3202,7 +3201,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> {
             assertNotNull(admin.topicPolicies().getMaxConsumersPerSubscription(topic));
             assertEquals(admin.topicPolicies().getMaxConsumersPerSubscription(topic).intValue(),
-                maxConsumerPerSubInTopic);
+                    maxConsumerPerSubInTopic);
         });
         Consumer consumer3 = builder.subscribe();
         try {
@@ -3225,30 +3224,30 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.namespaces().getCompactionThreshold(myNamespace));
         long brokerPolicy = pulsar.getConfiguration().getBrokerServiceCompactionThresholdInBytes();
         assertEquals(admin.topicPolicies().getCompactionThreshold(topic, true).longValue(),
-            brokerPolicy);
+                brokerPolicy);
         long namespacePolicy = 10L;
 
         admin.namespaces().setCompactionThreshold(myNamespace, namespacePolicy);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.namespaces()
-            .getCompactionThreshold(myNamespace)));
+                .getCompactionThreshold(myNamespace)));
         assertEquals(admin.topicPolicies().getCompactionThreshold(topic, true).longValue(),
-            namespacePolicy);
+                namespacePolicy);
 
         long topicPolicy = 20L;
         admin.topicPolicies().setCompactionThreshold(topic, topicPolicy);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topicPolicies()
-            .getCompactionThreshold(topic)));
+                .getCompactionThreshold(topic)));
         assertEquals(admin.topicPolicies().getCompactionThreshold(topic, true).longValue(),
-            topicPolicy);
+                topicPolicy);
 
         admin.namespaces().removeCompactionThreshold(myNamespace);
         admin.topicPolicies().removeCompactionThreshold(topic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces()
-            .getCompactionThreshold(myNamespace)));
+                .getCompactionThreshold(myNamespace)));
         Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies()
-            .getCompactionThreshold(topic)));
+                .getCompactionThreshold(topic)));
         assertEquals(admin.topicPolicies().getCompactionThreshold(topic, true).longValue(),
-            brokerPolicy);
+                brokerPolicy);
     }
 
     @Test(timeOut = 30000)
@@ -3257,11 +3256,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         int numMsg = 10;
         try {
             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(persistenceTopic)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscriptionName("test").subscribe();
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscriptionName("test").subscribe();
 
             Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(persistenceTopic)
-                .create();
+                    .create();
 
             for (int i = 0; i < numMsg; ++i) {
                 producer.newMessage().value(msg + i).send();
@@ -3280,35 +3279,35 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 30000)
     public void testSystemTopicShouldBeCompacted() throws Exception {
         BacklogQuota backlogQuota = BacklogQuota.builder()
-            .limitSize(1024)
-            .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-            .build();
+                .limitSize(1024)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
         log.info("Backlog quota: {} will set to the topic: {}", backlogQuota, testTopic);
 
         admin.topicPolicies().setBacklogQuota(testTopic, backlogQuota,
-            BacklogQuota.BacklogQuotaType.destination_storage);
+                BacklogQuota.BacklogQuotaType.destination_storage);
         log.info("Backlog quota set success on topic: {}", testTopic);
 
         Awaitility.await()
-            .untilAsserted(() -> {
-                TopicStats stats = admin.topics().getStats(topicPolicyEventsTopic);
-                Assert.assertTrue(stats.getSubscriptions().containsKey("__compaction"));
-            });
+                .untilAsserted(() -> {
+                    TopicStats stats = admin.topics().getStats(topicPolicyEventsTopic);
+                    Assert.assertTrue(stats.getSubscriptions().containsKey("__compaction"));
+                });
 
         PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
         long previousCompactedLedgerId = internalStats.compactedLedger.ledgerId;
 
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
-                .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getBacklogQuotaMap(testTopic)
+                        .get(BacklogQuota.BacklogQuotaType.destination_storage), backlogQuota));
 
         pulsar.getBrokerService().checkCompaction();
 
         Awaitility.await()
-            .untilAsserted(() -> {
-                PersistentTopicInternalStats iStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
-                Assert.assertTrue(iStats.compactedLedger.ledgerId != previousCompactedLedgerId);
-            });
+                .untilAsserted(() -> {
+                    PersistentTopicInternalStats iStats = admin.topics().getInternalStats(topicPolicyEventsTopic);
+                    Assert.assertTrue(iStats.compactedLedger.ledgerId != previousCompactedLedgerId);
+                });
     }
 
     @Test(timeOut = 30000)
@@ -3320,9 +3319,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention(myNamespace, nsRetentionPolicies);
         ManagedLedgerConfig managedLedgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
         Assert.assertEquals(managedLedgerConfig.getRetentionTimeMillis(),
-            TimeUnit.MINUTES.toMillis(nsRetentionPolicies.getRetentionTimeInMinutes()));
+                TimeUnit.MINUTES.toMillis(nsRetentionPolicies.getRetentionTimeInMinutes()));
         Assert.assertEquals(managedLedgerConfig.getRetentionSizeInMB(), nsRetentionPolicies
-            .getRetentionSizeInMB());
+                .getRetentionSizeInMB());
 
         // set and check retention policy on topic level
         RetentionPolicies topicRetentionPolicies = new RetentionPolicies(2, -1);
@@ -3330,7 +3329,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> {
             ManagedLedgerConfig config = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get();
             Assert.assertEquals(config.getRetentionTimeMillis(),
-                TimeUnit.MINUTES.toMillis(topicRetentionPolicies.getRetentionTimeInMinutes()));
+                    TimeUnit.MINUTES.toMillis(topicRetentionPolicies.getRetentionTimeInMinutes()));
             Assert.assertEquals(config.getRetentionSizeInMB(), topicRetentionPolicies.getRetentionSizeInMB());
         });
     }
@@ -3341,30 +3340,30 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topic).create().close();
 
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic)))
-                .isNull());
+                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                                TopicName.get(topic)))
+                        .isNull());
 
         int maxConsumersPerSubscription = 10;
         admin.topicPolicies().setMaxConsumersPerSubscription(topic, maxConsumersPerSubscription);
 
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(pulsar.getBrokerService().getTopic(topic, false)
-                .get().isPresent()).isTrue());
+                Assertions.assertThat(pulsar.getBrokerService().getTopic(topic, false)
+                        .get().isPresent()).isTrue());
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic)))
-                .isNotNull());
+                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                                TopicName.get(topic)))
+                        .isNotNull());
 
         admin.topics().delete(topic);
 
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(pulsar.getBrokerService().getTopic(topic, false)
-                .get().isPresent()).isFalse());
+                Assertions.assertThat(pulsar.getBrokerService().getTopic(topic, false)
+                        .get().isPresent()).isFalse());
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic)))
-                .isNull());
+                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                                TopicName.get(topic)))
+                        .isNull());
     }
 
     @Test
@@ -3376,9 +3375,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await().untilAsserted(() -> {
             Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                TopicName.get(topic))).isNull();
+                    TopicName.get(topic))).isNull();
             Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                TopicName.get(topic2))).isNull();
+                    TopicName.get(topic2))).isNull();
         });
         // Init Topic Policies. Send 4 messages in a row, there should be only 2 messages left after compression
         admin.topicPolicies().setMaxConsumersPerSubscription(topic, 1);
@@ -3387,13 +3386,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxConsumersPerSubscription(topic2, 4);
         Awaitility.await().untilAsserted(() -> {
             Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                TopicName.get(topic))).isNotNull();
+                    TopicName.get(topic))).isNotNull();
             Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                TopicName.get(topic2))).isNotNull();
+                    TopicName.get(topic2))).isNotNull();
         });
         String topicPoliciesTopic = "persistent://" + myNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
         PersistentTopic persistentTopic =
-            (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicPoliciesTopic).get().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicPoliciesTopic).get().get();
         // Trigger compaction and make sure it is finished.
         persistentTopic.triggerCompaction();
         Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
@@ -3402,9 +3401,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertTrue(future.isDone()));
 
         Consumer consumer = pulsarClient.newConsumer()
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-            .readCompacted(true)
-            .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .readCompacted(true)
+                .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
         int count = 0;
         while (true) {
             Message message = consumer.receive(1, TimeUnit.SECONDS);
@@ -3422,8 +3421,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic, true);
 
         Awaitility.await().untilAsserted(() ->
-            assertNull(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                TopicName.get(topic))));
+                assertNull(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                        TopicName.get(topic))));
         persistentTopic.triggerCompaction();
         field = PersistentTopic.class.getDeclaredField("currentCompaction");
         field.setAccessible(true);
@@ -3431,9 +3430,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertTrue(future2.isDone()));
 
         consumer = pulsarClient.newConsumer()
-            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-            .readCompacted(true)
-            .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .readCompacted(true)
+                .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
         count = 0;
         while (true) {
             Message message = consumer.receive(1, TimeUnit.SECONDS);
@@ -3455,24 +3454,24 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topic).create().close();
 
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic)))
-                .isNull());
+                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                                TopicName.get(topic)))
+                        .isNull());
 
         int maxConsumersPerSubscription = 10;
         admin.topicPolicies().setMaxConsumersPerSubscription(topic, maxConsumersPerSubscription);
 
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(pulsar.getBrokerService().getTopic(topic, false)
-                .get().isPresent()).isTrue());
+                Assertions.assertThat(pulsar.getBrokerService().getTopic(topic, false)
+                        .get().isPresent()).isTrue());
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic)))
-                .isNotNull());
+                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                                TopicName.get(topic)))
+                        .isNotNull());
 
         InactiveTopicPolicies inactiveTopicPolicies =
-            new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,
-                3, true);
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions,
+                        3, true);
         admin.topicPolicies().setInactiveTopicPolicies(topic, inactiveTopicPolicies);
 
         Thread.sleep(4_000L);
@@ -3480,12 +3479,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsar.getBrokerService().checkGC();
 
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(pulsar.getBrokerService().getTopic(topic, false)
-                .get().isPresent()).isFalse());
+                Assertions.assertThat(pulsar.getBrokerService().getTopic(topic, false)
+                        .get().isPresent()).isFalse());
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic)))
-                .isNull());
+                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                                TopicName.get(topic)))
+                        .isNull());
     }
 
     @Test
@@ -3510,16 +3509,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         clusters.add("test");
         admin.topics().setReplicationClusters(topic, clusters);
         Awaitility.await().untilAsserted(()
-            -> assertEquals(admin.topics().getReplicationClusters(topic, false), clusters));
+                -> assertEquals(admin.topics().getReplicationClusters(topic, false), clusters));
 
         admin.topics().removeReplicationClusters(topic);
         Awaitility.await().untilAsserted(()
-            -> assertNull(admin.topics().getReplicationClusters(topic, false)));
+                -> assertNull(admin.topics().getReplicationClusters(topic, false)));
 
         assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> admin.topics()
-            .setReplicationClusters(topic, List.of()));
+                .setReplicationClusters(topic, List.of()));
         assertThrows(PulsarAdminException.PreconditionFailedException.class, () -> admin.topics()
-            .setReplicationClusters(topic, null));
+                .setReplicationClusters(topic, null));
 
     }
 
@@ -3533,26 +3532,26 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             pulsarClient.newProducer().topic(topic).create().close();
             Awaitility.await().untilAsserted(() -> {
                 Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic))).isNull();
+                        TopicName.get(topic))).isNull();
             });
 
             admin.topicPolicies().setMaxConsumersPerSubscription(topic, 1);
             Awaitility.await().untilAsserted(() -> {
                 Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic))).isNotNull();
+                        TopicName.get(topic))).isNotNull();
             });
 
             admin.topics().delete(topic);
             Awaitility.await().untilAsserted(() -> {
                 Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic))).isNull();
+                        TopicName.get(topic))).isNull();
             });
         }
     }
 
     private void triggerAndWaitNewTopicCompaction(String topicName) throws Exception {
         PersistentTopic tp =
-            (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         // Wait for the old task finish.
         Awaitility.await().untilAsserted(() -> {
             CompletableFuture<Long> compactionTask = WhiteboxImpl.getInternalState(tp, "currentCompaction");
@@ -3579,21 +3578,21 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertTrue(topicPoliciesService instanceof SystemTopicBasedTopicPoliciesService);
 
         Map<NamespaceName, CompletableFuture<Void>> policyCacheInitMap =
-            WhiteboxImpl.getInternalState(topicPoliciesService, "policyCacheInitMap");
+                WhiteboxImpl.getInternalState(topicPoliciesService, "policyCacheInitMap");
         for (CompletableFuture<Void> future : policyCacheInitMap.values()) {
             future.join();
         }
         Map<TopicName, TopicPolicies> policiesCache =
-            WhiteboxImpl.getInternalState(topicPoliciesService, "policiesCache");
+                WhiteboxImpl.getInternalState(topicPoliciesService, "policiesCache");
         Map<TopicName, TopicPolicies> globalPoliciesCache =
-            WhiteboxImpl.getInternalState(topicPoliciesService, "globalPoliciesCache");
+                WhiteboxImpl.getInternalState(topicPoliciesService, "globalPoliciesCache");
 
         policyCacheInitMap.clear();
         policiesCache.clear();
         globalPoliciesCache.clear();
 
         Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readerCaches =
-            ((SystemTopicBasedTopicPoliciesService) topicPoliciesService).getReaderCaches();
+                ((SystemTopicBasedTopicPoliciesService) topicPoliciesService).getReaderCaches();
         readerCaches.clear();
     }
 
@@ -3629,9 +3628,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         if ("Clean_Cache".equals(reloadPolicyType)) {
             clearTopicPoliciesCache();
             topicPoliciesOptional1 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                LOCAL_ONLY).join();
+                            LOCAL_ONLY).join();
             topicPoliciesOptionalGlobal1 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                GLOBAL_ONLY).join();
+                    GLOBAL_ONLY).join();
         } else {
             SystemTopicBasedTopicPoliciesService newService = new SystemTopicBasedTopicPoliciesService(pulsar);
             topicPoliciesOptional1 = newService.getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
@@ -3641,7 +3640,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertTrue(topicPoliciesOptional1.isPresent());
         assertEquals(topicPoliciesOptional1.get().getDispatchRate().getDispatchThrottlingRateInMsg(), rateMsgLocal);
         assertEquals(topicPoliciesOptionalGlobal1.get().getDispatchRate().getDispatchThrottlingRateInMsg(),
-            rateMsgGlobal);
+                rateMsgGlobal);
 
         // Remove local policy.
         // Trigger __change_events compaction.
@@ -3654,9 +3653,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         if ("Clean_Cache".equals(reloadPolicyType)) {
             clearTopicPoliciesCache();
             topicPoliciesOptional2 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                LOCAL_ONLY).join();
+                    LOCAL_ONLY).join();
             topicPoliciesOptionalGlobal2 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                GLOBAL_ONLY).join();
+                    GLOBAL_ONLY).join();
         } else {
             SystemTopicBasedTopicPoliciesService newService = new SystemTopicBasedTopicPoliciesService(pulsar);
             topicPoliciesOptional2 = newService.getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
@@ -3666,7 +3665,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertTrue(topicPoliciesOptional2.isEmpty() || topicPoliciesOptional2.get().getDispatchRate() == null);
         assertTrue(topicPoliciesOptionalGlobal2.isPresent());
         assertEquals(topicPoliciesOptionalGlobal2.get().getDispatchRate().getDispatchThrottlingRateInMsg(),
-            rateMsgGlobal);
+                rateMsgGlobal);
 
         // Delete topic.
         // Trigger __change_events compaction.
@@ -3681,20 +3680,20 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             if ("Clean_Cache".equals(reloadPolicyType)) {
                 clearTopicPoliciesCache();
                 topicPoliciesOptional3 = pulsar.getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(tpName),
-                    LOCAL_ONLY).join();
+                        LOCAL_ONLY).join();
                 topicPoliciesOptionalGlobal3 = pulsar.getTopicPoliciesService()
-                    .getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
+                        .getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
             } else {
                 SystemTopicBasedTopicPoliciesService newService = new SystemTopicBasedTopicPoliciesService(pulsar);
                 topicPoliciesOptional3 = newService.getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
                 topicPoliciesOptionalGlobal3 = newService.getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY)
-                    .join();
+                        .join();
                 newService.close();
             }
             assertTrue(topicPoliciesOptional3.isEmpty()
-                || topicPoliciesOptional3.get().getDispatchRate() == null);
+                    || topicPoliciesOptional3.get().getDispatchRate() == null);
             assertTrue(topicPoliciesOptionalGlobal3.isEmpty()
-                || topicPoliciesOptionalGlobal3.get().getDispatchRate() == null);
+                    || topicPoliciesOptionalGlobal3.get().getDispatchRate() == null);
         });
     }
 
@@ -3707,7 +3706,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(tpName);
         admin.topics().createSubscription(tpName, subscriptionName, MessageId.earliest);
         PersistentTopic persistentTopic =
-            (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(tpName).get().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(tpName).get().get();
 
         // Set global policy.
         // Verify: policies was affected.
@@ -3724,13 +3723,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Awaitility.await().untilAsserted(() -> {
             Optional<TopicPolicies> topicPoliciesOptional = pulsar.getTopicPoliciesService()
-                .getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
+                    .getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
             Optional<TopicPolicies> topicPoliciesOptionalGlobal = pulsar.getTopicPoliciesService()
-                .getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
+                    .getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
             assertTrue(topicPoliciesOptional.isEmpty()
-                || topicPoliciesOptional.get().getDispatchRate() == null);
+                    || topicPoliciesOptional.get().getDispatchRate() == null);
             assertTrue(topicPoliciesOptionalGlobal.isEmpty()
-                || topicPoliciesOptionalGlobal.get().getDispatchRate() == null);
+                    || topicPoliciesOptionalGlobal.get().getDispatchRate() == null);
         });
 
         // cleanup.
@@ -3782,9 +3781,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // Verify: the topic-level policies will be removed after the topic is deleted.
         Awaitility.await().untilAsserted(() -> {
             Optional<TopicPolicies> topicPoliciesOptional = pulsar.getTopicPoliciesService()
-                .getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
+                    .getTopicPoliciesAsync(TopicName.get(tpName), LOCAL_ONLY).join();
             Optional<TopicPolicies> topicPoliciesOptionalGlobal = pulsar.getTopicPoliciesService()
-                .getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
+                    .getTopicPoliciesAsync(TopicName.get(tpName), GLOBAL_ONLY).join();
             assertTrue(topicPoliciesOptional.isEmpty());
             assertTrue(topicPoliciesOptionalGlobal.isEmpty());
         });
@@ -3796,19 +3795,19 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(topic).create().close();
 
         Awaitility.await().untilAsserted(() ->
-            Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                    TopicName.get(topic)))
-                .isNull());
+                Assertions.assertThat(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                                TopicName.get(topic)))
+                        .isNull());
         admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(1,
-            2));
+                2));
         SystemTopicBasedTopicPoliciesService topicPoliciesService =
-            (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
 
         // check global topic policies can be added correctly.
         Awaitility.await().untilAsserted(() -> assertNotNull(
-            TopicPolicyTestUtils.getGlobalTopicPolicies(topicPoliciesService, TopicName.get(topic))));
+                TopicPolicyTestUtils.getGlobalTopicPolicies(topicPoliciesService, TopicName.get(topic))));
         TopicPolicies topicPolicies = TopicPolicyTestUtils.getGlobalTopicPolicies(topicPoliciesService,
-            TopicName.get(topic));
+                TopicName.get(topic));
         assertNull(TopicPolicyTestUtils.getLocalTopicPolicies(topicPoliciesService, TopicName.get(topic)));
         assertEquals(topicPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 1);
         assertEquals(topicPolicies.getRetentionPolicies().getRetentionSizeInMB(), 2);
@@ -3817,9 +3816,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(3, 4));
         Awaitility.await().untilAsserted(() -> {
             TopicPolicies tempPolicies = TopicPolicyTestUtils.getGlobalTopicPolicies(topicPoliciesService,
-                TopicName.get(topic));
+                    TopicName.get(topic));
             assertNull(TopicPolicyTestUtils.getLocalTopicPolicies(topicPoliciesService,
-                (TopicName.get(topic))));
+                    (TopicName.get(topic))));
             assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
             assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
         });
@@ -3827,9 +3826,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         //Local topic policies and global topic policies can exist together.
         admin.topicPolicies().setRetention(topic, new RetentionPolicies(10, 20));
         Awaitility.await().untilAsserted(() -> assertNotNull(TopicPolicyTestUtils
-            .getTopicPolicies(topicPoliciesService, (TopicName.get(topic)))));
+                .getTopicPolicies(topicPoliciesService, (TopicName.get(topic)))));
         TopicPolicies tempPolicies = TopicPolicyTestUtils.getGlobalTopicPolicies(topicPoliciesService,
-            TopicName.get(topic));
+                TopicName.get(topic));
         assertEquals(tempPolicies.getRetentionPolicies().getRetentionTimeInMinutes(), 3);
         assertEquals(tempPolicies.getRetentionPolicies().getRetentionSizeInMB(), 4);
         tempPolicies = TopicPolicyTestUtils.getTopicPolicies(topicPoliciesService, (TopicName.get(topic)));
@@ -3839,7 +3838,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // check remove global topic policies can be removed correctly.
         admin.topicPolicies(true).removeRetention(topic);
         Awaitility.await().untilAsserted(() -> assertNull(TopicPolicyTestUtils
-            .getGlobalTopicPolicies(topicPoliciesService,
+                .getGlobalTopicPolicies(topicPoliciesService,
                 TopicName.get(topic)).getRetentionPolicies()));
 
     }
@@ -3853,13 +3852,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
-            .topic(persistenceTopic)
-            .enableChunking(true)
-            .enableBatching(false)
-            .create();
+                .topic(persistenceTopic)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(persistenceTopic, false)
-            .join().get();
+                .join().get();
 
         // send success when topic level maxMessage is not set.
         producer.send(new byte[2000]);
@@ -3885,27 +3884,27 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newProducer().topic(sourceTopic).create().close();
 
         Awaitility.await().untilAsserted(() ->
-            Assert.assertNull(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
-                TopicName.get(sourceTopic))));
+                Assert.assertNull(TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(),
+                        TopicName.get(sourceTopic))));
 
         //shadow topic must exist
-        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () ->
-            admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1)));
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, ()->
+                admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1)));
 
         //shadow topic must be persistent topic
-        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, () ->
-            admin.topics().setShadowTopics(sourceTopic,
-                List.of("non-persistent://" + myNamespace + "/shadow-test1-" + UUID.randomUUID())));
+        Assert.expectThrows(PulsarAdminException.PreconditionFailedException.class, ()->
+                admin.topics().setShadowTopics(sourceTopic,
+                        List.of("non-persistent://" + myNamespace + "/shadow-test1-" + UUID.randomUUID())));
 
         pulsarClient.newProducer().topic(shadowTopic1).create().close();
         pulsarClient.newProducer().topic(shadowTopic2).create().close();
 
         admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(admin.topics().getShadowTopics(sourceTopic),
-            List.of(shadowTopic1)));
+                List.of(shadowTopic1)));
         admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic1, shadowTopic2));
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(admin.topics().getShadowTopics(sourceTopic),
-            List.of(shadowTopic1, shadowTopic2)));
+                List.of(shadowTopic1, shadowTopic2)));
 
         admin.topics().removeShadowTopics(sourceTopic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getShadowTopics(sourceTopic)));
@@ -3917,12 +3916,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topicPolicies().setMaxConsumers(persistenceTopic, 5);
 
         Integer maxConsumerPerTopic = TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(),
-            TopicName.get(persistenceTopic), false).orElseThrow().getMaxConsumerPerTopic();
+                TopicName.get(persistenceTopic), false).orElseThrow().getMaxConsumerPerTopic();
 
         assertEquals(maxConsumerPerTopic, 5);
         admin.topics().delete(persistenceTopic, true);
         assertTrue(TopicPolicyTestUtils.getTopicPoliciesBypassCache(pulsar.getTopicPoliciesService(),
-            TopicName.get(persistenceTopic), false).isEmpty());
+                TopicName.get(persistenceTopic), false).isEmpty());
     }
 
     @Test
@@ -3932,10 +3931,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // just an update to trigger writes on __change_events
         admin.topicPolicies().setMaxConsumers(testTopic, 5);
         Awaitility.await()
-            .untilAsserted(() -> {
-                final PersistentTopicInternalStats newLac = admin.topics().getInternalStats(topicPolicyEventsTopic);
-                assertNotEquals(newLac, beforeLac);
-            });
+                .untilAsserted(() -> {
+                    final PersistentTopicInternalStats newLac = admin.topics().getInternalStats(topicPolicyEventsTopic);
+                    assertNotEquals(newLac, beforeLac);
+                });
     }
 
     @Test
@@ -3947,19 +3946,19 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         long tickTime = 1000;
         long maxDeliveryDelayInMillis = 5000;
         DelayedDeliveryPolicies policy = DelayedDeliveryPolicies.builder()
-            .active(isActive)
-            .tickTime(tickTime)
-            .maxDeliveryDelayInMillis(maxDeliveryDelayInMillis)
-            .build();
+                .active(isActive)
+                .tickTime(tickTime)
+                .maxDeliveryDelayInMillis(maxDeliveryDelayInMillis)
+                .build();
 
         admin.topicPolicies().setDelayedDeliveryPolicy(topic, policy);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getDelayedDeliveryPolicy(topic),
-                policy));
+                .untilAsserted(() -> Assert.assertEquals(admin.topicPolicies().getDelayedDeliveryPolicy(topic),
+                        policy));
 
         admin.topicPolicies().removeDelayedDeliveryPolicy(topic);
         Awaitility.await()
-            .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getDelayedDeliveryPolicy(topic)));
+                .untilAsserted(() -> Assert.assertNull(admin.topicPolicies().getDelayedDeliveryPolicy(topic)));
 
         admin.topics().delete(topic, true);
     }
@@ -3974,11 +3973,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // Inject an error that makes dispatch rate update fail.
         PersistentTopic persistentTopic =
-            (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
         final var subscriptions = persistentTopic.getSubscriptions();
         PersistentSubscription mockedSubscription = Mockito.mock(PersistentSubscription.class);
         Mockito.when(mockedSubscription.getDispatcher()).thenThrow(
-            new RuntimeException("Mocked error: getDispatcher"));
+                new RuntimeException("Mocked error: getDispatcher"));
         subscriptions.put("mockedSubscription", mockedSubscription);
 
         // Update namespace-level retention policies.
@@ -4012,14 +4011,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testTopicPoliciesGetSubscriptionPolicies() throws Exception {
         TopicPolicies topicPolicies = TopicPolicies.builder()
-            .maxProducerPerTopic(10).subscriptionPolicies(null).build();
+                .maxProducerPerTopic(10).subscriptionPolicies(null).build();
         Assert.assertNotNull(topicPolicies.getSubscriptionPolicies());
         Assert.assertEquals(topicPolicies.getMaxProducerPerTopic(), 10);
         Assert.assertTrue(topicPolicies.getSubscriptionPolicies().isEmpty());
         topicPolicies.getSubscriptionPolicies().computeIfAbsent("sub", k ->
-            new SubscriptionPolicies()).setDispatchRate(new DispatchRateImpl());
+                new SubscriptionPolicies()).setDispatchRate(new DispatchRateImpl());
         Assert.assertEquals(topicPolicies.getSubscriptionPolicies().get("sub").getDispatchRate()
-            .getDispatchThrottlingRateInByte(), 0);
+                .getDispatchThrottlingRateInByte(), 0);
     }
 
     @Test
@@ -4027,10 +4026,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://" + myNamespace + "/testSetSubRateWithNoSub";
         admin.topics().createNonPartitionedTopic(topic);
         admin.topicPolicies().setSubscriptionDispatchRate(topic, DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(10)
-            .dispatchThrottlingRateInByte(10)
-            .ratePeriodInSecond(10)
-            .build());
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(10)
+                .ratePeriodInSecond(10)
+                .build());
     }
 
     /**
@@ -4043,20 +4042,20 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final String nsPath = "/admin/v2/namespaces/" + ns + "/backlogQuota";
         final String topicPath = "/admin/v2/persistent/" + ns + "/test-set-backlog-quota/backlogQuota";
         admin.namespaces().setBacklogQuota(ns.toString(),
-            BacklogQuota.builder().limitTime(1).limitSize(1).retentionPolicy(
+                BacklogQuota.builder().limitTime(1).limitSize(1).retentionPolicy(
                 BacklogQuota.RetentionPolicy.consumer_backlog_eviction).build());
         BacklogQuota backlogQuotaWithNonPolicy = BacklogQuota.builder().limitTime(1).limitSize(1).build();
         JerseyClient httpClient = JerseyClientBuilder.createClient();
         // Namespace level.
         Response response1 = httpClient.target(hostAndPort).path(nsPath).request()
-            .header("Content-Type", "application/json")
-            .post(Entity.json(backlogQuotaWithNonPolicy));
+                .header("Content-Type", "application/json")
+                .post(Entity.json(backlogQuotaWithNonPolicy));
         assertEquals(response1.getStatus(), 400);
         assertTrue(resolveErrorReason(response1).contains("policy cannot be null"));
         // Topic level.
         Response response2 = httpClient.target(hostAndPort).path(topicPath).request()
-            .header("Content-Type", "application/json")
-            .post(Entity.json(backlogQuotaWithNonPolicy));
+                .header("Content-Type", "application/json")
+                .post(Entity.json(backlogQuotaWithNonPolicy));
         assertEquals(response2.getStatus(), 400);
         assertTrue(resolveErrorReason(response2).contains("policy cannot be null"));
         // cleanup.
@@ -4069,7 +4068,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         if (response.hasEntity() && response.getMediaType().isCompatible(MediaType.APPLICATION_JSON_TYPE)) {
             Object responseBody = response.getEntity();
             ObjectReader reader =
-                ObjectMapperFactory.getMapper().getObjectMapper().reader();
+                    ObjectMapperFactory.getMapper().getObjectMapper().reader();
             try {
                 errorData = reader.readValue((InputStream) responseBody, ErrorData.class);
             } catch (IOException e) {
@@ -4089,10 +4088,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, "sub1", MessageId.earliest);
         admin.topicPolicies().setSubscriptionDispatchRate(topic, "sub1", DispatchRate.builder()
-            .dispatchThrottlingRateInMsg(10)
-            .dispatchThrottlingRateInByte(10)
-            .ratePeriodInSecond(10)
-            .build());
+                .dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(10)
+                .ratePeriodInSecond(10)
+                .build());
     }
 
     @DataProvider
@@ -4126,7 +4125,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             Throwable actEx = FutureUtil.unwrapCompletionException(e);
             assertTrue(actEx.getMessage().contains("Can not remove local cluster from the local topic-level replication"
-                + " clusters policy"));
+                    + " clusters policy"));
         }
         // Can not use the global topic level policy when namespace-level replication is not enabled.
         try {
@@ -4141,10 +4140,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters(myNamespace, Collections.singleton(cluster));
         try {
             admin.topicPolicies(true)
-                .setReplicationClusters(topic, Arrays.asList("not-local-cluster", cluster)).get();
+                    .setReplicationClusters(topic, Arrays.asList("not-local-cluster", cluster)).get();
             fail("The policies at the global topic level will only be copied to the clusters included in the namespace"
-                + " level replication. Therefore, please do not set the policies at the global topic level to"
-                + " other clusters");
+                    + " level replication. Therefore, please do not set the policies at the global topic level to"
+                    + " other clusters");
         } catch (Exception e) {
             Throwable actEx = FutureUtil.unwrapCompletionException(e);
             assertTrue(actEx.getMessage().contains("namespace-level replication"));

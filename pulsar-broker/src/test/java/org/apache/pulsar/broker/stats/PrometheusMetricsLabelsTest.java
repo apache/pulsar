@@ -265,6 +265,7 @@ public class PrometheusMetricsLabelsTest extends BrokerTestBase {
         }
 
         assertFalse(teamLabelStillPresent, "Custom label 'team' should NOT appear in metrics after removal");
-        assertFalse(costCenterLabelStillPresent, "Custom label 'cost_center' should NOT appear in metrics after removal");
+        assertFalse(costCenterLabelStillPresent,
+            "Custom label 'cost_center' should NOT appear in metrics after removal");
     }
 }

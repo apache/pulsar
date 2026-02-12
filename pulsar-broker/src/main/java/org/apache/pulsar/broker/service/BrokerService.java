@@ -3468,7 +3468,7 @@ public class BrokerService implements Closeable {
 
     public PartitionedTopicMetadata fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(TopicName topicName) {
         return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .getPartitionedTopicMetadataFromCacheAndAsyncLoad(topicName).orElseGet(PartitionedTopicMetadata::new);
+                .getPartitionedTopicMetadataIfCacheAndAsyncLoad(topicName).orElseGet(PartitionedTopicMetadata::new);
     }
 
     public OrderedExecutor getTopicOrderedExecutor() {

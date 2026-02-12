@@ -2332,14 +2332,15 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetAllowedTopicPropertiesForMetricsAsync(Set<String> allowedKeys) {
-        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALL, PolicyOperation.WRITE)
-                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenAccept(__ -> pulsar().validateCustomMetricLabelKeys(allowedKeys))
-                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
-                    policies.allowed_topic_properties_for_metrics = allowedKeys != null
-                            ? new HashSet<>(allowedKeys) : new HashSet<>();
-                    return policies;
-                }));
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.CUSTOM_METRIC_LABELS,
+            PolicyOperation.WRITE)
+            .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+            .thenAccept(__ -> pulsar().validateCustomMetricLabelKeys(allowedKeys))
+            .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                policies.allowed_topic_properties_for_metrics = allowedKeys != null
+                    ? new HashSet<>(allowedKeys) : new HashSet<>();
+                return policies;
+            }));
     }
 
 
