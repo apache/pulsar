@@ -22,6 +22,8 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.FileInputStream;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import lombok.Getter;
 import lombok.SneakyThrows;
@@ -96,23 +98,8 @@ public class PulsarClientTool implements CommandHook {
 
     @ArgGroup(exclusive = false)
     protected RootParams rootParams = new RootParams();
-    boolean tlsAllowInsecureConnection;
-    boolean tlsEnableHostnameVerification;
 
-    String tlsKeyFilePath;
-    String tlsCertificateFilePath;
-
-
-    // for tls with keystore type config
-    boolean useKeyStoreTls;
-    String tlsTrustStoreType;
-    String tlsTrustStorePath;
-    String tlsTrustStorePassword;
-    String tlsKeyStoreType;
-    String tlsKeyStorePath;
-    String tlsKeyStorePassword;
-    String sslFactoryPlugin;
-    String sslFactoryPluginParams;
+    protected Properties properties;
 
     protected final CommandLine commander;
     protected CmdProduce produceCommand;
@@ -139,24 +126,6 @@ public class PulsarClientTool implements CommandHook {
         readCommand = new CmdRead();
         generateDocumentation = new CmdGenerateDocumentation();
 
-        this.tlsAllowInsecureConnection = Boolean
-                .parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
-        this.tlsEnableHostnameVerification = Boolean
-                .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "false"));
-        this.useKeyStoreTls = Boolean
-                .parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
-        this.tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
-        this.tlsTrustStorePath = properties.getProperty("tlsTrustStorePath");
-        this.tlsTrustStorePassword = properties.getProperty("tlsTrustStorePassword");
-
-        this.tlsKeyStoreType = properties.getProperty("tlsKeyStoreType", "JKS");
-        this.tlsKeyStorePath = properties.getProperty("tlsKeyStorePath");
-        this.tlsKeyStorePassword = properties.getProperty("tlsKeyStorePassword");
-        this.tlsKeyFilePath = properties.getProperty("tlsKeyFilePath");
-        this.tlsCertificateFilePath = properties.getProperty("tlsCertificateFilePath");
-        this.sslFactoryPlugin = properties.getProperty("sslFactoryPlugin");
-        this.sslFactoryPluginParams = properties.getProperty("sslFactoryPluginParams");
-
         pulsarClientPropertiesProvider = PulsarClientPropertiesProvider.create(properties);
         commander.setDefaultValueProvider(pulsarClientPropertiesProvider);
         commander.addSubcommand("produce", produceCommand);
@@ -170,7 +139,12 @@ public class PulsarClientTool implements CommandHook {
     }
 
     private int updateConfig() throws UnsupportedAuthenticationException {
-        ClientBuilder clientBuilder = PulsarClient.builder()
+        Map<String, Object> conf = new HashMap<>();
+        for (String key : properties.stringPropertyNames()) {
+            conf.put(key, properties.getProperty(key));
+        }
+
+        ClientBuilder clientBuilder = PulsarClient.builder().loadConf(conf)
                 .memoryLimit(rootParams.memoryLimit, SizeUnit.BYTES);
         Authentication authentication = null;
         if (isNotBlank(this.rootParams.authPluginClassName)) {
@@ -180,25 +154,8 @@ public class PulsarClientTool implements CommandHook {
         if (isNotBlank(this.rootParams.listenerName)) {
             clientBuilder.listenerName(this.rootParams.listenerName);
         }
-        clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
-        clientBuilder.enableTlsHostnameVerification(this.tlsEnableHostnameVerification);
         clientBuilder.serviceUrl(rootParams.serviceURL);
-
-        clientBuilder.tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath)
-                .tlsKeyFilePath(tlsKeyFilePath)
-                .tlsCertificateFilePath(tlsCertificateFilePath);
-
-        clientBuilder.useKeyStoreTls(useKeyStoreTls)
-                .tlsTrustStoreType(tlsTrustStoreType)
-                .tlsTrustStorePath(tlsTrustStorePath)
-                .tlsTrustStorePassword(tlsTrustStorePassword)
-                .tlsKeyStoreType(tlsKeyStoreType)
-                .tlsKeyStorePath(tlsKeyStorePath)
-                .tlsKeyStorePassword(tlsKeyStorePassword);
-
-        clientBuilder.sslFactoryPlugin(sslFactoryPlugin)
-                .sslFactoryPluginParams(sslFactoryPluginParams);
-
+        clientBuilder.tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath);
         if (isNotBlank(rootParams.proxyServiceURL)) {
             if (rootParams.proxyProtocol == null) {
                 commander.getErr().println("proxy-protocol must be provided with proxy-url");
