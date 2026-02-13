@@ -748,6 +748,61 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(timeOut = 30000)
+    public void testNotToRetainNullValue() throws Exception {
+        conf.setTopicCompactionRetainNullValue(false);
+        conf.setTopicCompactionRetainNullKey(true);
+        restartBroker();
+        FieldUtils.writeField(compactor, "topicCompactionRetainNullValue", false, true);
+        FieldUtils.writeField(compactor, "topicCompactionRetainNullKey", true, true);
+
+        String topic = "persistent://my-tenant/my-ns/not-to-retain-null-value";
+
+        // subscribe before sending anything, so that we get all messages
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+            .readCompacted(true).subscribe().close();
+
+        try (Producer<byte[]> producerNormal = pulsarClient.newProducer().topic(topic).create();
+                Producer<byte[]> producerBatch = pulsarClient.newProducer().topic(topic).maxPendingMessages(3)
+                .enableBatching(true).batchingMaxMessages(3)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
+
+            producerBatch.newMessage().key("key1").value("my-message-1".getBytes()).sendAsync();
+            producerBatch.newMessage().key("key1").send();
+
+            producerBatch.newMessage().key("key2").value("my-message-2".getBytes()).sendAsync();
+            producerBatch.newMessage().key("key2").value("my-message-3".getBytes()).sendAsync();
+            producerBatch.newMessage().value("my-message-4".getBytes()).send();
+
+            producerNormal.newMessage().value("my-message-5".getBytes()).send();
+        }
+
+        // compact the topic
+        compact(topic);
+
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("sub1").readCompacted(true).subscribe()) {
+
+                List<Pair<String, String>> result = new ArrayList<>();
+                while (true) {
+                    Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+                    if (message == null) {
+                        break;
+                    }
+                    result.add(Pair.of(message.getKey(),
+                            message.getData() == null ? null : new String(message.getData())));
+                }
+                List<Pair<String, String>> expectList;
+                if (getCompactor() instanceof StrategicTwoPhaseCompactor) {
+                    expectList = List.of(Pair.of("key2", "my-message-3"));
+                } else {
+                   expectList = List.of(Pair.of("key2", "my-message-3"),
+                           Pair.of(null, "my-message-4"),
+                           Pair.of(null, "my-message-5"));
+                }
+                assertEquals(result, expectList);
+        }
+    }
 
     @Test
     public void testEmptyPayloadDeletes() throws Exception {
