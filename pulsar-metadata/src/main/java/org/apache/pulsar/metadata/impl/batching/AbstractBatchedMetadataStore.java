@@ -18,20 +18,16 @@
  */
 package org.apache.pulsar.metadata.impl.batching;
 
-import com.google.common.util.concurrent.MoreExecutors;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -42,7 +38,6 @@ import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.metadata.impl.stats.BatchMetadataStoreStats;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
-import org.jspecify.annotations.Nullable;
 
 @Slf4j
 public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore {
@@ -51,6 +46,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final MessagePassingQueue<MetadataOp> readOps;
     private final MessagePassingQueue<MetadataOp> writeOps;
 
+    private final AtomicBoolean flushInProgress = new AtomicBoolean(false);
+
     private final boolean enabled;
     private final int maxDelayMillis;
     protected final int maxOperations;
@@ -58,12 +55,9 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private MetadataEventSynchronizer synchronizer;
     private final BatchMetadataStoreStats batchMetadataStoreStats;
     protected MetadataStoreBatchStrategy metadataStoreBatchStrategy;
-    @Nullable
-    private final ScheduledExecutorService flushExecutor;
 
     protected AbstractBatchedMetadataStore(MetadataStoreConfig conf) {
-        super(conf.getMetadataStoreName(), conf.getOpenTelemetry(), conf.getNodeSizeStats(),
-                conf.getNumSerDesThreads());
+        super(conf.getMetadataStoreName(), conf.getOpenTelemetry(), conf.getNodeSizeStats());
 
         this.enabled = conf.isBatchingEnabled();
         this.maxDelayMillis = conf.getBatchingMaxDelayMillis();
@@ -73,22 +67,18 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         if (enabled) {
             readOps = new MpscUnboundedArrayQueue<>(10_000);
             writeOps = new MpscUnboundedArrayQueue<>(10_000);
-            final var name = StringUtils.isNotBlank(conf.getMetadataStoreName()) ? conf.getMetadataStoreName()
-                    : getClass().getSimpleName();
-            flushExecutor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory(
-                    name + "-batch-flusher"));
-            scheduledTask = flushExecutor.scheduleAtFixedRate(this::flush, maxDelayMillis, maxDelayMillis,
-                    TimeUnit.MILLISECONDS);
+            scheduledTask =
+                    executor.scheduleAtFixedRate(this::flush, maxDelayMillis, maxDelayMillis, TimeUnit.MILLISECONDS);
         } else {
             scheduledTask = null;
             readOps = null;
             writeOps = null;
-            flushExecutor = null;
         }
 
         // update synchronizer and register sync listener
         updateMetadataEventSynchronizer(conf.getSynchronizer());
-        this.batchMetadataStoreStats = new BatchMetadataStoreStats(metadataStoreName);
+        this.batchMetadataStoreStats =
+                new BatchMetadataStoreStats(metadataStoreName, executor, conf.getOpenTelemetry());
         this.metadataStoreBatchStrategy = new DefaultMetadataStoreBatchStrategy(maxOperations, maxSize);
     }
 
@@ -106,13 +96,12 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
                 op.getFuture().completeExceptionally(ex);
             }
             scheduledTask.cancel(true);
-            MoreExecutors.shutdownAndAwaitTermination(flushExecutor, 10, TimeUnit.SECONDS);
         }
         super.close();
         this.batchMetadataStoreStats.close();
     }
 
-    private synchronized void flush() {
+    private void flush() {
         List<MetadataOp> currentBatch;
         if (!readOps.isEmpty()) {
             while (CollectionUtils.isNotEmpty(currentBatch = metadataStoreBatchStrategy.nextBatch(readOps))) {
@@ -124,6 +113,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
                 internalBatchOperation(currentBatch);
             }
         }
+
+        flushInProgress.set(false);
     }
 
     @Override
@@ -178,8 +169,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
                 internalBatchOperation(Collections.singletonList(op));
                 return;
             }
-            if (queue.size() > maxOperations) {
-                flush();
+            if (queue.size() > maxOperations && flushInProgress.compareAndSet(false, true)) {
+                executor.execute(this::flush);
             }
         } else {
             internalBatchOperation(Collections.singletonList(op));
@@ -203,8 +194,4 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     protected abstract void batchOperation(List<MetadataOp> ops);
-
-    protected final void safeExecuteCallbacks(Runnable runnable, List<MetadataOp> ops) {
-        safeExecuteCallback(runnable, t -> ops.forEach(op -> op.getFuture().completeExceptionally(t)));
-    }
 }
