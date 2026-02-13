@@ -3382,6 +3382,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean topicCompactionRetainNullKey = false;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether retain null-value message during topic compaction."
+    )
+    private boolean topicCompactionRetainNullValue = true;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Interval between checks to see if cluster is migrated and marks topic migrated "
                 + " if cluster is marked migrated. Disable with value 0. (Default disabled)."
