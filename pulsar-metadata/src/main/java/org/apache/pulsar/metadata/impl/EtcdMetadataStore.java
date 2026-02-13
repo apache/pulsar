@@ -188,7 +188,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
     @Override
     protected CompletableFuture<Boolean> existsFromStore(String path) {
         return kv.get(ByteSequence.from(path, StandardCharsets.UTF_8), EXISTS_GET_OPTION)
-                .thenApply(gr -> gr.getCount() == 1);
+                .thenApplyAsync(gr -> gr.getCount() == 1, executor);
     }
 
     @Override
@@ -204,8 +204,9 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
             }
             return super.storePut(parent, new byte[0], Optional.empty(), EnumSet.noneOf(CreateOption.class))
                     // Then create the unique key with the version added in the path
-                    .thenCompose(
-                            stat -> super.storePut(path + stat.getVersion(), data, optExpectedVersion, options));
+                    .thenComposeAsync(
+                            stat -> super.storePut(path + stat.getVersion(), data, optExpectedVersion, options),
+                            executor);
         }
     }
 
@@ -312,7 +313,9 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     }
                 } else {
                     log.warn("Failed to commit: {}", cause.getMessage());
-                    ops.forEach(o -> o.getFuture().completeExceptionally(ex));
+                    executor.execute(() -> {
+                        ops.forEach(o -> o.getFuture().completeExceptionally(ex));
+                    });
                 }
                 return null;
             });
@@ -323,7 +326,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
     private void handleBatchOperationResult(TxnResponse txnResponse,
                                             List<MetadataOp> ops) {
-        safeExecuteCallbacks(() -> {
+        executor.execute(() -> {
             if (!txnResponse.isSucceeded()) {
                 if (ops.size() > 1) {
                     // Retry individually
@@ -401,7 +404,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     }
                 }
             }
-        }, ops);
+        });
     }
 
     private synchronized CompletableFuture<Void> createLease(boolean retryOnFailure) {
@@ -441,7 +444,9 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
         if (retryOnFailure) {
             future.exceptionally(ex -> {
                 log.warn("Failed to create Etcd lease. Retrying later", ex);
-                scheduleDelayedTask(1, TimeUnit.SECONDS, () -> createLease(true));
+                executor.schedule(() -> {
+                    createLease(true);
+                }, 1, TimeUnit.SECONDS);
                 return null;
             });
         }

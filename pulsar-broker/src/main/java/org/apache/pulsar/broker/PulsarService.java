@@ -434,7 +434,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .synchronizer(synchronizer)
                         .openTelemetry(openTelemetry)
                         .nodeSizeStats(new DefaultMetadataNodeSizeStats())
-                        .numSerDesThreads(config.getMetadataStoreSerDesThreads())
                         .build());
     }
 
@@ -1306,7 +1305,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                         .openTelemetry(openTelemetry)
                         .nodeSizeStats(new DefaultMetadataNodeSizeStats())
-                        .numSerDesThreads(config.getMetadataStoreSerDesThreads())
                         .build());
     }
 
