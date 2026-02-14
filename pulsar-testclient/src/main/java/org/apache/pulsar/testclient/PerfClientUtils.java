@@ -75,10 +75,17 @@ public class PerfClientUtils {
                 .serviceUrl(arguments.serviceURL)
                 .connectionsPerBroker(arguments.maxConnections)
                 .ioThreads(arguments.ioThreads)
+                .useKeyStoreTls(arguments.useKeyStoreTls)
+                .tlsTrustStoreType(arguments.tlsTrustStoreType)
+                .tlsTrustStorePath(arguments.tlsTrustStorePath)
+                .tlsTrustStorePassword(arguments.tlsTrustStorePassword)
+                .tlsKeyStoreType(arguments.tlsKeyStoreType)
+                .tlsKeyStorePath(arguments.tlsKeyStorePath)
+                .tlsKeyStorePassword(arguments.tlsKeyStorePassword)
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS)
                 .enableBusyWait(arguments.enableBusyWait)
                 .listenerThreads(arguments.listenerThreads)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
                 .maxLookupRequests(arguments.maxLookupRequest)
                 .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol)
                 .openTelemetry(AutoConfiguredOpenTelemetrySdk.builder()
@@ -115,8 +122,15 @@ public class PerfClientUtils {
             throws PulsarClientException.UnsupportedAuthenticationException {
 
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+                .useKeyStoreTls(arguments.useKeyStoreTls)
+                .tlsTrustStoreType(arguments.tlsTrustStoreType)
+                .tlsTrustStorePath(arguments.tlsTrustStorePath)
+                .tlsTrustStorePassword(arguments.tlsTrustStorePassword)
+                .tlsKeyStoreType(arguments.tlsKeyStoreType)
+                .tlsKeyStorePath(arguments.tlsKeyStorePath)
+                .tlsKeyStorePassword(arguments.tlsKeyStorePassword)
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
+                .serviceHttpUrl(adminUrl);
 
         if (isNotBlank(arguments.authPluginClassName)) {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
