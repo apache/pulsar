@@ -130,7 +130,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         Assert.assertEquals(lookupResultSet.size(), 1);
     }
 
-    @Test(groups = "flaky")
+    @Test
     public void testForceDeletePartitionedTopicWithSub() throws Exception {
         final int numPartitions = 10;
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
@@ -202,8 +202,19 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
                     .getPartitionedTopicList("tenant-xyz/ns-abc")
                     .contains(topic));
         } else {
-            log.info("trying to create the topic again");
-            ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+            if (admin.topics().getList("tenant-xyz/ns-abc")
+                    .stream().noneMatch(t -> t.contains(topic))) {
+                log.info("trying to create the topic again");
+                try {
+                    ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+                } catch (Exception ce) {
+                    if (ce instanceof PulsarAdminException.ConflictException) {
+                        // pass
+                    }else {
+                        throw ce;
+                    }
+                }
+            }
         }
     }
 }
