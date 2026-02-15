@@ -1055,13 +1055,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             acquireSLANamespace();
 
-            // start function worker service if necessary
-            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
 
             // start packages management service if necessary
             if (config.isEnablePackagesManagement()) {
                 this.startPackagesManagementService();
             }
+
+            // start function worker service if necessary
+            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
 
             // Start the task to publish resource usage, if necessary
             this.resourceUsageTransportManager = DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
