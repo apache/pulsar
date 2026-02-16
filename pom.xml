@@ -177,8 +177,8 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.27.1</commons-compress.version>
 
-    <datastax.bookkeeper.version>4.17.1.0.0.4</datastax.bookkeeper.version>
-    <apache.bookkeeper.version>4.17.2</apache.bookkeeper.version>
+    <datastax.bookkeeper.version>4.17.1.0.0.5</datastax.bookkeeper.version>
+    <apache.bookkeeper.version>4.17.3</apache.bookkeeper.version>
     <zookeeper.version>3.9.4</zookeeper.version>
     <commons-cli.version>1.11.0</commons-cli.version>
     <commons-text.version>1.14.0</commons-text.version>
