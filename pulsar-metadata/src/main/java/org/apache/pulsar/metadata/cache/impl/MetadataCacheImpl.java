@@ -153,13 +153,6 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 return FutureUtils.value(Optional.<CacheGetResult<T>>empty());
             }
             final var res = optRes.get();
-            final var cachedFuture = objCache.getIfPresent(path);
-            if (cachedFuture != null && cachedFuture != future) {
-                if (log.isDebugEnabled()) {
-                    log.debug("A new read on key {} is in progress or completed, ignore this one", path);
-                }
-                return cachedFuture;
-            }
             try {
                 T obj = serde.deserialize(path, res.getValue(), res.getStat());
                 if (log.isDebugEnabled()) {
