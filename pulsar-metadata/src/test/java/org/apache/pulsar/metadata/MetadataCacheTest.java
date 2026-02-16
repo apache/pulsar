@@ -33,6 +33,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -69,6 +70,7 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
@@ -738,5 +740,19 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(backoff.next(), 0);
         assertTrue(backoff.isMandatoryStopMade());
         assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+    }
+
+    @Test
+    public void testRefreshRace() throws Exception {
+        @Cleanup final var store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build());
+        final var cache = store.getMetadataCache(String.class);
+        for (int i = 0; i < 500; i++) {
+            final var key = "/key" + i;
+            assertTrue(cache.get(key).get().isEmpty());
+
+            store.put(key, "\"value\"".getBytes(StandardCharsets.UTF_8), Optional.empty()).get();
+            Awaitility.await().pollInterval(Duration.ofMillis(1)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
+                assertTrue(cache.get(key).get().isPresent(), "Failed at key " + key));
+        }
     }
 }
