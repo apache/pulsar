@@ -1529,9 +1529,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction txn = getTxn();
         consumer.acknowledgeAsync(messageIds.get(1), txn).get();
 
-        // ack one message, the unack count is 4
+        // ack one message, the unack count is 5(unack count should remain unchanged here,
+        // as the redelivery operation has already deducted the entire batch's count from the unacknowledged total.
+        // Reducing it again would result in double counting)
         assertEquals(getPulsarServiceList().get(0).getBrokerService().getTopic(topic, false)
-                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages(), 4);
+                .get().get().getSubscription(subName).getConsumers().get(0).getUnackedMessages(), 5);
 
         // cleanup.
         txn.abort().get();

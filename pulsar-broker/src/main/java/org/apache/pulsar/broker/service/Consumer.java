@@ -569,7 +569,8 @@ public class Consumer {
     }
 
     //this method is for individual ack not carry the transaction
-    private CompletableFuture<Long> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
+    @VisibleForTesting
+    CompletableFuture<Long> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
         List<Pair<Consumer, Position>> positionsAcked = new ArrayList<>();
         long totalAckCount = 0;
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
@@ -634,7 +635,8 @@ public class Consumer {
 
 
     //this method is for individual ack carry the transaction
-    private CompletableFuture<Long> individualAckWithTransaction(CommandAck ack) {
+    @VisibleForTesting
+    CompletableFuture<Long> individualAckWithTransaction(CommandAck ack) {
         // Individual ack
         List<Pair<Consumer, MutablePair<Position, Integer>>> positionsAcked = new ArrayList<>();
         if (!isTransactionEnabled()) {
@@ -648,11 +650,6 @@ public class Consumer {
             Position position = AckSetStateUtil.createPositionWithAckSet(msgId.getLedgerId(), msgId.getEntryId(), null);
             ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize = getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(),
                     msgId.getEntryId());
-            if (ackOwnerConsumerAndBatchSize == null) {
-                log.warn("[{}] [{}] Acknowledging message at {} that was already deleted", subscription,
-                        consumerId, position);
-                continue;
-            }
             Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
             // acked count at least one
             long ackedCount;
@@ -677,6 +674,10 @@ public class Consumer {
                 AckSetStateUtil.getAckSetState(position).setAckSet(ackSets);
                 ackedCount = getAckedCountForTransactionAck(batchSize, ackSets);
             }
+            if (ackOwnerConsumerAndBatchSize.rightInt() <= 0) {
+                // this means this message does not exist,so we need to set ackedCount to 0
+                ackedCount = 0;
+            }
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 
@@ -686,7 +687,6 @@ public class Consumer {
 
             totalAckCount.add(ackedCount);
         }
-
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
                 ack.getTxnidLeastBits(), positionsAcked.stream().map(Pair::getRight).collect(Collectors.toList()));
         if (Subscription.isIndividualAckMode(subType)) {
@@ -795,6 +795,7 @@ public class Consumer {
                     }
                 }
             }
+            return ObjectIntPair.of(this, 0);
         }
         return ObjectIntPair.of(this, 1);
     }
@@ -1076,13 +1077,12 @@ public class Consumer {
     }
 
     /**
-     * first try to remove ack-position from the current_consumer's pendingAcks.
-     * if ack-message doesn't present into current_consumer's pendingAcks
-     *  a. try to remove from other connected subscribed consumers (It happens when client
-     * tries to acknowledge message through different consumer under the same subscription)
+     * Removes the specified position from the pending acknowledgments of the given consumer.
      *
-     *
-     * @param position
+     * @param ackOwnedConsumer the consumer that owns the pending acknowledgment to be removed
+     * @param position         the message position to be removed from the pending acknowledgments
+     * @return {@code true} if the position was successfully removed from the pending acknowledgments,
+     * {@code false} if the position was already removed or does not exist in the pending list
      */
     private boolean removePendingAcks(Consumer ackOwnedConsumer, Position position) {
         PendingAcksMap ownedConsumerPendingAcks = ackOwnedConsumer.getPendingAcks();
