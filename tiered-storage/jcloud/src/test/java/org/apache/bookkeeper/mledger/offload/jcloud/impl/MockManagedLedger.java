@@ -353,6 +353,11 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public CompletableFuture<Position> asyncFindPosition(long offset, Predicate<Entry> predicate) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
     public ManagedLedgerInterceptor getManagedLedgerInterceptor() {
         return null;
     }

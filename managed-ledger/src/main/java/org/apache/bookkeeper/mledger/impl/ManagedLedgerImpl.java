@@ -157,9 +157,12 @@ import org.slf4j.LoggerFactory;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final long MegaByte = 1024 * 1024;
+    private static final String FIRST_ENTRY_INDEX_PROPS = "firstEntryIndex";
 
     protected static final int AsyncOperationTimeoutSeconds = 30;
 
+    // Store the firstEntryIndex calculated during ledger creation for use in createComplete callback
+    private volatile Long pendingLedgerFirstEntryIndex;
     protected final BookKeeper bookKeeper;
     protected final String name;
     private final Map<String, byte[]> ledgerMetadata;
@@ -459,9 +462,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 if (State.Terminated.equals(state)) {
                                     currentLedger = lh;
                                 }
+                                LedgerInfo oldInfo = ledgers.get(id);
+                                List<MLDataFormats.KeyValue> oldProperties = oldInfo.getPropertiesList();
+                                Map<String, String> propertiesMap = new HashMap<>();
+                                oldProperties.forEach(kv -> propertiesMap.put(kv.getKey(), kv.getValue()));
                                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
                                         .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
                                         .setTimestamp(clock.millis()).build();
+                                info = updateLedgerProps(info, propertiesMap);
                                 ledgers.put(id, info);
                                 if (managedLedgerInterceptor != null) {
                                     managedLedgerInterceptor
@@ -631,9 +639,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                 }
 
-                LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
-                ledgers.put(lh.getId(), info);
-
+                if (managedLedgerInterceptor != null) {
+                    long firstEntryIndex = managedLedgerInterceptor.getIndex() + 1;
+                    Map<String, String> newPropertiesMap = new HashMap<>();
+                    newPropertiesMap.put(FIRST_ENTRY_INDEX_PROPS, Long.toString(firstEntryIndex));
+                    LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
+                    info = updateLedgerProps(info, newPropertiesMap);
+                    ledgers.put(lh.getId(), info);
+                    log.info("[{}] InitializeBookKeeper "
+                            + "Creating ledger with first entry index: {}", name, firstEntryIndex);
+                } else {
+                    LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
+                    ledgers.put(lh.getId(), info);
+                }
                 // Save it back to ensure all nodes exist
                 store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, storeLedgersCb);
             });
@@ -1741,9 +1759,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // Empty the list of pending requests and make all of them fail
             clearPendingAddEntries(status);
             lastLedgerCreationFailureTimestamp = clock.millis();
+            // Clear the stored firstEntryIndex on failure
+            pendingLedgerFirstEntryIndex = null;
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
             LedgerInfo newLedger = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
+            // Use the stored firstEntryIndex instead of recalculating
+            if (pendingLedgerFirstEntryIndex != null) {
+                Map<String, String> newPropertiesMap = new HashMap<>();
+                newPropertiesMap.put(FIRST_ENTRY_INDEX_PROPS, Long.toString(pendingLedgerFirstEntryIndex));
+                newLedger = updateLedgerProps(newLedger, newPropertiesMap);
+                log.info("[{}] CreateComplete Creating ledger with stored first entry index: {}",
+                        name, pendingLedgerFirstEntryIndex);
+                // Clear the stored value after use
+                pendingLedgerFirstEntryIndex = null;
+            }
+            final LedgerInfo createdNewLedger = newLedger;
+
             final MetaStoreCallback<Void> cb = new MetaStoreCallback<Void>() {
                 @Override
                 public void operationComplete(Void v, Stat stat) {
@@ -1753,7 +1785,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     ledgersStat = stat;
                     synchronized (ManagedLedgerImpl.this) {
                         LedgerHandle originalCurrentLedger = currentLedger;
-                        ledgers.put(lh.getId(), newLedger);
+                        ledgers.put(lh.getId(), createdNewLedger);
                         currentLedger = lh;
                         currentLedgerTimeoutTriggered = new AtomicBoolean();
                         currentLedgerEntries = 0;
@@ -1804,7 +1836,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             };
 
-            updateLedgersListAfterRollover(cb, newLedger);
+            updateLedgersListAfterRollover(cb, createdNewLedger);
         }
     }
 
@@ -1948,9 +1980,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             log.debug("[{}] Ledger has been closed id={} entries={}", name, lh.getId(), entriesInLedger);
         }
         if (entriesInLedger > 0) {
-            LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setEntries(entriesInLedger)
+            LedgerInfo oldInfo = ledgers.get(lh.getId());
+            LedgerInfo newLedgerInfo = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setEntries(entriesInLedger)
                     .setSize(lh.getLength()).setTimestamp(clock.millis()).build();
-            ledgers.put(lh.getId(), info);
+            if (oldInfo != null) {
+                List<MLDataFormats.KeyValue> oldProperties = oldInfo.getPropertiesList();
+                Map<String, String> newPropertiesMap = new HashMap<>();
+                oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+                newLedgerInfo = updateLedgerProps(newLedgerInfo, newPropertiesMap);
+            }
+            ledgers.put(lh.getId(), newLedgerInfo);
         } else {
             // The last ledger was empty, so we can discard it
             ledgers.remove(lh.getId());
@@ -2021,6 +2060,148 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    /**
+     * Optimized version of asyncFindPosition for offset-based searches.
+     * Uses getFirstEntryIndexFromLedgerMetadataAsync to skip ledgers where the target offset
+     * is smaller than the ledger's first entry index.
+     *
+     * @param offset the target offset to find
+     * @param predicate the predicate to test entries
+     * @return CompletableFuture<Position> the position where the predicate matches
+     */
+    public CompletableFuture<Position> asyncFindPosition(long offset, Predicate<Entry> predicate) {
+        CompletableFuture<Position> future = new CompletableFuture<>();
+
+        if (ledgers.isEmpty()) {
+            future.complete(null);
+            return future;
+        }
+
+        // Find the appropriate starting ledger by checking first entry indices
+        findStartingLedgerForOffset(offset)
+            .thenCompose(startLedgerId -> {
+                if (startLedgerId == null) {
+                    // No suitable ledger found, return first position
+                    Long firstLedgerId = ledgers.firstKey();
+                    Position startPosition = firstLedgerId == null ? null : PositionFactory.create(firstLedgerId, 0);
+                    return CompletableFuture.completedFuture(startPosition);
+                }
+
+                // Use the optimized starting position
+                Position startPosition = PositionFactory.create(startLedgerId, 0);
+                return asyncFindPosition(startPosition, predicate);
+            })
+            .whenComplete((position, throwable) -> {
+                if (throwable != null) {
+                    future.completeExceptionally(throwable);
+                } else {
+                    future.complete(position);
+                }
+            });
+
+        return future;
+    }
+
+    /**
+     * Find the first ledger where we should start searching based on the target offset.
+     */
+    private CompletableFuture<Long> findStartingLedgerForOffset(long targetOffset) {
+        CompletableFuture<Long> result = new CompletableFuture<>();
+
+        if (ledgers.isEmpty()) {
+            result.complete(null);
+            return result;
+        }
+
+        // Check ledgers in order to find the first one where firstEntryIndex <= targetOffset
+        checkLedgersRecursively(ledgers.navigableKeySet().iterator(), targetOffset, result);
+
+        return result;
+    }
+
+    private void checkLedgersRecursively(java.util.Iterator<Long> ledgerIterator,
+                                         long targetOffset,
+                                         CompletableFuture<Long> result) {
+        if (!ledgerIterator.hasNext()) {
+            // No suitable ledger found, use the last ledger
+            result.complete(ledgers.isEmpty() ? null : ledgers.lastKey());
+            return;
+        }
+
+        Long ledgerId = ledgerIterator.next();
+        // Check if this ledger has firstEntryIndex property
+        asyncGetLedgerProperty(ledgerId, FIRST_ENTRY_INDEX_PROPS)
+                .whenComplete((firstEntryIndexStr, throwable) -> {
+                    if (throwable != null) {
+                        log.warn("[{}] Failed to get first entry index for ledger {}, "
+                                        + "using this ledger as starting point",
+                                name, ledgerId, throwable);
+                        result.complete(ledgerId);
+                        return;
+                    }
+
+                    // If firstEntryIndex property is missing, we cannot optimize and should use this ledger
+                    if (firstEntryIndexStr == null || firstEntryIndexStr.isEmpty()) {
+                        log.debug("[{}] First entry index missing for ledger {}, using this ledger as starting point",
+                                name, ledgerId);
+                        result.complete(ledgerId);
+                        return;
+                    }
+
+                    long firstEntryIndex;
+                    try {
+                        firstEntryIndex = Long.parseLong(firstEntryIndexStr);
+                    } catch (NumberFormatException e) {
+                        log.warn("[{}] Invalid first entry index value '{}' for ledger {}, "
+                                        + "using this ledger as starting point",
+                                name, firstEntryIndexStr, ledgerId, e);
+                        result.complete(ledgerId);
+                        return;
+                    }
+
+                    if (firstEntryIndex <= targetOffset) {
+                        // Found a suitable ledger, but need to check if the next ledger might be better
+                        if (ledgerIterator.hasNext()) {
+                            Long nextLedgerId = ledgers.higherKey(ledgerId);
+                            if (nextLedgerId != null) {
+                                asyncGetLedgerProperty(nextLedgerId, FIRST_ENTRY_INDEX_PROPS)
+                                        .whenComplete((nextFirstIndexStr, nextThrowable) -> {
+                                            if (nextThrowable != null
+                                                    || nextFirstIndexStr == null
+                                                    || nextFirstIndexStr.isEmpty()) {
+                                                // Next ledger has no firstEntryIndex or error, use current ledger
+                                                result.complete(ledgerId);
+                                                return;
+                                            }
+
+                                            try {
+                                                long nextFirstIndex = Long.parseLong(nextFirstIndexStr);
+                                                if (nextFirstIndex > targetOffset) {
+                                                    // Next ledger is not suitable, use current ledger
+                                                    result.complete(ledgerId);
+                                                } else {
+                                                    // Continue checking next ledgers
+                                                    checkLedgersRecursively(ledgerIterator, targetOffset, result);
+                                                }
+                                            } catch (NumberFormatException e) {
+                                                // Next ledger has invalid firstEntryIndex, use current ledger
+                                                result.complete(ledgerId);
+                                            }
+                                        });
+                            } else {
+                                result.complete(ledgerId);
+                            }
+                        } else {
+                            result.complete(ledgerId);
+                        }
+                    } else {
+                        // This ledger's first entry is greater than target, use previous ledger if exists
+                        Long prevLedgerId = ledgers.lowerKey(ledgerId);
+                        result.complete(prevLedgerId != null ? prevLedgerId : ledgerId);
+                    }
+                });
+    }
+
     @Override
     public CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate) {
 
@@ -2031,6 +2212,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             future.complete(null);
             return future;
         }
+        return asyncFindPosition(startPosition, predicate);
+
+    }
+
+    private CompletableFuture<Position> asyncFindPosition(Position startPosition, Predicate<Entry> predicate) {
+        CompletableFuture<Position> future = new CompletableFuture<>();
         AsyncCallbacks.FindEntryCallback findEntryCallback = new AsyncCallbacks.FindEntryCallback() {
             @Override
             public void findEntryComplete(Position position, Object ctx) {
@@ -4583,6 +4770,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
         }
+        if (managedLedgerInterceptor != null) {
+            long firstEntryIndex = managedLedgerInterceptor.getIndex() + 1;
+            // Store the firstEntryIndex for use in createComplete callback
+            this.pendingLedgerFirstEntryIndex = firstEntryIndex;
+        }
         createdLedgerCustomMetadata = finalMetadata;
         try {
             bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
@@ -5166,5 +5358,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     boolean shouldCacheAddedEntry() {
         // Avoid caching entries if no cursor has been created
         return getActiveCursors().shouldCacheAddedEntry();
+    }
+
+    private LedgerInfo updateLedgerProps(LedgerInfo ledgerInfo,
+                                         Map<String, String> propertiesMap) {
+        List<MLDataFormats.KeyValue> oldProperties = ledgerInfo.getPropertiesList();
+        Map<String, String> newPropertiesMap = new HashMap<>();
+        oldProperties.forEach(kv -> newPropertiesMap.put(kv.getKey(), kv.getValue()));
+        newPropertiesMap.putAll(propertiesMap);
+        List<MLDataFormats.KeyValue> newProperties = newPropertiesMap.entrySet().stream()
+                .map(e -> MLDataFormats.KeyValue.newBuilder()
+                        .setKey(e.getKey()).setValue(e.getValue()).build()).toList();
+        return ledgerInfo.toBuilder().clearProperties().addAllProperties(newProperties).build();
     }
 }
