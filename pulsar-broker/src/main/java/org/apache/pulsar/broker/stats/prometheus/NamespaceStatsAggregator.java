@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics.BacklogQuotaMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusLabels;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
@@ -83,6 +84,7 @@ public class NamespaceStatsAggregator {
         Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
         LongAdder topicsCount = new LongAdder();
         Map<String, Long> localNamespaceTopicCount = new HashMap<>();
+        Map<String, Integer> localNamespaceTopicLimit = new HashMap<>();
         pulsar.getBrokerService().getMultiLayerTopicsMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
             topicsCount.reset();
@@ -105,6 +107,10 @@ public class NamespaceStatsAggregator {
                 }
             }));
 
+            if (localNamespaceTopicLimit.containsKey(namespace)) {
+                localNamespaceTopicLimit.put(namespace, getNamespaceTopicLimit(pulsar, namespace));
+            }
+
             if (!includeTopicMetrics) {
                 // Only include namespace level stats if we don't have the per-topic, otherwise we're going to
                 // report the same data twice, and it will make the aggregation difficult
@@ -118,12 +124,27 @@ public class NamespaceStatsAggregator {
             printTopicsCountStats(stream, localNamespaceTopicCount, cluster);
         }
 
+        printNamespaceTopicLimitStats(stream, localNamespaceTopicLimit, cluster);
+
         printBrokerStats(stream, cluster, brokerStats);
     }
 
     private static Optional<CompactorMXBean> getCompactorMXBean(PulsarService pulsar) {
         Compactor compactor = pulsar.getNullableCompactor();
         return Optional.ofNullable(compactor).map(Compactor::getStats);
+    }
+
+    private static int getNamespaceTopicLimit(PulsarService pulsar, String namespace) {
+        try {
+            return pulsar.getPulsarResources().getNamespaceResources()
+                    .getPoliciesAsync(NamespaceName.get(namespace))
+                    .thenApply(optoptPolicies -> optoptPolicies.map(p -> p.max_topics_per_namespace)
+                            .orElse(pulsar.getConfig().getMaxTopicsPerNamespace()))
+                    .get();
+        } catch (Exception e) {
+            log.warn("Failed to get namespace policies for namespace {}", namespace, e);
+            return pulsar.getConfig().getMaxTopicsPerNamespace();
+        }
     }
 
     private static void aggregateTopicStats(TopicStats stats, SubscriptionStatsImpl subscriptionStats,
@@ -391,7 +412,18 @@ public class NamespaceStatsAggregator {
     private static void printTopicsCountStats(PrometheusMetricStreams stream, Map<String, Long> namespaceTopicsCount,
                                               String cluster) {
         namespaceTopicsCount.forEach(
-                (ns, topicCount) -> writeMetric(stream, "pulsar_topics_count", topicCount, cluster, ns)
+                (ns, topicCount) -> {
+                    writeMetric(stream, "pulsar_topics_count", topicCount, cluster, ns);
+                }
+        );
+    }
+
+    private static void printNamespaceTopicLimitStats(PrometheusMetricStreams stream,
+                                                      Map<String, Integer> namespaceTopicsLimit, String cluster) {
+        namespaceTopicsLimit.forEach(
+                (ns, maxTopicsLimit) -> {
+                    writeMetric(stream, "pulsar_namespace_max_topics_limit", maxTopicsLimit, cluster, ns);
+                }
         );
     }
 
@@ -579,7 +611,6 @@ public class NamespaceStatsAggregator {
         String[] labels = new String[]{"cluster", cluster, "namespace", namespace};
         stream.writeSample(metricName, value, labels);
     }
-
 
 
     private static void writeReplicationStat(PrometheusMetricStreams stream, String metricName,
