@@ -80,17 +80,17 @@ public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageI
     protected boolean compactBatchMessage(String topic, Map<String, MessageId> latestForKey,
         RawMessage m, MessageMetadata metadata, MessageId id) {
         boolean deletedMessage = false;
+        boolean hasMessagesRetained = false;
         try {
-            int numMessagesInBatch = metadata.getNumMessagesInBatch();
-            int deleteCnt = 0;
             for (ImmutableTriple<MessageId, String, Integer> e : extractIdsAndKeysAndSizeFromBatch(
                 m, metadata)) {
                 if (e != null) {
                     if (e.getMiddle() == null) {
                         if (!topicCompactionRetainNullKey) {
                             // record delete null-key message event
-                            deleteCnt++;
                             mxBean.addCompactionRemovedEvent(topic);
+                        } else {
+                            hasMessagesRetained = true;
                         }
                         continue;
                     }
@@ -99,14 +99,14 @@ public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageI
                         if (old != null) {
                             mxBean.addCompactionRemovedEvent(topic);
                         }
+                        hasMessagesRetained = true;
                     } else {
                         latestForKey.remove(e.getMiddle());
-                        deleteCnt++;
                         mxBean.addCompactionRemovedEvent(topic);
                     }
                 }
             }
-            if (deleteCnt == numMessagesInBatch) {
+            if (!hasMessagesRetained) {
                 deletedMessage = true;
             }
         } catch (IOException ioe) {
