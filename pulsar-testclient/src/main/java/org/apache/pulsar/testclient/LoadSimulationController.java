@@ -20,6 +20,8 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.BUNDLE_DATA_BASE_PATH;
 import static org.apache.pulsar.broker.resources.LoadBalanceResources.RESOURCE_QUOTA_BASE_PATH;
+import com.google.common.util.concurrent.MoreExecutors;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -37,6 +39,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -57,13 +60,14 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+
 /**
  * This class provides a shell for the user to dictate how simulation clients should incur load.
  */
 @Command(name = "simulation-controller",
         description = "Provides a shell for the user to dictate how simulation clients should "
         + "incur load.")
-public class LoadSimulationController extends CmdBase{
+public class LoadSimulationController extends CmdBase implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
 
     // Input streams for each client to send commands through.
@@ -77,7 +81,13 @@ public class LoadSimulationController extends CmdBase{
 
     private Random random;
 
-    private static final ExecutorService threadPool = Executors.newCachedThreadPool();
+    private final ExecutorService threadPool =
+    Executors.newCachedThreadPool(new DefaultThreadFactory("LoadSimulationController"));
+
+    @Override
+    public void close() {
+        MoreExecutors.shutdownAndAwaitTermination(threadPool, 5, TimeUnit.SECONDS);
+    }
 
     // picocli arguments for starting a controller via main.
 
@@ -690,18 +700,22 @@ public class LoadSimulationController extends CmdBase{
      */
     @Override
     public void run() throws Exception {
-        random = new Random();
-        clients = this.clientHostNames.split(",");
-        final Socket[] sockets = new Socket[clients.length];
-        inputStreams = new DataInputStream[clients.length];
-        outputStreams = new DataOutputStream[clients.length];
-        log.info("Found {} clients:", clients.length);
-        for (int i = 0; i < clients.length; ++i) {
-            sockets[i] = new Socket(clients[i], clientPort);
-            inputStreams[i] = new DataInputStream(sockets[i].getInputStream());
-            outputStreams[i] = new DataOutputStream(sockets[i].getOutputStream());
-            log.info("Connected to {}", clients[i]);
+        try {
+            random = new Random();
+            clients = this.clientHostNames.split(",");
+            final Socket[] sockets = new Socket[clients.length];
+            inputStreams = new DataInputStream[clients.length];
+            outputStreams = new DataOutputStream[clients.length];
+            log.info("Found {} clients:", clients.length);
+            for (int i = 0; i < clients.length; ++i) {
+                sockets[i] = new Socket(clients[i], clientPort);
+                inputStreams[i] = new DataInputStream(sockets[i].getInputStream());
+                outputStreams[i] = new DataOutputStream(sockets[i].getOutputStream());
+                log.info("Connected to {}", clients[i]);
+            }
+            start();
+        } finally {
+            close();
         }
-        start();
     }
 }
