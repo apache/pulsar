@@ -21,7 +21,10 @@ package org.apache.pulsar.io.jdbc;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
+import java.sql.Date;
 import java.sql.PreparedStatement;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -55,6 +58,55 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
     public List<ColumnId> getColumnsForUpsert() {
         throw new IllegalStateException("UPSERT not supported");
     }
+
+    /**
+     * Handles datetime value binding for database-specific date, time, and timestamp types.
+     * <p>
+     * This method is called when an input value is of datetime or timestamp value.
+     * Implementations should convert the timestamp or datetime value to the appropriate
+     * database-specific type or revert to primitive types. The statement is passed into the function to handle
+     * field conversion and set it accordingly.
+     * </p>
+     * <p>
+     * The method is invoked automatically by {@link #setColumnValue(PreparedStatement, int, Object, String)}
+     * when it detects an input of type java.sql.Timestamp, java.sql.Date, or java.sql.Time.
+     * </p>
+     * <p>
+     * <strong>Implementation Guidelines:</strong>
+     * <ul>
+     * <li>If not available, convert timestamp values to long. Alternatively use setTimestamp on the
+     * PreparedStatement</li>
+     * <li>If not available, convert date values to int. Alternatively use setDate on the
+     * PreparedStatement</li>
+     * <li>If not available, convert time values to int or long. Alternatively user setTime on the
+     * PreparedStatement</li>
+     * <li>Provide informative logs and wrap JDBC exceptions with contextual information</li>
+     * </ul>
+     * </p>
+     * <p>
+     * <strong>Example Usage:</strong>
+     * <pre>{@code
+     * // For PostgreSQL implementation of timestamps:
+     * if (value instanceof Timestamp) {
+     *    statement.setTimestamp(index, (Timestamp) value);
+     * }
+     * }</pre>
+     * </p>
+     *
+     * @param statement     the PreparedStatement to bind the value to
+     * @param index         the parameter index (1-based) in the PreparedStatement
+     * @param value         the value to be bound
+     * @param targetSqlType the target SQL type name for the column (e.g., "Timestamp", "Date", "Time")
+     * @return true if the value is handled, false otherwise. Databases that do not support datetime will return
+     * false and the value will be bound to its original type.
+     * @throws Exception if conversion or binding fails, including:
+     *                   <ul>
+     *                   <li>{@code SQLException} for JDBC creation or binding failures</li>
+     *                   </ul>
+     * @see #setColumnValue(PreparedStatement, int, Object, String)
+     */
+    protected abstract boolean handleDateTime(PreparedStatement statement, int index, Object value,
+                                             String targetSqlType) throws Exception;
 
     /**
      * Handles array value binding for database-specific array types.
@@ -200,7 +252,13 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             if (schemaType.isPrimitive()) {
                 throw new UnsupportedOperationException("Primitive schema is not supported: " + schemaType);
             }
-            recordValueGetter = (key) -> ((GenericRecord) record).getField(key);
+            if (schemaType == SchemaType.AVRO || schemaType == SchemaType.JSON) {
+                Map<String, Object> data = new HashMap<>();
+                fillKeyValueSchemaData(message.getSchema(), record, data);
+                recordValueGetter = (k) -> data.get(k);
+            } else {
+                recordValueGetter = (key) -> ((GenericRecord) record).getField(key);
+            }
         }
         String action = message.getProperties().get(ACTION_PROPERTY);
         if (action != null) {
@@ -298,6 +356,16 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             return;
         }
 
+        if (value instanceof Timestamp || value instanceof Date || value instanceof Time) {
+            String typeName = value instanceof Timestamp ? "Timestamp"
+                           : value instanceof Date ? "Date"
+                           : "Time";
+            boolean timestampConverted = handleDateTime(statement, index, value, typeName);
+            if (timestampConverted) {
+                return;
+            }
+        }
+
         if (value instanceof Integer) {
             statement.setInt(index, (Integer) value);
         } else if (value instanceof Long) {
@@ -344,8 +412,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             return null;
         }
         if (fn.isContainerNode()) {
-            throw new IllegalArgumentException("Container nodes are not supported, the JSON must contains only "
-                    + "first level fields.");
+            return fn.toString();
         } else if (fn.isBoolean()) {
             return fn.asBoolean();
         } else if (fn.isFloatingPointNumber()) {
@@ -447,7 +514,34 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
         switch (schema.getType()) {
             case NULL:
             case INT:
+                if (schema.getLogicalType() != null) {
+                    String logicalTypeName = schema.getLogicalType().getName();
+                    int time = (Integer) avroValue;
+                    if ("time-millis".equals(logicalTypeName)) {
+                        return new Time(time);
+                    } else if ("date".equals(logicalTypeName)) {
+                        return new Date(time);
+                    } else {
+                        throw new UnsupportedOperationException("Unsupported avro integer logical type="
+                                + logicalTypeName + " for value field schema " + schema.getName());
+                    }
+                }
             case LONG:
+                if (schema.getLogicalType() != null) {
+                    String logicalTypeName = schema.getLogicalType().getName();
+                    long timestamp = (Long) avroValue;
+                    if ("timestamp-millis".equals(logicalTypeName)
+                            || "timestamp-micros".equals(logicalTypeName)
+                            || "local-timestamp-millis".equals(logicalTypeName)
+                            || "local-timestamp-micros".equals(logicalTypeName)) {
+                        return new Timestamp(timestamp);
+                    } else if ("time-micros".equals(logicalTypeName)) {
+                        return new Time(timestamp);
+                    } else {
+                        throw new UnsupportedOperationException("Unsupported avro long logical type="
+                                + logicalTypeName + " for value field schema " + schema.getName());
+                    }
+                }
             case DOUBLE:
             case FLOAT:
             case BOOLEAN:
