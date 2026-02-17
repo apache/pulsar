@@ -1307,6 +1307,17 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         return cursor;
     }
 
+    @Override
+    protected Optional<DelayedDeliveryTracker> getDelayedDeliveryTrackerOptional() {
+        return delayedDeliveryTracker;
+    }
+
+    @Override
+    public void markDeletePositionMoveForward() {
+        // Centralized propagation to topic-level tracker
+        propagateMarkDeleteToTopicDelayedTracker();
+    }
+
     protected int getStickyKeyHash(Entry entry) {
         return StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
     }

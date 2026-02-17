@@ -376,7 +376,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = """
             Class name of the factory that implements the delayed deliver tracker.
             If value is "org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory", \
-            will create bucket based delayed message index tracker.
+            will create bucket based delayed message index tracker.\n
+            If value is "org.apache.pulsar.broker.delayed.InMemoryTopicDelayedDeliveryTrackerFactory", \
+            will create topic-level in-memory delayed message index tracker.\n
+            If value is "org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTrackerFactory", \
+            will create in-memory delayed delivery tracker (per existing implementation).
             """)
     private String delayedDeliveryTrackerFactoryClassName = "org.apache.pulsar.broker.delayed"
             + ".InMemoryDelayedDeliveryTrackerFactory";
@@ -422,6 +426,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "Default is 50,000. Setting the lookahead window to 0 will disable the "
             + "logic to handle fixed delays in messages in a different way.")
     private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            Minimum interval (in milliseconds) between prune attempts within the in-memory topic-level delayed
+            delivery tracker. Set to a positive value to override the default adaptive interval based on
+            delayedDeliveryTickTimeMillis. Set to 0 or a negative value to use the default adaptive interval.
+            """)
+    private long delayedDeliveryPruneMinIntervalMillis = 0;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The ratio [0.0, 1.0] of subscriptions that need to be eligible for delivery in order to trigger an
+            opportunistic prune in the in-memory topic-level delayed delivery tracker. For example, 0.5 means prune
+            when at least half of the subscriptions are eligible. Default is 0.5.
+            """)
+    private double delayedDeliveryPruneEligibleRatio = 0.5;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            Idle timeout (in milliseconds) for the topic-level in-memory delayed delivery tracker manager. When the
+            last subscription is unregistered, the manager will be removed from the factory cache after this idle
+            timeout, provided no new subscriptions have been registered in the meantime. Set to 0 to remove
+            immediately (default).
+            """)
+    private long delayedDeliveryTopicManagerIdleMillis = 0;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
             The max allowed delay for delayed delivery (in milliseconds). If the broker receives a message which \
