@@ -566,9 +566,18 @@ public class ProxyService implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
 
     protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
-        LookupProxyHandler newLookupProxyHandler = new DefaultLookupProxyHandler();
-        newLookupProxyHandler.initialize(this, proxyConnection);
-        return newLookupProxyHandler;
+        try {
+            LookupProxyHandler newLookupProxyHandler =
+                    org.apache.pulsar.common.util.Reflections.createInstance(
+                            proxyConfig.getLookupHandler(),
+                            LookupProxyHandler.class,
+                            Thread.currentThread().getContextClassLoader());
+            newLookupProxyHandler.initialize(this, proxyConnection);
+            return newLookupProxyHandler;
+        } catch (Exception e) {
+            LOG.error("Failed to initialize lookup proxy handler", e);
+            throw new RuntimeException("Failed to initialize lookup proxy handler", e);
+        }
     }
 
     // Shutdown the event loop.
