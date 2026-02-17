@@ -17,7 +17,6 @@
  * under the License.
  */
 package org.apache.pulsar.client.impl;
-
 import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -47,20 +46,15 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
 @Slf4j
-public class TableViewImpl<T> implements TableView<T> {
-
+abstract class AbstractTableView<T, V> implements TableView<V> {
     private final TableViewConfigurationData conf;
-
-    private final ConcurrentMap<String, T> data;
-    private final Map<String, T> immutableData;
-
+    private final ConcurrentMap<String, V> data;
+    private final Map<String, V> immutableData;
     private final CompletableFuture<Reader<T>> reader;
-
-    private final List<BiConsumer<String, T>> listeners;
+    private final List<BiConsumer<String, V>> listeners;
     private final ReentrantLock listenersMutex;
     private final boolean isPersistentTopic;
-    private TopicCompactionStrategy<T> compactionStrategy;
-
+    private TopicCompactionStrategy<V> compactionStrategy;
     /**
      * Store the refresh tasks. When read to the position recording in the right map,
      * then remove the position in the right map. If the right map is empty, complete the future in the left.
@@ -68,7 +62,6 @@ public class TableViewImpl<T> implements TableView<T> {
      * It will only be completed exceptionally when no more messages can be read.
      */
     private final ConcurrentHashMap<CompletableFuture<Void>, Map<String, TopicMessageId>> pendingRefreshRequests;
-
     /**
      * This map stored the read position of each partition. It is used for the following case:
      * <p>
@@ -80,8 +73,7 @@ public class TableViewImpl<T> implements TableView<T> {
      * </p>
      */
     private final ConcurrentHashMap<String, MessageId> lastReadPositions;
-
-    TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
+    AbstractTableView(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         this.conf = conf;
         this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
         this.data = new ConcurrentHashMap<>();
@@ -102,18 +94,14 @@ public class TableViewImpl<T> implements TableView<T> {
         if (isPersistentTopic) {
             readerBuilder.readCompacted(true);
         }
-
         CryptoKeyReader cryptoKeyReader = conf.getCryptoKeyReader();
         if (cryptoKeyReader != null) {
             readerBuilder.cryptoKeyReader(cryptoKeyReader);
         }
-
         readerBuilder.cryptoFailureAction(conf.getCryptoFailureAction());
-
         this.reader = readerBuilder.createAsync();
     }
-
-    CompletableFuture<TableView<T>> start() {
+    CompletableFuture<TableView<V>> start() {
         return reader.thenCompose((reader) -> {
             if (!isPersistentTopic) {
                 readTailMessages(reader);
@@ -123,49 +111,40 @@ public class TableViewImpl<T> implements TableView<T> {
                     .thenRun(() -> readTailMessages(reader));
         }).thenApply(__ -> this);
     }
-
     @Override
     public int size() {
         return data.size();
     }
-
     @Override
     public boolean isEmpty() {
         return data.isEmpty();
     }
-
     @Override
     public boolean containsKey(String key) {
         return data.containsKey(key);
     }
-
     @Override
-    public T get(String key) {
+    public V get(String key) {
        return data.get(key);
     }
-
     @Override
-    public Set<Map.Entry<String, T>> entrySet() {
+    public Set<Map.Entry<String, V>> entrySet() {
        return immutableData.entrySet();
     }
-
     @Override
     public Set<String> keySet() {
         return immutableData.keySet();
     }
-
     @Override
-    public Collection<T> values() {
+    public Collection<V> values() {
         return immutableData.values();
     }
-
     @Override
-    public void forEach(BiConsumer<String, T> action) {
+    public void forEach(BiConsumer<String, V> action) {
         data.forEach(action);
     }
-
     @Override
-    public void listen(BiConsumer<String, T> action) {
+    public void listen(BiConsumer<String, V> action) {
         try {
             listenersMutex.lock();
             listeners.add(action);
@@ -173,27 +152,22 @@ public class TableViewImpl<T> implements TableView<T> {
             listenersMutex.unlock();
         }
     }
-
     @Override
-    public void forEachAndListen(BiConsumer<String, T> action) {
+    public void forEachAndListen(BiConsumer<String, V> action) {
         // Ensure we iterate over all the existing entry _and_ start the listening from the exact next message
         try {
             listenersMutex.lock();
-
             // Execute the action over existing entries
             forEach(action);
-
             listeners.add(action);
         } finally {
             listenersMutex.unlock();
         }
     }
-
     @Override
     public CompletableFuture<Void> closeAsync() {
         return reader.thenCompose(Reader::closeAsync);
     }
-
     @Override
     public void close() throws PulsarClientException {
         try {
@@ -202,23 +176,21 @@ public class TableViewImpl<T> implements TableView<T> {
             throw PulsarClientException.unwrap(e);
         }
     }
-
     private void handleMessage(Message<T> msg) {
         lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
         try {
             if (msg.hasKey()) {
                 String key = msg.getKey();
-                T cur = msg.size() > 0 ? msg.getValue() : null;
+                V cur = getValueIfPresent(msg);
                 if (log.isDebugEnabled()) {
                     log.debug("Applying message from topic {}. key={} value={}",
                             conf.getTopicName(),
                             key,
                             cur);
                 }
-
                 boolean update = true;
                 if (compactionStrategy != null) {
-                    T prev = data.get(key);
+                    V prev = data.get(key);
                     update = !compactionStrategy.shouldKeepLeft(prev, cur);
                     if (!update) {
                         log.info("Skipped the message from topic {}. key={} value={} prev={}",
@@ -229,7 +201,6 @@ public class TableViewImpl<T> implements TableView<T> {
                         compactionStrategy.handleSkippedMessage(key, cur);
                     }
                 }
-
                 if (update) {
                     try {
                         listenersMutex.lock();
@@ -238,8 +209,7 @@ public class TableViewImpl<T> implements TableView<T> {
                         } else {
                             data.put(key, cur);
                         }
-
-                        for (BiConsumer<String, T> listener : listeners) {
+                        for (BiConsumer<String, V> listener : listeners) {
                             try {
                                 listener.accept(key, cur);
                             } catch (Throwable t) {
@@ -253,10 +223,16 @@ public class TableViewImpl<T> implements TableView<T> {
             }
             checkAllFreshTask(msg);
         } finally {
-            msg.release();
+            maybeReleaseMessage(msg);
         }
     }
-
+    protected void maybeReleaseMessage(Message<T> msg) {
+        msg.release();
+    }
+    @SuppressWarnings("unchecked")
+    protected V getValueIfPresent(Message<T> msg) {
+        return msg.size() > 0 ? (V) msg.getValue() : null;
+    }
     @Override
     public CompletableFuture<Void> refreshAsync() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -281,7 +257,6 @@ public class TableViewImpl<T> implements TableView<T> {
         });
         return completableFuture;
     }
-
     @Override
     public void refresh() throws PulsarClientException {
         try {
@@ -290,11 +265,9 @@ public class TableViewImpl<T> implements TableView<T> {
             throw PulsarClientException.unwrap(e);
         }
     }
-
     private CompletableFuture<Void> readAllExistingMessages(Reader<T> reader) {
         long startTime = System.nanoTime();
         AtomicLong messagesRead = new AtomicLong();
-
         CompletableFuture<Void> future = new CompletableFuture<>();
         getLastMessageIdOfNonEmptyTopics(reader).thenAccept(lastMessageIds -> {
             if (lastMessageIds.isEmpty()) {
@@ -308,7 +281,6 @@ public class TableViewImpl<T> implements TableView<T> {
         });
         return future;
     }
-
     private CompletableFuture<Map<String, TopicMessageId>> getLastMessageIdOfNonEmptyTopics(Reader<T> reader) {
         return reader.getLastMessageIdsAsync().thenApply(lastMessageIds -> {
             Map<String, TopicMessageId> lastMessageIdMap = new ConcurrentHashMap<>();
@@ -320,7 +292,6 @@ public class TableViewImpl<T> implements TableView<T> {
             return lastMessageIdMap;
         });
     }
-
     private void filterReceivedMessages(Map<String, TopicMessageId> lastMessageIds) {
         // The `lastMessageIds` and `readPositions` is concurrency-safe data types.
         lastMessageIds.forEach((partition, lastMessageId) -> {
@@ -330,7 +301,6 @@ public class TableViewImpl<T> implements TableView<T> {
             }
         });
     }
-
     private boolean checkFreshTask(Map<String, TopicMessageId> maxMessageIds, CompletableFuture<Void> future,
                                    MessageId messageId, String topicName) {
         // The message received from multi-consumer/multi-reader is processed to TopicMessageImpl.
@@ -347,7 +317,6 @@ public class TableViewImpl<T> implements TableView<T> {
             return false;
         }
     }
-
     private void checkAllFreshTask(Message<T> msg) {
         pendingRefreshRequests.forEach((future, maxMessageIds) -> {
             String topicName = msg.getTopicName();
@@ -357,7 +326,6 @@ public class TableViewImpl<T> implements TableView<T> {
             }
         });
     }
-
     private void readAllExistingMessages(Reader<T> reader, CompletableFuture<Void> future, long startTime,
                                          AtomicLong messagesRead, Map<String, TopicMessageId> maxMessageIds) {
         reader.hasMessageAvailableAsync()
@@ -396,7 +364,6 @@ public class TableViewImpl<T> implements TableView<T> {
                    }
                 });
     }
-
     private void readTailMessages(Reader<T> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {

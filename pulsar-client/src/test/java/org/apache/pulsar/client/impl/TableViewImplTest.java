@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TableView;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -48,7 +47,7 @@ public class TableViewImplTest {
     @Test
     public void testTableViewImpl() {
         data.setCryptoKeyReader(mock(CryptoKeyReader.class));
-        TableView tableView = new TableViewImpl(client, Schema.BYTES, data);
+        org.apache.pulsar.client.api.TableView tableView = new TableView(client, Schema.BYTES, data);
 
         assertNotNull(tableView);
     }
