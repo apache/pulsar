@@ -513,6 +513,9 @@ public class PulsarAdminToolTest {
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(() -> admin);
 
+        namespaces.run(split("load myprop/clust/ns1 -b 0x80000000_0xffffffff"));
+        verify(mockNamespaces).lookupNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", false, false);
+
         namespaces.run(split("unload myprop/clust/ns1 -b 0x80000000_0xffffffff"));
         verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", null);
 
