@@ -191,6 +191,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -297,6 +298,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
+
+    /**
+     * Counter for counting delayed messages exceed TTL time.
+     */
+    private final Rate ttlExceededDelayedMessagesRate = new Rate();
 
     private volatile PersistentTopicAttributes persistentTopicAttributes = null;
     private static final AtomicReferenceFieldUpdater<PersistentTopic, PersistentTopicAttributes>
@@ -642,7 +648,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
-        if (isExceedMaximumDeliveryDelay(headersAndPayload)) {
+        if (isExceedMaximumDeliveryDelay(headersAndPayload, publishContext)) {
             publishContext.completed(
                     new NotAllowedException(
                             String.format("Exceeds max allowed delivery delay of %s milliseconds",
@@ -650,6 +656,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
+        // Count exceed ttl delayed messages.
+        checkDelayedMessageExceededTTL(headersAndPayload, publishContext);
 
         MessageDeduplication.MessageDupStatus status =
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
@@ -2771,6 +2779,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         this.addEntryLatencyStatsUsec.refresh();
         NamespaceStats.add(this.addEntryLatencyStatsUsec.getBuckets(), nsStats.addLatencyBucket);
         this.addEntryLatencyStatsUsec.reset();
+        this.ttlExceededDelayedMessagesRate.calculateRate();
     }
 
     public double getLastUpdatedAvgPublishRateInMsg() {
@@ -2844,6 +2853,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
         stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
         stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
+        stats.ttlExceededDelayedMessages = getTtlExceededDelayedMessages();
 
         replicators.forEach((cluster, replicator) -> {
             ReplicatorStatsImpl replicatorStats = replicator.computeStats();
@@ -4594,7 +4604,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
-        if (isExceedMaximumDeliveryDelay(headersAndPayload)) {
+        if (isExceedMaximumDeliveryDelay(headersAndPayload, publishContext)) {
             publishContext.completed(
                     new NotAllowedException(
                             String.format("Exceeds max allowed delivery delay of %s milliseconds",
@@ -4602,6 +4612,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             decrementPendingWriteOpsAndCheck();
             return;
         }
+        // Count exceed ttl delayed messages.
+        checkDelayedMessageExceededTTL(headersAndPayload, publishContext);
 
         MessageDeduplication.MessageDupStatus status =
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
@@ -4834,18 +4846,32 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return Optional.ofNullable(shadowSourceTopic);
     }
 
-    protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload) {
+    protected boolean isExceedMaximumDeliveryDelay(ByteBuf headersAndPayload, PublishContext publishContext) {
         if (isDelayedDeliveryEnabled()) {
             long maxDeliveryDelayInMs = getDelayedDeliveryMaxDelayInMillis();
             if (maxDeliveryDelayInMs > 0) {
-                headersAndPayload.markReaderIndex();
-                MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
-                headersAndPayload.resetReaderIndex();
-                return msgMetadata.hasDeliverAtTime()
-                        && msgMetadata.getDeliverAtTime() - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
+                MessageMetadata msgMetadata = publishContext.peekMessageMetadata(headersAndPayload);
+                if (msgMetadata == null || !msgMetadata.hasDeliverAtTime()) {
+                    return false;
+                }
+                return msgMetadata.getDeliverAtTime() - msgMetadata.getPublishTime() > maxDeliveryDelayInMs;
             }
         }
         return false;
+    }
+
+    private void checkDelayedMessageExceededTTL(ByteBuf headersAndPayload, PublishContext publishContext) {
+        if (isDelayedDeliveryEnabled()) {
+            Integer messageTTLInSeconds = topicPolicies.getMessageTTLInSeconds().get();
+            if (messageTTLInSeconds != null && messageTTLInSeconds > 0) {
+                MessageMetadata msgMetadata = publishContext.peekMessageMetadata(headersAndPayload);
+                if (msgMetadata != null && msgMetadata.hasDeliverAtTime()) {
+                    if (msgMetadata.getDeliverAtTime() >= (messageTTLInSeconds * 1000L) + System.currentTimeMillis()) {
+                        this.incrementTtlExceededDelayedMessages();
+                    }
+                }
+            }
+        }
     }
 
     @Override
@@ -4916,5 +4942,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         return future;
+    }
+
+    public void incrementTtlExceededDelayedMessages() {
+        this.ttlExceededDelayedMessagesRate.recordEvent();
+    }
+
+    public long getTtlExceededDelayedMessages() {
+        return this.ttlExceededDelayedMessagesRate.getTotalCount();
     }
 }
