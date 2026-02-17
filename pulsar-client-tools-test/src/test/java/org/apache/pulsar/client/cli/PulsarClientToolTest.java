@@ -29,7 +29,6 @@ import java.time.Duration;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -37,12 +36,13 @@ import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -68,7 +68,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     @Test
-    public void testInitialization() throws InterruptedException, ExecutionException, PulsarAdminException {
+    public void testInitialization() throws Exception {
 
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
@@ -81,7 +81,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         admin.tenants().createTenant(tenantName, tenantInfo);
 
         String topicName = String.format("persistent://%s/ns/topic-scale-ns-0/topic", tenantName);
-
+        createNamespaceIfAbsent(TopicName.get(topicName));
         int numberOfMessages = 10;
 
         @Cleanup("shutdownNow")
@@ -123,7 +123,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("non-durable");
-        admin.topics().createNonPartitionedTopic(topicName);
+        createNamespaceIfAbsent(TopicName.get(topicName));
 
         int numberOfMessages = 10;
         @Cleanup("shutdownNow")
@@ -215,6 +215,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("reader");
+        createNamespaceIfAbsent(TopicName.get(topicName));
         admin.topics().createNonPartitionedTopic(topicName);
 
         int numberOfMessages = 10;
@@ -258,6 +259,22 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
     }
 
+    private void createNamespaceIfAbsent(TopicName topicName) throws Exception {
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        NamespaceName namespaceName = topicName.getNamespaceObject();
+        if (!namespaceName.isV2()) {
+            tenantInfo.getAllowedClusters().add(namespaceName.getCluster());
+        }
+        if (!admin.tenants().getTenants().contains(topicName.getTenant())) {
+            admin.tenants().createTenant(topicName.getTenant(), tenantInfo);
+        }
+        try {
+            admin.namespaces().createNamespace(topicName.getNamespace());
+        } catch (Exception ex) {
+            // Namespace may already exist.
+        }
+    }
+
     @Test(timeOut = 20000)
     public void testEncryption() throws Exception {
         Properties properties = new Properties();
@@ -265,6 +282,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("encryption");
+        createNamespaceIfAbsent(TopicName.get(topicName));
         admin.topics().createNonPartitionedTopic(topicName);
         final String keyUriBase = "file:../pulsar-broker/src/test/resources/certificate/";
         final int numberOfMessages = 10;
@@ -432,8 +450,9 @@ public class PulsarClientToolTest extends BrokerTestBase {
         }
     }
 
-    private static String getTopicWithRandomSuffix(String localNameBase) {
-        return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
+    private String getTopicWithRandomSuffix(String localNameBase) {
+        return String.format("persistent://prop/%s/test/%s-%s", pulsar.getConfiguration().getClusterName(),
+                localNameBase, UUID.randomUUID().toString());
     }
 
 

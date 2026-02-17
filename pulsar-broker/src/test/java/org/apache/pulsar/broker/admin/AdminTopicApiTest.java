@@ -68,6 +68,7 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
+        admin.namespaces().createNamespace("my-property/test/my-ns");
     }
 
     @Override

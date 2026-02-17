@@ -700,4 +700,37 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
             assertEquals(getLookupRequestPermits(), lookupPermitsBefore);
         });
     }
+
+    @Test
+    public void testTopicNameContainsSpecialCharacters() throws Exception {
+        // V1 topic create failed because v1 namespace does not exist.
+        String topic = "persistent://public/default/tp/h";
+        try {
+            admin1.topics().createNonPartitionedTopic(topic);
+            fail("Expected a namespace not found ex, since the v1 namespace does not exist");
+        } catch (PulsarAdminException.NotFoundException ex) {
+            assertTrue(ex.getMessage().contains("does not exist"));
+        }
+        try {
+            admin1.topics().createPartitionedTopic(topic, 1);
+            fail("Expected a namespace not found ex, since the v1 namespace does not exist");
+        } catch (PulsarAdminException.NotFoundException ex) {
+            assertTrue(ex.getMessage().contains("does not exist"));
+        }
+
+        // The topic can be created after v1 namespace was created
+        String v1Ns = "public/" + pulsar1.getConfig().getClusterName() + "/default";
+        admin1.namespaces().createNamespace(v1Ns);
+        String topic2 = "persistent://" + v1Ns + "/h";
+        String topic3 = "persistent://" + v1Ns + "/h2";
+        admin1.topics().createNonPartitionedTopic(topic2);
+        admin1.topics().createPartitionedTopic(topic3, 1);
+        List<String> v1Topics = admin1.topics().getList(v1Ns);
+        assertTrue(v1Topics.contains(topic2));
+        assertTrue(v1Topics.contains(topic3 + "-partition-0"));
+
+        // cleanup.
+        admin1.topics().delete(topic2, false);
+        admin1.topics().deletePartitionedTopic(topic3, false);
+    }
 }

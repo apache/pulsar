@@ -902,6 +902,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         final String topicOne = "not-partitioned-topic";
         final String topic2 = "persistent://" + tenant + "/" + cluster + "/" + namespace + "/partitioned-topic";
 
+        admin.namespaces().createNamespace(tenant + "/" + cluster + "/" + namespace);
+
         // persistent, non-partitioned v1/topic
         final String topic1 = TopicName.get(
                 TopicDomain.persistent.value(),

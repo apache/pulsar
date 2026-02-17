@@ -34,6 +34,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
@@ -89,6 +92,26 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    private void createNamespaceIfAbsent(TopicName topicName) throws Exception {
+        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
+        NamespaceName namespaceName = topicName.getNamespaceObject();
+        if (!namespaceName.isV2()) {
+            if (!admin.clusters().getClusters().contains(namespaceName.getCluster())) {
+                admin.clusters().createCluster(namespaceName.getCluster(), ClusterData.builder()
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
+            }
+            tenantInfo.getAllowedClusters().add(namespaceName.getCluster());
+        }
+        if (!admin.tenants().getTenants().contains(topicName.getTenant())) {
+            admin.tenants().createTenant(topicName.getTenant(), tenantInfo);
+        }
+        try {
+            admin.namespaces().createNamespace(topicName.getNamespace());
+        } catch (Exception ex) {
+            // Namespace may already exist.
+        }
+    }
+
     @Test
     public void testProducer() throws Exception {
         @Cleanup
@@ -96,6 +119,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
+        admin.topics().createPartitionedTopic("persistent://sample/test/local/topic", 2);
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
                 .topic("persistent://sample/test/local/topic").create();
 
@@ -112,14 +136,17 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
-        admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
+        String topicName = "persistent://sample/" + pulsar.getConfig().getClusterName()
+                + "/local/partitioned-topic";
+        createNamespaceIfAbsent(TopicName.get(topicName));
+        admin.topics().createPartitionedTopic(topicName, 2);
 
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/partitioned-topic")
+                .topic(topicName)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {

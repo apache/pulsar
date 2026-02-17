@@ -143,7 +143,7 @@ public class Namespaces extends NamespacesBase {
                           @ApiParam(value = "Include system topic")
                           @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_TOPICS)
+        validateNamespaceOperationAsync(NamespaceName.get(property, cluster, namespace), NamespaceOperation.GET_TOPICS)
                 // Validate that namespace exists, throws 404 if it doesn't exist
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies -> internalGetListOfTopics(response, policies, mode))
@@ -292,7 +292,8 @@ public class Namespaces extends NamespacesBase {
                                @PathParam("cluster") String cluster,
                                @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_PERMISSION)
+        validateNamespaceOperationAsync(NamespaceName.get(property, cluster, namespace),
+                NamespaceOperation.GET_PERMISSION)
                 .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(namespaceName))
                 .thenAccept(permissions -> response.resume(permissions))
                 .exceptionally(ex -> {
@@ -858,7 +859,7 @@ public class Namespaces extends NamespacesBase {
                               @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         validatePoliciesReadOnlyAccessAsync()
-                .thenCompose(__ -> validateNamespaceOperationAsync(NamespaceName.get(property, namespace),
+                .thenCompose(__ -> validateNamespaceOperationAsync(NamespaceName.get(property, cluster, namespace),
                         NamespaceOperation.GET_BUNDLE))
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(policies -> asyncResponse.resume(policies.bundles))
