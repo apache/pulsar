@@ -30,6 +30,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -224,33 +226,48 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             if (null != statsProvider) {
                 statsProvider.stop();
             }
-            try {
-                if (null != defaultBkClient) {
-                    defaultBkClient.close();
-                }
-            } catch (RejectedExecutionException ree) {
-                // when closing bookkeeper client, it will error outs all pending metadata operations.
-                // those callbacks of those operations will be triggered, and submitted to the scheduler
-                // in managed ledger factory. but the managed ledger factory has been shutdown before,
-                // so `RejectedExecutionException` will be thrown there. we can safely ignore this exception.
-                //
-                // an alternative solution is to close bookkeeper client before shutting down managed ledger
-                // factory, however that might be introducing more unknowns.
-                log.warn("Encountered exceptions on closing bookkeeper client", ree);
+            
+            // Add timeout for BookKeeper client closing
+            if (null != defaultBkClient) {
+                closeBookKeeperClientWithTimeout(defaultBkClient, "default", 30);
             }
+            
+            // Close all cached BookKeeper clients
             bkEnsemblePolicyToBkClientMap.synchronous().asMap().forEach((policy, bk) -> {
-                try {
-                    if (bk != null) {
-                        bk.close();
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to close bookkeeper-client for policy {}", policy, e);
+                if (bk != null) {
+                    closeBookKeeperClientWithTimeout(bk, "policy-" + policy, 30);
                 }
             });
+            
             log.info("Closed BookKeeper client");
         } catch (Exception e) {
             log.warn(e.getMessage(), e);
             throw new IOException(e);
+        }
+    }
+    
+    private void closeBookKeeperClientWithTimeout(BookKeeper bk, String name, int timeoutSeconds) {
+        try {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    bk.close();
+                } catch (Exception e) {
+                    throw new CompletionException(e);
+                }
+            }).get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            log.error("Timeout closing BookKeeper client: {}, forcing shutdown", name);
+            // Force close related resources
+            try {
+                // Try to directly close BookKeeper's scheduler and event loop
+                bk.getScheduler().shutdownNow();
+            } catch (Exception ex) {
+                log.warn("Failed to force shutdown BookKeeper scheduler", ex);
+            }
+        } catch (RejectedExecutionException ree) {
+            log.warn("Encountered exceptions on closing bookkeeper client", ree);
+        } catch (Exception e) {
+            log.error("Failed to close BookKeeper client: {}", name, e);
         }
     }
 }
