@@ -3554,6 +3554,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean exposeBundlesMetricsInPrometheus = false;
 
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Enable or disable custom topic metric labels feature. "
+                    + "If enabled, custom metric labels can be set on topics and will be exposed in metrics. "
+                    + "Default is false."
+    )
+    private boolean exposeCustomTopicMetricLabelsEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "A comma-separated list of Topic Property keys that are allowed to be exposed as metrics."
+            + "Only keys explicitly listed here will be exposed."
+    )
+    private Set<String> allowedTopicPropertiesForMetrics = new HashSet<>();
+
     /**** --- Functions. --- ****/
     @FieldContext(
         category = CATEGORY_FUNCTIONS,

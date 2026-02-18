@@ -54,6 +54,7 @@ public enum PolicyName {
     SHADOW_TOPIC,
     DISPATCHER_PAUSE_ON_ACK_STATE_PERSISTENT,
     ALLOW_CLUSTERS,
+    ALLOW_CUSTOM_METRIC_LABELS,
 
     // cluster policies
     CLUSTER_MIGRATION,
