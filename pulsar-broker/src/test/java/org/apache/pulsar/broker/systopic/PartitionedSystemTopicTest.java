@@ -80,6 +80,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         conf.setAllowAutoTopicCreation(false);
         conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         conf.setDefaultNumPartitions(PARTITIONS);
+        conf.setSystemTopicDefaultNumPartitions(PARTITIONS);
         conf.setManagedLedgerMaxEntriesPerLedger(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
         conf.setTransactionCoordinatorEnabled(true);

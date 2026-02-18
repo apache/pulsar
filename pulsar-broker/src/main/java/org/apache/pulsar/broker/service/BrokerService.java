@@ -3729,9 +3729,11 @@ public class BrokerService implements Closeable {
     public int getDefaultNumPartitions(final TopicName topicName, final Optional<Policies> policies) {
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
-            return autoTopicCreationOverride.getDefaultNumPartitions();
+            return isSystemTopic(topicName) ? autoTopicCreationOverride.getSystemTopicDefaultNumPartitions()
+                    : autoTopicCreationOverride.getDefaultNumPartitions();
         } else {
-            return pulsar.getConfiguration().getDefaultNumPartitions();
+            return isSystemTopic(topicName) ? pulsar.getConfiguration().getSystemTopicDefaultNumPartitions()
+                    : pulsar.getConfiguration().getDefaultNumPartitions();
         }
     }
 

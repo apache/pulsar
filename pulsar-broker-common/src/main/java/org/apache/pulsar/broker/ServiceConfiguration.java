@@ -2384,6 +2384,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int defaultNumPartitions = 1;
     @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            dynamic = true,
+            doc = "Default number of partitions for the system topics."
+    )
+    private int systemTopicDefaultNumPartitions = 1;
+    @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "The class of the managed ledger storage"
     )
