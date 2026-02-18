@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -190,5 +191,13 @@ public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseT
         Message messageTx = (Message) consumer.receiveAsync().get();
         Assert.assertEquals(new String(messageTx.getData(), StandardCharsets.UTF_8), messageContentTx);
         consumer.acknowledge(messageTx);
+    }
+
+    protected void waitForTopicListWatcherStarted(Consumer<?> consumer) {
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<TopicListWatcher> completableFuture =
+                    ((PatternMultiTopicsConsumerImpl) consumer).getWatcherFuture();
+            assertThat(completableFuture).describedAs("Topic list watcher future should be done").isDone();
+        });
     }
 }

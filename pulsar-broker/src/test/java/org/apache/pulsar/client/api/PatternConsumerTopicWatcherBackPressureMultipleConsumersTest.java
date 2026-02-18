@@ -23,7 +23,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -32,13 +31,13 @@ import java.util.stream.IntStream;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PatternMultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TopicListWatcher;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -136,15 +135,11 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
 
             List<Consumer<String>> consumers = consumerFutures.stream().map(CompletableFuture::join).toList();
 
-            List<? extends CompletableFuture<?>> watcherFutures = consumers.stream().map(consumer -> {
-                try {
-                    CompletableFuture<?> watcherFuture = consumer instanceof PatternMultiTopicsConsumerImpl
-                            ? (CompletableFuture<?>) FieldUtils.readField(consumer, "watcherFuture", true) : null;
-                    return watcherFuture;
-                } catch (IllegalAccessException e) {
-                    throw new RuntimeException(e);
-                }
-            }).filter(Objects::nonNull).toList();
+            List<CompletableFuture<TopicListWatcher>> watcherFutures =
+                    consumers.stream().filter(PatternMultiTopicsConsumerImpl.class::isInstance)
+                            .map(PatternMultiTopicsConsumerImpl.class::cast)
+                            .map(c -> (CompletableFuture<TopicListWatcher>) c.getWatcherFuture())
+                            .toList();
 
             // wait for all watcher futures to complete
             FutureUtil.waitForAll(watcherFutures).get(60, TimeUnit.SECONDS);

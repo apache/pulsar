@@ -29,7 +29,8 @@
     </parent>
 
     <properties>
-        <solr.version>9.8.0</solr.version>
+        <solr.version>9.10.1</solr.version>
+        <jetty10.version>10.0.24</jetty10.version>
     </properties>
 
     <artifactId>pulsar-io-solr</artifactId>

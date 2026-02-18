@@ -193,6 +193,39 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
         assertEquals(receivedUuidList1, Arrays.asList("A-0", "B-0", "B-1", "A-1"));
     }
 
+    // Issue #25220
+    @Test
+    public void testNegativeAckChunkedMessage() throws Exception {
+        final String topic = "persistent://my-property/my-ns/test-negative-acknowledge-with-chunk";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .enableChunking(true)
+                .chunkMaxMessageSize(1024) // 1KB max - forces chunking for larger messages
+                .create();
+        String longMessage = "X".repeat(10 * 1024);
+        producer.sendAsync(longMessage);
+        producer.flush();
+
+        // negative ack the first message
+        consumer.negativeAcknowledge(consumer.receive());
+
+        // now 2s has passed, the first message should be redelivered 1s later.
+        Message<String> msg1 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg1);
+    }
+
     private Producer<String> createProducer(String topic) throws PulsarClientException {
         return pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)

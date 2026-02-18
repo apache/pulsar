@@ -109,7 +109,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 
 @UtilityClass
 @Slf4j
@@ -194,6 +194,7 @@ public class Commands {
         flags.setSupportsBrokerEntryMetadata(true);
         flags.setSupportsPartialProducer(true);
         flags.setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
+        flags.setSupportsReplDedupByLidAndEid(true);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
@@ -247,6 +248,15 @@ public class Commands {
     public static ByteBuf newConnect(String authMethodName, AuthData authData, int protocolVersion, String libVersion,
                                      String targetBroker, String originalPrincipal, AuthData originalAuthData,
                                      String originalAuthMethod, String proxyVersion, FeatureFlags featureFlags) {
+        BaseCommand cmd = newConnectWithoutSerialize(authMethodName, authData, protocolVersion, libVersion,
+                targetBroker, originalPrincipal, originalAuthData, originalAuthMethod, proxyVersion, featureFlags);
+        return serializeWithSize(cmd);
+    }
+
+    public static BaseCommand newConnectWithoutSerialize(String authMethodName, AuthData authData,
+                                    int protocolVersion, String libVersion,
+                                    String targetBroker, String originalPrincipal, AuthData originalAuthData,
+                                    String originalAuthMethod, String proxyVersion, FeatureFlags featureFlags) {
         BaseCommand cmd = localCmd(Type.CONNECT);
         CommandConnect connect = cmd.setConnect()
                 .setClientVersion(libVersion != null ? libVersion : "Pulsar Client")
@@ -283,7 +293,7 @@ public class Commands {
             setFeatureFlags(connect.setFeatureFlags());
         }
 
-        return serializeWithSize(cmd);
+        return cmd;
     }
 
     public static ByteBuf newConnected(int clientProtocoVersion,  boolean supportsTopicWatchers) {
@@ -309,6 +319,8 @@ public class Commands {
 
         connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
         connected.setFeatureFlags().setSupportsGetPartitionedMetadataWithoutAutoCreation(true);
+        connected.setFeatureFlags().setSupportsReplDedupByLidAndEid(true);
+        connected.setFeatureFlags().setSupportsTopicWatcherReconcile(supportsTopicWatchers);
         return cmd;
     }
 
@@ -1009,7 +1021,7 @@ public class Commands {
     }
 
     public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
-            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+            List<Triple<Long, Long, ConcurrentBitSet>> entries) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
         cmd.getAck()
                 .setConsumerId(consumerId)
@@ -1019,14 +1031,14 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
+    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSet>> entries) {
         BaseCommand cmd = localCmd(Type.ACK);
         CommandAck ack = cmd.setAck();
         int entriesCount = entries.size();
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
             long entryId = entries.get(i).getMiddle();
-            ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
+            ConcurrentBitSet bitSet = entries.get(i).getRight();
             MessageIdData msgId = ack.addMessageId()
                     .setLedgerId(ledgerId)
                     .setEntryId(entryId);
@@ -1035,7 +1047,6 @@ public class Commands {
                 for (int j = 0; j < ackSet.length; j++) {
                     msgId.addAckSet(ackSet[j]);
                 }
-                bitSet.recycle();
             }
         }
 
@@ -1043,7 +1054,7 @@ public class Commands {
     }
 
     public static ByteBuf newMultiMessageAck(long consumerId,
-                                             List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries,
+                                             List<Triple<Long, Long, ConcurrentBitSet>> entries,
                                              long requestId) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
         cmd.getAck()

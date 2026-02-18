@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
@@ -108,6 +109,15 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     @Override
     public void initialize(PulsarClient client) {
         this.pulsarClient = (PulsarClientImpl) client;
+
+        // Initialize currentControlledConfiguration from client's current configuration
+        // to avoid unnecessary reconnection on first scheduled check when the configuration hasn't changed
+        ClientConfigurationData conf = pulsarClient.getConfiguration();
+        this.currentControlledConfiguration = new ControlledConfiguration();
+        this.currentControlledConfiguration.setServiceUrl(currentPulsarServiceUrl);
+        this.currentControlledConfiguration.setTlsTrustCertsFilePath(conf.getTlsTrustCertsFilePath());
+        this.currentControlledConfiguration.setAuthPluginClassName(conf.getAuthPluginClassName());
+        this.currentControlledConfiguration.setAuthParamsString(conf.getAuthParams());
 
         // start to check service url every 30 seconds
         this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
