@@ -38,8 +38,11 @@ import static org.testng.AssertJUnit.assertNotNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.URL;
@@ -1608,6 +1611,11 @@ public class PulsarAdminToolTest {
         Lookup mockLookup = mock(Lookup.class);
         when(admin.lookups()).thenReturn(mockLookup);
 
+        String statsString = "{}";
+        InputStream stream = new ByteArrayInputStream(statsString.getBytes(StandardCharsets.UTF_8));
+        when(mockTopics.streamInternalStats("persistent://myprop/clust/ns1/ds1", false)).thenReturn(stream);
+        when(mockTopics.streamPartitionedInternalStats("persistent://myprop/clust/ns1/ds1")).thenReturn(stream);
+
         CmdTopics cmdTopics = new CmdTopics(() -> admin);
 
         cmdTopics.run(split("truncate persistent://myprop/clust/ns1/ds1"));
@@ -1656,6 +1664,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
+
+        cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1 --streaming"));
+        verify(mockTopics).streamInternalStats("persistent://myprop/clust/ns1/ds1", false);
 
         cmdTopics.run(split("get-backlog-quotas persistent://myprop/clust/ns1/ds1 -ap"));
         verify(mockTopics).getBacklogQuotaMap("persistent://myprop/clust/ns1/ds1", true);
@@ -1708,6 +1719,9 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
+
+        cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1 --streaming"));
+        verify(mockTopics).streamPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("clear-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).skipAllMessages("persistent://myprop/clust/ns1/ds1", "sub1");
