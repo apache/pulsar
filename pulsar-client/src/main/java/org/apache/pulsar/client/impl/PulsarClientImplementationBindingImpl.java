@@ -29,6 +29,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Date;
 import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
@@ -91,7 +92,27 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 @SuppressWarnings("unchecked")
 public final class PulsarClientImplementationBindingImpl implements PulsarClientImplementationBinding {
-
+    private volatile WeakHashMap<Class<?>,Schema> AvroCache = new WeakHashMap<>();
+    private volatile WeakHashMap<Class<?>,Schema> ProtobufCache = new WeakHashMap<>();
+    private volatile WeakHashMap<Class<?>,Schema> JsonCache = new WeakHashMap<>();
+    public Schema getAvroSchemaCache(Class clazz){
+        return AvroCache.get(clazz);
+    }
+    public Schema getProtobufSchemaCache(Class clazz){
+        return ProtobufCache.get(clazz);
+    }
+    public Schema getJsonSchemaCache(Class clazz){
+        return JsonCache.get(clazz);
+    }
+    public void setAvroSchemaCache(Class clazz,Schema schema){
+        AvroCache.put(clazz,schema);
+    }
+    public void setProtobufSchemaCache(Class clazz,Schema schema){
+        ProtobufCache.put(clazz,schema);
+    }
+    public void setJsonSchemaCache(Class clazz,Schema schema){
+        JsonCache.put(clazz,schema);
+    }
     public <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder() {
         return new SchemaDefinitionBuilderImpl();
     }

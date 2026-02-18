@@ -56,6 +56,12 @@ import org.apache.pulsar.common.schema.SchemaType;
  * The actual implementation of this class is loaded from {@link DefaultImplementation}.
  */
 public interface PulsarClientImplementationBinding {
+    public Schema getAvroSchemaCache(Class clazz);
+    public Schema getProtobufSchemaCache(Class clazz);
+    public Schema getJsonSchemaCache(Class clazz);
+    public void setAvroSchemaCache(Class clazz,Schema schema);
+    public void setProtobufSchemaCache(Class clazz,Schema schema);
+    public void setJsonSchemaCache(Class clazz,Schema schema);
     <T> SchemaDefinitionBuilder<T> newSchemaDefinitionBuilder();
 
     ClientBuilder newClientBuilder();
