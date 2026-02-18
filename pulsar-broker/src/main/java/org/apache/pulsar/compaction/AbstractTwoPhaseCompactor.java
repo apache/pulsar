@@ -66,6 +66,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
   protected static final int MAX_OUTSTANDING = 500;
   protected final Duration phaseOneLoopReadTimeout;
   protected final boolean topicCompactionRetainNullKey;
+  protected final boolean topicCompactionRetainNullValue;
 
   public AbstractTwoPhaseCompactor(ServiceConfiguration conf,
       PulsarClient pulsar,
@@ -75,6 +76,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     phaseOneLoopReadTimeout = Duration.ofSeconds(
         conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
     topicCompactionRetainNullKey = conf.isTopicCompactionRetainNullKey();
+    topicCompactionRetainNullValue = conf.isTopicCompactionRetainNullValue();
   }
 
   protected abstract Map<String, MessageId> toLatestMessageIdForKey(Map<String, T> latestForKey);
@@ -244,7 +246,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
           try {
             messageToAdd = rebatchMessage(reader.getTopic(),
                 m, metadata, (key, subid) -> subid.equals(latestForKey.get(key)),
-                topicCompactionRetainNullKey);
+                topicCompactionRetainNullKey, topicCompactionRetainNullValue);
           } catch (IOException ioe) {
             log.info("Error decoding batch for message {}. Whole batch will be included in output",
                 id, ioe);
@@ -413,12 +415,12 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
   protected Optional<RawMessage> rebatchMessage(String topic, RawMessage msg,
       MessageMetadata metadata,
       BiPredicate<String, MessageId> filter,
-      boolean retainNullKey)
+      boolean retainNullKey, boolean retainNullValue)
       throws IOException {
     if (log.isDebugEnabled()) {
       log.debug("Rebatching message {} for topic {}", msg.getMessageId(), topic);
     }
-    return RawBatchConverter.rebatchMessage(msg, metadata, filter, retainNullKey);
+    return RawBatchConverter.rebatchMessage(msg, metadata, filter, retainNullKey, retainNullValue);
   }
 
   protected static class PhaseOneResult<T> {
