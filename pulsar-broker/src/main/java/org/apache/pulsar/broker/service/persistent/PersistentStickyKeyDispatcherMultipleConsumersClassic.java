@@ -174,7 +174,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                         // If there is a delayed "cursor.rewind" after the pending read, the consumers that will be
                         // added before the "cursor.rewind" will have a same "recent joined position", which is the
                         // same as "mark deleted position +1", so we can skip this adding.
-                        && !shouldRewindBeforeReadingOrReplaying) {
+                        && !shouldRewindBeforeReading) {
                     recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
                     sortRecentlyJoinedConsumersIfNeeded();
                 }
