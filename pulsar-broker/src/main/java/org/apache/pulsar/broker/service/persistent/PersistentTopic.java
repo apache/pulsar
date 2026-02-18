@@ -950,6 +950,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 replicatedSubscriptionState = false;
             }
 
+            boolean replicateAllSubscriptionState = brokerService.pulsar().getConfiguration()
+                    .isReplicateAllSubscriptionState();
+            if (replicateAllSubscriptionState
+                    && brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions()) {
+                replicatedSubscriptionState = true;
+            }
+
             if (subType == SubType.Key_Shared
                     && !brokerService.pulsar().getConfiguration().isSubscriptionKeySharedEnable()) {
                 return FutureUtil.failedFuture(
