@@ -152,7 +152,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                         autoCertRefreshTimeSeconds, sharedResources);
         httpClient = createAsyncHttpClient(asyncHttpClientConfig);
         this.requestTimeout = requestTimeoutMs > 0 ? Duration.ofMillis(requestTimeoutMs) : null;
-        this.maxRetries = httpClient.getConfig().getMaxRequestRetry();
+        this.maxRetries = conf.getMaxHttpRequestRetries();
     }
 
     private SharedResourceHolder buildResourcesIfConfigured(
@@ -239,6 +239,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             }
         });
         confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
+        // Disable the retry mechanism of DefaultAsyncHttpClient since the retryOrTimeOut method in AsyncHttpConnector already implements retry logic.
+        confBuilder.setMaxRequestRetry(0);
     }
 
     protected AsyncHttpClient createAsyncHttpClient(AsyncHttpClientConfig asyncHttpClientConfig) {
@@ -354,7 +356,6 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         return resultFuture;
     }
 
-    // TODO: There are problems with this solution since AsyncHttpClient already contains logic to retry requests.
     // This solution doesn't contain backoff handling.
     private <T> void retryOperation(
             final CompletableFuture<T> resultFuture,

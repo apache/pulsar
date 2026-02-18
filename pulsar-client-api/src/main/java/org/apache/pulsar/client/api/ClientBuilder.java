@@ -757,6 +757,17 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder lookupProperties(Map<String, String> properties);
 
     /**
+     * Set the maximum number of retry attempts for HTTP requests made by the admin client.
+     * <p>By default, this value is 5.
+     *
+     * <p>The retry logic is handled by AsyncHttpConnector. The internal retry
+     * mechanism of DefaultAsyncHttpClient is disabled to avoid duplicated retries.
+     *
+     * @param maxHttpRequestRetries the maximum number of HTTP request retries to attempt
+     * @return the client builder instance
+     */
+    ClientBuilder maxHttpRequestRetries(int maxHttpRequestRetries);
+    /**
      * Set the description.
      *
      * <p> By default, when the client connects to the broker, a version string like "Pulsar-Java-v<x.y.z>" will be
