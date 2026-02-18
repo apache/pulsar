@@ -581,13 +581,16 @@ class PythonInstance(object):
         except:
           pass
       return record_kclass
+
   def get_crypto_reader(self, crypto_spec):
     crypto_key_reader = None
     if crypto_spec is not None:
       try:
-        crypto_config = json.loads(crypto_spec.cryptoKeyReaderConfig)
-        if crypto_spec.cryptoKeyReaderClassName == "" or crypto_spec.cryptoKeyReaderClassName is None:
-          crypto_key_reader = pulsar.CryptoKeyReader(**crypto_config)
+        crypto_config = json.loads(crypto_spec.cryptoKeyReaderConfig) if crypto_spec.cryptoKeyReaderConfig else {}
+        # use the default crypto key reader
+        if not crypto_spec.cryptoKeyReaderClassName:
+          if "public_key_path" in crypto_config and "private_key_path" in crypto_config:
+            crypto_key_reader = pulsar.CryptoKeyReader(**crypto_config)
         else:
           crypto_key_reader = util.import_class(os.path.dirname(self.user_code), crypto_spec.cryptoKeyReaderClassName)(**crypto_config)
       except Exception as e:
