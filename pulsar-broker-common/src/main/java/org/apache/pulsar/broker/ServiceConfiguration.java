@@ -2360,6 +2360,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
     )
     private TopicType allowAutoTopicCreationType = TopicType.NON_PARTITIONED;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            dynamic = true,
+            doc = "The type of retry letter topic or dead letter topic "
+                    + "that is allowed to be automatically created.(partitioned/non-partitioned)"
+    )
+    private TopicType allowAutoRetryOrDLQTopicCreationType = TopicType.NON_PARTITIONED;
     @FieldContext(category = CATEGORY_SERVER, dynamic = true,
             doc = "If 'allowAutoTopicCreation' is true and the name of the topic contains 'cluster',"
                     + "the topic cannot be automatically created."
