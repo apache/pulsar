@@ -33,6 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
@@ -72,15 +73,39 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                                    long tickTimeMillis,
                                    boolean isDelayedDeliveryDeliverAtTimeStrict,
                                    long fixedDelayDetectionLookahead) {
-        this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
-                fixedDelayDetectionLookahead);
+        this(new DispatcherDelayedDeliveryContext(dispatcher), timer, tickTimeMillis, Clock.systemUTC(),
+                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
     }
 
     public InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                           long tickTimeMillis, Clock clock,
                                           boolean isDelayedDeliveryDeliverAtTimeStrict,
                                           long fixedDelayDetectionLookahead) {
-        super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
+        this(new DispatcherDelayedDeliveryContext(dispatcher), timer, tickTimeMillis, clock,
+                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+    }
+
+    public InMemoryDelayedDeliveryTracker(String dispatcherName, ManagedCursor cursor, Timer timer,
+                                          long tickTimeMillis, Clock clock,
+                                          boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                          long fixedDelayDetectionLookahead) {
+        this(new NoopDelayedDeliveryContext(dispatcherName, cursor), timer, tickTimeMillis, clock,
+                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+    }
+
+    public InMemoryDelayedDeliveryTracker(DelayedDeliveryContext context, Timer timer,
+                                          long tickTimeMillis,
+                                          boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                          long fixedDelayDetectionLookahead) {
+        this(context, timer, tickTimeMillis, Clock.systemUTC(),
+                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+    }
+
+    public InMemoryDelayedDeliveryTracker(DelayedDeliveryContext context, Timer timer,
+                                          long tickTimeMillis, Clock clock,
+                                          boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                          long fixedDelayDetectionLookahead) {
+        super(context, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
         this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
         this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(tickTimeMillis);
     }
@@ -121,7 +146,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
+            log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", context.getName(), ledgerId, entryId,
                     deliverAt - clock.millis());
         }
 
@@ -213,7 +238,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Get scheduled messages - found {}", dispatcher.getName(), positions.size());
+            log.debug("[{}] Get scheduled messages - found {}", context.getName(), positions.size());
         }
 
         if (delayedMessageMap.isEmpty()) {
@@ -222,7 +247,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             messagesHaveFixedDelay = true;
             if (delayedMessagesCount.get() != 0) {
                 log.warn("[{}] Delayed message tracker is empty, but delayedMessagesCount is {}",
-                        dispatcher.getName(), delayedMessagesCount.get());
+                        context.getName(), delayedMessagesCount.get());
             }
         }
 

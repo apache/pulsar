@@ -36,7 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
-class MockManagedCursor implements ManagedCursor {
+public class MockManagedCursor implements ManagedCursor {
     ActiveManagedCursorContainer container;
     Position markDeletePosition;
     Position readPosition;
@@ -58,7 +58,8 @@ class MockManagedCursor implements ManagedCursor {
         this.durable = durable;
     }
 
-    static MockManagedCursor createCursor(ActiveManagedCursorContainer container, String name, Position position) {
+    public static MockManagedCursor createCursor(ActiveManagedCursorContainer container, String name,
+                                                Position position) {
         return new MockManagedCursor(container, name, position, position, false, true);
     }
 

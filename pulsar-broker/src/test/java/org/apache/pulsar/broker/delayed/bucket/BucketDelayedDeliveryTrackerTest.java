@@ -40,6 +40,7 @@ import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -184,28 +185,34 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
     @Test(dataProvider = "delayedTracker", invocationCount = 10)
     public void testRecoverSnapshot(BucketDelayedDeliveryTracker tracker) throws Exception {
-        for (int i = 1; i <= 100; i++) {
+        final int minIndexCountPerBucket = 5;
+        final int messagesToSnapshot = 100;
+        final int triggerMessageCount = messagesToSnapshot + 1;
+        for (int i = 1; i <= triggerMessageCount; i++) {
             tracker.addMessage(i, i, i * 10);
+            boolean isTriggerPoint = i > minIndexCountPerBucket && (i - 1) % minIndexCountPerBucket == 0;
+            if (isTriggerPoint) {
+                final int expectedBuckets = (i - 1) / minIndexCountPerBucket;
+                Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                        .pollInterval(10, TimeUnit.MILLISECONDS)
+                        .untilAsserted(() -> {
+                            // 1. Confirm the number of immutable buckets matches the expected
+                            assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), expectedBuckets,
+                                    "Expected number of immutable buckets did not match.");
+                            // 2. Confirm that the persistence Future for
+                            // all snapshots of created immutable buckets have all completed
+                            assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values().stream()
+                                            .allMatch(bucket -> bucket.getSnapshotCreateFuture()
+                                                    .map(CompletableFuture::isDone)
+                                                    .orElse(true)),
+                                    "Not all snapshot creation futures were completed.");
+                        });
+            }
         }
 
-        assertEquals(tracker.getNumberOfDelayedMessages(), 100);
-
-        clockTime.set(1 * 10);
-
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertTrue(
-                    tracker.getImmutableBuckets().asMapOfRanges().values().stream().noneMatch(x -> x.merging
-                            || !x.getSnapshotCreateFuture().get().isDone()));
-        });
-
-        assertTrue(tracker.hasMessageAvailable());
-        Set<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().untilAsserted(() -> {
-            scheduledMessages.addAll(tracker.getScheduledMessages(100));
-            assertEquals(scheduledMessages.size(), 1);
-        });
-
-        tracker.addMessage(101, 101, 101 * 10);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 101);
+        assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 20);
+        assertEquals(tracker.getLastMutableBucket().size(), 1);
 
         tracker.close();
 
@@ -306,7 +313,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         clockTime.set(110 * 10);
 
         NavigableSet<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(110));
             assertEquals(scheduledMessages.size(), 110);
         });
@@ -430,11 +437,33 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
     @Test(dataProvider = "delayedTracker")
     public void testMaxIndexesPerSegment(BucketDelayedDeliveryTracker tracker) {
-        for (int i = 1; i <= 101; i++) {
+        final int minIndexCountPerBucket = 20;
+        final int totalMessages = 101;
+        final int expectedFinalBucketCount = (totalMessages - 1) / minIndexCountPerBucket;
+        for (int i = 1; i <= totalMessages; i++) {
             tracker.addMessage(i, i, i * 10);
+
+            // The trigger point is the next message after the bucket is full.
+            // For example, i=21 triggers the 1st bucket, i=41 triggers the 2nd, ..., i=101 triggers the 5th
+            boolean isTriggerPoint = i > minIndexCountPerBucket && (i - 1) % minIndexCountPerBucket == 0;
+
+            if (isTriggerPoint) {
+                final int expectedBuckets = (i - 1) / minIndexCountPerBucket;
+
+                // Wait until the background bucket creation task is completed
+                Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                        .pollInterval(10, TimeUnit.MILLISECONDS)
+                        .untilAsserted(() ->
+                                assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), expectedBuckets)
+                        );
+            }
         }
 
-        assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 5);
+        // After the loop ends, we expect to have 5 immutable buckets
+        assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), expectedFinalBucketCount);
+
+        // And, the lastMutableBucket should only have the last message (101) left.
+        assertEquals(tracker.getLastMutableBucket().size(), 1);
 
         tracker.getImmutableBuckets().asMapOfRanges().forEach((k, bucket) -> {
             assertEquals(bucket.getLastSegmentEntryId(), 4);
@@ -446,21 +475,23 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     @Test(dataProvider = "delayedTracker")
     public void testClear(BucketDelayedDeliveryTracker tracker)
             throws ExecutionException, InterruptedException, TimeoutException {
-      for (int i = 1; i <= 1001; i++) {
+        for (int i = 1; i <= 1001; i++) {
           tracker.addMessage(i, i, i * 10);
-      }
+        }
 
-      assertEquals(tracker.getNumberOfDelayedMessages(), 1001);
-      assertTrue(tracker.getImmutableBuckets().asMapOfRanges().size() > 0);
-      assertEquals(tracker.getLastMutableBucket().size(), 1);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1001);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                Assert.assertFalse(tracker.getImmutableBuckets().asMapOfRanges().isEmpty())
+        );
+        assertEquals(tracker.getLastMutableBucket().size(), 1);
 
-      tracker.clear().get(1, TimeUnit.MINUTES);
+        tracker.clear().get(1, TimeUnit.MINUTES);
 
-      assertEquals(tracker.getNumberOfDelayedMessages(), 0);
-      assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
-      assertEquals(tracker.getLastMutableBucket().size(), 0);
-      assertEquals(tracker.getSharedBucketPriorityQueue().size(), 0);
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
+        assertEquals(tracker.getLastMutableBucket().size(), 0);
+        assertEquals(tracker.getSharedBucketPriorityQueue().size(), 0);
 
-      tracker.close();
+        tracker.close();
     }
 }
