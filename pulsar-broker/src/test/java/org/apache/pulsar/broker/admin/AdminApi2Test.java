@@ -2487,6 +2487,32 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             assertTrue(ex.getCause() instanceof NotAcceptableException);
         }
     }
+
+    @Test
+    public void testAutoTopicCreationOverrideNonPartitionedDefaultNumPartitionsIgnored() throws Exception {
+        String tenantName = newUniqueName("prop-xyz2");
+        String namespaceName = tenantName + "/ns-" + System.currentTimeMillis();
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant(tenantName, tenantInfo);
+        admin.namespaces().createNamespace(namespaceName, Set.of("test"));
+
+        AutoTopicCreationOverride overridePolicy = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.NON_PARTITIONED.toString())
+                .defaultNumPartitions(5)
+                .build();
+        admin.namespaces().setAutoTopicCreation(namespaceName, overridePolicy);
+
+        AutoTopicCreationOverride storedPolicy = admin.namespaces().getAutoTopicCreation(namespaceName);
+        assertTrue(storedPolicy.isAllowAutoTopicCreation());
+        assertEquals(storedPolicy.getTopicType(), TopicType.NON_PARTITIONED.toString());
+        assertEquals(storedPolicy.getDefaultNumPartitions(), Integer.valueOf(5));
+
+        String topicName = "persistent://" + namespaceName + "/auto-topic-" + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topicName).create().close();
+
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 0);
+    }
     @Test
     public void testMaxTopicsPerNamespace() throws Exception {
         restartClusterAfterTest();
