@@ -4059,6 +4059,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "For some use case like compaction, raw reader want to read all the data from the topics and handle the "
+              + "marker by the reader. It needs to skip the marker check to delivery the message to the consumer. "
+              + "This configuration allows to configure a subscription prefix, the the reader which has the prefix "
+              + "will receive all the data."
+    )
+    private Set<String> subscriptionPrefixToSkipServerMarkerCheck = new TreeSet<>();
+
     /**
      * @deprecated Use {@link #getSubscriptionTypesEnabled()} instead
      */

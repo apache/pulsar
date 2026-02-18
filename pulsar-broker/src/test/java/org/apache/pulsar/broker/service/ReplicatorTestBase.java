@@ -382,6 +382,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
         config.setLoadManagerClassName(getLoadManagerClassName());
+        config.setSubscriptionPrefixToSkipServerMarkerCheck(Set.of("__supervisor"));
     }
 
     public void resetConfig1() {
