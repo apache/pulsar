@@ -411,7 +411,7 @@ public class ProxyConnection extends PulsarHandler {
             }
 
             state = State.ProxyLookupRequests;
-            lookupProxyHandler = service.newLookupProxyHandler(this);try {
+            try {
                 lookupProxyHandler =
                         Reflections.createInstance(service.getConfiguration().getLookupHandler(),
                                 LookupProxyHandler.class, Thread.currentThread().getContextClassLoader());
