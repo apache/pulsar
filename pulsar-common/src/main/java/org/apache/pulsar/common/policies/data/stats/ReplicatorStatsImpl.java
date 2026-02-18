@@ -62,7 +62,7 @@ public class ReplicatorStatsImpl implements ReplicatorStats {
     public long replicationBacklog;
 
     /** is the replication-subscriber up and running to replicate to remote cluster. */
-    public boolean connected;
+    public boolean connected = true;
 
     /** Time in seconds from the time a message was produced to the time when it is about to be replicated. */
     public long replicationDelayInSeconds;
