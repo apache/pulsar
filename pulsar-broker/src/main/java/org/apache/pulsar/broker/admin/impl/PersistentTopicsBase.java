@@ -1980,18 +1980,12 @@ public class PersistentTopicsBase extends AdminResource {
         });
         validationFuture.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
                 .thenAccept(partitionMetadata -> {
-                    if (topicName.isPartitioned()) {
-                        internalSkipByMessageIdsForNonPartitionedTopic(asyncResponse, messageIds,
-                                subName, authoritative);
-                    } else {
-                        if (partitionMetadata.partitions > 0) {
-                            internalSkipByMessageIdsForPartitionedTopic(asyncResponse, partitionMetadata,
-                                    messageIds, subName);
-                        } else {
-                            internalSkipByMessageIdsForNonPartitionedTopic(asyncResponse, messageIds,
-                                    subName, authoritative);
-                        }
+                    if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+                        String msg = "Skip messages on a partitioned topic is not allowed";
+                        log.warn("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
+                        throw new RestException(Status.METHOD_NOT_ALLOWED, msg);
                     }
+                    internalSkipByMessageIdsForNonPartitionedTopic(asyncResponse, messageIds, subName, authoritative);
                 }).exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
                         log.error("[{}] Failed to ack messages on topic {}: {}", clientAppId(), topicName, ex);
@@ -1999,48 +1993,6 @@ public class PersistentTopicsBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
-    }
-
-    private void internalSkipByMessageIdsForPartitionedTopic(AsyncResponse asyncResponse,
-                                                             PartitionedTopicMetadata partitionMetadata,
-                                                             SkipMessageIdsRequest messageIds,
-                                                             String subName) {
-        final List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
-        PulsarAdmin admin;
-        try {
-            admin = pulsar().getAdminClient();
-        } catch (PulsarServerException e) {
-            asyncResponse.resume(new RestException(e));
-            return;
-        }
-        for (int i = 0; i < partitionMetadata.partitions; i++) {
-            TopicName topicNamePartition = topicName.getPartition(i);
-            // Rebuild an Admin API request using the parsed items to avoid legacy-map format
-            List<org.apache.pulsar.client.admin.SkipMessageIdsRequest.MessageIdItem> items = new ArrayList<>();
-            for (SkipMessageIdsRequest.MessageIdItem it : messageIds.getItems()) {
-                items.add(new org.apache.pulsar.client.admin.SkipMessageIdsRequest.MessageIdItem(
-                        it.getLedgerId(), it.getEntryId(), it.getBatchIndex()));
-            }
-            org.apache.pulsar.client.admin.SkipMessageIdsRequest req =
-                    org.apache.pulsar.client.admin.SkipMessageIdsRequest.forMessageIds(items);
-
-            futures.add(admin
-                    .topics()
-                    .skipMessagesAsync(topicNamePartition.toString(), subName, req));
-        }
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            if (exception != null) {
-                Throwable t = FutureUtil.unwrapCompletionException(exception);
-                log.warn("[{}] Failed to ack messages on some partitions of {}: {}",
-                        clientAppId(), topicName, t.getMessage());
-                resumeAsyncResponseExceptionally(asyncResponse, t);
-            } else {
-                log.info("[{}] Successfully requested cancellation for delayed message on"
-                                + " all partitions of topic {}", clientAppId(), topicName);
-                asyncResponse.resume(Response.noContent().build());
-            }
-            return null;
-        });
     }
 
     private void internalSkipByMessageIdsForNonPartitionedTopic(AsyncResponse asyncResponse,
@@ -2096,10 +2048,10 @@ public class PersistentTopicsBase extends AdminResource {
             if (v.full) {
                 skipEntries.add(new SkipEntry(v.ledgerId, v.entryId, null));
             } else {
-              // sort indexes to have deterministic order
-              List<Integer> idx = new ArrayList<>(v.indexes);
-              Collections.sort(idx);
-              skipEntries.add(new SkipEntry(v.ledgerId, v.entryId, idx));
+                // sort indexes to have deterministic order
+                List<Integer> idx = new ArrayList<>(v.indexes);
+                Collections.sort(idx);
+                skipEntries.add(new SkipEntry(v.ledgerId, v.entryId, idx));
             }
         }
         return sub.skipMessages(skipEntries);

@@ -104,14 +104,14 @@ public class SkipMessageIdsRequest {
                                 if (idObj == null || idObj.isNull()) {
                                     continue;
                                 }
-                                long ledgerId = optLong(idObj.get("ledgerId"));
-                                long entryId = optLong(idObj.get("entryId"));
-                                int batchIndex = optInt(idObj.get("batchIndex"), -1);
-                                if (batchIndex >= 0) {
-                                    r.addItem(ledgerId, entryId, batchIndex);
-                                } else {
-                                    r.addItem(ledgerId, entryId, null);
+                                if (!idObj.isObject()) {
+                                    throw new IOException("Invalid skipByMessageIds payload:"
+                                            + " messageIds elements must be objects");
                                 }
+                                long ledgerId = requiredLong(idObj.get("ledgerId"), "ledgerId");
+                                long entryId = requiredLong(idObj.get("entryId"), "entryId");
+                                Integer batchIndex = optionalNonNegativeInt(idObj.get("batchIndex"), "batchIndex");
+                                r.addItem(ledgerId, entryId, batchIndex);
                             }
                         } else {
                             // Unknown type with array payload => reject
@@ -119,39 +119,52 @@ public class SkipMessageIdsRequest {
                         }
                         return r;
                     } else if (messageIdsNode.isObject()) {
-                        // legacy map format is no longer supported
-                        throw new IOException("Invalid skipByMessageIds payload: legacy map format is not supported");
+                        throw new IOException("Invalid skipByMessageIds payload: messageIds must be an array");
                     } else {
                         throw new IOException("Invalid skipByMessageIds payload: unsupported messageIds type");
                     }
                 }
 
-                // No messageIds field => reject legacy map form
+                // No messageIds field => reject
                 throw new IOException("Invalid skipByMessageIds payload: missing messageIds");
             }
 
             throw new IOException("Invalid skipByMessageIds payload: unsupported top-level JSON");
         }
 
-        private static long optLong(JsonNode node) {
+        private static long requiredLong(JsonNode node, String fieldName) throws IOException {
             if (node == null || node.isNull()) {
-                return 0L;
+                throw new IOException("Invalid skipByMessageIds payload: missing " + fieldName);
             }
             try {
-                return node.asLong();
+                if (node.isNumber()) {
+                    return node.longValue();
+                }
+                if (node.isTextual()) {
+                    return Long.parseLong(node.asText());
+                }
             } catch (Exception e) {
-                return 0L;
+                throw new IOException("Invalid skipByMessageIds payload: invalid " + fieldName, e);
             }
+            throw new IOException("Invalid skipByMessageIds payload: invalid " + fieldName);
         }
 
-        private static int optInt(JsonNode node, int def) {
+        private static Integer optionalNonNegativeInt(JsonNode node, String fieldName) throws IOException {
             if (node == null || node.isNull()) {
-                return def;
+                return null;
             }
             try {
-                return node.asInt();
-            } catch (Exception e) {
-                return def;
+                int v;
+                if (node.isNumber()) {
+                    v = node.intValue();
+                } else if (node.isTextual()) {
+                    v = Integer.parseInt(node.asText());
+                } else {
+                    throw new IOException("Invalid skipByMessageIds payload: invalid " + fieldName);
+                }
+                return v >= 0 ? v : null;
+            } catch (NumberFormatException e) {
+                throw new IOException("Invalid skipByMessageIds payload: invalid " + fieldName, e);
             }
         }
 
@@ -160,7 +173,15 @@ public class SkipMessageIdsRequest {
             if (base64 == null) {
                 return;
             }
-            byte[] data = Base64.getDecoder().decode(base64);
+            byte[] data;
+            try {
+                data = Base64.getDecoder().decode(base64);
+            } catch (IllegalArgumentException e) {
+                throw new IOException("Invalid skipByMessageIds payload: invalid base64 messageId", e);
+            }
+            if (data.length == 0) {
+                throw new IOException("Invalid skipByMessageIds payload: invalid base64 messageId (empty)");
+            }
             MessageIdData idData = new MessageIdData();
             try {
                 idData.parseFrom(Unpooled.wrappedBuffer(data, 0, data.length), data.length);

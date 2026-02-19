@@ -30,14 +30,13 @@ import lombok.Setter;
  * Supported types:
  * - type = "byteArray": messageIds is List<String> of base64-encoded MessageId.toByteArray()
  * - type = "messageId": messageIds is List<MessageIdItem> (supports batchIndex)
- * - type = "map_of_ledgerId_entryId": messageIds is Map<String, String> (legacy map)
  */
 @Setter
 @Getter
 public class SkipMessageIdsRequest {
     // optional; default is byteArray on server when messageIds is an array of strings
     private String type;
-    // List<String> | List<MessageIdItem> | Map<String, String>
+    // List<String> | List<MessageIdItem>
     private Object messageIds;
 
     public SkipMessageIdsRequest() {
@@ -80,4 +79,3 @@ public class SkipMessageIdsRequest {
         }
     }
 }
-

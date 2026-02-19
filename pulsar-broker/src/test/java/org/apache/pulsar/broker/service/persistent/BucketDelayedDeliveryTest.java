@@ -481,32 +481,33 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
     public void testDelayedMessageCancel() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelayedMessageCancel");
         final String subName = "shared-sub";
-        CountDownLatch latch = new CountDownLatch(99);
         admin.topics().createPartitionedTopic(topic, 2);
-        Set<String> receivedMessages1 = ConcurrentHashMap.newKeySet();
-        Set<String> receivedMessages2 = ConcurrentHashMap.newKeySet();
+        CountDownLatch latch = new CountDownLatch(99);
+        Set<String> receivedMessages = ConcurrentHashMap.newKeySet();
 
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
-                .subscriptionName(subName + "-1")
+                .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .messageListener((Consumer<String> c, Message<String> msg) -> {
-                    receivedMessages1.add(msg.getValue());
+                    if (receivedMessages.add(msg.getValue())) {
+                        latch.countDown();
+                    }
                     c.acknowledgeAsync(msg);
-                    latch.countDown();
                 })
                 .subscribe();
 
         @Cleanup
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
-                .subscriptionName(subName + "-2")
+                .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .messageListener((Consumer<String> c, Message<String> msg) -> {
-                    receivedMessages2.add(msg.getValue());
+                    if (receivedMessages.add(msg.getValue())) {
+                        latch.countDown();
+                    }
                     c.acknowledgeAsync(msg);
-                    latch.countDown();
                 })
                 .subscribe();
 
@@ -529,18 +530,20 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
         final int cancelMessage = 50;
         MessageIdImpl messageId = (MessageIdImpl) messageIds.get(cancelMessage);
+        int partitionIdx = messageId.getPartitionIndex();
+        assertTrue(partitionIdx >= 0, "partition index should be set for partitioned topic messageId");
 
         SkipMessageIdsRequest.MessageIdItem item0 = new SkipMessageIdsRequest.MessageIdItem(
                 messageId.getLedgerId(), messageId.getEntryId(), null);
         SkipMessageIdsRequest req = SkipMessageIdsRequest.forMessageIds(Collections.singletonList(item0));
 
-        admin.topics().skipMessages(topic + "-partition-0", subName + "-1", req);
-        admin.topics().skipMessages(topic + "-partition-1", subName + "-1", req);
+        admin.topics().skipMessages(topic + "-partition-" + partitionIdx, subName, req);
 
         assertTrue(latch.await(15, TimeUnit.SECONDS), "Not all messages were received in time");
-        assertFalse((receivedMessages1.contains("msg-" + cancelMessage)
-                        || receivedMessages2.contains("msg-" + cancelMessage))
-                        && (receivedMessages1.size() + receivedMessages2.size() == 99),
+        Awaitility.await().during(3, TimeUnit.SECONDS).atMost(10, TimeUnit.SECONDS)
+                .until(() -> receivedMessages.size() == 99);
+
+        assertFalse(receivedMessages.contains("msg-" + cancelMessage),
                 "msg-" + cancelMessage + " should have been cancelled but was received");
     }
 
