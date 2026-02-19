@@ -260,7 +260,6 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
     <hbase.version>2.6.3-hadoop3</hbase.version>
     <guava.version>33.4.8-jre</guava.version>
-    <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>7.9.2</confluent.version>
     <aircompressor.version>0.27</aircompressor.version>
@@ -1517,11 +1516,7 @@ flexible messaging model and an intuitive client API.</description>
         <version>${javassist.version}</version>
       </dependency>
 
-      <dependency>
-        <groupId>net.jcip</groupId>
-        <artifactId>jcip-annotations</artifactId>
-        <version>${jcip.version}</version>
-      </dependency>
+      
 
       <dependency>
         <groupId>io.airlift</groupId>

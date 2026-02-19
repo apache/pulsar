@@ -189,7 +189,7 @@
                   <include>jakarta.xml.bind:jakarta.xml.bind-api</include>
                   <include>javax.ws.rs:*</include>
                   <include>javax.xml.bind:jaxb-api</include>
-                  <include>net.jcip:jcip-annotations</include>
+                  <include>com.github.spotbugs:spotbugs-annotations</include>
                   <include>org.apache.avro:*</include>
                   <include>org.apache.bookkeeper:*</include>
                   <include>org.apache.commons:commons-compress</include>
@@ -386,10 +386,6 @@
                   <pattern>META-INF/versions/(\d+)/org/yaml/</pattern>
                   <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/yaml/</shadedPattern>
                   <rawString>true</rawString>
-                </relocation>
-                <relocation>
-                  <pattern>net.jcip</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.net.jcip</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>okio</pattern>

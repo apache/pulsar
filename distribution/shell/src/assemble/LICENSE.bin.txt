@@ -463,9 +463,7 @@ Eclipse Public License - v2.0 -- ../licenses/LICENSE-EPL-2.0.txt
 Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
  * Reactive Streams -- reactive-streams-1.0.3.jar
 
-Creative Commons Attribution License
- * Jcip -- ../licenses/LICENSE-jcip.txt
-    - jcip-annotations-1.0.jar
+
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
