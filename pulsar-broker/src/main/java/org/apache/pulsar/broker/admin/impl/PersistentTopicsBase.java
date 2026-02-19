@@ -36,6 +36,8 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -73,6 +75,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
@@ -81,6 +84,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyE
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.GetStatsOptions;
 import org.apache.pulsar.broker.service.MessageExpirer;
+import org.apache.pulsar.broker.service.SkipEntry;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
@@ -1915,7 +1919,7 @@ public class PersistentTopicsBase extends AdminResource {
              if (partitionMetadata.partitions > 0) {
                  String msg = "Skip messages on a partitioned topic is not allowed";
                  log.warn("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
-                 throw new  RestException(Status.METHOD_NOT_ALLOWED, msg);
+                 throw new RestException(Status.METHOD_NOT_ALLOWED, msg);
              }
              return getTopicReferenceAsync(topicName).thenCompose(t -> {
                  PersistentTopic topic = (PersistentTopic) t;
@@ -1962,6 +1966,107 @@ public class PersistentTopicsBase extends AdminResource {
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
+    }
+
+    protected void internalSkipByMessageIds(AsyncResponse asyncResponse, String subName, boolean authoritative,
+                                            SkipMessageIdsRequest messageIds) {
+        CompletableFuture<Void> validationFuture = validateTopicOperationAsync(topicName, TopicOperation.SKIP, subName);
+        validationFuture = validationFuture.thenCompose(__ -> {
+            if (topicName.isGlobal()) {
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        });
+        validationFuture.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+                .thenAccept(partitionMetadata -> {
+                    if (!topicName.isPartitioned() && partitionMetadata.partitions > 0) {
+                        String msg = "Skip messages on a partitioned topic is not allowed";
+                        log.warn("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
+                        throw new RestException(Status.METHOD_NOT_ALLOWED, msg);
+                    }
+                    internalSkipByMessageIdsForNonPartitionedTopic(asyncResponse, messageIds, subName, authoritative);
+                }).exceptionally(ex -> {
+                    if (isNot307And404Exception(ex)) {
+                        log.error("[{}] Failed to ack messages on topic {}: {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    private void internalSkipByMessageIdsForNonPartitionedTopic(AsyncResponse asyncResponse,
+                                                                SkipMessageIdsRequest messageIds,
+                                                                String subName,
+                                                                boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(optTopic -> {
+                    if (!(optTopic instanceof PersistentTopic persistentTopic)) {
+                        throw new RestException(Status.METHOD_NOT_ALLOWED, "Cancel delayed message on a non-persistent"
+                                + " topic is not allowed");
+                    }
+                    log.info("[{}] Cancelling delayed message for subscription {} on topic {}", clientAppId(),
+                            subName, topicName);
+                    return internalSkipByMessageIdsForSubscriptionAsync(persistentTopic, subName, messageIds);
+                })
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (isNot307And404Exception(t)) {
+                        log.error("[{}] Error in internalSkipByMessageIdsForNonPartitionedTopic for {}: {}",
+                                clientAppId(), topicName, t.getMessage(), t);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, t);
+                    return null;
+                });
+    }
+
+    private CompletableFuture<Void> internalSkipByMessageIdsForSubscriptionAsync(
+            PersistentTopic topic, String subName, SkipMessageIdsRequest messageIds) {
+        Subscription sub = topic.getSubscription(subName);
+        if (sub == null) {
+            return FutureUtil.failedFuture(new RestException(Status.NOT_FOUND,
+                    getSubNotFoundErrorMessage(topic.getName(), subName)));
+        }
+        // Build List<SkipEntry> from parsed items
+        Map<String, AggregatedSkip> aggregated = new LinkedHashMap<>();
+        for (SkipMessageIdsRequest.MessageIdItem it : messageIds.getItems()) {
+            long ledgerId = it.getLedgerId();
+            long entryId = it.getEntryId();
+            Integer batchIndex = it.getBatchIndex();
+            String key = ledgerId + ":" + entryId;
+            AggregatedSkip agg = aggregated.computeIfAbsent(key, k -> new AggregatedSkip(ledgerId, entryId));
+            if (batchIndex == null) {
+                agg.full = true;
+            } else {
+                agg.indexes.add(batchIndex);
+            }
+        }
+        List<SkipEntry> skipEntries = new ArrayList<>(aggregated.size());
+        for (AggregatedSkip v : aggregated.values()) {
+            if (v.full) {
+                skipEntries.add(new SkipEntry(v.ledgerId, v.entryId, null));
+            } else {
+                // sort indexes to have deterministic order
+                List<Integer> idx = new ArrayList<>(v.indexes);
+                Collections.sort(idx);
+                skipEntries.add(new SkipEntry(v.ledgerId, v.entryId, idx));
+            }
+        }
+        return sub.skipMessages(skipEntries);
+    }
+
+    private static final class AggregatedSkip {
+        final long ledgerId;
+        final long entryId;
+        boolean full = false;
+        final LinkedHashSet<Integer> indexes = new LinkedHashSet<>();
+
+        AggregatedSkip(long ledgerId, long entryId) {
+            this.ledgerId = ledgerId;
+            this.entryId = entryId;
+        }
     }
 
     protected void internalExpireMessagesForAllSubscriptions(AsyncResponse asyncResponse, int expireTimeInSeconds,

@@ -22,16 +22,22 @@ import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPER
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
@@ -43,11 +49,14 @@ import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.client.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -468,6 +477,75 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         admin.topics().deletePartitionedTopic(topic);
     }
 
+    @Test
+    public void testDelayedMessageCancel() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelayedMessageCancel");
+        final String subName = "shared-sub";
+        admin.topics().createPartitionedTopic(topic, 2);
+        CountDownLatch latch = new CountDownLatch(99);
+        Set<String> receivedMessages = ConcurrentHashMap.newKeySet();
+
+        @Cleanup
+        Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .messageListener((Consumer<String> c, Message<String> msg) -> {
+                    if (receivedMessages.add(msg.getValue())) {
+                        latch.countDown();
+                    }
+                    c.acknowledgeAsync(msg);
+                })
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .messageListener((Consumer<String> c, Message<String> msg) -> {
+                    if (receivedMessages.add(msg.getValue())) {
+                        latch.countDown();
+                    }
+                    c.acknowledgeAsync(msg);
+                })
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        List<MessageId> messageIds = new ArrayList<>();
+
+        for (int i = 0; i < 100; i++) {
+            final long deliverAtTime = System.currentTimeMillis() + 3000L;
+            MessageId messageId = producer.newMessage()
+                    .key(String.valueOf(i))
+                    .value("msg-" + i)
+                    .deliverAt(deliverAtTime)
+                    .send();
+            messageIds.add(i, messageId);
+        }
+
+        final int cancelMessage = 50;
+        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(cancelMessage);
+        int partitionIdx = messageId.getPartitionIndex();
+        assertTrue(partitionIdx >= 0, "partition index should be set for partitioned topic messageId");
+
+        SkipMessageIdsRequest.MessageIdItem item0 = new SkipMessageIdsRequest.MessageIdItem(
+                messageId.getLedgerId(), messageId.getEntryId(), null);
+        SkipMessageIdsRequest req = SkipMessageIdsRequest.forMessageIds(Collections.singletonList(item0));
+
+        admin.topics().skipMessages(topic + "-partition-" + partitionIdx, subName, req);
+
+        assertTrue(latch.await(15, TimeUnit.SECONDS), "Not all messages were received in time");
+        Awaitility.await().during(3, TimeUnit.SECONDS).atMost(10, TimeUnit.SECONDS)
+                .until(() -> receivedMessages.size() == 99);
+
+        assertFalse(receivedMessages.contains("msg-" + cancelMessage),
+                "msg-" + cancelMessage + " should have been cancelled but was received");
+    }
 
     private ManagedCursor findCursor(String topic, String subscriptionName) {
         PersistentTopic persistentTopic =
