@@ -340,6 +340,10 @@
                   <rawString>true</rawString>
                 </relocation>
                 <relocation>
+                  <pattern>edu.umd.cs.findbugs.annotations</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.edu.umd.cs.findbugs.annotations</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>okio</pattern>
                   <shadedPattern>org.apache.pulsar.shade.okio</shadedPattern>
                 </relocation>
