@@ -420,7 +420,7 @@ The Apache Software License, Version 2.0
     - avro-protobuf-1.12.0.jar
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
- * RoaringBitmap -- RoaringBitmap-1.2.0.jar
+ * RoaringBitmap -- RoaringBitmap-1.6.9.jar
  * Fastutil -- fastutil-8.5.16.jar
  * JSpecify -- jspecify-1.0.0.jar
 

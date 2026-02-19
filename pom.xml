@@ -368,7 +368,7 @@ flexible messaging model and an intuitive client API.</description>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
-    <roaringbitmap.version>1.2.0</roaringbitmap.version>
+    <roaringbitmap.version>1.6.9</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
