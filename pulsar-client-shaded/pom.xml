@@ -310,10 +310,6 @@
                   <rawString>true</rawString>
                 </relocation>
                 <relocation>
-                  <pattern>edu.umd.cs.findbugs.annotations</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.edu.umd.cs.findbugs.annotations</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>org.apache.avro</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.avro</shadedPattern>
                   <excludes>
