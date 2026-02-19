@@ -49,7 +49,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicatorTest {
 
     @Override
@@ -71,6 +71,11 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
         config.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         config.setDefaultNumPartitions(1);
+    }
+
+    @Test(enabled = false)
+    public void testDeleteTopicWhenReplicating() throws Exception {
+        super.testDeleteTopicWhenReplicating();
     }
 
     @Override

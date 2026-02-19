@@ -29,6 +29,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.fasterxml.jackson.databind.ObjectReader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -45,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -89,11 +93,14 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
@@ -104,6 +111,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -4043,17 +4051,36 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .header("Content-Type", "application/json")
                 .post(Entity.json(backlogQuotaWithNonPolicy));
         assertEquals(response1.getStatus(), 400);
-        assertTrue(response1.getStatusInfo().getReasonPhrase().contains("policy cannot be null"));
+        assertTrue(resolveErrorReason(response1).contains("policy cannot be null"));
         // Topic level.
         Response response2 = httpClient.target(hostAndPort).path(topicPath).request()
                 .header("Content-Type", "application/json")
                 .post(Entity.json(backlogQuotaWithNonPolicy));
         assertEquals(response2.getStatus(), 400);
-        assertTrue(response2.getStatusInfo().getReasonPhrase().contains("policy cannot be null"));
+        assertTrue(resolveErrorReason(response2).contains("policy cannot be null"));
         // cleanup.
         httpClient.close();
 
     }
+
+    String resolveErrorReason(Response response) {
+        ErrorData errorData = null;
+        if (response.hasEntity() && response.getMediaType().isCompatible(MediaType.APPLICATION_JSON_TYPE)) {
+            Object responseBody = response.getEntity();
+            ObjectReader reader =
+                    ObjectMapperFactory.getMapper().getObjectMapper().reader();
+            try {
+                errorData = reader.readValue((InputStream) responseBody, ErrorData.class);
+            } catch (IOException e) {
+                // ignore
+                if (log.isDebugEnabled()) {
+                    log.debug("Failed to parse error response: {}", response);
+                }
+            }
+        }
+        return errorData != null ? errorData.reason : response.getStatusInfo().getReasonPhrase();
+    }
+
 
     @Test
     public void testSetSubRateWithSub() throws Exception {
@@ -4320,5 +4347,39 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             assertEquals(cursor.getThrottleMarkDelete(),
                 pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit(), 0.0001);
         });
+    }
+
+    @Test
+    public void testGetAppliedOffloadPoliciesWithLegacyNamespacePolicies() throws Exception {
+        String topicName = testTopic + UUID.randomUUID().toString();
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        OffloadPolicies initialPolicies = admin.topics().getOffloadPolicies(topicName, true);
+        assertNull(initialPolicies, "Applied policies should not be null");
+
+        Policies policies = admin.namespaces().getPolicies(myNamespace);
+        policies.offload_policies = null;
+        policies.offload_threshold = 1024 * 1024 * 10L; // 10MB
+
+        pulsar.getConfigurationMetadataStore().put(
+                "/admin/policies/" + myNamespace,
+                org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies),
+                java.util.Optional.empty()
+        ).join();
+
+        Policies updatedPolicies = admin.namespaces().getPolicies(myNamespace);
+        assertNull(updatedPolicies.offload_policies, "offload_policies should be null for this test case");
+        assertEquals(updatedPolicies.offload_threshold, 1024 * 1024 * 10L);
+
+        OffloadPolicies appliedPolicies = admin.topics().getOffloadPolicies(topicName, true);
+
+        assertNotNull(appliedPolicies, "Applied policies should not be null");
+        assertEquals(appliedPolicies.getManagedLedgerOffloadThresholdInBytes(), (Long) (1024 * 1024 * 10L),
+                "Should inherit offload threshold from legacy namespace policy");
+
+        OffloadPolicies offloadPolicies = admin.topicPolicies().getOffloadPolicies(topicName, true);
+        assertNotNull(offloadPolicies, "Applied policies should not be null");
+        assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), (Long) (1024 * 1024 * 10L),
+                "Should inherit offload threshold from legacy namespace policy");
     }
 }

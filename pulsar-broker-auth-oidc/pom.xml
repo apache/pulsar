@@ -34,10 +34,6 @@
   <description>Open ID Connect authentication plugin for broker</description>
   <name>Pulsar Broker Auth OIDC</name>
 
-  <properties>
-    <jsonwebtoken.version>0.11.5</jsonwebtoken.version>
-  </properties>
-
   <dependencies>
 
     <dependency>
@@ -118,7 +114,7 @@
 
     <dependency>
       <groupId>com.github.tomakehurst</groupId>
-      <artifactId>wiremock-jre8</artifactId>
+      <artifactId>wiremock-jre8-standalone</artifactId>
       <version>${wiremock.version}</version>
       <scope>test</scope>
     </dependency>

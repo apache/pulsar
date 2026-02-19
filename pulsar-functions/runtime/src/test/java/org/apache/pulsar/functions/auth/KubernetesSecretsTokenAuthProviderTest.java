@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Container;
@@ -112,8 +113,9 @@ public class KubernetesSecretsTokenAuthProviderTest {
     @Test
     public void testCacheAuthData() throws ApiException {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
-        doReturn(new V1Secret()).when(coreV1Api).createNamespacedSecret(anyString(),
-                any(), anyString(), anyString(), anyString(), anyString());
+        CoreV1Api.APIcreateNamespacedSecretRequest request = mock(CoreV1Api.APIcreateNamespacedSecretRequest.class);
+        doReturn(request).when(coreV1Api).createNamespacedSecret(anyString(), any());
+        doReturn(new V1Secret()).when(request).execute();
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider =
                 new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api,  null, (fd) -> "default");
@@ -180,6 +182,11 @@ public class KubernetesSecretsTokenAuthProviderTest {
         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
         Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant")
                 .setNamespace("test-ns").setName("test-func").build();
+
+        CoreV1Api.APIcreateNamespacedSecretRequest namespacedSecretRequest = mock();
+        when(coreV1Api.createNamespacedSecret(anyString(), any())).thenReturn(namespacedSecretRequest);
+        when(namespacedSecretRequest.execute()).thenReturn(new V1Secret());
+
         Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.updateAuthData(funcDetails,
                 existingFunctionAuthData, new AuthenticationDataSource() {
                     @Override

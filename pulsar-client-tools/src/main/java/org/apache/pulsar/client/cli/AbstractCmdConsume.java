@@ -44,11 +44,11 @@ import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,11 +134,11 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
                     encContext.getKeys().forEach((keyName, keyInfo) -> {
                         String metadata = Arrays.toString(keyInfo.getMetadata().entrySet().toArray());
                         sb.append("name:").append(keyName).append(", ").append("key-value:")
-                                .append(Base64.getEncoder().encode(keyInfo.getKeyValue())).append(", ")
+                                .append(Base64.getEncoder().encodeToString(keyInfo.getKeyValue())).append(", ")
                                 .append("metadata:").append(metadata).append(", ");
 
                     });
-                    sb.append(", ").append("param:").append(Base64.getEncoder().encode(encContext.getParam()))
+                    sb.append(", ").append("param:").append(Base64.getEncoder().encodeToString(encContext.getParam()))
                             .append(", ").append("algorithm:").append(encContext.getAlgorithm()).append(", ")
                             .append("compression-type:").append(encContext.getCompressionType()).append(", ")
                             .append("uncompressed-size").append(encContext.getUncompressedMessageSize()).append(", ")
@@ -230,7 +230,7 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
         return res;
     }
 
-    @WebSocket(maxTextMessageSize = 64 * 1024)
+    @WebSocket
     public static class ConsumerSocket {
         private static final String X_PULSAR_MESSAGE_ID = "messageId";
         private final CountDownLatch closeLatch;
@@ -255,7 +255,7 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             this.closeLatch.countDown();
         }
 
-        @OnWebSocketConnect
+        @OnWebSocketOpen
         public void onConnect(Session session) throws InterruptedException {
             log.info("Got connect: {}", session);
             this.session = session;
@@ -269,16 +269,12 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
             ack.add("messageId", new JsonPrimitive(messageId));
             // Acking the proxy
-            this.getRemote().sendString(ack.toString());
+            this.getSession().sendText(ack.toString(), Callback.NOOP);
             this.incomingMessages.put(msg);
         }
 
         public String receive(long timeout, TimeUnit unit) throws Exception {
             return incomingMessages.poll(timeout, unit);
-        }
-
-        public RemoteEndpoint getRemote() {
-            return this.session.getRemote();
         }
 
         public Session getSession() {

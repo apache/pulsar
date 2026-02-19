@@ -25,6 +25,8 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -122,9 +124,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the bundle name", required = false)
             @QueryParam("bundle") String bundle,
             @ApiParam(value = "Include system topic")
-            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic,
+            @ApiParam(value = "properties for customized topic listing plugin, format: k1=v1,k2=v2")
+            @QueryParam("properties") String propertiesStr) {
         validateNamespaceName(tenant, namespace);
-        internalGetListAsync(Optional.ofNullable(bundle))
+        internalGetListAsync(Optional.ofNullable(bundle), parseProperties(propertiesStr))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
                 if (isNot307And404Exception(ex)) {
@@ -878,7 +882,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isConflictException(ex)) {
                         log.error("[{}][{}] Failed to update partition to {}",
                                 clientAppId(), topicName, numPartitions, ex);
                     }
@@ -5168,6 +5172,29 @@ public class PersistentTopics extends PersistentTopicsBase {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    private Map<String, String> parseProperties(String propertiesStr) {
+        if (propertiesStr == null || propertiesStr.trim().isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> map = new HashMap<>();
+        String[] pairs = propertiesStr.split(",");
+        for (String pair : pairs) {
+            String[] parts = pair.split("=", 2);
+            if (parts.length == 2) {
+                try {
+                    String key = Codec.decode(parts[0].trim());
+                    String value = Codec.decode(parts[1].trim());
+                    if (!key.isEmpty()) {
+                        map.put(key, value);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to decode property: {}", pair, e);
+                }
+            }
+        }
+        return map;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);

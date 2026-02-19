@@ -62,8 +62,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import javax.servlet.Servlet;
 import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -198,8 +198,8 @@ import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.zookeeper.DefaultMetadataNodeSizeStats;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -301,6 +301,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private boolean shouldShutdownConfigurationMetadataStore;
 
     private PulsarResources pulsarResources;
+    private PulsarResourcesExtended pulsarResourcesExtended;
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
@@ -434,6 +435,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .synchronizer(synchronizer)
                         .openTelemetry(openTelemetry)
                         .nodeSizeStats(new DefaultMetadataNodeSizeStats())
+                        .numSerDesThreads(config.getMetadataStoreSerDesThreads())
                         .build());
     }
 
@@ -966,9 +968,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // the broker id is used in the load manager to identify the broker
             // it should not be used for making connections to the broker
-            this.brokerId =
-                    String.format("%s:%s", advertisedAddress, config.getWebServicePort()
-                            .or(config::getWebServicePortTls).orElseThrow());
+            this.brokerId = createBrokerId();
 
             if (this.compactionServiceFactory == null) {
                 this.compactionServiceFactory = loadCompactionServiceFactory();
@@ -1032,6 +1032,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             this.metricsGenerator = new MetricsGenerator(this);
+
+            // Initialize PulsarResourcesExtended
+            pulsarResourcesExtended = loadPulsarResourcesExtended();
 
             // the broker is ready to accept incoming requests by Pulsar binary protocol and http/https
             final List<Runnable> runnables;
@@ -1098,6 +1101,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    private String createBrokerId() {
+        // Remove any trailing dot from the absolute FQDN in the broker id to prevent it from impacting
+        // broker entries in the metadata store when making the advertised address absolute
+        String brokerIdHostPart = advertisedAddress.replaceFirst("\\.$", "");
+        // Although broker id contains a hostname and port, it is not meant to be used for connecting to the broker,
+        // It is simply a unique identifier for the broker.
+        return String.format("%s:%s", brokerIdHostPart, config.getWebServicePort()
+                .or(config::getWebServicePortTls).orElseThrow());
+    }
+
     public void runWhenReadyForIncomingRequests(Runnable runnable) {
         // Here we don't call the thenRun() methods because CompletableFuture maintains a stack for pending callbacks,
         // not a queue. Once the future is complete, the pending callbacks will be executed in reverse order of
@@ -1149,6 +1162,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return pulsarResources;
     }
 
+    protected PulsarResourcesExtended loadPulsarResourcesExtended() {
+        String className = config.getPulsarResourcesExtendedClassName();
+        PulsarResourcesExtended extendedResources = Reflections.createInstance(className,
+                PulsarResourcesExtended.class, Thread.currentThread().getContextClassLoader());
+        extendedResources.initialize(this);
+        return extendedResources;
+    }
+
     private synchronized void createMetricsServlet() {
         this.metricsServlet = new PulsarPrometheusMetricsServlet(
                 this, config.isExposeTopicLevelMetricsInPrometheus(),
@@ -1164,8 +1185,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private void addWebServerHandlers(WebService webService,
                                       PulsarPrometheusMetricsServlet metricsServlet,
                                       ServiceConfiguration config)
-            throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
-            DeploymentException {
+            throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
         Map<String, Object> attributeMap = new HashMap<>();
         attributeMap.put(WebService.ATTRIBUTE_PULSAR_NAME, this);
 
@@ -1231,9 +1251,37 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 if (additionalServlet instanceof AdditionalServletWithPulsarService) {
                     ((AdditionalServletWithPulsarService) additionalServlet).setPulsarService(this);
                 }
-                webService.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
-                        config.isAuthenticationEnabled(), attributeMap);
-                LOG.info("Broker add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                switch (servletWithClassLoader.getServletType()) {
+                    case JAVAX_SERVLET -> {
+                        Object servletInstance = servletWithClassLoader.getServletInstance();
+                        if (!(servletInstance instanceof javax.servlet.Servlet)) {
+                            LOG.error("AdditionalServletWithClassLoader {} has invalid servlet instance type {} which "
+                                            + "doesn't match {}. Skipping.", servletWithClassLoader,
+                                    servletInstance.getClass().getName(), servletWithClassLoader.getServletType());
+                            try {
+                                servletWithClassLoader.close();
+                            } catch (Exception e) {
+                                LOG.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                            }
+                            continue;
+                        }
+                        ServletHolder servletHolder =
+                                new ServletHolder((Servlet) servletInstance);
+                        webService.addServlet(servletWithClassLoader.getBasePath(), servletHolder,
+                                config.isAuthenticationEnabled(), attributeMap);
+                        LOG.info("Broker add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                    }
+                    default -> {
+                        LOG.error("AdditionalServletWithClassLoader {} has unsupported servlet type {}. Skipping.",
+                                servletWithClassLoader, servletWithClassLoader.getServletType());
+                        try {
+                            servletWithClassLoader.close();
+                        } catch (Exception e) {
+                            LOG.error("Failed to close servlet {}.", servletWithClassLoader, e);
+                        }
+                        continue;
+                    }
+                }
             }
         }
     }
@@ -1241,35 +1289,31 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private void addWebSocketServiceHandler(WebService webService,
                                             Map<String, Object> attributeMap,
                                             ServiceConfiguration config)
-            throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
-            DeploymentException {
+            throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
         if (config.isWebSocketServiceEnabled()) {
             // Use local broker address to avoid different IP address when using a VIP for service discovery
             this.webSocketService = new WebSocketService(null, config);
             this.webSocketService.start();
 
-            final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
-            webService.addServlet(WebSocketProducerServlet.SERVLET_PATH,
-                    new ServletHolder(producerWebSocketServlet), true, attributeMap);
-            webService.addServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(producerWebSocketServlet), true, attributeMap);
+            addWebSocketServlet(new WebSocketProducerServlet(webSocketService), attributeMap,
+                    WebSocketProducerServlet.SERVLET_PATH, WebSocketProducerServlet.SERVLET_PATH_V2);
 
-            final WebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
-            webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                    new ServletHolder(consumerWebSocketServlet), true, attributeMap);
-            webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(consumerWebSocketServlet), true, attributeMap);
+            addWebSocketServlet(new WebSocketConsumerServlet(webSocketService), attributeMap,
+                    WebSocketConsumerServlet.SERVLET_PATH, WebSocketConsumerServlet.SERVLET_PATH_V2);
 
-            final WebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
-            webService.addServlet(WebSocketReaderServlet.SERVLET_PATH,
-                    new ServletHolder(readerWebSocketServlet), true, attributeMap);
-            webService.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
-                    new ServletHolder(readerWebSocketServlet), true, attributeMap);
+            addWebSocketServlet(new WebSocketReaderServlet(webSocketService), attributeMap,
+                    WebSocketReaderServlet.SERVLET_PATH,
+                    WebSocketReaderServlet.SERVLET_PATH_V2);
 
-            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet =
-                    new WebSocketMultiTopicConsumerServlet(webSocketService);
-            webService.addServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
-                    new ServletHolder(multiTopicConsumerWebSocketServlet), true, attributeMap);
+            addWebSocketServlet(new WebSocketMultiTopicConsumerServlet(webSocketService), attributeMap,
+                    WebSocketMultiTopicConsumerServlet.SERVLET_PATH);
+        }
+    }
+
+    private void addWebSocketServlet(JettyWebSocketServlet webSocketServlet, Map<String, Object> attributeMap,
+                                     String... servletPaths) {
+        for (String servletPath : servletPaths) {
+            webService.addWebSocketServlet(servletPath, webSocketServlet, attributeMap);
         }
     }
 
@@ -1297,6 +1341,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                         .openTelemetry(openTelemetry)
                         .nodeSizeStats(new DefaultMetadataNodeSizeStats())
+                        .numSerDesThreads(config.getMetadataStoreSerDesThreads())
                         .build());
     }
 

@@ -18,13 +18,20 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
+import static org.testng.AssertJUnit.assertTrue;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,6 +52,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -420,5 +428,207 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNull(service.getPoliciesCacheInit(namespaceName));
         service.prepareInitPoliciesCacheAsync(namespaceName).get();
         admin.namespaces().deleteNamespace(NAMESPACE5);
+    }
+
+    @Test
+    public void testCreateNamespaceEventsSystemTopicFactoryException() throws Exception {
+        final String namespace = "system-topic/namespace-6";
+
+        admin.namespaces().createNamespace(namespace);
+
+        TopicName topicName = TopicName.get("persistent", NamespaceName.get(namespace), "topic-1");
+
+        SystemTopicBasedTopicPoliciesService service =
+            Mockito.spy((SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService());
+
+        // inject exception when create NamespaceEventsSystemTopicFactory
+        Mockito.doThrow(new RuntimeException("test exception")).when(service)
+            .getNamespaceEventsSystemTopicFactory();
+
+        CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture;
+        Optional<TopicPolicies> topicPoliciesOptional;
+        try {
+            topicPoliciesFuture =
+            service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+            topicPoliciesOptional = topicPoliciesFuture.join();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause().getMessage().contains("test exception"));
+        }
+
+        Mockito.reset(service);
+
+        service.updateTopicPoliciesAsync(topicName, false, false, topicPolicies ->
+            topicPolicies.setMaxConsumerPerTopic(10)).get();
+
+        topicPoliciesFuture =
+            service.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+        topicPoliciesOptional = topicPoliciesFuture.join();
+
+        Assert.assertNotNull(topicPoliciesOptional);
+        Assert.assertTrue(topicPoliciesOptional.isPresent());
+
+        TopicPolicies topicPolicies = topicPoliciesOptional.get();
+        Assert.assertNotNull(topicPolicies);
+        Assert.assertEquals(topicPolicies.getMaxConsumerPerTopic(), 10);
+    }
+
+    @Test
+    public void testPrepareInitPoliciesCacheAsyncThrowExceptionAfterCreateReader() throws Exception {
+        // catch the log output
+        @Cleanup
+        TestLogAppender testLogAppender = TestLogAppender.create(log);
+
+        // create namespace-5 and topic
+        pulsar.getTopicPoliciesService().close();
+        SystemTopicBasedTopicPoliciesService spyService =
+                Mockito.spy(new SystemTopicBasedTopicPoliciesService(pulsar));
+        FieldUtils.writeField(pulsar, "topicPoliciesService", spyService, true);
+
+
+        admin.namespaces().createNamespace(NAMESPACE5);
+        final String topic = "persistent://" + NAMESPACE5 + "/test" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 1);
+
+        CompletableFuture<Void> future = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
+        Assert.assertNull(future);
+
+        // mock readerCache and new a reader, then put this reader in readerCache.
+        // when new reader, would trigger __change_event topic of namespace-5 created
+        // and would trigger prepareInitPoliciesCacheAsync()
+        ConcurrentHashMap<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>
+                spyReaderCaches = new ConcurrentHashMap<>();
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
+                spyService.createSystemTopicClient(NamespaceName.get(NAMESPACE5));
+        spyReaderCaches.put(NamespaceName.get(NAMESPACE5), readerCompletableFuture);
+        FieldUtils.writeDeclaredField(spyService, "readerCaches", spyReaderCaches, true);
+
+        // set topic policy. create producer for __change_event topic
+        admin.topicPolicies().setMaxConsumersPerSubscription(topic, 1);
+        future = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
+        Assert.assertNotNull(future);
+
+        // trigger close reader of __change_event directly, simulate that reader
+        // is closed for some reason, such as topic unload or broker restart.
+        // since prepareInitPoliciesCacheAsync() has been executed, it would go into readMorePoliciesAsync(),
+        // throw exception, output "Closing the topic policies reader for" and do cleanPoliciesCacheInitMap()
+        SystemTopicClient.Reader<PulsarEvent> reader = readerCompletableFuture.get();
+        reader.close();
+        log.info("successfully close spy reader");
+        Awaitility.await().untilAsserted(() -> {
+            boolean logFound = testLogAppender.getEvents().stream().anyMatch(logEvent ->
+                    logEvent.getMessage().toString().contains("Closing the topic policies reader for"));
+            assertTrue(logFound);
+        });
+
+
+        // Since cleanPoliciesCacheInitMap() is executed, should add the failed reader into readerCache again.
+        // Then in SystemTopicBasedTopicPoliciesService, readerCache has a closed reader,
+        // and policyCacheInitMap do not contain a future.
+        // To simulate the situation: when getTopicPolicy() execute, it will do prepareInitPoliciesCacheAsync() and
+        // use a closed reader to read the __change_event topic. Then throw exception
+        spyReaderCaches.put(NamespaceName.get(NAMESPACE5), readerCompletableFuture);
+        FieldUtils.writeDeclaredField(spyService, "readerCaches", spyReaderCaches, true);
+
+        CompletableFuture<Boolean> prepareFuture = new CompletableFuture<>();
+        try {
+            prepareFuture = spyService.prepareInitPoliciesCacheAsync(NamespaceName.get(NAMESPACE5));
+            prepareFuture.get();
+            Assert.fail();
+        } catch (Exception e) {
+            // that is ok
+        }
+
+        // since prepareInitPoliciesCacheAsync() throw exception when initPolicesCache(),
+        // would clean readerCache and policyCacheInitMap.
+        Assert.assertTrue(prepareFuture.isCompletedExceptionally());
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> future1 = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(future1);
+            CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
+                    spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(readerCompletableFuture1);
+        });
+
+
+        // make sure not do cleanPoliciesCacheInitMap() twice
+        // totally trigger prepareInitPoliciesCacheAsync() twice, so the time of cleanPoliciesCacheInitMap() is 2.
+        // in previous code, the time would be 3
+        boolean logFound = testLogAppender.getEvents().stream().anyMatch(logEvent ->
+                logEvent.getMessage().toString().contains("Failed to create reader on __change_events topic"));
+        assertFalse(logFound);
+        boolean logFound2 = testLogAppender.getEvents().stream().anyMatch(logEvent ->
+                logEvent.getMessage().toString().contains("Failed to check the move events for the system topic"));
+        assertTrue(logFound2);
+        verify(spyService, times(2)).cleanPoliciesCacheInitMap(any(), anyBoolean());
+
+        // make sure not occur Recursive update
+        boolean logFound3 = testLogAppender.getEvents().stream().anyMatch(logEvent ->
+                logEvent.getMessage().toString().contains("Recursive update"));
+        assertFalse(logFound3);
+    }
+
+    @Test
+    public void testPrepareInitPoliciesCacheAsyncThrowExceptionInCreateReader() throws Exception {
+        // catch the log output
+        @Cleanup
+        TestLogAppender testLogAppender = TestLogAppender.create(log);
+
+        // create namespace-5 and topic
+        pulsar.getTopicPoliciesService().close();
+        SystemTopicBasedTopicPoliciesService spyService =
+                Mockito.spy(new SystemTopicBasedTopicPoliciesService(pulsar));
+        FieldUtils.writeField(pulsar, "topicPoliciesService", spyService, true);
+
+
+        admin.namespaces().createNamespace(NAMESPACE5);
+        final String topic = "persistent://" + NAMESPACE5 + "/test" + UUID.randomUUID();
+        admin.topics().createPartitionedTopic(topic, 1);
+
+        CompletableFuture<Void> future = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
+        Assert.assertNull(future);
+
+        // mock readerCache and put a failed readerCreateFuture in readerCache.
+        // simulate that when trigger prepareInitPoliciesCacheAsync(),
+        // it would use this failed readerFuture and go into corresponding logic
+        ConcurrentHashMap<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>>
+                spyReaderCaches = new ConcurrentHashMap<>();
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture = new CompletableFuture<>();
+        readerCompletableFuture.completeExceptionally(new Exception("create reader fail"));
+        spyReaderCaches.put(NamespaceName.get(NAMESPACE5), readerCompletableFuture);
+        FieldUtils.writeDeclaredField(spyService, "readerCaches", spyReaderCaches, true);
+
+        // trigger prepareInitPoliciesCacheAsync()
+        CompletableFuture<Boolean> prepareFuture = new CompletableFuture<>();
+        try {
+            prepareFuture = spyService.prepareInitPoliciesCacheAsync(NamespaceName.get(NAMESPACE5));
+            prepareFuture.get();
+            Assert.fail();
+        } catch (Exception e) {
+            // that is ok
+        }
+
+        // since prepareInitPoliciesCacheAsync() throw exception when createReader,
+        // would clean readerCache and policyCacheInitMap.
+        Assert.assertTrue(prepareFuture.isCompletedExceptionally());
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> future1 = spyService.getPoliciesCacheInit(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(future1);
+            CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture1 =
+                    spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
+            Assert.assertNull(readerCompletableFuture1);
+        });
+
+
+        // make sure not do cleanPoliciesCacheInitMap() twice
+        // totally trigger prepareInitPoliciesCacheAsync() once, so the time of cleanPoliciesCacheInitMap() is 1.
+        boolean logFound = testLogAppender.getEvents().stream().anyMatch(logEvent ->
+                logEvent.getMessage().toString().contains("Failed to create reader on __change_events topic"));
+        assertTrue(logFound);
+        boolean logFound2 = testLogAppender.getEvents().stream().anyMatch(logEvent ->
+                logEvent.getMessage().toString().contains("Failed to check the move events for the system topic")
+                        || logEvent.getMessage().toString().contains("Failed to read event from the system topic"));
+        assertFalse(logFound2);
+        verify(spyService, times(1)).cleanPoliciesCacheInitMap(any(), anyBoolean());
     }
 }

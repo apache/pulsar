@@ -481,6 +481,42 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int maxConcurrentLookupRequests = 50000;
 
     @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum heap memory for inflight topic list operations (MB).\n"
+                    + "Default: 100 MB (supports ~1M topic names assuming 100 bytes each)")
+    private int maxTopicListInFlightHeapMemSizeMB = 100;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum direct memory for inflight topic list responses (MB).\n"
+                    + "Default: 100 MB (network buffers for serialized responses)")
+    private int maxTopicListInFlightDirectMemSizeMB = 100;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Timeout for acquiring heap memory permits (milliseconds).\n"
+                    + "Default: 25000 (25 seconds)")
+    private int maxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis = 25000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum queue size for heap memory permit requests.\n"
+                    + "Default: 10000 (prevent unbounded queueing)")
+    private int maxTopicListInFlightHeapMemSizePermitsAcquireQueueSize = 10000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Timeout for acquiring direct memory permits (milliseconds).\n"
+                    + "Default: 25000 (25 seconds)")
+    private int maxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis = 25000;
+
+    @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "Maximum queue size for direct memory permit requests.\n"
+                    + "Default: 10000 (prevent unbounded queueing)")
+    private int maxTopicListInFlightDirectMemSizePermitsAcquireQueueSize = 10000;
+
+    @FieldContext(
         category = CATEGORY_CLIENT_AUTHENTICATION,
         doc = "The authentication plugin used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
@@ -773,6 +809,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int httpProxyTimeout = 5 * 60 * 1000;
 
     @FieldContext(
+            minValue = 0,
+            category = CATEGORY_HTTP,
+            doc = "Http proxy idle timeout.\n\n"
+                    + "The idle timeout value for HTTP proxy is in millisecond."
+    )
+    private int httpProxyIdleTimeout = 30 * 1000;
+
+    @FieldContext(
            minValue = 1,
            category = CATEGORY_HTTP,
            doc = "Number of threads to use for HTTP requests processing"
@@ -795,6 +839,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
                     + " Default is set to 8192."
     )
     private int httpServerAcceptQueueSize = 8192;
+
+    @FieldContext(
+            minValue = 0,
+            category = CATEGORY_HTTP,
+            doc = "Idle timeout for HTTP server connections in milliseconds."
+    )
+    private int httpServerIdleTimeout = 30 * 1000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
             + "(0 to disable limiting)")

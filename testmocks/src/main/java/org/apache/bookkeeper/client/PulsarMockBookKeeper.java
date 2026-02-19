@@ -176,7 +176,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     @Override
-    public void asyncOpenLedger(long lId, DigestType digestType, byte[] passwd, OpenCallback cb, Object ctx) {
+    public void asyncOpenLedger(long lId, DigestType digestType, byte[] passwd, OpenCallback cb, Object ctx,
+                                boolean keepUpdateMetadata) {
         getProgrammedFailure().thenComposeAsync((res) -> {
                 PulsarMockLedgerHandle lh = ledgers.get(lId);
                 if (lh == null) {
@@ -260,7 +261,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
                             } else {
                                 return FutureUtils.value(new PulsarMockReadHandle(PulsarMockBookKeeper.this, ledgerId,
                                         lh.getLedgerMetadata(), lh.entries,
-                                        PulsarMockBookKeeper.this::getReadHandleInterceptor));
+                                        PulsarMockBookKeeper.this::getReadHandleInterceptor, lh.totalLengthCounter));
                             }
                         });
             }
@@ -303,6 +304,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
         }
         for (PulsarMockLedgerHandle ledger : ledgers.values()) {
             ledger.entries.clear();
+            ledger.totalLengthCounter.set(0);
         }
         scheduler.shutdown();
         ledgers.clear();
@@ -353,7 +355,9 @@ public class PulsarMockBookKeeper extends BookKeeper {
         failures.add(delayFuture);
     }
 
-
+    /**
+     * @param rc see also {@link org.apache.bookkeeper.client.BKException.Code}.
+     */
     public void failNow(int rc) {
         failAfter(0, rc);
     }

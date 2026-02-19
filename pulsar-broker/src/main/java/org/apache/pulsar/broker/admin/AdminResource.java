@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
@@ -498,14 +499,12 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
-   protected void validateClusterExists(String cluster) {
-        try {
-            if (!clusterResources().getCluster(cluster).isPresent()) {
+    protected CompletableFuture<Void> validateClusterExistsAsync(String cluster) {
+        return clusterResources().clusterExistsAsync(cluster).thenAccept(clusterExist -> {
+            if (!clusterExist) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
             }
-        } catch (Exception e) {
-            throw new RestException(e);
-        }
+        });
     }
 
     protected Policies getNamespacePolicies(String tenant, String cluster, String namespace) {
@@ -514,6 +513,9 @@ public abstract class AdminResource extends PulsarWebResource {
         return getNamespacePolicies(ns);
     }
 
+    /**
+     * Directly get the replication clusters for a namespace, without checking allowed clusters.
+     */
     protected CompletableFuture<Set<String>> getNamespaceReplicatedClustersAsync(NamespaceName namespaceName) {
         return namespaceResources().getPoliciesAsync(namespaceName)
                 .thenApply(policies -> {
@@ -868,6 +870,12 @@ public abstract class AdminResource extends PulsarWebResource {
     protected void checkNotNull(Object o, String errorMessage) {
         if (o == null) {
             throw new RestException(Status.BAD_REQUEST, errorMessage);
+        }
+    }
+
+    protected void checkNotBlank(String str, String errorMessage) {
+        if (isBlank(str)) {
+            throw new RestException(Status.PRECONDITION_FAILED, errorMessage);
         }
     }
 

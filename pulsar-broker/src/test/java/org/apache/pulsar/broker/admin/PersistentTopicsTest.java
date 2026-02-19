@@ -48,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.servlet.ServletContext;
 import javax.ws.rs.InternalServerErrorException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
@@ -143,7 +144,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
         persistentTopics = spy(PersistentTopics.class);
-        persistentTopics.setServletContext(new MockServletContext());
+        persistentTopics.setServletContext(mock(ServletContext.class));
         persistentTopics.setPulsar(pulsar);
         doReturn(false).when(persistentTopics).isRequestHttps();
         doReturn(null).when(persistentTopics).originalPrincipal();
@@ -153,7 +154,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(mock(AuthenticationDataHttps.class)).when(persistentTopics).clientAuthData();
 
         extPersistentTopics = spy(ExtPersistentTopics.class);
-        extPersistentTopics.setServletContext(new MockServletContext());
+        extPersistentTopics.setServletContext(mock(ServletContext.class));
         extPersistentTopics.setPulsar(pulsar);
         doReturn(false).when(extPersistentTopics).isRequestHttps();
         doReturn(null).when(extPersistentTopics).originalPrincipal();
@@ -163,7 +164,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(mock(AuthenticationDataHttps.class)).when(extPersistentTopics).clientAuthData();
 
         nonPersistentTopic = spy(NonPersistentTopics.class);
-        nonPersistentTopic.setServletContext(new MockServletContext());
+        nonPersistentTopic.setServletContext(mock(ServletContext.class));
         nonPersistentTopic.setPulsar(pulsar);
         namespaceResources = mock(NamespaceResources.class);
         doReturn(false).when(nonPersistentTopic).isRequestHttps();
@@ -852,14 +853,14 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         response = mock(AsyncResponse.class);
         ArgumentCaptor<List<String>> listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
-        persistentTopics.getList(response, testTenant, testNamespace, null, false);
+        persistentTopics.getList(response, testTenant, testNamespace, null, false, null);
         verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
         List<String> topics = listOfStringsCaptor.getValue();
         Assert.assertEquals(topics.size(), 1);
 
         response = mock(AsyncResponse.class);
         listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
-        persistentTopics.getList(response, testTenant, testNamespace, null, true);
+        persistentTopics.getList(response, testTenant, testNamespace, null, true, null);
         verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
         topics = listOfStringsCaptor.getValue();
         Assert.assertEquals(topics.size(), 2);
@@ -878,14 +879,14 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         response = mock(AsyncResponse.class);
         listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
-        nonPersistentTopic.getList(response, testTenant, testNamespace, null, false);
+        nonPersistentTopic.getList(response, testTenant, testNamespace, null, false, null);
         verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
         topics = listOfStringsCaptor.getValue();
         Assert.assertEquals(topics.size(), 1);
 
         response = mock(AsyncResponse.class);
         listOfStringsCaptor = ArgumentCaptor.forClass(List.class);
-        nonPersistentTopic.getList(response, testTenant, testNamespace, null, true);
+        nonPersistentTopic.getList(response, testTenant, testNamespace, null, true, null);
         verify(response, timeout(5000).times(1)).resume(listOfStringsCaptor.capture());
         topics = listOfStringsCaptor.getValue();
         Assert.assertEquals(topics.size(), 2);

@@ -20,8 +20,11 @@ package org.apache.pulsar.broker.service;
 
 
 import io.netty.util.concurrent.Future;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -51,8 +54,10 @@ public interface PulsarCommandSender {
 
     void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg);
 
-    void sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
-                                          boolean changed, long requestId);
+    CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
+                                                             boolean changed, long requestId,
+                                                             Function<Throwable, CompletableFuture<Void>>
+                                                                     permitAcquireErrorHandler);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
@@ -93,8 +98,13 @@ public interface PulsarCommandSender {
 
     void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message);
 
-    void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics);
+    CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
+                                                      Collection<String> topics,
+                                                      Function<Throwable, CompletableFuture<Void>>
+                                                              permitAcquireErrorHandler);
 
-    void sendWatchTopicListUpdate(long watcherId,
-                                         List<String> newTopics, List<String> deletedTopics, String topicsHash);
+    CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId,
+                                  List<String> newTopics, List<String> deletedTopics, String topicsHash,
+                                  Function<Throwable, CompletableFuture<Void>>
+                                                             permitAcquireErrorHandler);
 }

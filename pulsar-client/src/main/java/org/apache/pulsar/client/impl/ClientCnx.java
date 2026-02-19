@@ -29,7 +29,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
-import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
@@ -192,11 +191,14 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
+    @Getter
     private boolean supportsTopicWatchers;
     @Getter
     private boolean supportsGetPartitionedMetadataWithoutAutoCreation;
     @Getter
     private boolean brokerSupportsReplDedupByLidAndEid;
+    @Getter
+    private boolean supportsTopicWatcherReconcile;
 
     /** Idle stat. **/
     @Getter
@@ -412,6 +414,8 @@ public class ClientCnx extends PulsarHandler {
                     && connected.getFeatureFlags().isSupportsGetPartitionedMetadataWithoutAutoCreation();
         brokerSupportsReplDedupByLidAndEid =
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsReplDedupByLidAndEid();
+        supportsTopicWatcherReconcile =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatcherReconcile();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
@@ -923,7 +927,8 @@ public class ClientCnx extends PulsarHandler {
         if (pendingLookupRequestSemaphore.tryAcquire()) {
             future.whenComplete((lookupDataResult, throwable) -> {
                 if (throwable instanceof ConnectException
-                        || throwable instanceof PulsarClientException.LookupException) {
+                        || throwable instanceof PulsarClientException.LookupException
+                        || FutureUtil.unwrapCompletionException(throwable) instanceof TimeoutException) {
                     pendingLookupRequestSemaphore.release();
                 }
             });
@@ -1218,10 +1223,20 @@ public class ClientCnx extends PulsarHandler {
         if (!supportsTopicWatchers) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.NotAllowedException(
-                            "Broker does not allow broker side pattern evaluation."));
+                            "Broker does not support topic list watchers."));
         }
         return sendRequestAndHandleTimeout(Commands.serializeWithSize(commandWatchTopicList), requestId,
                 RequestType.Command, true);
+    }
+
+    /**
+     * Create and send a WatchTopicList request including the topics-hash.
+     * Delegates to the existing BaseCommand-based method after building the command.
+     */
+    public CompletableFuture<CommandWatchTopicListSuccess> newWatchTopicList(
+            long requestId, long watcherId, String namespace, String topicsPattern, String topicsHash) {
+        BaseCommand cmd = Commands.newWatchTopicList(requestId, watcherId, namespace, topicsPattern, topicsHash);
+        return newWatchTopicList(cmd, requestId);
     }
 
     public CompletableFuture<CommandSuccess> newWatchTopicListClose(
@@ -1440,18 +1455,6 @@ public class ClientCnx extends PulsarHandler {
        if (ctx != null) {
            ctx.close();
        }
-    }
-
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof SslHandshakeCompletionEvent) {
-            SslHandshakeCompletionEvent sslHandshakeCompletionEvent = (SslHandshakeCompletionEvent) evt;
-            if (sslHandshakeCompletionEvent.cause() != null) {
-                log.warn("{} Got ssl handshake exception {}", ctx.channel(),
-                        sslHandshakeCompletionEvent);
-            }
-        }
-        ctx.fireUserEventTriggered(evt);
     }
 
     protected void closeWithException(Throwable e) {

@@ -77,7 +77,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the bundle name", required = false)
             @QueryParam("bundle") String bundle) {
         validateNamespaceName(property, cluster, namespace);
-        internalGetListAsync(Optional.ofNullable(bundle))
+        internalGetListAsync(Optional.ofNullable(bundle), null)
             .thenAccept(asyncResponse::resume)
             .exceptionally(ex -> {
                 if (!isRedirectException(ex)) {

@@ -106,6 +106,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
@@ -132,6 +133,7 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -154,6 +156,7 @@ import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -166,7 +169,8 @@ public class PersistentTopicsBase extends AdminResource {
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
 
-    protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle) {
+    protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle,
+                                                                   @Nullable Map<String, String> properties) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
             .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
             .thenAccept(exists -> {
@@ -174,7 +178,8 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
                 }
             })
-            .thenCompose(__ -> topicResources().listPersistentTopicsAsync(namespaceName))
+            .thenCompose(__ -> pulsar().getNamespaceService().getListOfTopicsByProperties(namespaceName,
+               CommandGetTopicsOfNamespace.Mode.PERSISTENT, properties))
             .thenApply(topics ->
                 topics.stream()
                     .filter(topic -> {
@@ -518,7 +523,7 @@ public class PersistentTopicsBase extends AdminResource {
                 return CompletableFuture.completedFuture(null);
             }
             // Query the topic-level policies only if the namespace-level policies exist.
-            // Global policies does not affet Replication.
+            // Global policies does not affect Replication.
             final var namespacePolicies = optionalPolicies.get();
             return pulsar().getTopicPoliciesService().getTopicPoliciesAsync(topicName,
                     TopicPoliciesService.GetType.LOCAL_ONLY
@@ -663,8 +668,10 @@ public class PersistentTopicsBase extends AdminResource {
         pulsar().getBrokerService().getTopicIfExists(topicName.toString())
             .thenAccept(opt -> {
                 if (!opt.isPresent()) {
-                    throw new RestException(Status.NOT_FOUND,
-                        getTopicNotFoundErrorMessage(topicName.toString()));
+                    future.completeExceptionally(
+                            new WebApplicationException(getTopicNotFoundErrorMessage(topicName.toString()),
+                                    Status.NOT_FOUND));
+                    return;
                 }
                 ManagedLedger managedLedger = ((PersistentTopic) opt.get()).getManagedLedger();
                 managedLedger.asyncSetProperties(properties, new AsyncCallbacks.UpdatePropertiesCallback() {
@@ -684,6 +691,9 @@ public class PersistentTopicsBase extends AdminResource {
                         future.completeExceptionally(exception);
                     }
                 }, null);
+            }).exceptionally(ex -> {
+                future.completeExceptionally(ex);
+                return null;
             });
         return future;
     }
@@ -720,8 +730,10 @@ public class PersistentTopicsBase extends AdminResource {
         pulsar().getBrokerService().getTopicIfExists(topicName.toString())
                 .thenAccept(opt -> {
                     if (!opt.isPresent()) {
-                        throw new RestException(Status.NOT_FOUND,
-                                getTopicNotFoundErrorMessage(topicName.toString()));
+                        future.completeExceptionally(
+                                new WebApplicationException(getTopicNotFoundErrorMessage(topicName.toString()),
+                                        Status.NOT_FOUND));
+                        return;
                     }
                     ManagedLedger managedLedger = ((PersistentTopic) opt.get()).getManagedLedger();
                     managedLedger.asyncDeleteProperty(key, new AsyncCallbacks.UpdatePropertiesCallback() {
@@ -736,6 +748,9 @@ public class PersistentTopicsBase extends AdminResource {
                             future.completeExceptionally(exception);
                         }
                     }, null);
+                }).exceptionally(ex -> {
+                    future.completeExceptionally(ex);
+                    return null;
                 });
         return future;
     }
@@ -800,8 +815,7 @@ public class PersistentTopicsBase extends AdminResource {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof PreconditionFailedException) {
                         asyncResponse.resume(
-                                new RestException(Status.PRECONDITION_FAILED,
-                                        "Topic has active producers/subscriptions"));
+                                new RestException(Status.PRECONDITION_FAILED, realCause.getMessage()));
                     } else if (realCause instanceof WebApplicationException){
                         asyncResponse.resume(realCause);
                     } else if (realCause instanceof MetadataStoreException.NotFoundException) {
@@ -1005,8 +1019,9 @@ public class PersistentTopicsBase extends AdminResource {
             .thenApply(op -> {
                 OffloadPoliciesImpl offloadPolicies = op.map(TopicPolicies::getOffloadPolicies).orElse(null);
                 if (applied) {
-                    OffloadPoliciesImpl namespacePolicy =
-                            (OffloadPoliciesImpl) getNamespacePolicies(namespaceName).offload_policies;
+                    Policies policies = getNamespacePolicies(namespaceName);
+                    OffloadPoliciesImpl namespacePolicy = (OffloadPoliciesImpl) policies.offload_policies;
+                    namespacePolicy = OffloadPoliciesImpl.oldPoliciesCompatible(namespacePolicy, policies);
                     offloadPolicies = OffloadPoliciesImpl.mergeConfiguration(offloadPolicies
                             , namespacePolicy, pulsar().getConfiguration().getProperties());
                 }
@@ -1698,6 +1713,7 @@ public class PersistentTopicsBase extends AdminResource {
 
                         result.setEntries(rawResult.getEntries());
                         result.setMessages(rawResult.getMessages());
+                        result.setMarkerMessages(rawResult.getMarkerMessages());
 
                         result.setFilterAcceptedEntries(rawResult.getFilterAcceptedEntries());
                         result.setFilterRejectedEntries(rawResult.getFilterRejectedEntries());
@@ -2374,7 +2390,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     try {
                                         pulsar().getAdminClient().topics()
                                                 .createSubscriptionAsync(topicNamePartition.toString(),
-                                                        subscriptionName, targetMessageId, false, properties)
+                                                        subscriptionName, targetMessageId, replicated, properties)
                                                 .handle((r, ex) -> {
                                                     if (ex != null) {
                                                         // fail the operation on unknown exception or
@@ -4564,7 +4580,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
                     }
                 })
-                .thenCompose(__ -> internalGetListAsync(Optional.empty()))
+                .thenCompose(__ -> internalGetListAsync(Optional.empty(), null))
                 .thenApply(topics -> {
                     if (!topics.contains(topicName.toString())) {
                         throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");

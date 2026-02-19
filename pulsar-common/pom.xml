@@ -99,6 +99,11 @@
 
     <dependency>
       <groupId>io.netty</groupId>
+      <artifactId>netty-buffer</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
       <artifactId>netty-resolver-dns</artifactId>
     </dependency>
 
@@ -254,9 +259,8 @@
     </dependency>
 
     <dependency>
-      <groupId>org.lz4</groupId>
+      <groupId>at.yawk.lz4</groupId>
       <artifactId>lz4-java</artifactId>
-      <version>1.5.0</version>
       <scope>test</scope>
     </dependency>
 

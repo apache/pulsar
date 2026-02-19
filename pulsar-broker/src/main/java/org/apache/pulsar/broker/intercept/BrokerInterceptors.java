@@ -19,9 +19,9 @@
 package org.apache.pulsar.broker.intercept;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -66,7 +66,8 @@ public class BrokerInterceptors implements BrokerInterceptor {
                 BrokerInterceptorUtils.searchForInterceptors(conf.getBrokerInterceptorsDirectory(),
                         conf.getNarExtractionDirectory());
 
-        ImmutableMap.Builder<String, BrokerInterceptorWithClassLoader> builder = ImmutableMap.builder();
+        // Use LinkedHashMap as a temporary container to ensure insertion order
+        Map<String, BrokerInterceptorWithClassLoader> orderedInterceptorMap = new LinkedHashMap<>();
 
         conf.getBrokerInterceptors().forEach(interceptorName -> {
 
@@ -80,7 +81,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
             try {
                 interceptor = BrokerInterceptorUtils.load(definition, conf.getNarExtractionDirectory());
                 if (interceptor != null) {
-                    builder.put(interceptorName, interceptor);
+                    orderedInterceptorMap.put(interceptorName, interceptor);
                 }
                 log.info("Successfully loaded broker interceptor for name `{}`", interceptorName);
             } catch (IOException e) {
@@ -89,9 +90,8 @@ public class BrokerInterceptors implements BrokerInterceptor {
             }
         });
 
-        Map<String, BrokerInterceptorWithClassLoader> interceptors = builder.build();
-        if (!interceptors.isEmpty()) {
-            return new BrokerInterceptors(interceptors);
+        if (!orderedInterceptorMap.isEmpty()) {
+            return new BrokerInterceptors(Map.copyOf(orderedInterceptorMap));
         } else {
             return null;
         }

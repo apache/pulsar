@@ -129,13 +129,13 @@ public class V1ProxyAuthenticationTest extends V1ProducerConsumerBase {
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
         consumeClient.start();
-        ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-        Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+        ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+        Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
         log.info("Connecting to : {}", consumeUri);
 
-        ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+        ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
         produceClient.start();
-        Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+        Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
         Assert.assertTrue(consumerFuture.get().isOpen());
         Assert.assertTrue(producerFuture.get().isOpen());
         Awaitility.await().untilAsserted(() -> {
@@ -186,13 +186,13 @@ public class V1ProxyAuthenticationTest extends V1ProducerConsumerBase {
 
         try {
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             Assert.assertTrue(consumerFuture.get().isOpen());
 
             produceClient.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             Assert.assertTrue(producerFuture.get().isOpen());
 
             Awaitility.await().untilAsserted(() -> Assert.assertTrue(consumeSocket.getReceivedMessagesCount() >= 3));

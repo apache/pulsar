@@ -91,6 +91,7 @@ import org.apache.pulsar.broker.testcontext.MockEntryFilterProvider;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
+import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -1269,9 +1270,29 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             }
         }
 
-        Set<String> topicsInNs = Sets
-                .newHashSet(
-                        admin.topics().getList(namespace, null, Collections.singletonMap(QueryParam.Bundle, bundle)));
+        Set<String> topicsInNs;
+        // 1. test recommended sync method
+        ListTopicsOptions listTopicsOptions = ListTopicsOptions.builder().bundle(bundle).build();
+        topicsInNs = Sets.newHashSet(admin.topics().getList(namespace, null, listTopicsOptions));
+        assertEquals(topicsInNs.size(), topics.size());
+        topicsInNs.removeAll(topics);
+        assertEquals(topicsInNs.size(), 0);
+
+        // 2. test recommended async method
+        topicsInNs = Sets.newHashSet(admin.topics().getListAsync(namespace, null, listTopicsOptions).get());
+        assertEquals(topicsInNs.size(), topics.size());
+        topicsInNs.removeAll(topics);
+        assertEquals(topicsInNs.size(), 0);
+
+        // 3. test deprecated sync method
+        Map<QueryParam, Object> queryOption = Collections.singletonMap(QueryParam.Bundle, bundle);
+        topicsInNs = Sets.newHashSet(admin.topics().getList(namespace, null, queryOption));
+        assertEquals(topicsInNs.size(), topics.size());
+        topicsInNs.removeAll(topics);
+        assertEquals(topicsInNs.size(), 0);
+
+        // 4. test deprecated async method
+        topicsInNs = Sets.newHashSet(admin.topics().getListAsync(namespace, null, queryOption).get());
         assertEquals(topicsInNs.size(), topics.size());
         topicsInNs.removeAll(topics);
         assertEquals(topicsInNs.size(), 0);
@@ -1389,6 +1410,35 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(properties.size(), 2);
         Assert.assertEquals(properties.get("key1"), "value11");
         Assert.assertEquals(properties.get("key2"), "value2");
+    }
+
+    @Test
+    public void testUpdatePropertiesOnNonExistentTopic() throws Exception {
+        final String namespace = newUniqueName(defaultTenant + "/ns2");
+        final String topicName = "persistent://" + namespace + "/testUpdatePropertiesOnNonExistentTopic";
+        admin.namespaces().createNamespace(namespace, 20);
+
+        // Test updateProperties on non-existent topic should return 404 Not Found
+        Map<String, String> topicProperties = new HashMap<>();
+        topicProperties.put("key1", "value1");
+        try {
+            admin.topics().updateProperties(topicName, topicProperties);
+            fail("Should have thrown an exception for non-existent topic");
+        } catch (Exception e) {
+            Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
+                throw e;
+            });
+        }
+
+        // Test removeProperties on non-existent topic should return 404 Not Found
+        try {
+            admin.topics().removeProperties(topicName, "key1");
+            fail("Should have thrown an exception for non-existent topic");
+        } catch (PulsarAdminException.NotFoundException e) {
+            Assert.expectThrows(PulsarAdminException.NotFoundException.class, () -> {
+                throw e;
+            });
+        }
     }
 
     @Test
@@ -2541,6 +2591,27 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         } catch (PreconditionFailedException e) {
             assertTrue(e.getMessage().startsWith("Invalid bundle range"));
         }
+    }
+
+    @Test(dataProvider = "trueFalse")
+    public void testCreateReplicatedSubscriptionForPartitionedTopic(boolean replicated) throws Exception {
+        final String topic = newUniqueName("persistent://" + defaultNamespace + "/topic");
+        admin.topics().createPartitionedTopic(topic, 10);
+        admin.topics().createSubscription(topic, "sub", MessageId.earliest, replicated);
+        for (int i = 0; i < 10; i++) {
+            String individualPartition = TopicName.get(topic).getPartition(i).toString();
+            TopicStats stats = admin.topics().getStats(individualPartition);
+            assertEquals(stats.getSubscriptions().get("sub").isReplicated(), replicated);
+        }
+    }
+
+    @Test(dataProvider = "trueFalse")
+    public void testCreateReplicatedSubscriptionForNonPartitionedTopic(boolean replicated) throws Exception {
+        final String topic = newUniqueName("persistent://" + defaultNamespace + "/topic");
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, "sub", MessageId.earliest, replicated);
+        TopicStats stats = admin.topics().getStats(topic);
+        assertEquals(stats.getSubscriptions().get("sub").isReplicated(), replicated);
     }
 
     @Test
