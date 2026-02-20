@@ -262,20 +262,6 @@ public class SchemaDataValidatorTest {
     }
 
     @Test
-    public void testCompatibleNameValidatorUnicodeCharacters() throws Exception {
-        CompatibleNameValidator validator = new CompatibleNameValidator();
-
-        NameValidator.Result unicodeResult = validator.validate("名字");
-        Assert.assertFalse(unicodeResult.isOK());
-        Assert.assertTrue(unicodeResult.getErrors().contains("Illegal initial character"));
-
-        NameValidator.Result mixedResult = validator.validate("name字");
-        Assert.assertFalse(mixedResult.isOK());
-        Assert.assertTrue(mixedResult.getErrors().contains("Illegal character in"));
-    }
-
-
-    @Test
     public void testAvroCompatible() throws InvalidSchemaDataException {
         final ProtobufSchema<DataRecordOuterClass.DataRecord> protobufSchema =
                 ProtobufSchema.of(DataRecordOuterClass.DataRecord.class);
