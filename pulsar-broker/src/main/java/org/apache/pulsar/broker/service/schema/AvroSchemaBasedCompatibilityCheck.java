@@ -53,11 +53,11 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
         try {
             for (SchemaData schemaData : from) {
                 Schema.Parser parser =
-                        new Schema.Parser(StructSchemaDataValidator.compatibleNameValidator());
+                        new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
                 parser.setValidateDefaults(false);
                 fromList.addFirst(parser.parse(new String(schemaData.getData(), UTF_8)));
             }
-            Schema.Parser parser = new Schema.Parser(StructSchemaDataValidator.compatibleNameValidator());
+            Schema.Parser parser = new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
             parser.setValidateDefaults(false);
             Schema toSchema = parser.parse(new String(to.getData(), UTF_8));
             SchemaValidator schemaValidator = createSchemaValidator(strategy);

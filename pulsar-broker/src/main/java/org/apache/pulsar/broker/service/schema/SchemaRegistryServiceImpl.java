@@ -415,13 +415,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
         SchemaVersion schemaVersion;
         if (isUsingAvroSchemaParser(schemaData.getType())) {
-            Schema.Parser parser = new Schema.Parser(StructSchemaDataValidator.compatibleNameValidator());
+            Schema.Parser parser = new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
             Schema newSchema = parser.parse(new String(schemaData.getData(), UTF_8));
 
             for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
                 if (isUsingAvroSchemaParser(schemaAndMetadata.schema.getType())) {
                     Schema.Parser existParser =
-                            new Schema.Parser(StructSchemaDataValidator.compatibleNameValidator());
+                            new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
                     Schema existSchema = existParser.parse(new String(schemaAndMetadata.schema.getData(), UTF_8));
                     if (newSchema.equals(existSchema) && schemaAndMetadata.schema.getType() == schemaData.getType()) {
                         schemaVersion = schemaAndMetadata.version;

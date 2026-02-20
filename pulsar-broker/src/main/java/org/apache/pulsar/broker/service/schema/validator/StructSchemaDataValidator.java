@@ -40,11 +40,7 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
     }
 
     private static final StructSchemaDataValidator INSTANCE = new StructSchemaDataValidator();
-    static final CompatibleNameValidator COMPATIBLE_NAME_VALIDATOR = new CompatibleNameValidator();
-
-    public static NameValidator compatibleNameValidator() {
-        return COMPATIBLE_NAME_VALIDATOR;
-    }
+    public static final NameValidator COMPATIBLE_NAME_VALIDATOR = new CompatibleNameValidator();
 
     private StructSchemaDataValidator() {}
 
