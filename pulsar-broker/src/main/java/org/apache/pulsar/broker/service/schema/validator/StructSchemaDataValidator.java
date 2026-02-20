@@ -22,7 +22,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import java.io.IOException;
-
 import org.apache.avro.NameValidator;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
