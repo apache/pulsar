@@ -33,14 +33,18 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 /**
  * Validate if the struct schema is in expected form.
  */
-class StructSchemaDataValidator implements SchemaDataValidator {
+public class StructSchemaDataValidator implements SchemaDataValidator {
 
     public static StructSchemaDataValidator of() {
         return INSTANCE;
     }
 
     private static final StructSchemaDataValidator INSTANCE = new StructSchemaDataValidator();
-    private static final CompatibleNameValidator COMPATIBLE_NAME_VALIDATOR = new CompatibleNameValidator();
+    static final CompatibleNameValidator COMPATIBLE_NAME_VALIDATOR = new CompatibleNameValidator();
+
+    public static NameValidator compatibleNameValidator() {
+        return COMPATIBLE_NAME_VALIDATOR;
+    }
 
     private StructSchemaDataValidator() {}
 
