@@ -23,21 +23,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
-import org.apache.avro.protobuf.ProtobufData;
+import org.apache.avro.NameValidator;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.service.schema.proto.DataRecordOuterClass;
+import org.apache.pulsar.broker.service.schema.validator.StructSchemaDataValidator.CompatibleNameValidator;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.junit.jupiter.api.Assertions;
+import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import org.apache.pulsar.broker.service.schema.validator.StructSchemaDataValidator.CompatibleNameValidator;
-import org.apache.avro.NameValidator;
 
 @Test(groups = "broker")
 public class SchemaDataValidatorTest {
@@ -159,7 +156,7 @@ public class SchemaDataValidatorTest {
     @Test
     public void testCompatibleNameValidatorValidNames() {
         CompatibleNameValidator validator = new CompatibleNameValidator();
-        
+
         String[] validNames = {
             "validName",
             "ValidName",
@@ -175,10 +172,10 @@ public class SchemaDataValidatorTest {
             "$",
             "validNameWithMultiple$ymbols_and_numbers123"
         };
-        
+
         for (String name : validNames) {
             NameValidator.Result result = validator.validate(name);
-            Assertions.assertTrue(result.isOK(), 
+            Assert.assertTrue(result.isOK(),
                 "Expected validation to pass for name: '" + name + "', but got error: " + result.getErrors());
         }
     }
@@ -186,7 +183,7 @@ public class SchemaDataValidatorTest {
     @Test
     public void testCompatibleNameValidatorInvalidNames() {
         CompatibleNameValidator validator = new CompatibleNameValidator();
-        
+
         String[] invalidNames = {
             null,
             "",
@@ -219,68 +216,69 @@ public class SchemaDataValidatorTest {
             "name~tilde",
             "name^caret"
         };
-        
+
         for (String name : invalidNames) {
             NameValidator.Result result = validator.validate(name);
-            Assertions.assertFalse(result.isOK(), "Expected validation to fail for name: '" + name + "'");
+            Assert.assertFalse(result.isOK(), "Expected validation to fail for name: '" + name + "'");
         }
     }
 
     @Test
     public void testCompatibleNameValidatorSpecificErrorMessages() throws Exception {
         CompatibleNameValidator validator = new CompatibleNameValidator();
-        
+
         NameValidator.Result nullResult = validator.validate(null);
-        Assertions.assertFalse(nullResult.isOK());
-        Assertions.assertEquals("Null name", nullResult.getErrors());
-        
+        Assert.assertFalse(nullResult.isOK());
+        Assert.assertEquals(nullResult.getErrors(), "Null name");
+
         NameValidator.Result emptyResult = validator.validate("");
-        Assertions.assertFalse(emptyResult.isOK());
-        Assertions.assertEquals("Empty name", emptyResult.getErrors());
-        
+        Assert.assertFalse(emptyResult.isOK());
+        Assert.assertEquals(emptyResult.getErrors(), "Empty name");
+
         NameValidator.Result invalidFirstCharResult = validator.validate("123name");
-        Assertions.assertFalse(invalidFirstCharResult.isOK());
-        Assertions.assertTrue(invalidFirstCharResult.getErrors().contains("Illegal initial character"));
-        
+        Assert.assertFalse(invalidFirstCharResult.isOK());
+        Assert.assertTrue(invalidFirstCharResult.getErrors().contains("Illegal initial character"));
+
         NameValidator.Result invalidCharResult = validator.validate("name-with-dash");
-        Assertions.assertFalse(invalidCharResult.isOK());
-        Assertions.assertTrue(invalidCharResult.getErrors().contains("Illegal character in"));
+        Assert.assertFalse(invalidCharResult.isOK());
+        Assert.assertTrue(invalidCharResult.getErrors().contains("Illegal character in"));
     }
 
     @Test
     public void testCompatibleNameValidatorEdgeCases() throws Exception {
         CompatibleNameValidator validator = new CompatibleNameValidator();
-        
-        Assertions.assertTrue(validator.validate("a").isOK());
-        Assertions.assertTrue(validator.validate("A").isOK());
-        Assertions.assertTrue(validator.validate("_").isOK());
-        Assertions.assertTrue(validator.validate("$").isOK());
-        
+
+        Assert.assertTrue(validator.validate("a").isOK());
+        Assert.assertTrue(validator.validate("A").isOK());
+        Assert.assertTrue(validator.validate("_").isOK());
+        Assert.assertTrue(validator.validate("$").isOK());
+
         NameValidator.Result longNameResult = validator.validate("a".repeat(1000));
-        Assertions.assertTrue(longNameResult.isOK());
-        
+        Assert.assertTrue(longNameResult.isOK());
+
         NameValidator.Result nameWithOnlyDigits = validator.validate("123");
-        Assertions.assertFalse(nameWithOnlyDigits.isOK());
-        Assertions.assertTrue(nameWithOnlyDigits.getErrors().contains("Illegal initial character"));
+        Assert.assertFalse(nameWithOnlyDigits.isOK());
+        Assert.assertTrue(nameWithOnlyDigits.getErrors().contains("Illegal initial character"));
     }
 
     @Test
     public void testCompatibleNameValidatorUnicodeCharacters() throws Exception {
         CompatibleNameValidator validator = new CompatibleNameValidator();
-        
+
         NameValidator.Result unicodeResult = validator.validate("名字");
-        Assertions.assertFalse(unicodeResult.isOK());
-        Assertions.assertTrue(unicodeResult.getErrors().contains("Illegal initial character"));
-        
+        Assert.assertFalse(unicodeResult.isOK());
+        Assert.assertTrue(unicodeResult.getErrors().contains("Illegal initial character"));
+
         NameValidator.Result mixedResult = validator.validate("name字");
-        Assertions.assertFalse(mixedResult.isOK());
-        Assertions.assertTrue(mixedResult.getErrors().contains("Illegal character in"));
+        Assert.assertFalse(mixedResult.isOK());
+        Assert.assertTrue(mixedResult.getErrors().contains("Illegal character in"));
     }
 
 
     @Test
     public void testAvroCompatible() throws InvalidSchemaDataException {
-        final ProtobufSchema<DataRecordOuterClass.DataRecord> protobufSchema = ProtobufSchema.of(DataRecordOuterClass.DataRecord.class);
+        final ProtobufSchema<DataRecordOuterClass.DataRecord> protobufSchema =
+                ProtobufSchema.of(DataRecordOuterClass.DataRecord.class);
         StructSchemaDataValidator.of().validate(SchemaData.fromSchemaInfo(protobufSchema.getSchemaInfo()));
     }
 
