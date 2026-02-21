@@ -116,6 +116,7 @@ import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.glassfish.jersey.client.JerseyClient;
@@ -1547,8 +1548,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
 
         // We inject an error to make "start replicator" to fail.
+        DualMetadataStore dms = (DualMetadataStore) pulsar1.getConfigurationMetadataStore();
         AsyncLoadingCache<String, Boolean> existsCache =
-                WhiteboxImpl.getInternalState(pulsar1.getConfigurationMetadataStore(), "existsCache");
+                WhiteboxImpl.getInternalState(dms.getSourceStore(), "existsCache");
         String path = "/admin/partitioned-topics/" + TopicName.get(topicName).getPersistenceNamingEncoding();
         existsCache.put(path, CompletableFuture.completedFuture(true));
 

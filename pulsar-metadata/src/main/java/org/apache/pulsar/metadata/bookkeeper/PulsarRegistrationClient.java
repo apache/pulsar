@@ -51,13 +51,13 @@ import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
 @Slf4j
 public class PulsarRegistrationClient implements RegistrationClient {
 
-    private final AbstractMetadataStore store;
+    private final MetadataStoreExtended store;
     private final String ledgersRootPath;
     // registration paths
     private final String bookieRegistrationPath;
@@ -74,7 +74,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     public PulsarRegistrationClient(MetadataStore store,
                                     String ledgersRootPath) {
-        this.store = (AbstractMetadataStore) store;
+        this.store = (MetadataStoreExtended) store;
         this.ledgersRootPath = ledgersRootPath;
         this.bookieServiceInfoMetadataCache = store.getMetadataCache(BookieServiceInfoSerde.INSTANCE);
         this.sequencer = Sequencer.create();

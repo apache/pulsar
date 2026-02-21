@@ -35,7 +35,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -88,9 +90,11 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         pulsar = new PulsarService(config);
         pulsar.start();
         broker = pulsar.getBrokerService();
-        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) pulsar.getLocalMetadataStore();
-        localZkOfBroker = zkMetadataStore.getZkClient();
-        zkMetadataStore.registerSessionListener(n -> {
+        MetadataStoreExtended store = pulsar.getLocalMetadataStore();
+        if (store instanceof DualMetadataStore dms) {
+            localZkOfBroker = ((ZKMetadataStore) dms.getSourceStore()).getZkClient();
+        }
+        store.registerSessionListener(n -> {
             log.info("Received session event: {}", n);
             sessionEvent = n;
         });
