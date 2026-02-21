@@ -116,7 +116,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                             String key,
                             Optional<CacheGetResult<T>> oldValue,
                             Executor executor) {
-                        if (store instanceof AbstractMetadataStore && ((AbstractMetadataStore) store).isConnected()) {
+                        if (!(store instanceof AbstractMetadataStore)
+                                || ((AbstractMetadataStore) store).isConnected()) {
                             if (log.isDebugEnabled()) {
                                 log.debug("Reloading key {} into metadata cache {}", key, cacheName);
                             }
