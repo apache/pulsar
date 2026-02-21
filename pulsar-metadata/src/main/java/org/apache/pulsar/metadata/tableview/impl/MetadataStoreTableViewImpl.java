@@ -54,7 +54,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreTableView;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.jspecify.annotations.Nullable;
 
 @Slf4j
