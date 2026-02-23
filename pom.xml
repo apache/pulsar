@@ -376,6 +376,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-configuration2.version>2.12.0</commons-configuration2.version>
     <mina-core.version>2.1.10</mina-core.version>
     <lz4java.version>1.10.3</lz4java.version>
+    <jsr305.version>3.0.2</jsr305.version>
   </properties>
 
   <dependencyManagement>
@@ -1518,8 +1519,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
          <groupId>com.google.code.findbugs</groupId>
          <artifactId>jsr305</artifactId>
-         <version>3.0.2</version>
-         <scope>compile</scope>
+         <version>${jsr305.version}</version>
       </dependency>
       <dependency>
         <groupId>io.airlift</groupId>

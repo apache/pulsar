@@ -157,7 +157,7 @@
                   <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
                   <include>jakarta.xml.bind:jakarta.xml.bind-api</include>
                   <include>javax.ws.rs:*</include>
-                  <include>com.github.spotbugs:spotbugs-annotations</include>
+                  <include>com.google.code.findbugs:jsr305</include>
                   <include>org.apache.avro:*</include>
                   <include>org.apache.bookkeeper:*</include>
                   <include>org.apache.commons:commons-compress</include>
