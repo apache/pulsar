@@ -1517,9 +1517,9 @@ flexible messaging model and an intuitive client API.</description>
         <version>${javassist.version}</version>
       </dependency>
       <dependency>
-         <groupId>com.google.code.findbugs</groupId>
-         <artifactId>jsr305</artifactId>
-         <version>${jsr305.version}</version>
+        <groupId>com.google.code.findbugs</groupId>
+        <artifactId>jsr305</artifactId>
+        <version>${jsr305.version}</version>
       </dependency>
       <dependency>
         <groupId>io.airlift</groupId>
