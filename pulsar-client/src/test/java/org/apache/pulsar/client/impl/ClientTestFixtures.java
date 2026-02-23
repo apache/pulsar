@@ -61,7 +61,7 @@ class ClientTestFixtures {
 //        return createPulsarClientMock(mock(ExecutorService.class));
 //    }
 
-    public static <T> PulsarClientImpl createPulsarClientMock(ExecutorProvider executorProvider,
+    static <T> PulsarClientImpl createPulsarClientMock(ExecutorProvider executorProvider,
                                                        ExecutorService internalExecutorService) {
         PulsarClientImpl clientMock = mock(PulsarClientImpl.class, Mockito.RETURNS_DEEP_STUBS);
 
@@ -81,19 +81,11 @@ class ClientTestFixtures {
     static <T> PulsarClientImpl createPulsarClientMockWithMockedClientCnx(
             ExecutorProvider executorProvider,
             ExecutorService internalExecutorService) {
-        return createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutorService, mockClientCnx());
+        return mockClientCnx(createPulsarClientMock(executorProvider, internalExecutorService));
     }
 
-    static <T> PulsarClientImpl createPulsarClientMockWithMockedClientCnx(
-            ExecutorProvider executorProvider,
-            ExecutorService internalExecutorService,
-            ClientCnx clientCnxMock) {
-        return clientMockWithClientCnxMock(createPulsarClientMock(executorProvider, internalExecutorService),
-                clientCnxMock
-        );
-    }
-
-    static PulsarClientImpl clientMockWithClientCnxMock(PulsarClientImpl clientMock, ClientCnx clientCnxMock) {
+    static PulsarClientImpl mockClientCnx(PulsarClientImpl clientMock) {
+        ClientCnx clientCnxMock = mockClientCnx();
         when(clientMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         when(clientMock.getConnection(anyString())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         when(clientMock.getConnection(anyString(), anyInt()))

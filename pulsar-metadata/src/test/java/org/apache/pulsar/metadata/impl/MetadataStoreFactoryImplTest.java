@@ -96,7 +96,7 @@ public class MetadataStoreFactoryImplTest {
 
     public static class MyMetadataStore extends AbstractMetadataStore {
         protected MyMetadataStore() {
-            super("custom", OpenTelemetry.noop(), null, 1);
+            super("custom", OpenTelemetry.noop(), null);
         }
 
         @Override

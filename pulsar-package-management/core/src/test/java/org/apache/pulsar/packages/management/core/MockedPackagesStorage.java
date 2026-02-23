@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.packages.management.core;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -46,13 +45,8 @@ public class MockedPackagesStorage implements PackagesStorage {
         CompletableFuture<Void> future = new CompletableFuture<>();
         CompletableFuture.runAsync(() -> {
             try {
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = inputStream.read(buffer)) != -1) {
-                    baos.write(buffer, 0, read);
-                }
-                byte[] bytes = baos.toByteArray();
+                byte[] bytes = new byte[inputStream.available()];
+                inputStream.read(bytes);
                 storage.put(path, bytes);
                 future.complete(null);
             } catch (IOException e) {

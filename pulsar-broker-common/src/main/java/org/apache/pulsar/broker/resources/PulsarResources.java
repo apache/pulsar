@@ -52,20 +52,20 @@ public class PulsarResources {
     @Getter
     private final LoadBalanceResources loadBalanceResources;
     @Getter
-    private final Optional<MetadataStoreExtended> localMetadataStore;
+    private final Optional<MetadataStore> localMetadataStore;
     @Getter
     private final Optional<MetadataStore> configurationMetadataStore;
 
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore) {
+    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore) {
         this(localMetadataStore, configurationMetadataStore, DEFAULT_OPERATION_TIMEOUT_SEC);
     }
 
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
+    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
                            int operationTimeoutSec) {
         this(localMetadataStore, configurationMetadataStore, operationTimeoutSec, ForkJoinPool.commonPool());
     }
 
-    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
+    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
             int operationTimeoutSec, Executor executor) {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);

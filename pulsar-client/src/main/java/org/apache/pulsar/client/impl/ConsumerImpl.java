@@ -136,7 +136,7 @@ import org.apache.pulsar.common.util.ExceptionHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SafeCollectionUtils;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1486,6 +1486,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // and return undecrypted payload
         if (isMessageUndecryptable || (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch())) {
 
+            // right now, chunked messages are only supported by non-shared subscription
             if (isChunkedMessage) {
                 uncompressedPayload = processMessageChunk(uncompressedPayload, msgMetadata, msgId, messageId, cnx);
                 if (uncompressedPayload == null) {
@@ -3157,7 +3158,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 if (Commands.peerSupportsMultiMessageAcknowledgment(
                         getClientCnx().getRemoteEndpointProtocolVersion())) {
-                    List<Triple<Long, Long, ConcurrentBitSet>> entriesToAck =
+                    List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck =
                             new ArrayList<>(chunkMsgIds.length);
                     for (MessageIdImpl cMsgId : chunkMsgIds) {
                         if (cMsgId != null && chunkMsgIds.length > 1) {
@@ -3195,7 +3196,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
-                                                  List<Triple<Long, Long, ConcurrentBitSet>> entries,
+                                                  List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries,
                                                   long requestID) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
         cmd.getAck()
@@ -3214,7 +3215,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     };
 
-    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSet>> entries) {
+    private static BaseCommand newMultiMessageAckCommon(List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entries) {
         BaseCommand cmd = LOCAL_BASE_COMMAND.get()
                 .clear()
                 .setType(BaseCommand.Type.ACK);
@@ -3223,7 +3224,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         for (int i = 0; i < entriesCount; i++) {
             long ledgerId = entries.get(i).getLeft();
             long entryId = entries.get(i).getMiddle();
-            ConcurrentBitSet bitSet = entries.get(i).getRight();
+            ConcurrentBitSetRecyclable bitSet = entries.get(i).getRight();
             MessageIdData msgId = ack.addMessageId()
                     .setLedgerId(ledgerId)
                     .setEntryId(entryId);
@@ -3232,6 +3233,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 for (int j = 0; j < ackSet.length; j++) {
                     msgId.addAckSet(ackSet[j]);
                 }
+                bitSet.recycle();
             }
         }
 

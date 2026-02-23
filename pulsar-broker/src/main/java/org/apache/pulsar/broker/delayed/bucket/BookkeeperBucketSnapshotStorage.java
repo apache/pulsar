@@ -213,7 +213,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                     } else {
                         future.complete(handle);
                     }
-                }, null, true
+                }, null
         );
         return future;
     }

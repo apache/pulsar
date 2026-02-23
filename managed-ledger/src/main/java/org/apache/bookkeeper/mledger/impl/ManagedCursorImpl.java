@@ -685,7 +685,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         };
         try {
             bookkeeper.asyncOpenLedger(ledgerId, digestType, getConfig().getPassword(), openCallback,
-                    null, true);
+                    null);
         } catch (Throwable t) {
             log.error("[{}] Encountered error on opening cursor ledger {} for cursor {}",
                 ledger.getName(), ledgerId, name, t);
@@ -2676,7 +2676,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         try {
-            internalAsyncMarkDelete(newMarkDeletePosition, null, new MarkDeleteCallback() {
+            Map<String, Long> properties = lastMarkDeleteEntry != null ? lastMarkDeleteEntry.properties
+                    : Collections.emptyMap();
+
+            internalAsyncMarkDelete(newMarkDeletePosition, properties, new MarkDeleteCallback() {
                 @Override
                 public void markDeleteComplete(Object ctx) {
                     callback.deleteComplete(ctx);

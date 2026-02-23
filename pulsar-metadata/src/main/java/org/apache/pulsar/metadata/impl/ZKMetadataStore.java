@@ -119,7 +119,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     private void processSessionWatcher(WatchedEvent event) {
         if (sessionWatcher != null) {
-            processEvent(sessionWatcher::process, event);
+            executor.execute(() -> sessionWatcher.process(event));
         }
     }
 
@@ -245,8 +245,9 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                 countsByType, totalSize, opsForLog);
 
                         // Retry with the individual operations
-                        scheduleDelayedTask(100, TimeUnit.MILLISECONDS,
-                            () -> ops.forEach(o -> batchOperation(Collections.singletonList(o))));
+                        executor.schedule(() -> {
+                            ops.forEach(o -> batchOperation(Collections.singletonList(o)));
+                        }, 100, TimeUnit.MILLISECONDS);
                     } else {
                         MetadataStoreException e = getException(code, path);
                         ops.forEach(o -> o.getFuture().completeExceptionally(e));
@@ -255,7 +256,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 }
 
                 // Trigger all the futures in the batch
-                safeExecuteCallbacks(() -> {
+                execute(() -> {
                     for (int i = 0; i < ops.size(); i++) {
                         OpResult opr = results.get(i);
                         MetadataOp op = ops.get(i);
@@ -277,7 +278,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                             "Operation type not supported in multi: " + op.getType()));
                             }
                         }
-                }, ops);
+                }, () -> ops.stream().map(MetadataOp::getFuture).collect(Collectors.toList()));
             }, null);
         } catch (Throwable t) {
             ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
@@ -394,7 +395,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
         try {
             zkc.exists(path, null, (rc, path1, ctx, stat) -> {
-                safeExecuteCallback(() -> {
+                execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         future.complete(true);
@@ -420,7 +421,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
         try {
             zkc.delete(op.getPath(), expectedVersion, (rc, path1, ctx) -> {
-                safeExecuteCallback(() -> {
+                execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
                         future.complete(null);
@@ -445,7 +446,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 CreateMode createMode = getCreateMode(opPut.getOptions());
                 asyncCreateFullPathOptimistic(zkc, opPut.getPath(), opPut.getData(), createMode,
                         (rc, path1, ctx, name) -> {
-                            safeExecuteCallback(() -> {
+                            execute(() -> {
                                 Code code = Code.get(rc);
                                 if (code == Code.OK) {
                                     future.complete(new Stat(name, 0, 0, 0, createMode.isEphemeral(), true));
@@ -459,7 +460,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         });
             } else {
                 zkc.setData(opPut.getPath(), opPut.getData(), expectedVersion, (rc, path1, ctx, stat) -> {
-                    safeExecuteCallback(() -> {
+                    execute(() -> {
                         Code code = Code.get(rc);
                         if (code == Code.OK) {
                             future.complete(getStat(path1, stat));

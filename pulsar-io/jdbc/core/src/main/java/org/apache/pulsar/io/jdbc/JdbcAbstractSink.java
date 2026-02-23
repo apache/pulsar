@@ -35,7 +35,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
@@ -51,11 +50,6 @@ import org.apache.pulsar.io.core.SinkContext;
  */
 @Slf4j
 public abstract class JdbcAbstractSink<T> implements Sink<T> {
-
-    private enum State {
-        OPEN, FAILED, CLOSED
-    }
-
     // ----- Runtime fields
     protected JdbcSinkConfig jdbcSinkConfig;
     @Getter
@@ -79,12 +73,9 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
     private AtomicBoolean isFlushing;
     private int batchSize;
     private ScheduledExecutorService flushExecutor;
-    private SinkContext sinkContext;
-    private final AtomicReference<State> state = new AtomicReference<>(State.OPEN);
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        this.sinkContext = sinkContext;
         jdbcSinkConfig = JdbcSinkConfig.load(config, sinkContext);
         jdbcSinkConfig.validate();
 
@@ -157,7 +148,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     @Override
     public void close() throws Exception {
-        state.set(State.CLOSED);
         if (flushExecutor != null) {
             int timeoutMs = jdbcSinkConfig.getTimeoutMs() * 2;
             flushExecutor.shutdown();
@@ -320,9 +310,8 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                         connection.rollback();
                     }
                 } catch (Exception ex) {
-                    log.error("Failed to rollback transaction", ex);
+                    throw new RuntimeException(ex);
                 }
-                fatal(e);
             }
 
             isFlushing.set(false);
@@ -394,18 +383,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             return false;
         }
         return true;
-    }
-
-    /**
-     * Signal a fatal exception to the framework.
-     * This will cause the function instance to terminate properly.
-     *
-     * @param e the fatal exception
-     */
-    private void fatal(Exception e) {
-        if (sinkContext != null && state.compareAndSet(State.OPEN, State.FAILED)) {
-            sinkContext.fatal(e);
-        }
     }
 
 }

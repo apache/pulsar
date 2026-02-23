@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -138,11 +137,6 @@ public class ManagedLedgerFactoryShutdownTest {
             cb.openComplete(0, ledgerHandle, inv.getArgument(4, Object.class));
             return null;
         }).when(bookKeeper).asyncOpenLedger(anyLong(), any(), any(), any(), any());
-        doAnswer(inv -> {
-            AsyncCallback.OpenCallback cb = inv.getArgument(3, AsyncCallback.OpenCallback.class);
-            cb.openComplete(0, ledgerHandle, inv.getArgument(4, Object.class));
-            return null;
-        }).when(bookKeeper).asyncOpenLedger(anyLong(), any(), any(), any(), any(), anyBoolean());
         doAnswer(inv -> {
             AsyncCallback.CreateCallback cb = inv.getArgument(5, AsyncCallback.CreateCallback.class);
             cb.createComplete(0, newLedgerHandle, inv.getArgument(6, Object.class));

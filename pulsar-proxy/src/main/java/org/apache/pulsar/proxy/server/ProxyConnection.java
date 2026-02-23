@@ -148,12 +148,7 @@ public class ProxyConnection extends PulsarHandler {
 
         Closing,
 
-        Closed;
-
-        boolean isAuthenticatedState() {
-            return this == ProxyLookupRequests
-                    || this == ProxyConnectionToBroker;
-        }
+        Closed,
     }
 
     ConnectionPool getConnectionPool() {
@@ -422,7 +417,15 @@ public class ProxyConnection extends PulsarHandler {
                         "Failed to initialize lookup proxy handler")).addListener(ChannelFutureListener.CLOSE);
                 return;
             }
-            startAuthRefreshTaskIfNotStarted();
+            if (service.getConfiguration().isAuthenticationEnabled()
+                    && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0) {
+                authRefreshTask = ctx.executor().scheduleAtFixedRate(
+                        Runnables.catchingAndLoggingThrowables(
+                                this::refreshAuthenticationCredentialsAndCloseIfTooExpired),
+                        service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
+                        service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
+                        TimeUnit.SECONDS);
+            }
             final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false);
             writeAndFlush(msg);
         }
@@ -438,10 +441,6 @@ public class ProxyConnection extends PulsarHandler {
             final ByteBuf msg = Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
                     connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers());
             writeAndFlush(msg);
-            // Start auth refresh task only if we are not forwarding authorization credentials
-            if (!service.getConfiguration().isForwardAuthorizationCredentials()) {
-                startAuthRefreshTaskIfNotStarted();
-            }
         } else {
             LOG.warn("[{}] Channel is {}. ProxyConnection is in {}. "
                             + "Closing connection to broker '{}'.",
@@ -523,41 +522,13 @@ public class ProxyConnection extends PulsarHandler {
         }
     }
 
-    private void startAuthRefreshTaskIfNotStarted() {
-        if (service.getConfiguration().isAuthenticationEnabled()
-                && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0
-                && authRefreshTask == null) {
-            authRefreshTask = ctx.executor().scheduleAtFixedRate(
-                    Runnables.catchingAndLoggingThrowables(
-                            this::refreshAuthenticationCredentialsAndCloseIfTooExpired),
-                    service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
-                    service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
-                    TimeUnit.SECONDS);
-        }
-    }
-
     private void refreshAuthenticationCredentialsAndCloseIfTooExpired() {
         assert ctx.executor().inEventLoop();
-
-        // Only check expiration in authenticated states
-        if (!state.isAuthenticatedState()) {
+        if (state != State.ProxyLookupRequests) {
+            // Happens when an exception is thrown that causes this connection to close.
             return;
-        }
-
-        if (!authState.isExpired()) {
+        } else if (!authState.isExpired()) {
             // Credentials are still valid. Nothing to do at this point
-            return;
-        }
-
-        // If we are not forwarding authorization credentials to the broker, the broker cannot
-        // refresh the client's credentials. In this case, we must close the connection immediately
-        // when credentials expire.
-        if (!service.getConfiguration().isForwardAuthorizationCredentials()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Closing connection because client credentials have expired and "
-                        + "forwardAuthorizationCredentials is disabled (broker cannot refresh)", remoteAddress);
-            }
-            ctx.close();
             return;
         }
 

@@ -149,7 +149,7 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         private final TopicResources topicResources;
         private final NamespaceResources namespaceResources;
 
-        public TestPulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
+        public TestPulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
                                    TopicResources topicResources, NamespaceResources namespaceResources) {
             super(localMetadataStore, configurationMetadataStore);
             this.topicResources = topicResources;

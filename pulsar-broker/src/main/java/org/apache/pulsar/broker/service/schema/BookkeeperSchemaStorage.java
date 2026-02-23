@@ -630,7 +630,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 } else {
                     future.complete(handle);
                 }
-            }, null, true
+            }, null
         );
         return future;
     }

@@ -51,7 +51,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
+import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -83,7 +83,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      */
     private final ConcurrentSkipListSet<MessageIdAdv> pendingIndividualAcks;
     @VisibleForTesting
-    final ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSet> pendingIndividualBatchIndexAcks;
+    final ConcurrentSkipListMap<MessageIdAdv, ConcurrentBitSetRecyclable> pendingIndividualBatchIndexAcks;
 
     private final ScheduledFuture<?> scheduledTask;
     private final boolean batchIndexAckEnabled;
@@ -133,7 +133,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return true;
             }
             if (messageIdAdv.getBatchIndex() >= 0) {
-                ConcurrentBitSet bitSet = pendingIndividualBatchIndexAcks.get(key);
+                ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.get(key);
                 return bitSet != null && !bitSet.get(messageIdAdv.getBatchIndex());
             }
             return false;
@@ -327,22 +327,21 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     @VisibleForTesting
     CompletableFuture<Void> doIndividualBatchAckAsync(MessageIdAdv msgId) {
-        ConcurrentBitSet bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
+        ConcurrentBitSetRecyclable bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
                 MessageIdAdvUtils.discardBatch(msgId), __ -> {
                     final BitSet ackSet = msgId.getAckSet();
-                    final ConcurrentBitSet value;
+                    final ConcurrentBitSetRecyclable value;
                     if (ackSet != null) {
                         synchronized (ackSet) {
                             if (!ackSet.isEmpty()) {
-                                value =  new ConcurrentBitSet();
-                                value.or(ackSet);
+                                value = ConcurrentBitSetRecyclable.create(ackSet);
                             } else {
-                                value = new ConcurrentBitSet();
+                                value = ConcurrentBitSetRecyclable.create();
                                 value.set(0, msgId.getBatchSize());
                             }
                         }
                     } else {
-                        value = new ConcurrentBitSet();
+                        value = ConcurrentBitSetRecyclable.create();
                         value.set(0, msgId.getBatchSize());
                     }
                     return value;
@@ -446,7 +445,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         // Flush all individual acks
-        List<Triple<Long, Long, ConcurrentBitSet>> entriesToAck =
+        List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck =
                 new ArrayList<>(pendingIndividualAcks.size() + pendingIndividualBatchIndexAcks.size());
         if (!pendingIndividualAcks.isEmpty()) {
             if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())) {
@@ -488,7 +487,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         while (true) {
-            Map.Entry<MessageIdAdv, ConcurrentBitSet> entry =
+            Map.Entry<MessageIdAdv, ConcurrentBitSetRecyclable> entry =
                     pendingIndividualBatchIndexAcks.pollFirstEntry();
             if (entry == null) {
                 // The entry has been removed in a different thread
@@ -540,7 +539,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         // cumulative ack chunk by the last messageId
         if (chunkMsgIds != null &&  ackType != AckType.Cumulative) {
             if (Commands.peerSupportsMultiMessageAcknowledgment(cnx.getRemoteEndpointProtocolVersion())) {
-                List<Triple<Long, Long, ConcurrentBitSet>> entriesToAck = new ArrayList<>(chunkMsgIds.length);
+                List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck = new ArrayList<>(chunkMsgIds.length);
                 for (MessageIdImpl cMsgId : chunkMsgIds) {
                     if (cMsgId != null && chunkMsgIds.length > 1) {
                         entriesToAck.add(Triple.of(cMsgId.getLedgerId(), cMsgId.getEntryId(), null));
@@ -569,7 +568,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             long entryId, BitSetRecyclable ackSet, AckType ackType,
             Map<String, Long> properties, boolean flush,
             TimedCompletableFuture<Void> timedCompletableFuture,
-            List<Triple<Long, Long, ConcurrentBitSet>> entriesToAck) {
+            List<Triple<Long, Long, ConcurrentBitSetRecyclable>> entriesToAck) {
         if (consumer.isAckReceiptEnabled()) {
             final long requestId = consumer.getClient().newRequestId();
             final ByteBuf cmd;

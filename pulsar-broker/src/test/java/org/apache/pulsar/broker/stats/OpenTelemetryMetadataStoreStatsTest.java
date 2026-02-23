@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import io.opentelemetry.api.common.Attributes;
+import java.util.concurrent.ExecutorService;
 import lombok.Cleanup;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -28,6 +29,7 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.NonClosingProxyHandler;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.impl.stats.BatchMetadataStoreStats;
 import org.apache.pulsar.metadata.impl.stats.MetadataStoreStats;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -51,6 +53,14 @@ public class OpenTelemetryMetadataStoreStatsTest extends BrokerTestBase {
         var newStats = new MetadataStoreStats(
                 localMetadataStoreName, pulsar.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry());
         FieldUtils.writeField(localMetadataStore, "metadataStoreStats", newStats, true);
+
+        var currentBatchedStats = (BatchMetadataStoreStats) FieldUtils.readField(localMetadataStore,
+                "batchMetadataStoreStats", true);
+        currentBatchedStats.close();
+        var currentExecutor = (ExecutorService) FieldUtils.readField(currentBatchedStats, "executor", true);
+        var newBatchedStats = new BatchMetadataStoreStats(localMetadataStoreName, currentExecutor,
+                pulsar.getOpenTelemetry().getOpenTelemetryService().getOpenTelemetry());
+        FieldUtils.writeField(localMetadataStore, "batchMetadataStoreStats", newBatchedStats, true);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -79,5 +89,7 @@ public class OpenTelemetryMetadataStoreStatsTest extends BrokerTestBase {
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, MetadataStoreStats.METADATA_STORE_PUT_BYTES_COUNTER_METRIC_NAME,
                 attributes, value -> assertThat(value).isPositive());
+        assertMetricLongSumValue(metrics, BatchMetadataStoreStats.EXECUTOR_QUEUE_SIZE_METRIC_NAME, attributes,
+                value -> assertThat(value).isPositive());
     }
 }

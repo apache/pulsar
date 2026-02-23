@@ -79,7 +79,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
         super(metadataStoreConfig.getMetadataStoreName(), metadataStoreConfig.getOpenTelemetry(),
-                metadataStoreConfig.getNodeSizeStats(), metadataStoreConfig.getNumSerDesThreads());
+                metadataStoreConfig.getNodeSizeStats());
         String name = metadataURL.substring(MEMORY_SCHEME_IDENTIFIER.length());
         // Local means a private data set
         // update synchronizer and register sync listener
