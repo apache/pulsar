@@ -43,7 +43,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -180,7 +179,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 builder.setType(LAYOUT).setVersion(LAYOUT_VERSION);
                 try {
                     store.put(layoutPath, builder.build().toString().getBytes(UTF_8), Optional.of(-1L)).get();
-                } catch (ExecutionException|InterruptedException e) {
+                } catch (ExecutionException | InterruptedException e) {
                     if (!(e.getCause() instanceof MetadataStoreException.BadVersionException)) {
                         throw new RuntimeException(e);
                     }
