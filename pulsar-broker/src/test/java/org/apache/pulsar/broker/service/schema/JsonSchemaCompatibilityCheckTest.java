@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
@@ -58,6 +59,33 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
                 .withPojo(Foo.class).build()).getSchemaInfo().getSchema()).build();
         to = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();
         Assert.assertTrue(jsonSchemaCompatibilityCheck.isCompatible(from, to, SchemaCompatibilityStrategy.FULL));
+    }
+
+    @Test
+    public void testSchemaWithDollarSignInRecordNameRejectsIncompatibleChange() {
+        // Schema v1: has field1 (string)
+        String schemaV1 =
+                "{\"type\":\"record\",\"name\":\"Outer$Inner\",\"namespace\":\"org.example\","
+                        + "\"fields\":[{\"name\":\"field1\",\"type\":\"string\"}]}";
+        // Schema v2: removed field1, added field2 without default — NOT backward compatible
+        String schemaV2 =
+                "{\"type\":\"record\",\"name\":\"Outer$Inner\",\"namespace\":\"org.example\","
+                        + "\"fields\":[{\"name\":\"field2\",\"type\":\"string\"}]}";
+        SchemaData from = SchemaData.builder()
+                .data(schemaV1.getBytes(UTF_8))
+                .type(SchemaType.JSON)
+                .build();
+        SchemaData to = SchemaData.builder()
+                .data(schemaV2.getBytes(UTF_8))
+                .type(SchemaType.JSON)
+                .build();
+        JsonSchemaCompatibilityCheck check = new JsonSchemaCompatibilityCheck();
+        // Without the fix, isAvroSchema() rejects '$' and the compatibility check is
+        // skipped entirely (falls through to "corrupted, allow overwrite"), so this
+        // would incorrectly return true.
+        // With the fix, isAvroSchema() recognizes these as valid Avro schemas and the
+        // Avro compatibility check correctly detects the incompatibility.
+        Assert.assertFalse(check.isCompatible(from, to, SchemaCompatibilityStrategy.BACKWARD));
     }
 
     @Data
