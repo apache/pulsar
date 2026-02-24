@@ -59,6 +59,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.PulsarZooKeeperClient;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStore;
@@ -471,8 +472,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         }
         MetadataStoreConfig config = builder.build();
         @Cleanup
-        ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
-        ZooKeeper zkClient = store.getZkClient();
+        DualMetadataStore store = (DualMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
+        ZooKeeper zkClient = ((ZKMetadataStore) store.getSourceStore()).getZkClient();
         assertTrue(zkClient.getClientConfig().isSaslClientEnabled());
         final Runnable verify = () -> {
             String currentThreadName = Thread.currentThread().getName();
@@ -526,9 +527,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         builder.configFilePath("src/test/resources/zk_client_disabled_sasl.conf");
         MetadataStoreConfig config = builder.build();
         @Cleanup
-        ZKMetadataStore store = (ZKMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
-
-        PulsarZooKeeperClient zkClient = (PulsarZooKeeperClient) store.getZkClient();
+        DualMetadataStore store = (DualMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
+        PulsarZooKeeperClient zkClient = (PulsarZooKeeperClient) ((ZKMetadataStore) store.getSourceStore()).getZkClient();
         assertFalse(zkClient.getClientConfig().isSaslClientEnabled());
 
         zkClient.process(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.Expired, null));
@@ -669,6 +669,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
         List<String> subPaths = new ArrayList<>(store.getChildren("/").get());
         subPaths.remove("zookeeper"); // ignored
+        subPaths.remove("pulsar"); // ignored
         assertThat(subPaths).containsExactlyInAnyOrderElementsOf(Set.of("a", "b"));
 
         List<String> subPaths2 = store.getChildren("/a").get();
