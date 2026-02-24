@@ -420,12 +420,13 @@ The Apache Software License, Version 2.0
     - avro-protobuf-1.12.0.jar
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
- * RoaringBitmap -- RoaringBitmap-1.2.0.jar
+ * RoaringBitmap -- RoaringBitmap-1.6.9.jar
  * Fastutil -- fastutil-8.5.16.jar
  * JSpecify -- jspecify-1.0.0.jar
 
 BSD 3-clause "New" or "Revised" License
  * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
+ * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
@@ -463,9 +464,7 @@ Eclipse Public License - v2.0 -- ../licenses/LICENSE-EPL-2.0.txt
 Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
  * Reactive Streams -- reactive-streams-1.0.3.jar
 
-Creative Commons Attribution License
- * Jcip -- ../licenses/LICENSE-jcip.txt
-    - jcip-annotations-1.0.jar
+
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt

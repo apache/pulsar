@@ -529,7 +529,7 @@ The Apache Software License, Version 2.0
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
-    - org.roaringbitmap-RoaringBitmap-1.2.0.jar
+    - org.roaringbitmap-RoaringBitmap-1.6.9.jar
   * OpenTelemetry
     - io.opentelemetry-opentelemetry-api-1.56.0.jar
     - io.opentelemetry-opentelemetry-api-incubator-1.56.0-alpha.jar
@@ -566,6 +566,7 @@ BSD 3-clause "New" or "Revised" License
     - com.google.auth-google-auth-library-oauth2-http-1.24.1.jar -- ../licenses/LICENSE-google-auth-library.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- ../licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
+ * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
  * JLine -- jline-jline-2.14.6.jar -- ../licenses/LICENSE-JLine.txt
  * JLine3 -- org.jline-jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
  * OW2 ASM
@@ -629,9 +630,7 @@ Eclipse Public License - v2.0 -- ../licenses/LICENSE-EPL-2.0.txt
 Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-reactive-streams-1.0.3.jar
 
-Creative Commons Attribution License
- * Jcip -- ../licenses/LICENSE-jcip.txt
-    - net.jcip-jcip-annotations-1.0.jar
+
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
