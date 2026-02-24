@@ -28,7 +28,6 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
