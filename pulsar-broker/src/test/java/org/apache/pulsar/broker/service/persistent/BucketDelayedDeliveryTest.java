@@ -516,30 +516,32 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
                 .topic(topic)
                 .create();
 
-        List<MessageId> messageIds = new ArrayList<>();
+        final long deliverAtTime = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(10);
+        final int cancelMessage = 50;
+        MessageIdImpl cancelledMessageId = null;
 
         for (int i = 0; i < 100; i++) {
-            final long deliverAtTime = System.currentTimeMillis() + 3000L;
             MessageId messageId = producer.newMessage()
                     .key(String.valueOf(i))
                     .value("msg-" + i)
                     .deliverAt(deliverAtTime)
                     .send();
-            messageIds.add(i, messageId);
+            if (i == cancelMessage) {
+                cancelledMessageId = (MessageIdImpl) messageId;
+            }
         }
 
-        final int cancelMessage = 50;
-        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(cancelMessage);
-        int partitionIdx = messageId.getPartitionIndex();
+        assertNotNull(cancelledMessageId, "cancel messageId should be set");
+        int partitionIdx = cancelledMessageId.getPartitionIndex();
         assertTrue(partitionIdx >= 0, "partition index should be set for partitioned topic messageId");
 
         SkipMessageIdsRequest.MessageIdItem item0 = new SkipMessageIdsRequest.MessageIdItem(
-                messageId.getLedgerId(), messageId.getEntryId(), null);
+                cancelledMessageId.getLedgerId(), cancelledMessageId.getEntryId(), null);
         SkipMessageIdsRequest req = SkipMessageIdsRequest.forMessageIds(Collections.singletonList(item0));
 
         admin.topics().skipMessages(topic + "-partition-" + partitionIdx, subName, req);
 
-        assertTrue(latch.await(15, TimeUnit.SECONDS), "Not all messages were received in time");
+        assertTrue(latch.await(30, TimeUnit.SECONDS), "Not all messages were received in time");
         Awaitility.await().during(3, TimeUnit.SECONDS).atMost(10, TimeUnit.SECONDS)
                 .until(() -> receivedMessages.size() == 99);
 

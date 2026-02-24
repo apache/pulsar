@@ -2002,11 +2002,15 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(optTopic -> {
-                    if (!(optTopic instanceof PersistentTopic persistentTopic)) {
-                        throw new RestException(Status.METHOD_NOT_ALLOWED, "Cancel delayed message on a non-persistent"
-                                + " topic is not allowed");
+                    if (optTopic == null) {
+                        throw new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
                     }
-                    log.info("[{}] Cancelling delayed message for subscription {} on topic {}", clientAppId(),
+                    if (!(optTopic instanceof PersistentTopic persistentTopic)) {
+                        throw new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Skip messages on a non-persistent topic is not allowed");
+                    }
+                    log.info("[{}] Skipping messages by messageIds for subscription {} on topic {}", clientAppId(),
                             subName, topicName);
                     return internalSkipByMessageIdsForSubscriptionAsync(persistentTopic, subName, messageIds);
                 })
