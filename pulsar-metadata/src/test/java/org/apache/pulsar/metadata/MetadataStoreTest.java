@@ -528,7 +528,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         MetadataStoreConfig config = builder.build();
         @Cleanup
         DualMetadataStore store = (DualMetadataStore) MetadataStoreFactory.create(zks.getConnectionString(), config);
-        PulsarZooKeeperClient zkClient = (PulsarZooKeeperClient) ((ZKMetadataStore) store.getSourceStore()).getZkClient();
+        PulsarZooKeeperClient zkClient =
+                (PulsarZooKeeperClient) ((ZKMetadataStore) store.getSourceStore()).getZkClient();
         assertFalse(zkClient.getClientConfig().isSaslClientEnabled());
 
         zkClient.process(new WatchedEvent(Watcher.Event.EventType.None, Watcher.Event.KeeperState.Expired, null));
