@@ -2058,6 +2058,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCheckInactiveSubscriptions() throws Exception {
+        pulsarTestContext.getConfig().setSubscriptionExpirationTimeMinutes(5);
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
 
         final var subscriptions = new ConcurrentHashMap<String, PersistentSubscription>();
@@ -2092,8 +2093,6 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         pulsarTestContext.getPulsarResources().getNamespaceResources()
                 .createPolicies(TopicName.get(successTopicName).getNamespaceObject(),
                         new Policies());
-
-        pulsarTestContext.getConfig().setSubscriptionExpirationTimeMinutes(5);
 
         doReturn(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(6)).when(cursorMock).getLastActive();
 
