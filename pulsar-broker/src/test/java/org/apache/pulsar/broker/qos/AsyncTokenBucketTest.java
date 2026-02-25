@@ -195,4 +195,38 @@ public class AsyncTokenBucketTest {
                 // iteration, the tokens should be equal to the initial tokens
                 .isEqualTo(initialTokens);
     }
+
+    @Test
+    void shouldRefillTokensWithoutOverflowForLargeRateAnd10sPeriod() {
+        long rate = 980_000_000L;
+        long ratePeriodNanos = TimeUnit.SECONDS.toNanos(10);
+        asyncTokenBucket =
+                AsyncTokenBucket.builder()
+                        .rate(rate)
+                        .ratePeriodNanos(ratePeriodNanos)
+                        .addTokensResolutionNanos(ratePeriodNanos)
+                        .initialTokens(0)
+                        .clock(clockSource)
+                        .build();
+
+        incrementSeconds(10);
+        incrementMillis(1);
+
+        assertEquals(asyncTokenBucket.getTokens(), rate);
+    }
+
+    @Test
+    void shouldCalculateThrottlingDurationWithoutOverflowForLargeNeedTokens() {
+        asyncTokenBucket =
+                AsyncTokenBucket.builder()
+                        .rate(1)
+                        .ratePeriodNanos(TimeUnit.SECONDS.toNanos(10))
+                        .initialTokens(0)
+                        .clock(clockSource)
+                        .build();
+        asyncTokenBucket.consumeTokens(1);
+
+        long throttlingDuration = asyncTokenBucket.calculateThrottlingDuration(1_000_000_000L);
+        assertEquals(throttlingDuration, Long.MAX_VALUE);
+    }
 }
