@@ -300,7 +300,7 @@ public interface Schema<T> extends Cloneable {
      * @param clazz the Protobuf generated class to be used to extract the schema
      * @return a Schema instance
      */
-    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(Class<T> clazz) {
+    static <T extends com.google.protobuf.Message> Schema<T> PROTOBUF(Class<T> clazz) {
         return DefaultImplementation.getDefaultImplementation()
                 .newProtobufSchema(SchemaDefinition.builder().withPojo(clazz).build());
     }
@@ -311,7 +311,7 @@ public interface Schema<T> extends Cloneable {
      * @param schemaDefinition schemaDefinition the definition of the schema
      * @return a Schema instance
      */
-    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF(SchemaDefinition<T> schemaDefinition) {
+    static <T extends com.google.protobuf.Message> Schema<T> PROTOBUF(SchemaDefinition<T> schemaDefinition) {
         return DefaultImplementation.getDefaultImplementation().newProtobufSchema(schemaDefinition);
     }
 
@@ -321,7 +321,7 @@ public interface Schema<T> extends Cloneable {
      * @param clazz the Protobuf generated class to be used to extract the schema
      * @return a Schema instance
      */
-    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
+    static <T extends com.google.protobuf.Message> Schema<T> PROTOBUF_NATIVE(Class<T> clazz) {
         return DefaultImplementation.getDefaultImplementation()
                 .newProtobufNativeSchema(SchemaDefinition.builder().withPojo(clazz).build());
     }
@@ -332,7 +332,7 @@ public interface Schema<T> extends Cloneable {
      * @param schemaDefinition schemaDefinition the definition of the schema
      * @return a Schema instance
      */
-    static <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> PROTOBUF_NATIVE(
+    static <T extends com.google.protobuf.Message> Schema<T> PROTOBUF_NATIVE(
             SchemaDefinition<T> schemaDefinition) {
         return DefaultImplementation.getDefaultImplementation().newProtobufNativeSchema(schemaDefinition);
     }

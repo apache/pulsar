@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema.reader;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,7 +28,7 @@ import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> implements SchemaReader<T> {
+public class ProtobufReader<T extends Message> implements SchemaReader<T> {
     private Parser<T> tParser;
 
     public ProtobufReader(T protoMessageInstance) {

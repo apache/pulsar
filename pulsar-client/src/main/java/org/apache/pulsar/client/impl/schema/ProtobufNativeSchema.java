@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl.schema;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.Message;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -41,7 +41,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 /**
  * A schema implementation to deal with protobuf generated messages.
  */
-public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends AbstractStructSchema<T> {
+public class ProtobufNativeSchema<T extends Message> extends AbstractStructSchema<T> {
 
     public static final String PARSING_INFO_PROPERTY = "__PARSING_INFO__";
 
@@ -104,7 +104,7 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
         return Optional.of(getProtobufNativeSchema());
     }
 
-    public static <T extends GeneratedMessageV3> ProtobufNativeSchema<T> of(Class<T> pojo) {
+    public static <T extends Message> ProtobufNativeSchema<T> of(Class<T> pojo) {
         return of(pojo, new HashMap<>());
     }
 
@@ -117,8 +117,8 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
     public static <T> ProtobufNativeSchema of(SchemaDefinition<T> schemaDefinition) {
         Class<T> pojo = schemaDefinition.getPojo();
 
-        if (!GeneratedMessageV3.class.isAssignableFrom(pojo)) {
-            throw new IllegalArgumentException(GeneratedMessageV3.class.getName()
+        if (!Message.class.isAssignableFrom(pojo)) {
+            throw new IllegalArgumentException(Message.class.getName()
                     + " is not assignable from " + pojo.getName());
         }
         Descriptors.Descriptor descriptor = createProtobufNativeSchema(schemaDefinition.getPojo());
@@ -131,14 +131,13 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
                 .build();
         try {
             return new ProtobufNativeSchema(schemaInfo,
-                    (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
+                    (Message) pojo.getMethod("getDefaultInstance").invoke(null));
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);
         }
     }
 
-    public static <T extends GeneratedMessageV3> ProtobufNativeSchema<T> of(
-            Class pojo, Map<String, String> properties) {
+    public static <T extends Message> ProtobufNativeSchema<T> of(Class<T> pojo, Map<String, String> properties) {
         return ofGenericClass(pojo, properties);
     }
 }

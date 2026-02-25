@@ -25,6 +25,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.protobuf.Any;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -44,6 +45,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -243,6 +245,14 @@ public class JavaInstanceRunnableTest {
                 InstanceCommunication.FunctionStatus.newBuilder().build());
 
         Assert.assertEquals(javaInstanceRunnable.getMetrics(), InstanceCommunication.MetricsData.newBuilder().build());
+    }
+
+    @Test
+    public void testDefaultSchemaTypeInfersProtobufForMessageBaseClass() throws Exception {
+        Method method = JavaInstanceRunnable.class.getDeclaredMethod("getDefaultSchemaType", Class.class);
+        method.setAccessible(true);
+        SchemaType schemaType = (SchemaType) method.invoke(null, Any.class);
+        Assert.assertEquals(schemaType, SchemaType.PROTOBUF);
     }
 
     @Test

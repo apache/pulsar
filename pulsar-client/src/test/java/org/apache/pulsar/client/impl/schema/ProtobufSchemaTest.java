@@ -24,6 +24,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.protobuf.Any;
+import com.google.protobuf.StringValue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import java.util.ArrayList;
@@ -119,6 +121,17 @@ public class ProtobufSchemaTest {
         Function.FunctionDetails message = protobufSchema.decode(bytes);
 
         Assert.assertEquals(message.getName(), NAME);
+    }
+
+    @Test
+    public void testSchemaApiSupportsMessageBound() {
+        Any any = Any.pack(StringValue.newBuilder().setValue(NAME).build());
+        org.apache.pulsar.client.api.Schema<Any> protobufSchema =
+                org.apache.pulsar.client.api.Schema.PROTOBUF(Any.class);
+
+        byte[] bytes = protobufSchema.encode(any);
+        Any message = protobufSchema.decode(bytes);
+        Assert.assertEquals(message, any);
     }
 
     @Test
