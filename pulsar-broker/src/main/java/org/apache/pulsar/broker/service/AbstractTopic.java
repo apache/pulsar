@@ -281,6 +281,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 isGlobalPolicies);
         topicPolicies.getMessageTTLInSeconds().updateTopicValue(normalizeValue(data.getMessageTTLInSeconds()),
                 isGlobalPolicies);
+        topicPolicies.getSubscriptionExpirationTimeInMinutes()
+                .updateTopicValue(normalizeValue(data.getSubscriptionExpirationTimeInMinutes()), isGlobalPolicies);
         topicPolicies.getPublishRate().updateTopicValue(PublishRate.normalize(data.getPublishRate()), isGlobalPolicies);
         topicPolicies.getDelayedDeliveryEnabled().updateTopicValue(data.getDelayedDeliveryEnabled(), isGlobalPolicies);
         topicPolicies.getReplicatorDispatchRate().updateTopicValue(
@@ -324,6 +326,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
                 .updateNamespaceValue(normalizeValue(namespacePolicies.max_unacked_messages_per_subscription));
         topicPolicies.getMessageTTLInSeconds()
                 .updateNamespaceValue(normalizeValue(namespacePolicies.message_ttl_in_seconds));
+        topicPolicies.getSubscriptionExpirationTimeInMinutes()
+                .updateNamespaceValue(normalizeValue(namespacePolicies.subscription_expiration_time_minutes));
         topicPolicies.getMaxSubscriptionsPerTopic()
                 .updateNamespaceValue(normalizeValue(namespacePolicies.max_subscriptions_per_topic));
         topicPolicies.getMaxProducersPerTopic()
@@ -444,6 +448,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
         topicPolicies.getTopicMaxMessageSize().updateBrokerValue(config.getMaxMessageSize());
         topicPolicies.getMessageTTLInSeconds().updateBrokerValue(config.getTtlDurationDefaultInSeconds());
+        topicPolicies.getSubscriptionExpirationTimeInMinutes()
+                .updateBrokerValue(config.getSubscriptionExpirationTimeMinutes());
         topicPolicies.getPublishRate().updateBrokerValue(publishRateInBroker(config));
         topicPolicies.getDelayedDeliveryEnabled().updateBrokerValue(config.isDelayedDeliveryEnabled());
         topicPolicies.getDelayedDeliveryTickTimeMillis().updateBrokerValue(config.getDelayedDeliveryTickTimeMillis());

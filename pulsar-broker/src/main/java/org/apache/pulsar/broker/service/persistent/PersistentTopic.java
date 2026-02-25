@@ -3559,22 +3559,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkInactiveSubscriptions() {
-        TopicName name = TopicName.get(topic);
-        try {
-            Policies policies = brokerService.pulsar().getPulsarResources().getNamespaceResources()
-                    .getPolicies(name.getNamespaceObject())
-                    .orElseThrow(() -> new MetadataStoreException.NotFoundException());
-            final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
-                    .getSubscriptionExpirationTimeMinutes();
-            final Integer nsExpirationTime = policies.subscription_expiration_time_minutes;
-            final long expirationTimeMillis = TimeUnit.MINUTES
-                    .toMillis(nsExpirationTime == null ? defaultExpirationTime : nsExpirationTime);
-            checkInactiveSubscriptions(expirationTimeMillis);
-        } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Error getting policies", topic);
-            }
-        }
+        Integer expirationTime = topicPolicies.getSubscriptionExpirationTimeInMinutes().get();
+        checkInactiveSubscriptions(TimeUnit.MINUTES.toMillis(expirationTime));
     }
 
     @VisibleForTesting

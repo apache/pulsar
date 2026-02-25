@@ -3481,6 +3481,36 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    protected CompletableFuture<Integer> internalGetSubscriptionExpirationTime(boolean applied, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenApply(op -> op.map(TopicPolicies::getSubscriptionExpirationTimeInMinutes)
+                        .orElseGet(() -> {
+                            if (applied) {
+                                Integer namespacePolicy = getNamespacePolicies(namespaceName)
+                                        .subscription_expiration_time_minutes;
+                                return namespacePolicy == null
+                                        ? config().getSubscriptionExpirationTimeMinutes()
+                                        : namespacePolicy;
+                            }
+                            return null;
+                        }));
+    }
+
+    protected CompletableFuture<Void> internalSetSubscriptionExpirationTime(Integer expirationTimeToSet,
+                                                                            boolean isGlobal) {
+        if (expirationTimeToSet != null && expirationTimeToSet < 0) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Invalid value for subscription expiration time"));
+        }
+
+        return pulsar().getTopicPoliciesService()
+                .updateTopicPoliciesAsync(topicName, isGlobal, expirationTimeToSet == null, policies -> {
+                    policies.setSubscriptionExpirationTimeInMinutes(expirationTimeToSet);
+                    log.info("[{}] Successfully set topic subscription expiration time: namespace={}, topic={}, time={}",
+                            clientAppId(), namespaceName, topicName.getLocalName(), expirationTimeToSet);
+                });
+    }
+
     protected CompletableFuture<Void> internalSetMessageTTL(Integer ttlInSecondToSet, boolean isGlobal) {
         //Validate message ttl value.
         if (ttlInSecondToSet != null && ttlInSecondToSet < 0) {

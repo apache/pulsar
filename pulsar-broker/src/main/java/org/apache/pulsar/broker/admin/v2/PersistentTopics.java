@@ -2455,6 +2455,90 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionExpirationTime")
+    @ApiOperation(value = "Get subscription expiration time in minutes for a topic", response = Integer.class)
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry")})
+    public void getSubscriptionExpirationTime(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalGetSubscriptionExpirationTime(applied, isGlobal))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getSubscriptionExpirationTime", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionExpirationTime")
+    @ApiOperation(value = "Set subscription expiration time in minutes for a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Invalid subscription expiration time value")})
+    public void setSubscriptionExpirationTime(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription expiration time in minutes", required = true)
+            @QueryParam("subscriptionExpirationTime") Integer subscriptionExpirationTime,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalSetSubscriptionExpirationTime(subscriptionExpirationTime, isGlobal))
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setSubscriptionExpirationTime", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionExpirationTime")
+    @ApiOperation(value = "Remove subscription expiration time for a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Invalid subscription expiration time value")})
+    public void removeSubscriptionExpirationTime(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalSetSubscriptionExpirationTime(null, isGlobal))
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeSubscriptionExpirationTime", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/{topic}/messageTTL")
     @ApiOperation(value = "Get message TTL in seconds for a topic", response = Integer.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
