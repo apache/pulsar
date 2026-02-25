@@ -28,7 +28,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -52,14 +51,11 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.Bookies;
@@ -92,7 +88,6 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -123,7 +118,6 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
-import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -2182,115 +2176,12 @@ public class PulsarAdminToolTest {
 
     }
 
-    @Test
-    public void topicsAnalyzeBacklog() throws Exception {
-        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
-        Topics mockTopics = mock(Topics.class);
-        when(admin.topics()).thenReturn(mockTopics);
-        CmdTopics cmdTopics = new CmdTopics(() -> admin);
-
-        // Test backward compatibility.
-        String topic = "persistent://myprop/clust/ns1/ds1";
-        String subscriptionName = "sub1";
-        Optional<MessageId> startMessageId = Optional.empty();
-        AnalyzeSubscriptionBacklogResult mockResult =
-                getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(10, 0),
-                        PositionFactory.create(10, 9));
-        when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(mockResult);
-
-        cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName));
-
-        verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
-        verifyNoMoreInteractions(mockTopics);
-
-        // Test with the messagePosition parameter.
-        reset(mockTopics);
-
-        int partitionIndex = TopicName.get(topic).getPartitionIndex();
-        startMessageId = Optional.of(new MessageIdImpl(11, 10, partitionIndex));
-        String messagePosition = "11:10";
-        mockResult = getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(11, 10),
-                PositionFactory.create(11, 19));
-        when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(mockResult);
-
-        cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName + " -p " + messagePosition));
-
-        verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
-        verifyNoMoreInteractions(mockTopics);
-
-        // Test client side loop: the loop termination condition is that server returns false aborted flag.
-        reset(mockTopics);
-
-        long backlogScanMaxEntries = 30;
-        startMessageId = Optional.empty();
-        AnalyzeSubscriptionBacklogResult firstResult =
-                getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(12, 0),
-                        PositionFactory.create(12, 9));
-        when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(firstResult);
-
-        Optional<MessageId> secondInvocationMsgId = Optional.of(new MessageIdImpl(12, 10, partitionIndex));
-        AnalyzeSubscriptionBacklogResult abortedResult =
-                getAnalyzeSubscriptionBacklogResult(10, false, PositionFactory.create(12, 10),
-                        PositionFactory.create(12, 19));
-        when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId)).thenReturn(
-                abortedResult);
-
-        cmdTopics.run(split("analyze-backlog " + topic + " -s " + subscriptionName + " -b " + backlogScanMaxEntries));
-
-        verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
-        verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId);
-        verifyNoMoreInteractions(mockTopics);
-
-        // Test client side loop: the loop termination condition is that total entries exceeds backlogScanMaxEntries.
-        reset(mockTopics);
-
-        backlogScanMaxEntries = 25;
-        startMessageId = Optional.empty();
-        firstResult = getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(13, 0),
-                PositionFactory.create(13, 9));
-        when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId)).thenReturn(firstResult);
-
-        secondInvocationMsgId = Optional.of(new MessageIdImpl(13, 10, partitionIndex));
-        AnalyzeSubscriptionBacklogResult moreResult =
-                getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(13, 10),
-                        PositionFactory.create(13, 19));
-        when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId)).thenReturn(
-                moreResult);
-
-        Optional<MessageId> thirdInvocationMsgId = Optional.of(new MessageIdImpl(13, 20, partitionIndex));
-        AnalyzeSubscriptionBacklogResult lastResult =
-                getAnalyzeSubscriptionBacklogResult(10, true, PositionFactory.create(14, 0),
-                        PositionFactory.create(14, 9));
-        when(mockTopics.analyzeSubscriptionBacklog(topic, subscriptionName, thirdInvocationMsgId)).thenReturn(
-                lastResult);
-
-        cmdTopics.run(
-                split("analyze-backlog " + topic + " -s " + subscriptionName + " -b " + backlogScanMaxEntries + " -q"));
-
-        verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, startMessageId);
-        verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, secondInvocationMsgId);
-        verify(mockTopics, times(1)).analyzeSubscriptionBacklog(topic, subscriptionName, thirdInvocationMsgId);
-        verifyNoMoreInteractions(mockTopics);
-    }
-
     private static LedgerInfo newLedger(long id, long entries, long size) {
         LedgerInfo l = new LedgerInfo();
         l.ledgerId = id;
         l.entries = entries;
         l.size = size;
         return l;
-    }
-
-    private AnalyzeSubscriptionBacklogResult getAnalyzeSubscriptionBacklogResult(long entries, boolean aborted,
-                                                                                 Position firstMessageId,
-                                                                                 Position lastMessageId) {
-        AnalyzeSubscriptionBacklogResult result = new AnalyzeSubscriptionBacklogResult();
-        result.setEntries(entries);
-        result.setMessages(entries);
-        result.setAborted(aborted);
-        result.setFirstMessageId(firstMessageId.getLedgerId() + ":" + firstMessageId.getEntryId());
-        result.setLastMessageId(lastMessageId.getLedgerId() + ":" + lastMessageId.getEntryId());
-        return result;
     }
 
     @Test
