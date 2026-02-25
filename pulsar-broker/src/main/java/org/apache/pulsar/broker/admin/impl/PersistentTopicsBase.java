@@ -3506,7 +3506,8 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService()
                 .updateTopicPoliciesAsync(topicName, isGlobal, expirationTimeToSet == null, policies -> {
                     policies.setSubscriptionExpirationTimeInMinutes(expirationTimeToSet);
-                    log.info("[{}] Successfully set topic subscription expiration time: namespace={}, topic={}, time={}",
+                    log.info("[{}] Successfully set topic subscription expiration time: namespace={}, "
+                                    + "topic={}, time={}",
                             clientAppId(), namespaceName, topicName.getLocalName(), expirationTimeToSet);
                 });
     }
