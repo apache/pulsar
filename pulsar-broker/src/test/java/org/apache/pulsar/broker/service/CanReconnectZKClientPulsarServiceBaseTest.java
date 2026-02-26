@@ -93,6 +93,8 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         MetadataStoreExtended store = pulsar.getLocalMetadataStore();
         if (store instanceof DualMetadataStore dms) {
             localZkOfBroker = ((ZKMetadataStore) dms.getSourceStore()).getZkClient();
+        } else if (store instanceof ZKMetadataStore zkStore) {
+            localZkOfBroker = zkStore.getZkClient();
         }
         store.registerSessionListener(n -> {
             log.info("Received session event: {}", n);
