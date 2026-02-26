@@ -52,7 +52,7 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
     @Override
     protected void configure() {
         super.configure();
-        setCommand("standalone");
+        setCommand("standalone --advertised-address localhost");
         addEnv("PULSAR_MEM", "-Xms128M -Xmx1g -XX:MaxDirectMemorySize=1g");
     }
 

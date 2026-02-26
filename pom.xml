@@ -82,7 +82,7 @@ flexible messaging model and an intuitive client API.</description>
     <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
     <pulsar.client.compiler.release>17</pulsar.client.compiler.release>
 
-    <pulsar.client.python.version>3.8.0</pulsar.client.python.version>
+    <pulsar.client.python.version>3.10.0</pulsar.client.python.version>
 
     <IMAGE_JDK_MAJOR_VERSION>21</IMAGE_JDK_MAJOR_VERSION>
 
@@ -189,7 +189,7 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.8</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.130.Final</netty.version>
+    <netty.version>4.1.131.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
     <jetty.version>12.1.5</jetty.version>
     <!-- Jetty 9 is used in tiered-storage/file-system tests and pulsar-io/alluxio -->
@@ -248,7 +248,7 @@ flexible messaging model and an intuitive client API.</description>
     <mariadb-jdbc.version>3.5.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <json-smart.version>2.5.2</json-smart.version>
-    <opensearch.version>2.16.0</opensearch.version>
+    <opensearch.version>2.19.4</opensearch.version>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
     <debezium.version>3.2.5.Final</debezium.version>
     <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
@@ -260,10 +260,9 @@ flexible messaging model and an intuitive client API.</description>
     <hdfs-offload-version3>${hadoop3.version}</hdfs-offload-version3>
     <hbase.version>2.6.3-hadoop3</hbase.version>
     <guava.version>33.4.8-jre</guava.version>
-    <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>7.9.2</confluent.version>
-    <aircompressor.version>0.27</aircompressor.version>
+    <aircompressor.version>2.0.3</aircompressor.version>
     <asynchttpclient.version>2.12.4</asynchttpclient.version>
     <commons-lang3.version>3.19.0</commons-lang3.version>
     <commons-io.version>2.21.0</commons-io.version>
@@ -368,7 +367,7 @@ flexible messaging model and an intuitive client API.</description>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
-    <roaringbitmap.version>1.2.0</roaringbitmap.version>
+    <roaringbitmap.version>1.6.9</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
     <checkerframework.version>3.33.0</checkerframework.version>
@@ -377,6 +376,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-configuration2.version>2.12.0</commons-configuration2.version>
     <mina-core.version>2.1.10</mina-core.version>
     <lz4java.version>1.10.3</lz4java.version>
+    <jsr305.version>3.0.2</jsr305.version>
   </properties>
 
   <dependencyManagement>
@@ -1516,13 +1516,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>javassist</artifactId>
         <version>${javassist.version}</version>
       </dependency>
-
       <dependency>
-        <groupId>net.jcip</groupId>
-        <artifactId>jcip-annotations</artifactId>
-        <version>${jcip.version}</version>
+        <groupId>com.google.code.findbugs</groupId>
+        <artifactId>jsr305</artifactId>
+        <version>${jsr305.version}</version>
       </dependency>
-
       <dependency>
         <groupId>io.airlift</groupId>
         <artifactId>aircompressor</artifactId>

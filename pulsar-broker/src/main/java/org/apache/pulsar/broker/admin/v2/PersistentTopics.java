@@ -25,6 +25,8 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -121,9 +123,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the bundle name", required = false)
             @QueryParam("bundle") String bundle,
             @ApiParam(value = "Include system topic")
-            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic,
+            @ApiParam(value = "properties for customized topic listing plugin, format: k1=v1,k2=v2")
+            @QueryParam("properties") String propertiesStr) {
         validateNamespaceName(tenant, namespace);
-        internalGetListAsync(Optional.ofNullable(bundle))
+        internalGetListAsync(Optional.ofNullable(bundle), parseProperties(propertiesStr))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
                 if (isNot307And404Exception(ex)) {
@@ -2446,6 +2450,90 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     handleTopicPolicyException("removeReplicationClusters", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionExpirationTime")
+    @ApiOperation(value = "Get subscription expiration time in minutes for a topic", response = Integer.class)
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry")})
+    public void getSubscriptionExpirationTime(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalGetSubscriptionExpirationTime(applied, isGlobal))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getSubscriptionExpirationTime", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionExpirationTime")
+    @ApiOperation(value = "Set subscription expiration time in minutes for a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Invalid subscription expiration time value")})
+    public void setSubscriptionExpirationTime(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription expiration time in minutes", required = true)
+            @QueryParam("subscriptionExpirationTime") Integer subscriptionExpirationTime,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalSetSubscriptionExpirationTime(subscriptionExpirationTime, isGlobal))
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("setSubscriptionExpirationTime", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/subscriptionExpirationTime")
+    @ApiOperation(value = "Remove subscription expiration time for a topic")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
+            @ApiResponse(code = 405, message =
+                    "Topic level policy is disabled, enable the topic level policy and retry"),
+            @ApiResponse(code = 412, message = "Invalid subscription expiration time value")})
+    public void removeSubscriptionExpirationTime(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalSetSubscriptionExpirationTime(null, isGlobal))
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("removeSubscriptionExpirationTime", ex, asyncResponse);
                     return null;
                 });
     }
@@ -5129,6 +5217,29 @@ public class PersistentTopics extends PersistentTopicsBase {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    private Map<String, String> parseProperties(String propertiesStr) {
+        if (propertiesStr == null || propertiesStr.trim().isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> map = new HashMap<>();
+        String[] pairs = propertiesStr.split(",");
+        for (String pair : pairs) {
+            String[] parts = pair.split("=", 2);
+            if (parts.length == 2) {
+                try {
+                    String key = Codec.decode(parts[0].trim());
+                    String value = Codec.decode(parts[1].trim());
+                    if (!key.isEmpty()) {
+                        map.put(key, value);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to decode property: {}", pair, e);
+                }
+            }
+        }
+        return map;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);

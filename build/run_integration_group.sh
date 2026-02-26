@@ -208,7 +208,7 @@ test_group_sql() {
 }
 
 test_group_pulsar_k8s() {
-  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-k8s.xml -DintegrationTests
+  mvn_run_integration_test "$@" -DintegrationTestSuiteFile=pulsar-k8s.xml -DintegrationTests -DtestRetryCount=0
 }
 
 test_group_pulsar_io() {

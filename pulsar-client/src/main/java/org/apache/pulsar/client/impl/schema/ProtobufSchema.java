@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl.schema;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.Message;
 import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -41,7 +41,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 /**
  * A schema implementation to deal with protobuf generated messages.
  */
-public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> extends AvroBaseStructSchema<T> {
+public class ProtobufSchema<T extends Message> extends AvroBaseStructSchema<T> {
 
     public static final String PARSING_INFO_PROPERTY = "__PARSING_INFO__";
 
@@ -53,7 +53,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         private final String type;
         private final String label;
         // For future nested fields
-        private final Map <String, Object> definition;
+        private final Map<String, Object> definition;
     }
 
     private static <T> org.apache.avro.Schema createProtobufAvroSchema(Class<T> pojo) {
@@ -89,7 +89,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         }
     }
 
-    public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(Class<T> pojo) {
+    public static <T extends Message> ProtobufSchema<T> of(Class<T> pojo) {
         return of(pojo, new HashMap<>());
     }
 
@@ -102,8 +102,8 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
     public static <T> ProtobufSchema of(SchemaDefinition<T> schemaDefinition) {
         Class<T> pojo = schemaDefinition.getPojo();
 
-        if (!com.google.protobuf.GeneratedMessageV3.class.isAssignableFrom(pojo)) {
-            throw new IllegalArgumentException(com.google.protobuf.GeneratedMessageV3.class.getName()
+        if (!Message.class.isAssignableFrom(pojo)) {
+            throw new IllegalArgumentException(Message.class.getName()
                     + " is not assignable from " + pojo.getName());
         }
 
@@ -116,14 +116,13 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
 
         try {
             return new ProtobufSchema(schemaInfo,
-                (GeneratedMessageV3) pojo.getMethod("getDefaultInstance").invoke(null));
+                (Message) pojo.getMethod("getDefaultInstance").invoke(null));
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
             throw new IllegalArgumentException(e);
         }
     }
 
-    public static <T extends com.google.protobuf.GeneratedMessageV3> ProtobufSchema<T> of(
-            Class pojo, Map<String, String> properties){
+    public static <T extends Message> ProtobufSchema<T> of(Class<T> pojo, Map<String, String> properties) {
         return ofGenericClass(pojo, properties);
     }
 }

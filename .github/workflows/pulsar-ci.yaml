@@ -337,6 +337,8 @@ jobs:
             group: CLIENT
           - name: Pulsar Metadata
             group: METADATA
+          - name: Protobuf v4
+            group: PROTOBUFV4
 
     steps:
       - name: checkout

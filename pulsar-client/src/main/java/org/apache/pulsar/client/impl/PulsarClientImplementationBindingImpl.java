@@ -210,12 +210,12 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return AvroSchema.of(schemaDefinition);
     }
 
-    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(
+    public <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufSchema.of(schemaDefinition);
     }
 
-    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+    public <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufNativeSchema.of(schemaDefinition);
     }

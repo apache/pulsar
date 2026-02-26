@@ -229,6 +229,33 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testSubscriptionExpirationTimeDisabled() throws Exception {
+        int subscriptionExpirationTime = 10;
+        log.info("SubscriptionExpirationTime: {} will set to the topic: {}", subscriptionExpirationTime, testTopic);
+
+        try {
+            admin.topicPolicies().setSubscriptionExpirationTime(testTopic, subscriptionExpirationTime);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+
+        try {
+            admin.topicPolicies().getSubscriptionExpirationTime(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+
+        try {
+            admin.topicPolicies().removeSubscriptionExpirationTime(testTopic);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), HttpStatus.METHOD_NOT_ALLOWED_405);
+        }
+    }
+
+    @Test
     public void testPublishRateDisabled() throws Exception {
         PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
         log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);

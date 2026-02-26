@@ -47,6 +47,7 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
@@ -105,7 +106,8 @@ public class PulsarClientImplTest {
                 any(NamespaceName.class),
                 any(CommandGetTopicsOfNamespace.Mode.class),
                 nullable(String.class),
-                nullable(String.class)))
+                nullable(String.class),
+                nullable(Map.class)))
                 .thenReturn(CompletableFuture.completedFuture(
                         new GetTopicsResult(Collections.emptyList(), null, false, true)));
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))

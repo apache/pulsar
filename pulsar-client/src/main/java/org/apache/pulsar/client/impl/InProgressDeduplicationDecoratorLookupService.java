@@ -105,10 +105,11 @@ public class InProgressDeduplicationDecoratorLookupService implements LookupServ
 
     @Override
     public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
-                                                                      String topicPattern, String topicsHash) {
+                                                                      String topicPattern, String topicsHash,
+                                                                      Map<String, String> properties) {
         return topicsUnderNamespaceInProgress.getOrComputeIfAbsent(
-                new TopicsUnderNamespaceKey(namespace, mode, topicPattern, topicsHash),
-                () -> delegate.getTopicsUnderNamespace(namespace, mode, topicPattern, topicsHash));
+                new TopicsUnderNamespaceKey(namespace, mode, topicPattern, topicsHash, properties),
+                () -> delegate.getTopicsUnderNamespace(namespace, mode, topicPattern, topicsHash, properties));
     }
 
     @Override
@@ -202,12 +203,16 @@ public class InProgressDeduplicationDecoratorLookupService implements LookupServ
         private final Mode mode;
         private final String topicsPattern;
         private final String topicsHash;
+        private final Map<String, String> properties;
 
-        TopicsUnderNamespaceKey(NamespaceName namespace, Mode mode, String topicsPattern, String topicsHash) {
+        TopicsUnderNamespaceKey(NamespaceName namespace, Mode mode, String topicsPattern,
+                                String topicsHash, Map<String, String> properties) {
             this.namespace = namespace;
             this.mode = mode;
             this.topicsPattern = topicsPattern;
             this.topicsHash = topicsHash;
+            this.properties = properties != null && !properties.isEmpty()
+                    ? Map.copyOf(properties) : Collections.emptyMap();
         }
 
         @Override
@@ -220,18 +225,19 @@ public class InProgressDeduplicationDecoratorLookupService implements LookupServ
             }
             TopicsUnderNamespaceKey that = (TopicsUnderNamespaceKey) o;
             return Objects.equals(namespace, that.namespace) && mode == that.mode && Objects.equals(topicsPattern,
-                    that.topicsPattern) && Objects.equals(topicsHash, that.topicsHash);
+                that.topicsPattern) && Objects.equals(topicsHash, that.topicsHash) && properties.equals(
+                that.properties);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(namespace, mode, topicsPattern, topicsHash);
+            return Objects.hash(namespace, mode, topicsPattern, topicsHash, properties);
         }
 
         @Override
         public String toString() {
             return "TopicsUnderNamespaceKey{" + "namespace=" + namespace + ", mode=" + mode + ", topicsPattern='"
-                    + topicsPattern + '\'' + ", topicsHash='" + topicsHash + '\'' + '}';
+                    + topicsPattern + '\'' + ", topicsHash='" + topicsHash + '\'' + ", properties=" + properties + '}';
         }
     }
 

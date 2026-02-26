@@ -196,7 +196,7 @@ public class TopicSchema {
 
     private static boolean isProtobufClass(Class<?> pojoClazz) {
         try {
-            Class<?> protobufBaseClass = Class.forName("com.google.protobuf.GeneratedMessageV3");
+            Class<?> protobufBaseClass = Class.forName("com.google.protobuf.Message");
             return protobufBaseClass.isAssignableFrom(pojoClazz);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             // If function does not have protobuf in classpath then it cannot be protobuf

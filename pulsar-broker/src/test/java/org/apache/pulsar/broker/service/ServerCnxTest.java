@@ -74,6 +74,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import lombok.AllArgsConstructor;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -232,12 +233,16 @@ public class ServerCnxTest {
                 .getBundleAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkBundleOwnership(any(), any());
         doReturn(true).when(namespaceService).isServiceUnitOwned(any());
-        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
-                NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopicsByProperties(
+                eq(NamespaceName.get("use", "ns-abc")), eq(CommandGetTopicsOfNamespace.Mode.ALL), any());
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfUserTopicsByProperties(
+                eq(NamespaceName.get("use", "ns-abc")), any(), any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfUserTopics(
-                NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
+            eq(NamespaceName.get("use", "ns-abc")), any());
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
+            eq(NamespaceName.get("use", "ns-abc")), any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfPersistentTopics(
-                NamespaceName.get("use", "ns-abc"));
+            eq(NamespaceName.get("use", "ns-abc")));
         doReturn(CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists())).when(namespaceService)
                 .checkTopicExistsAsync(any());
 
@@ -3160,7 +3165,7 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
-                "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL, null, null);
+                "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL, null, null, null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 
@@ -3179,7 +3184,7 @@ public class ServerCnxTest {
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
                 "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
-                "use/ns-abc/topic-.*", null);
+                "use/ns-abc/topic-.*", null, null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 
@@ -3199,7 +3204,7 @@ public class ServerCnxTest {
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
                 "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
-                "use/ns-abc/(t|o|to|p|i|c)+-?)+!", null);
+                "use/ns-abc/(t|o|to|p|i|c)+-?)+!", null, null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 
@@ -3218,7 +3223,7 @@ public class ServerCnxTest {
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
                 "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
-                "use/ns-abc/topic-.*", "SOME_HASH");
+                "use/ns-abc/topic-.*", "SOME_HASH", null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 
@@ -3237,7 +3242,7 @@ public class ServerCnxTest {
         setChannelConnected();
         ByteBuf clientCommand = Commands.newGetTopicsOfNamespaceRequest(
                 "use/ns-abc", 1, CommandGetTopicsOfNamespace.Mode.ALL,
-                "use/ns-abc/topic-.*", TopicList.calculateHash(matchingTopics));
+                "use/ns-abc/topic-.*", TopicList.calculateHash(matchingTopics), null);
         channel.writeInbound(clientCommand);
         CommandGetTopicsOfNamespaceResponse response = (CommandGetTopicsOfNamespaceResponse) getResponse();
 
@@ -3253,6 +3258,8 @@ public class ServerCnxTest {
     public void testWatchTopicList() throws Exception {
         svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
         resetChannel();
+        @Cleanup
+        BackGroundExecutor backGroundExecutor = startBackgroundExecutorForEmbeddedChannel(channel);
         setChannelConnected();
         BaseCommand command = Commands.newWatchTopicList(1, 3, "use/ns-abc", "use/ns-abc/topic-.*", null);
         ByteBuf serializedCommand = Commands.serializeWithSize(command);

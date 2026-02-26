@@ -158,7 +158,7 @@ class NegativeAcksTracker implements Closeable {
     private synchronized void add(MessageId messageId, int redeliveryCount) {
         if (messageId instanceof TraceableMessageId) {
             Span span = ((TraceableMessageId) messageId).getTracingSpan();
-            if (span != null) {
+            if (span != null || messageId instanceof ChunkMessageIdImpl) {
                 MessageIdAdv msgId = (MessageIdAdv) messageId;
                 nackedMessageIds.computeIfAbsent(msgId.getLedgerId(), k -> new Long2ObjectOpenHashMap<>())
                         .put(msgId.getEntryId(), messageId);

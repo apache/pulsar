@@ -347,6 +347,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int httpServerAcceptQueueSize = 8192;
 
+    @FieldContext(
+            category = CATEGORY_HTTP,
+            doc = "Idle timeout for HTTP server connections in milliseconds."
+    )
+    private int httpServerIdleTimeout = 30 * 1000;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
             + "(0 to disable limiting)")
     private int maxHttpServerConnections = 2048;
@@ -485,6 +491,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Metadata store cache expiry time in seconds."
     )
     private int metadataStoreCacheExpirySeconds = 300;
+
+    private static final String DEFAULT_EXTENDED_RESOURCES_CLASS_NAME =
+            "org.apache.pulsar.broker.DefaultPulsarResourcesExtended";
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "The class name of the PulsarResourcesExtended implementation. "
+                    + "This class must implement org.apache.pulsar.broker.PulsarResourcesExtended."
+    )
+    private String pulsarResourcesExtendedClassName = DEFAULT_EXTENDED_RESOURCES_CLASS_NAME;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -1259,9 +1275,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = false,
             category = CATEGORY_POLICIES,
-            doc = "Enables evaluating subscription pattern on broker side."
+            doc = "Enables evaluating subscription pattern on broker side. "
+                    + "Note: This config no longer controls watching topic list. "
+                    + "Please use `enableBrokerTopicListWatcher` to control that behavior."
     )
     private boolean enableBrokerSideSubscriptionPatternEvaluation = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Enables watching topic add/remove events on broker side for "
+                    + "subscription pattern evaluation."
+    )
+    private boolean enableBrokerTopicListWatcher = true;
 
     @FieldContext(
             dynamic = false,
@@ -1802,6 +1828,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Enable authentication"
     )
     private boolean authenticationEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_AUTHENTICATION,
+        doc = "Strictly enforce authentication method. If specified, Pulsar will only attempt to authenticate with "
+                + "the provided method. If no method is provided, authentication fails."
+    )
+    private boolean strictAuthMethod = false;
+
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Authentication provider name list, which is a list of class names"

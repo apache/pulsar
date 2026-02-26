@@ -24,6 +24,7 @@ import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.validator.StructSchemaDataValidator;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -91,7 +92,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
     private boolean isAvroSchema(SchemaData schemaData) {
         try {
 
-            Schema.Parser fromParser = new Schema.Parser();
+            Schema.Parser fromParser = new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
             fromParser.setValidateDefaults(false);
             Schema fromSchema = fromParser.parse(new String(schemaData.getData(), UTF_8));
             return true;
