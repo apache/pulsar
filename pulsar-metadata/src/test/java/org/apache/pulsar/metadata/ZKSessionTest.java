@@ -169,7 +169,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
         ResourceLock<String> lock = lm1.acquireLock(path, "value-1").join();
 
-        var zkStore = (ZKMetadataStore) ((DualMetadataStore)store).getSourceStore();
+        var zkStore = (ZKMetadataStore) ((DualMetadataStore) store).getSourceStore();
         zks.expireSession(zkStore.getZkSessionId());
 
         SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
@@ -213,7 +213,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         LeaderElectionState les = leaderElectionEvents.poll(5, TimeUnit.SECONDS);
         assertEquals(les, LeaderElectionState.Leading);
         // --- expire session
-        var zkStore = (ZKMetadataStore) ((DualMetadataStore)store).getSourceStore();
+        var zkStore = (ZKMetadataStore) ((DualMetadataStore) store).getSourceStore();
         zks.expireSession(zkStore.getZkSessionId());
 
         SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
