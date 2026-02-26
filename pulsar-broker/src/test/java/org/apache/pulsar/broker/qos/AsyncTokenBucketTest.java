@@ -205,6 +205,8 @@ public class AsyncTokenBucketTest {
                 {1_000_000_000L},
                 {1_500_000_000L},
                 {2_000_000_000L},
+                {100_000_000_000L},
+                {Long.MAX_VALUE / 1_000_000_000L * 1_000_000_000L},
                 {Long.MAX_VALUE / 100L},
                 {Long.MAX_VALUE / 10L},
                 {Long.MAX_VALUE / 9L},
