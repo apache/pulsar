@@ -110,7 +110,8 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
     private void readCurrentState() throws MetadataStoreException {
         try {
-            // Read the current state
+            // Read the current state, force ZK to sync to read the latest value
+            sourceStore.sync(MigrationState.MIGRATION_FLAG_PATH).get();
             var initialState = migrationStateCache.get(MigrationState.MIGRATION_FLAG_PATH).get();
             initialState.ifPresent(state -> this.migrationState = state);
 
