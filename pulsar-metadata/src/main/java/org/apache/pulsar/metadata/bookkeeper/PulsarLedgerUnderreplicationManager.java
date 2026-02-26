@@ -66,6 +66,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.KeeperException;
 
@@ -430,7 +431,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             if (l != null) {
                 store.delete(getUrLedgerPath(ledgerId), Optional.of(l.getLedgerNodeVersion()))
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-                if (store instanceof ZKMetadataStore) {
+                if (store instanceof ZKMetadataStore
+                        || store instanceof DualMetadataStore) {
                     try {
                         // clean up the hierarchy
                         String[] parts = getUrLedgerPath(ledgerId).split("/");
