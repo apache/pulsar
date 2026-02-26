@@ -18,14 +18,21 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.service.AbstractTopic.getCustomMetricLabelsMap;
 import io.opentelemetry.api.common.Attributes;
+import java.util.Map;
 import lombok.Getter;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 
 @Getter
 public class PersistentTopicAttributes extends TopicAttributes {
 
+    private final TopicName topicName;
+    private final PulsarService pulsar;
+
+    // Pre-built attributes with specific labels (without custom metric labels)
     private final Attributes timeBasedQuotaAttributes;
     private final Attributes sizeBasedQuotaAttributes;
 
@@ -41,8 +48,10 @@ public class PersistentTopicAttributes extends TopicAttributes {
     private final Attributes transactionBufferClientAbortSucceededAttributes;
     private final Attributes transactionBufferClientAbortFailedAttributes;
 
-    public PersistentTopicAttributes(TopicName topicName) {
+    public PersistentTopicAttributes(TopicName topicName, PulsarService pulsar) {
         super(topicName);
+        this.topicName = topicName;
+        this.pulsar = pulsar;
 
         timeBasedQuotaAttributes = Attributes.builder()
                 .putAll(commonAttributes)
@@ -98,6 +107,61 @@ public class PersistentTopicAttributes extends TopicAttributes {
         compactionFailureAttributes = Attributes.builder()
                 .putAll(commonAttributes)
                 .putAll(OpenTelemetryAttributes.CompactionStatus.FAILURE.attributes)
+                .build();
+    }
+
+    /**
+     * Converts a custom metric label key to OpenTelemetry format.
+     * The conversion follows OpenTelemetry semantic conventions by converting to lowercase.
+     *
+     * <p>Examples:
+     * <ul>
+     *   <li>{@code custom_label} → {@code custom_label}</li>
+     *   <li>{@code MY_LABEL} → {@code my_label}</li>
+     * </ul>
+     *
+     * @param originalKey the original key of the custom metric label
+     * @return the OpenTelemetry-compliant attribute key
+     * @see <a href="https://opentelemetry.io/docs/specs/semconv/general/naming/">OpenTelemetry Naming Conventions</a>
+     */
+    public static String toOpenTelemetryAttributeKey(String originalKey) {
+        return originalKey.toLowerCase();
+    }
+
+    /**
+     * Get custom attributes (metric labels) for this topic.
+     * This method dynamically fetches custom labels to ensure they are always up-to-date.
+     * Only supported for persistent topics.
+     *
+     * @return attributes containing only custom metric labels, or empty attributes if not available
+     */
+    public Attributes getCustomAttributes() {
+        if (pulsar == null || !pulsar.getConfiguration().isExposeCustomTopicMetricLabelsEnabled()) {
+            return Attributes.empty();
+        }
+        Map<String, String> customLabels = getCustomMetricLabelsMap(pulsar, topicName);
+        if (customLabels.isEmpty()) {
+            return Attributes.empty();
+        }
+        var builder = Attributes.builder();
+        customLabels.forEach((key, value) -> builder.put(toOpenTelemetryAttributeKey(key), value));
+        return builder.build();
+    }
+
+    /**
+     * Build attributes by merging custom attributes into the given base attributes.
+     *
+     * @param baseAttributes the base attributes to merge custom attributes into
+     * @param customAttributes the custom attributes to merge
+     * @return attributes with custom attributes merged
+     */
+    public Attributes buildAttributesWithCustomLabels(Attributes baseAttributes, Attributes customAttributes) {
+        if (customAttributes.isEmpty()) {
+            return baseAttributes;
+        }
+        return Attributes.builder()
+                .putAll(baseAttributes)
+                .putAll(customAttributes)
                 .build();
     }
 }
