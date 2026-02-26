@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 
@@ -196,9 +197,23 @@ public class AsyncTokenBucketTest {
                 .isEqualTo(initialTokens);
     }
 
-    @Test
-    void shouldRefillTokensWithoutOverflowForLargeRateAnd10sPeriod() {
-        long rate = 980_000_000L;
+    @DataProvider(name = "largeRates")
+    public Object[][] largeRates() {
+        return new Object[][]{
+                {500_000_000L},
+                {980_000_000L},
+                {1_000_000_000L},
+                {1_500_000_000L},
+                {2_000_000_000L},
+                {Long.MAX_VALUE / 100L},
+                {Long.MAX_VALUE / 10L},
+                {Long.MAX_VALUE / 9L},
+                {Long.MAX_VALUE}
+        };
+    }
+
+    @Test(dataProvider = "largeRates")
+    void shouldRefillTokensWithoutOverflowForLargeRateAnd10sPeriod(long rate) {
         long ratePeriodNanos = TimeUnit.SECONDS.toNanos(10);
         asyncTokenBucket =
                 AsyncTokenBucket.builder()
