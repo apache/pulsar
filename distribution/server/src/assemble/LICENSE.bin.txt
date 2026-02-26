@@ -249,17 +249,17 @@ The Apache Software License, Version 2.0
      - info.picocli-picocli-shell-jline3-4.7.5.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.17.2.jar
-     - com.fasterxml.jackson.core-jackson-core-2.17.2.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.17.2.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.17.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.17.2.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.17.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.17.2.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.17.2.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.17.2.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.17.2.jar
-     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.17.2.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.18.6.jar
+     - com.fasterxml.jackson.core-jackson-core-2.18.6.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.18.6.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.18.6.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.18.6.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.18.6.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.18.6.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.18.6.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.18.6.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.18.6.jar
+     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.18.6.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.3.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
