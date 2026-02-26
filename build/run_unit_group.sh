@@ -115,6 +115,14 @@ function test_group_metadata() {
   mvn_test -pl pulsar-metadata -DtestReuseFork=false
 }
 
+function test_group_protobufv4() {
+  mvn_test --clean --install \
+    -Dprotobuf3.version=4.31.1 \
+    -Dprotoc3.version=4.31.1 \
+    -pl pulsar-client,pulsar-functions/instance \
+    -Dtest=org.apache.pulsar.client.api.ProtobufSchemaApiSignatureTest,org.apache.pulsar.client.impl.schema.ProtobufSchemaTest,org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaTest,org.apache.pulsar.functions.source.TopicSchemaTest,org.apache.pulsar.functions.instance.JavaInstanceRunnableTest
+}
+
 # prints summaries of failed tests to console
 # by using the targer/surefire-reports files
 # works only when testForkCount > 1 since that is when surefire will create reports for individual test classes
