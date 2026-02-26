@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import lombok.Getter;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
@@ -39,6 +40,7 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
     private final MetadataSerde<T> serde;
     private final MetadataCacheConfig cacheConfig;
 
+    @Getter
     private final AtomicReference<MetadataCache<T>> metadataCache = new AtomicReference<>();
 
     public DualMetadataCache(DualMetadataStore dualMetadataStore, Class<T> clazz, TypeReference<T> typeRef,

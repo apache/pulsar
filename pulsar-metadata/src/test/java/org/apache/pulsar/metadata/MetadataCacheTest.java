@@ -69,7 +69,9 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
+import org.apache.pulsar.metadata.impl.DualMetadataCache;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
@@ -186,9 +188,9 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store2 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        MetadataCacheImpl<MyClass> objCache1 = (MetadataCacheImpl<MyClass>) store1.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> objCache1 = store1.getMetadataCache(MyClass.class);
 
-        MetadataCacheImpl<MyClass> objCache2 = (MetadataCacheImpl<MyClass>) store2.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> objCache2 = store2.getMetadataCache(MyClass.class);
         AtomicReference<MyClass> storeObj = new AtomicReference<MyClass>();
         store2.registerListener(n -> {
             if (n.getType() == NotificationType.Modified) {
@@ -527,13 +529,18 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
                         .setMax(1, TimeUnit.SECONDS)
                         .setMandatoryStop(3, TimeUnit.SECONDS)).build());
 
-        Field metadataCacheField = cache.getClass().getDeclaredField("objCache");
+        MetadataCache<MyClass> cacheRef = cache;
+        if (cache instanceof DualMetadataCache dc) {
+            cacheRef = (MetadataCache<MyClass>) dc.getMetadataCache().get();
+        }
+
+        Field metadataCacheField = cacheRef.getClass().getDeclaredField("objCache");
         metadataCacheField.setAccessible(true);
-        var objCache = metadataCacheField.get(cache);
+        var objCache = metadataCacheField.get(cacheRef);
         var spyObjCache = (AsyncLoadingCache<?, ?>) spy(objCache);
         doAnswer((Answer<CompletableFuture<MyClass>>) invocation -> CompletableFuture.failedFuture(
                 new MetadataStoreException.BadVersionException(""))).when(spyObjCache).get(any());
-        metadataCacheField.set(cache, spyObjCache);
+        metadataCacheField.set(cacheRef, spyObjCache);
 
         // Test three times to ensure that the retry works each time.
         for (int i = 0; i < 3; i++) {
