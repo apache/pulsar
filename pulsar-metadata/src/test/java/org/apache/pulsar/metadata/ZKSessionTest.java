@@ -41,6 +41,7 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -168,8 +169,8 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
         ResourceLock<String> lock = lm1.acquireLock(path, "value-1").join();
 
-
-        zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
+        var zkStore = (ZKMetadataStore) ((DualMetadataStore)store).getSourceStore();
+        zks.expireSession(zkStore.getZkSessionId());
 
         SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.ConnectionLost);
@@ -212,7 +213,8 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         LeaderElectionState les = leaderElectionEvents.poll(5, TimeUnit.SECONDS);
         assertEquals(les, LeaderElectionState.Leading);
         // --- expire session
-        zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
+        var zkStore = (ZKMetadataStore) ((DualMetadataStore)store).getSourceStore();
+        zks.expireSession(zkStore.getZkSessionId());
 
         SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.ConnectionLost);
