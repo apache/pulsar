@@ -1065,6 +1065,8 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
 
         var metadata = Commands.parseMessageMetadata(message3.getHeadersAndPayload());
         assertTrue(metadata.hasMarkerType());
+
+        reader.closeAsync().get();
     }
 
     @Test

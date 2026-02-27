@@ -1961,6 +1961,8 @@ public class TransactionTest extends TransactionTestBase {
         var message2 = reader.readNextAsync().get();
         var metadata = Commands.parseMessageMetadata(message2.getHeadersAndPayload());
         assertTrue(metadata.hasMarkerType());
+
+        reader.closeAsync().get();
     }
 
     @Test
