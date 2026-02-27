@@ -27,7 +27,7 @@
     <parent>
         <groupId>com.datastax.oss</groupId>
         <artifactId>pulsar-transaction-parent</artifactId>
-        <version>4.0.7.4-SNAPSHOT</version>
+        <version>4.0.7.4</version>
     </parent>
 
     <artifactId>pulsar-transaction-common</artifactId>
