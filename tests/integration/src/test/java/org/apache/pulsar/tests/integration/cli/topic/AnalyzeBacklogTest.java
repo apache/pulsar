@@ -42,6 +42,7 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
     private static final String ANALYZE_BACKLOG_SUBSCRIPTION_NAME = "sub1";
     private static final int SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES = 10;
     private static final String LINE_SEPARATOR_REGEX = "\\r?\\n";
+    private static final String TOPICS_CMD = "topics";
 
     @Override
     public void setupCluster() throws Exception {
@@ -55,8 +56,8 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
         prepareSubscriptionBacklog(SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES + 1);
 
         ContainerExecResult result =
-                pulsarCluster.runAdminCommandOnAnyBroker("analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME, "-s",
-                        ANALYZE_BACKLOG_SUBSCRIPTION_NAME);
+                pulsarCluster.runAdminCommandOnAnyBroker("analyze-backlog", TOPICS_CMD, ANALYZE_BACKLOG_TOPIC_NAME,
+                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME);
 
         String stdout = result.getStdout();
         AnalyzeSubscriptionBacklogResult backlogResult =
