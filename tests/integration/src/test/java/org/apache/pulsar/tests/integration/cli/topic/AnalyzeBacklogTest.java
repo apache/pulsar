@@ -56,7 +56,7 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
         prepareSubscriptionBacklog(SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES + 1);
 
         ContainerExecResult result =
-                pulsarCluster.runAdminCommandOnAnyBroker("analyze-backlog", TOPICS_CMD, ANALYZE_BACKLOG_TOPIC_NAME,
+                pulsarCluster.runAdminCommandOnAnyBroker(TOPICS_CMD, "analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME,
                         "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME);
 
         String stdout = result.getStdout();
