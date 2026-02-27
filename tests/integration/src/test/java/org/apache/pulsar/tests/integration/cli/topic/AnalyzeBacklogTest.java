@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.cli.topic;
 
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,9 +38,10 @@ import org.testng.annotations.Test;
 public class AnalyzeBacklogTest extends PulsarTestSuite {
 
     private static final String PREFIX = "PULSAR_PREFIX_";
-    private static final String ANALYZE_BACKLOG_TOPIC_NAME = "tenant/ns/analyze-backlog-topic";
+    private static final String ANALYZE_BACKLOG_TOPIC_NAME = "public/default/analyze-backlog-topic";
     private static final String ANALYZE_BACKLOG_SUBSCRIPTION_NAME = "sub1";
     private static final int SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES = 10;
+    private static final String LINE_SEPARATOR_REGEX = "\\r?\\n";
 
     @Override
     public void setupCluster() throws Exception {
@@ -55,10 +57,14 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
         ContainerExecResult result =
                 pulsarCluster.runAdminCommandOnAnyBroker("analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME, "-s",
                         ANALYZE_BACKLOG_SUBSCRIPTION_NAME);
-        AnalyzeSubscriptionBacklogResult backlogResult =
-                jsonMapper().readValue(result.getStdout(), AnalyzeSubscriptionBacklogResult.class);
 
+        String stdout = result.getStdout();
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                jsonMapper().readValue(stdout, AnalyzeSubscriptionBacklogResult.class);
         assertEquals(SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES, backlogResult.getEntries());
+
+        String[] lines = stdout.split(LINE_SEPARATOR_REGEX);
+        assertTrue(lines.length > 1);
     }
 
     private void prepareSubscriptionBacklog(int backlogNum) throws Exception {
