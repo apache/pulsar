@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.pulsar.common.naming.Constants.GLOBAL_CLUSTER;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -179,11 +177,8 @@ public class TenantsBase extends PulsarWebResource {
                     if (!tenantAdmin.isPresent()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found");
                     }
-                    TenantInfo oldTenantAdmin = tenantAdmin.get();
-                    Set<String> newClusters = new HashSet<>(newTenantAdmin.getAllowedClusters());
-                    return canUpdateCluster(tenant, oldTenantAdmin.getAllowedClusters(), newClusters);
+                    return tenantResources().updateTenantAsync(tenant, old -> newTenantAdmin);
                 })
-                .thenCompose(__ -> tenantResources().updateTenantAsync(tenant, old -> newTenantAdmin))
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully updated tenant info {}", clientAppId, tenant);
                     asyncResponse.resume(Response.noContent().build());
@@ -293,7 +288,7 @@ public class TenantsBase extends PulsarWebResource {
 
         return clusterResources().listAsync().thenAccept(availableClusters -> {
             List<String> nonexistentClusters = allowedClusters.stream()
-                    .filter(cluster -> !(availableClusters.contains(cluster) || GLOBAL_CLUSTER.equals(cluster)))
+                    .filter(cluster -> !availableClusters.contains(cluster))
                     .collect(Collectors.toList());
             if (nonexistentClusters.size() > 0) {
                 log.warn("[{}] Failed to validate due to clusters {} do not exist", clientAppId(), nonexistentClusters);

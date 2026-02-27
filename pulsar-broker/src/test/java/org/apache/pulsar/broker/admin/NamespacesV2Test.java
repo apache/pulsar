@@ -82,7 +82,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     @BeforeClass
     public void initNamespace() throws Exception {
         testLocalNamespaces = new ArrayList<>();
-        testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testLocalCluster, this.testNamespace));
+        testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testNamespace));
 
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);

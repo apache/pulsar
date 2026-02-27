@@ -39,7 +39,6 @@ import org.apache.pulsar.client.admin.MetadataMigration;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.Packages;
-import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceGroups;
@@ -85,7 +84,6 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final ProxyStats proxyStats;
     private final Tenants tenants;
     private final ResourceGroups resourcegroups;
-    private final Properties properties;
     private final Namespaces namespaces;
     private final Bookies bookies;
     private final TopicsImpl topics;
@@ -175,7 +173,6 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.proxyStats = new ProxyStatsImpl(root, auth, requestTimeoutMs);
         this.tenants = new TenantsImpl(root, auth, requestTimeoutMs);
         this.resourcegroups = new ResourceGroupsImpl(root, auth, requestTimeoutMs);
-        this.properties = new TenantsImpl(root, auth, requestTimeoutMs);
         this.namespaces = new NamespacesImpl(root, auth, requestTimeoutMs);
         this.topics = new TopicsImpl(root, auth, requestTimeoutMs);
         this.localTopicPolicies = new TopicPoliciesImpl(root, auth, requestTimeoutMs, false);
@@ -284,15 +281,6 @@ public class PulsarAdminImpl implements PulsarAdmin {
      */
     public ResourceGroups resourcegroups() {
         return resourcegroups;
-    }
-
-    /**
-     *
-     * @deprecated since 2.0. See {@link #tenants()}
-     */
-    @Deprecated
-    public Properties properties() {
-        return properties;
     }
 
     /**

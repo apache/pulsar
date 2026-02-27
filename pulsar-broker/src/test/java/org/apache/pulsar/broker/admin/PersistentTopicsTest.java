@@ -718,7 +718,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 .open(TopicName.get(nonPartitionTopicName2).getPersistenceNamingEncoding());
         doAnswer(invocation -> {
             persistentTopics.namespaceName = NamespaceName.get("tenant", "namespace");
-            persistentTopics.topicName = TopicName.get("persistent", "tenant", "cluster", "namespace", "topicname");
+            persistentTopics.topicName = TopicName.get("persistent", "tenant", "namespace", "topicname");
             return null;
         }).when(persistentTopics).validatePartitionedTopicName(any(), any(), any());
 

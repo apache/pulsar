@@ -37,7 +37,6 @@ import org.slf4j.LoggerFactory;
 public class WebSocketWebResource {
 
     public static final String ATTRIBUTE_PROXY_SERVICE_NAME = "webProxyService";
-    public static final String ADMIN_PATH_V1 = "/admin";
     public static final String ADMIN_PATH_V2 = "/admin/v2";
 
     @Context

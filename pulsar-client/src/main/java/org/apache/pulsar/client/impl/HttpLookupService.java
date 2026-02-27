@@ -61,8 +61,7 @@ public class HttpLookupService implements LookupService {
     private final boolean useTls;
     private final String listenerName;
 
-    private static final String BasePathV1 = "lookup/v2/destination/";
-    private static final String BasePathV2 = "lookup/v2/topic/";
+    private static final String BasePath = "lookup/v2/topic/";
 
     private final LatencyHistogram histoGetBroker;
     private final LatencyHistogram histoGetTopicMetadata;
@@ -105,7 +104,6 @@ public class HttpLookupService implements LookupService {
      * @return broker-socket-address that serves given topic
      */
     @Override
-    @SuppressWarnings("deprecation")
     public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties) {
         if (lookupProperties == null) {
             lookupProperties = httpClient.clientConf.getLookupProperties();
@@ -114,8 +112,7 @@ public class HttpLookupService implements LookupService {
             log.warn("Lookup properties aren't supported for http lookup service. lookupProperties: {}",
                     lookupProperties);
         }
-        String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
-        String path = basePath + topicName.getLookupName();
+        String path = BasePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
 
         long startTime = System.nanoTime();
@@ -162,7 +159,7 @@ public class HttpLookupService implements LookupService {
             TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
         long startTime = System.nanoTime();
 
-        String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
+        String format = "admin/v2/%s/partitions";
         CompletableFuture<PartitionedTopicMetadata> httpFuture =  httpClient.get(
                 String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation="
                         + metadataAutoCreationEnabled,
@@ -196,8 +193,7 @@ public class HttpLookupService implements LookupService {
 
         CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();
 
-        String format = namespace.isV2()
-            ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
+        String format = "admin/v2/namespaces/%s/topics?mode=%s";
         httpClient
             .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {

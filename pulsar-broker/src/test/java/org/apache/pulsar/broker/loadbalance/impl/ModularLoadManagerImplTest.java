@@ -108,7 +108,6 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -282,14 +281,14 @@ public class ModularLoadManagerImplTest {
         }
     }
 
-    private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {
-        return nsFactory.getBundle(NamespaceName.get(property, cluster, namespace),
+    private NamespaceBundle makeBundle(final String tenant, final String namespace) {
+        return nsFactory.getBundle(NamespaceName.get(tenant, namespace),
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
     }
 
     private NamespaceBundle makeBundle(final String all) {
-        return makeBundle(all, all, all);
+        return makeBundle(all, all);
     }
 
     private String mockBundleName(final int i) {
@@ -335,7 +334,7 @@ public class ModularLoadManagerImplTest {
     // Test disabled since it's depending on CPU usage in the machine
     @Test(enabled = false)
     public void testEvenBundleDistribution() throws Exception {
-        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test", 16);
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", 16);
         int numAssignedToPrimary = 0;
         int numAssignedToSecondary = 0;
         final BundleData bundleData = new BundleData(10, 1000);
@@ -430,7 +429,7 @@ public class ModularLoadManagerImplTest {
     public void testMaxTopicDistributionToBroker() throws Exception {
 
         final int totalBundles = 50;
-        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test",
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test",
                 totalBundles);
         final BundleData bundleData = new BundleData(10, 1000);
         // it sets max topics under this bundle so, owner of this broker reaches max-topic threshold
@@ -790,7 +789,7 @@ public class ModularLoadManagerImplTest {
 
         SimpleResourceAllocationPolicies simpleResourceAllocationPolicies = new SimpleResourceAllocationPolicies(
                 pulsar1);
-        ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, cluster, namespace, 1)[0];
+        ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, namespace, 1)[0];
         BrokerTopicLoadingPredicate brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
             public boolean isEnablePersistentTopics(String brokerId) {
@@ -967,17 +966,12 @@ public class ModularLoadManagerImplTest {
         assertEquals(data.size(), 1);
     }
 
-    @DataProvider(name = "isV1")
-    public Object[][] isV1() {
-        return new Object[][] {{true}, {false}};
-    }
-
-    @Test(dataProvider = "isV1")
-    public void testBundleDataDefaultValue(boolean isV1) throws Exception {
+    @Test
+    public void testBundleDataDefaultValue() throws Exception {
         final String cluster = "use";
         final String tenant = "my-tenant";
         final String namespace = "my-ns";
-        NamespaceName ns = isV1 ? NamespaceName.get(tenant, cluster, namespace) : NamespaceName.get(tenant, namespace);
+        NamespaceName ns = NamespaceName.get(tenant, namespace);
         admin1.clusters().createCluster(cluster, ClusterData.builder()
                 .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,

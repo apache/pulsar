@@ -466,27 +466,14 @@ public abstract class NamespacesBase extends AdminResource {
                                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                                         "Broker doesn't allow forced deletion of namespaces");
                             }
-                            // ensure that non-global namespace is directed to the correct cluster
-                            if (!nsName.isGlobal()) {
-                                return validateClusterOwnershipAsync(nsName.getCluster());
-                            } else {
-                                return CompletableFuture.completedFuture(null);
-                            }
+                            return CompletableFuture.completedFuture(null);
                         })
                         .thenCompose(__ -> namespaceResources().getPoliciesAsync(nsName))
                         .thenCompose(policiesOpt -> {
                             if (policiesOpt.isEmpty()) {
                                 throw new RestException(Status.NOT_FOUND, "Namespace " + nsName + " does not exist.");
                             }
-                            if (!nsName.isGlobal()) {
-                                return CompletableFuture.completedFuture(null);
-                            }
                             Policies policies = policiesOpt.get();
-                            // Just keep the behavior of V1 namespace being the same as before.
-                            if (!nsName.isV2() && policies.replication_clusters.isEmpty()
-                                    && policies.allowed_clusters.isEmpty()) {
-                                return CompletableFuture.completedFuture(policies);
-                            }
                             String cluster = policies.getClusterThatCanDeleteNamespace();
                             if (cluster == null) {
                                 // There are still more than one clusters configured for the global namespace
@@ -560,63 +547,51 @@ public abstract class NamespacesBase extends AdminResource {
                 clientAppId(), namespaceName, bundleRange, authoritative, force);
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_BUNDLE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> {
-                    if (!namespaceName.isGlobal()) {
-                        return validateClusterOwnershipAsync(namespaceName.getCluster());
-                    }
-                    return CompletableFuture.completedFuture(null);
-                })
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies -> {
                     CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
-                    if (namespaceName.isGlobal()) {
-                        // Just keep the behavior of V1 namespace being the same as before.
-                        if (!namespaceName.isV2() && policies.replication_clusters.isEmpty()
-                                && policies.allowed_clusters.isEmpty()) {
-                            return CompletableFuture.completedFuture(null);
-                        }
-                        String cluster = policies.getClusterThatCanDeleteNamespace();
-                        if (cluster == null) {
-                            // There are still more than one clusters configured for the global namespace
-                            throw new RestException(Status.PRECONDITION_FAILED, "Cannot delete the global namespace "
-                                    + namespaceName
-                                    + ". There are still more than one replication clusters configured.");
-                        }
-                        if (!cluster.equals(config().getClusterName())) { // No need to change.
-                            // the only replication cluster is other cluster, redirect
-                            future = clusterResources().getClusterAsync(cluster)
-                                    .thenCompose(clusterData -> {
-                                        if (clusterData.isEmpty()) {
-                                            throw new RestException(Status.NOT_FOUND,
-                                                    "Cluster " + cluster + " does not exist");
+                    String cluster = policies.getClusterThatCanDeleteNamespace();
+                    if (cluster == null) {
+                        // There are still more than one clusters configured for the global namespace
+                        throw new RestException(Status.PRECONDITION_FAILED, "Cannot delete the global namespace "
+                                + namespaceName
+                                + ". There are still more than one replication clusters configured.");
+                    }
+                    if (!cluster.equals(config().getClusterName())) {
+                        // the only replication cluster is other cluster, redirect
+                        future = clusterResources().getClusterAsync(cluster)
+                                .thenCompose(clusterData -> {
+                                    if (clusterData.isEmpty()) {
+                                        throw new RestException(Status.NOT_FOUND,
+                                                "Cluster " + cluster + " does not exist");
+                                    }
+                                    ClusterData replClusterData = clusterData.get();
+                                    URL replClusterUrl;
+                                    try {
+                                        if (!config().isTlsEnabled() || !isRequestHttps()) {
+                                            replClusterUrl = new URL(replClusterData.getServiceUrl());
+                                        } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
+                                            replClusterUrl = new URL(replClusterData.getServiceUrlTls());
+                                        } else {
+                                            throw new RestException(Status.PRECONDITION_FAILED,
+                                                    "The replication cluster does not provide TLS encrypted "
+                                                            + "service");
                                         }
-                                        ClusterData replClusterData = clusterData.get();
-                                        URL replClusterUrl;
-                                        try {
-                                            if (!config().isTlsEnabled() || !isRequestHttps()) {
-                                                replClusterUrl = new URL(replClusterData.getServiceUrl());
-                                            } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
-                                                replClusterUrl = new URL(replClusterData.getServiceUrlTls());
-                                            } else {
-                                                throw new RestException(Status.PRECONDITION_FAILED,
-                                                        "The replication cluster does not provide TLS encrypted "
-                                                                + "service");
-                                            }
-                                        } catch (MalformedURLException malformedURLException) {
-                                            throw new RestException(malformedURLException);
-                                        }
+                                    } catch (MalformedURLException malformedURLException) {
+                                        throw new RestException(malformedURLException);
+                                    }
 
-                                        URI redirect =
-                                                UriBuilder.fromUri(uri.getRequestUri()).host(replClusterUrl.getHost())
-                                                        .port(replClusterUrl.getPort())
-                                                        .replaceQueryParam("authoritative", false).build();
-                                        if (log.isDebugEnabled()) {
-                                            log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                                    clientAppId(), redirect, cluster);
-                                        }
-                                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-                                    });
-                        }
+                                    URI redirect =
+                                            UriBuilder.fromUri(uri.getRequestUri()).host(replClusterUrl.getHost())
+                                                    .port(replClusterUrl.getPort())
+                                                    .replaceQueryParam("authoritative", false).build();
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("[{}] Redirecting the rest call to {}: cluster={}",
+                                                clientAppId(), redirect, cluster);
+                                    }
+                                    throw new WebApplicationException(
+                                            Response.temporaryRedirect(redirect).build());
+                                });
                     }
                     return future
                             .thenCompose(__ ->
@@ -815,12 +790,7 @@ public abstract class NamespacesBase extends AdminResource {
      */
     protected CompletableFuture<Set<String>> internalGetNamespaceReplicationClustersAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.READ)
-                .thenAccept(__ -> {
-                    if (!namespaceName.isGlobal()) {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Cannot get the replication clusters for a non-global namespace");
-                    }
-                }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenApply(policies -> policies.replication_clusters);
     }
 
@@ -832,17 +802,7 @@ public abstract class NamespacesBase extends AdminResource {
                     if (CollectionUtils.isEmpty(clusterIds)) {
                         throw new RestException(Status.PRECONDITION_FAILED, "ClusterIds should not be null or empty");
                     }
-                    if (!namespaceName.isGlobal() && !(clusterIds.size() == 1
-                            && clusterIds.get(0).equals(pulsar().getConfiguration().getClusterName()))) {
-                            throw new RestException(Status.PRECONDITION_FAILED,
-                                    "Cannot set replication on a non-global namespace");
-                    }
-                    Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
-                    if (replicationClusterSet.contains("global")) {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Cannot specify global in the list of replication clusters");
-                    }
-                    return replicationClusterSet;
+                    return Sets.newHashSet(clusterIds);
                 }).thenCompose(replicationClusterSet -> clustersAsync()
                         .thenCompose(clusters -> {
                             List<CompletableFuture<Void>> futures =
@@ -986,14 +946,8 @@ public abstract class NamespacesBase extends AdminResource {
         return validateSuperUserAccessAsync()
                 .thenCompose(__ -> {
                     log.info("[{}] Unloading namespace {}", clientAppId(), namespaceName);
-                    if (namespaceName.isGlobal()) {
-                        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
-                    } else {
-                        return validateClusterOwnershipAsync(namespaceName.getCluster())
-                                .thenCompose(ignore -> validateClusterForTenantAsync(namespaceName.getTenant(),
-                                        namespaceName.getCluster()));
-                    }
+                    // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                    return validateGlobalNamespaceOwnershipAsync(namespaceName);
                 })
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies -> {
@@ -1017,13 +971,8 @@ public abstract class NamespacesBase extends AdminResource {
         return validateSuperUserAccessAsync().thenCompose(__ -> {
             log.info("[{}] Setting bookie affinity group {} for namespace {}", clientAppId(), bookieAffinityGroup,
                     this.namespaceName);
-            if (namespaceName.isGlobal()) {
-                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                return validateGlobalNamespaceOwnershipAsync(namespaceName);
-            } else {
-                return validateClusterOwnershipAsync(namespaceName.getCluster()).thenCompose(
-                        unused -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
-            }
+            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+            return validateGlobalNamespaceOwnershipAsync(namespaceName);
         }).thenCompose(__ -> getDefaultBundleDataAsync().thenCompose(
                 defaultBundleData -> getLocalPolicies().setLocalPoliciesWithCreateAsync(namespaceName, oldPolicies ->
                         oldPolicies.map(policies -> new LocalPolicies(policies.bundles, bookieAffinityGroup,
@@ -1040,13 +989,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<BookieAffinityGroupData> internalGetBookieAffinityGroupAsync() {
         return validateSuperUserAccessAsync().thenCompose(__ -> {
-            if (namespaceName.isGlobal()) {
-                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                return validateGlobalNamespaceOwnershipAsync(namespaceName);
-            } else {
-                return validateClusterOwnershipAsync(namespaceName.getCluster()).thenCompose(
-                        unused -> validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster()));
-            }
+            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+            return validateGlobalNamespaceOwnershipAsync(namespaceName);
         }).thenCompose(__ -> getLocalPolicies().getLocalPoliciesAsync(namespaceName))
                 .thenApply(policies -> policies.orElseThrow(() -> new RestException(Status.NOT_FOUND,
                         "Namespace local-policies does not exist")).bookieAffinityGroup);
@@ -1151,14 +1095,8 @@ public abstract class NamespacesBase extends AdminResource {
                 )
                 .thenCompose(isOwnedByLocalCluster -> {
                     if (!isOwnedByLocalCluster) {
-                        if (namespaceName.isGlobal()) {
-                            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                            return validateGlobalNamespaceOwnershipAsync(namespaceName);
-                        } else {
-                            return validateClusterOwnershipAsync(namespaceName.getCluster())
-                                    .thenCompose(__ -> validateClusterForTenantAsync(namespaceName.getTenant(),
-                                            namespaceName.getCluster()));
-                        }
+                        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }
@@ -1208,14 +1146,8 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                 })
                 .thenCompose(__ -> {
-                    if (namespaceName.isGlobal()) {
-                        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
-                    } else {
-                        return validateClusterOwnershipAsync(namespaceName.getCluster())
-                                .thenCompose(ignore -> validateClusterForTenantAsync(namespaceName.getTenant(),
-                                        namespaceName.getCluster()));
-                    }
+                    // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                    return validateGlobalNamespaceOwnershipAsync(namespaceName);
                 })
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> getBundleRangeAsync(bundleName))
@@ -1586,13 +1518,8 @@ public abstract class NamespacesBase extends AdminResource {
 
         Policies policies = getNamespacePolicies(namespaceName);
 
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
+        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+        validateGlobalNamespaceOwnership(namespaceName);
 
         validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, authoritative, true);
 
@@ -1653,13 +1580,8 @@ public abstract class NamespacesBase extends AdminResource {
 
         Policies policies = getNamespacePolicies(namespaceName);
 
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
+        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+        validateGlobalNamespaceOwnership(namespaceName);
 
         validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange, authoritative, true);
 
@@ -1697,15 +1619,7 @@ public abstract class NamespacesBase extends AdminResource {
         checkNotNull(bundleRange, "BundleRange should not be null");
 
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.UNSUBSCRIBE)
-                .thenCompose(__ -> {
-                    if (namespaceName.isGlobal()) {
-                        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
-                    }
-                    return validateClusterOwnershipAsync(namespaceName.getCluster())
-                            .thenCompose(unused -> validateClusterForTenantAsync(namespaceName.getTenant(),
-                                    namespaceName.getCluster()));
-                })
+                .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies ->
                         validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
@@ -2873,14 +2787,8 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> FutureUtil.waitForAll(clusterIds.stream().map(clusterId ->
                         validateClusterForTenantAsync(namespaceName.getTenant(), clusterId))
                         .collect(Collectors.toList())))
-                // Allowed clusters should include all the existed replication clusters and could not contain global
-                // cluster.
                 .thenCompose(__ -> {
                     checkNotNull(clusterIds, "ClusterIds should not be null");
-                    if (clusterIds.contains("global")) {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Cannot specify global in the list of allowed clusters");
-                    }
                     return getNamespacePoliciesAsync(this.namespaceName).thenApply(nsPolicies -> {
                         Set<String> clusterSet = Sets.newHashSet(clusterIds);
                         if (!Policies.checkNewAllowedClusters(nsPolicies, clusterSet)){
@@ -2917,12 +2825,7 @@ public abstract class NamespacesBase extends AdminResource {
      */
     protected CompletableFuture<Set<String>> internalGetNamespaceAllowedClustersAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CLUSTERS, PolicyOperation.READ)
-                .thenAccept(__ -> {
-                    if (!namespaceName.isGlobal()) {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Cannot get the allowed clusters for a non-global namespace");
-                    }
-                }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenApply(policies -> policies.allowed_clusters);
     }
 

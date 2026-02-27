@@ -63,12 +63,10 @@ import org.apache.pulsar.common.util.Codec;
 
 public class NamespacesImpl extends BaseResource implements Namespaces {
 
-    private final WebTarget adminNamespaces;
     private final WebTarget adminV2Namespaces;
 
     public NamespacesImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
         super(auth, requestTimeoutMs);
-        adminNamespaces = web.path("/admin/namespaces");
         adminV2Namespaces = web.path("/admin/v2/namespaces");
     }
 
@@ -90,7 +88,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     public CompletableFuture<List<String>> getNamespacesAsync(String tenant, String cluster) {
-        WebTarget path = adminNamespaces.path(tenant).path(cluster);
+        WebTarget path = adminV2Namespaces.path(tenant).path(cluster);
         return asyncGetRequest(path, new FutureCallback<List<String>>() {
         });
     }
@@ -114,8 +112,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<List<String>> getTopicsAsync(String namespace) {
         return asyncGetNamespaceParts(new FutureCallback<List<String>>() {
-        }, namespace,
-                NamespaceName.get(namespace).isV2() ? "topics" : "destinations");
+        }, namespace, "topics");
     }
 
     @Override
@@ -127,8 +124,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<List<String>> getTopicsAsync(String namespace, ListNamespaceTopicsOptions options) {
         NamespaceName ns = NamespaceName.get(namespace);
-        String action = ns.isV2() ? "topics" : "destinations";
-        WebTarget path = namespacePath(ns, action);
+        WebTarget path = namespacePath(ns, "topics");
         path = path
                 .queryParam("mode", options.getMode())
                 .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
@@ -157,18 +153,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns);
 
-        if (ns.isV2()) {
-            // For V2 API we pass full Policy class instance
-            Policies policies = new Policies();
-            policies.replication_clusters = clusters;
-            return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
-        } else {
-            // For V1 API, we pass the BundlesData on creation
-            return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)).thenCompose(ignore -> {
-                // For V1, we need to do it in 2 steps
-                return setNamespaceReplicationClustersAsync(namespace, clusters);
-            });
-        }
+        Policies policies = new Policies();
+        policies.replication_clusters = clusters;
+        return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -189,7 +176,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Void> createNamespaceAsync(String namespace, Policies policies) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = ns.isV2() ? namespacePath(ns) : namespacePath(ns, "policy");
+        WebTarget path = namespacePath(ns);
         return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
     }
 
@@ -203,15 +190,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns);
 
-        if (ns.isV2()) {
-            // For V2 API we pass full Policy class instance
-            Policies policies = new Policies();
-            policies.bundles = bundlesData;
-            return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
-        } else {
-            // For V1 API, we pass the BundlesData on creation
-            return asyncPutRequest(path, Entity.entity(bundlesData, MediaType.APPLICATION_JSON));
-        }
+        Policies policies = new Policies();
+        policies.bundles = bundlesData;
+        return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -501,7 +482,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<List<String>> getAntiAffinityNamespacesAsync(
             String tenant, String cluster, String namespaceAntiAffinityGroup) {
-        WebTarget path = adminNamespaces.path(cluster)
+        WebTarget path = adminV2Namespaces.path(cluster)
                 .path("antiAffinity").path(namespaceAntiAffinityGroup).queryParam("property", tenant);
         return asyncGetRequest(path, new FutureCallback<List<String>>() {
         });
@@ -2021,8 +2002,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
-        final WebTarget base = namespace.isV2() ? adminV2Namespaces : adminNamespaces;
-        WebTarget namespacePath = base.path(namespace.toString());
+        WebTarget namespacePath = adminV2Namespaces.path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
     }

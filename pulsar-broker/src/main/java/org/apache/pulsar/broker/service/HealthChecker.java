@@ -47,7 +47,6 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -79,13 +78,9 @@ public class HealthChecker implements AutoCloseable{
      */
     private final PulsarService pulsar;
     /**
-     * Topic name for v1 heartbeat checks.
+     * Topic name for heartbeat checks.
      */
-    private final String heartbeatTopicV1;
-    /**
-     * Topic name for v2 heartbeat checks.
-     */
-    private final String heartbeatTopicV2;
+    private final String heartbeatTopic;
     /**
      * Pulsar client instance for health check operations.
      * A separate client is needed so that it can be shutdown before the webservice is closed.
@@ -116,8 +111,7 @@ public class HealthChecker implements AutoCloseable{
 
     public HealthChecker(PulsarService pulsar) throws PulsarServerException {
         this.pulsar = pulsar;
-        this.heartbeatTopicV1 = getHeartbeatTopicName(pulsar.getBrokerId(), pulsar.getConfiguration(), false);
-        this.heartbeatTopicV2 = getHeartbeatTopicName(pulsar.getBrokerId(), pulsar.getConfiguration(), true);
+        this.heartbeatTopic = getHeartbeatTopicName(pulsar.getBrokerId(), pulsar.getConfiguration());
         this.lookupExecutor =
                 new ScheduledExecutorProvider(1, "health-checker-client-lookup-executor");
         this.scheduledExecutorProvider =
@@ -134,10 +128,8 @@ public class HealthChecker implements AutoCloseable{
         }
     }
 
-    private static String getHeartbeatTopicName(String brokerId, ServiceConfiguration configuration, boolean isV2) {
-        NamespaceName namespaceName = isV2
-                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, configuration)
-                : NamespaceService.getHeartbeatNamespace(brokerId, configuration);
+    private static String getHeartbeatTopicName(String brokerId, ServiceConfiguration configuration) {
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(brokerId, configuration);
         return String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
     }
 
@@ -147,13 +139,12 @@ public class HealthChecker implements AutoCloseable{
      * 1. Producing a test message
      * 2. Reading the message back to verify end-to-end functionality
      *
-     * @param topicVersion The version of the topic to use (V1 or V2)
      * @param clientAppId  The identifier of the client application requesting the health check
      * @return A CompletableFuture that completes when the health check is successful, or completes exceptionally if the
      * check fails
      */
-    public CompletableFuture<Void> checkHealth(TopicVersion topicVersion, String clientAppId) {
-        final String topicName = topicVersion == TopicVersion.V2 ? heartbeatTopicV2 : heartbeatTopicV1;
+    public CompletableFuture<Void> checkHealth(String clientAppId) {
+        final String topicName = heartbeatTopic;
         log.info("[{}] Running healthCheck with topic={}", clientAppId, topicName);
         final String messageStr = UUID.randomUUID().toString();
         final String subscriptionName = "healthCheck-" + messageStr;
@@ -307,8 +298,7 @@ public class HealthChecker implements AutoCloseable{
 
     private void deleteHeartbeatTopics() {
         log.info("forcefully deleting heartbeat topics");
-        deleteTopic(heartbeatTopicV1);
-        deleteTopic(heartbeatTopicV2);
+        deleteTopic(heartbeatTopic);
         log.info("finish forcefully deleting heartbeat topics");
     }
 

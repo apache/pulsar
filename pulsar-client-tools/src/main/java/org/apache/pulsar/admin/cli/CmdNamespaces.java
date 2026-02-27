@@ -41,7 +41,6 @@ import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -176,28 +175,15 @@ public class CmdNamespaces extends CmdBase {
                         "Invalid number of bundles. Number of bundles has to be in the range of (0, 2^32].");
             }
 
-            NamespaceName namespaceName = NamespaceName.get(namespace);
-            if (namespaceName.isV2()) {
-                Policies policies = new Policies();
-                policies.bundles = numBundles > 0 ? BundlesData.builder()
-                        .numBundles(numBundles).build() : null;
+            Policies policies = new Policies();
+            policies.bundles = numBundles > 0 ? BundlesData.builder()
+                    .numBundles(numBundles).build() : null;
 
-                if (clusters != null) {
-                    policies.replication_clusters = new HashSet<>(clusters);
-                }
-
-                getAdmin().namespaces().createNamespace(namespace, policies);
-            } else {
-                if (numBundles == 0) {
-                    getAdmin().namespaces().createNamespace(namespace);
-                } else {
-                    getAdmin().namespaces().createNamespace(namespace, numBundles);
-                }
-
-                if (clusters != null && !clusters.isEmpty()) {
-                    getAdmin().namespaces().setNamespaceReplicationClusters(namespace, new HashSet<>(clusters));
-                }
+            if (clusters != null) {
+                policies.replication_clusters = new HashSet<>(clusters);
             }
+
+            getAdmin().namespaces().createNamespace(namespace, policies);
         }
     }
 

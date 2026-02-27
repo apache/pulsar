@@ -57,7 +57,6 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
@@ -93,10 +92,7 @@ public class ClustersBase extends AdminResource {
     })
     public void getClusters(@Suspended AsyncResponse asyncResponse) {
         clusterResources().listAsync()
-                .thenApply(clusters -> clusters.stream()
-                        // Remove "global" cluster from returned list
-                        .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster))
-                        .collect(Collectors.toSet()))
+                .thenApply(HashSet::new)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get clusters {}", clientAppId(), ex);

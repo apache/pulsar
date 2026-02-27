@@ -421,10 +421,10 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
             assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
         });
 
-        ServiceUnitId serviceUnit1 = makeBundle(tenant, cluster, "ns1");
+        ServiceUnitId serviceUnit1 = makeBundle(tenant, "ns1");
         String selectedBroker1 = selectBroker(serviceUnit1, primaryLoadManager);
 
-        ServiceUnitId serviceUnit2 = makeBundle(tenant, cluster, "ns2");
+        ServiceUnitId serviceUnit2 = makeBundle(tenant, "ns2");
         String selectedBroker2 = selectBroker(serviceUnit2, primaryLoadManager);
 
         assertNotEquals(selectedBroker1, selectedBroker2);
@@ -535,8 +535,8 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         return !brokerToFailureDomainMap.isEmpty();
     }
 
-    private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {
-        return nsFactory.getBundle(NamespaceName.get(property, cluster, namespace),
+    private NamespaceBundle makeBundle(final String tenant, final String namespace) {
+        return nsFactory.getBundle(NamespaceName.get(tenant, namespace),
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
     }

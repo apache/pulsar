@@ -94,7 +94,6 @@ import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
-import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
 import org.apache.pulsar.broker.qos.DefaultMonotonicClock;
@@ -160,7 +159,6 @@ import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
@@ -1205,14 +1203,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Add admin rest resources
         webService.addRestResource("/",
                 false, vipAttributeMap, false, VipStatus.class);
-        webService.addRestResources("/admin",
-                true, attributeMap, false, "org.apache.pulsar.broker.admin.v1");
         webService.addRestResources("/admin/v2",
                 true, attributeMap, true, "org.apache.pulsar.broker.admin.v2");
         webService.addRestResources("/admin/v3",
                 true, attributeMap, true, "org.apache.pulsar.broker.admin.v3");
         webService.addRestResource("/lookup",
-                true, attributeMap, true,  TopicLookup.class,
+                true, attributeMap, true,
                 org.apache.pulsar.broker.lookup.v2.TopicLookup.class);
         webService.addRestResource("/topics",
                 true, attributeMap, true, Topics.class);
@@ -1302,14 +1298,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.webSocketService.start();
 
             addWebSocketServlet(new WebSocketProducerServlet(webSocketService), attributeMap,
-                    WebSocketProducerServlet.SERVLET_PATH, WebSocketProducerServlet.SERVLET_PATH_V2);
+                    WebSocketProducerServlet.SERVLET_PATH);
 
             addWebSocketServlet(new WebSocketConsumerServlet(webSocketService), attributeMap,
-                    WebSocketConsumerServlet.SERVLET_PATH, WebSocketConsumerServlet.SERVLET_PATH_V2);
+                    WebSocketConsumerServlet.SERVLET_PATH);
 
             addWebSocketServlet(new WebSocketReaderServlet(webSocketService), attributeMap,
-                    WebSocketReaderServlet.SERVLET_PATH,
-                    WebSocketReaderServlet.SERVLET_PATH_V2);
+                    WebSocketReaderServlet.SERVLET_PATH);
 
             addWebSocketServlet(new WebSocketMultiTopicConsumerServlet(webSocketService), attributeMap,
                     WebSocketMultiTopicConsumerServlet.SERVLET_PATH);
@@ -2265,7 +2260,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      *
      * @return CompletableFuture
      */
-    public CompletableFuture<Void> runHealthCheck(TopicVersion topicVersion, String clientId) {
+    public CompletableFuture<Void> runHealthCheck(String clientId) {
         if (!isRunning()) {
             return CompletableFuture.failedFuture(new PulsarServerException("Broker is not running"));
         }
@@ -2273,7 +2268,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (localHealthChecker == null) {
             return CompletableFuture.failedFuture(new PulsarServerException("Broker is not running"));
         }
-        return localHealthChecker.checkHealth(topicVersion, clientId);
+        return localHealthChecker.checkHealth(clientId);
     }
 
     @VisibleForTesting

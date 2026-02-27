@@ -1143,13 +1143,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(allClusters,
                 List.of("test", "us-east1", "us-east2", "us-west1", "us-west2", "us-west3", "us-west4"));
 
-        final String property = newUniqueName("peer-prop");
+        final String tenant = newUniqueName("peer-prop");
         Set<String> allowedClusters = Set.of("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
                 "us-east2", "global");
         TenantInfoImpl propConfig = new TenantInfoImpl(Set.of("test"), allowedClusters);
-        admin.tenants().createTenant(property, propConfig);
+        admin.tenants().createTenant(tenant, propConfig);
 
-        final String namespace = property + "/global/conflictPeer";
+        final String namespace = tenant + "/global/conflictPeer";
         admin.namespaces().createNamespace(namespace);
 
         admin.clusters().updatePeerClusterNames("us-west1",

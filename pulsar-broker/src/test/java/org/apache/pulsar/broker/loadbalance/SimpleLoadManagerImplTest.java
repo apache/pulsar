@@ -442,7 +442,7 @@ public class SimpleLoadManagerImplTest {
     @Test
     public void testEvenBundleDistribution() throws Exception {
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils
-                .makeBundles(pulsar1.getNamespaceService().getNamespaceBundleFactory(), "pulsar", "use", "test", 16);
+                .makeBundles(pulsar1.getNamespaceService().getNamespaceBundleFactory(), "pulsar", "test", 16);
         final ResourceQuota quota = new ResourceQuota();
         // Create high message rate quota for the first bundle to make it unlikely to be a coincidence of even
         // distribution.

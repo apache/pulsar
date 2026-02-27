@@ -255,14 +255,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         String uri = request.getRequestURI();
         List<String> parts = Splitter.on("/").splitToList(uri);
 
-        // V1 Format must be like :
-        // /ws/producer/persistent/my-property/my-cluster/my-ns/my-topic
-        // or
-        // /ws/consumer/persistent/my-property/my-cluster/my-ns/my-topic/my-subscription
-        // or
-        // /ws/reader/persistent/my-property/my-cluster/my-ns/my-topic
-
-        // V2 Format must be like :
+        // Format must be like :
         // /ws/v2/producer/persistent/my-property/my-ns/my-topic
         // or
         // /ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription
@@ -271,19 +264,17 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
         checkArgument(parts.size() >= 8, "Invalid topic name format");
         checkArgument(parts.get(1).equals("ws"));
+        checkArgument(parts.get(2).equals("v2"));
 
-        final boolean isV2Format = parts.get(2).equals("v2");
-        final int domainIndex = isV2Format ? 4 : 3;
-        checkArgument(parts.get(domainIndex).equals("persistent")
-                || parts.get(domainIndex).equals("non-persistent"));
+        checkArgument(parts.get(4).equals("persistent")
+                || parts.get(4).equals("non-persistent"));
 
-        final String domain = parts.get(domainIndex);
-        final NamespaceName namespace = isV2Format ? NamespaceName.get(parts.get(5), parts.get(6)) :
-                NamespaceName.get(parts.get(4), parts.get(5), parts.get(6));
+        final String domain = parts.get(4);
+        final NamespaceName namespace = NamespaceName.get(parts.get(5), parts.get(6));
 
         // The topic name which contains slashes is also split, so it needs to be jointed
         int startPosition = 7;
-        boolean isConsumer = "consumer".equals(parts.get(2)) || "consumer".equals(parts.get(3));
+        boolean isConsumer = "consumer".equals(parts.get(3));
         int endPosition = isConsumer ? parts.size() - 1 : parts.size();
         StringBuilder topicName = new StringBuilder(parts.get(startPosition));
         while (++startPosition < endPosition) {

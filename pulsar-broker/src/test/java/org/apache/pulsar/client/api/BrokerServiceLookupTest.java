@@ -406,7 +406,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
 
         /**** start broker-2 ****/
         final String newCluster = "use2";
-        final String property = "my-property2";
+        final String tenant = "my-property2";
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerShutdownTimeoutMs(0L);
@@ -424,9 +424,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
                         .serviceUrl(pulsar.getWebServiceAddress())
                         .brokerServiceUrl(broker2ServiceUrl)
                         .build());
-        admin.tenants().createTenant(property,
+        admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
-        admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
+        admin.namespaces().createNamespace(tenant + "/" + newCluster + "/my-ns");
 
         @Cleanup
         PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
@@ -1053,22 +1053,22 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     public void testPartitionedMetadataWithDeprecatedVersion() throws Exception {
 
         final String cluster = "use2";
-        final String property = "my-property2";
+        final String tenant = "my-property2";
         final String namespace = "my-ns";
         final String topicName = "my-partitioned";
         final int totalPartitions = 10;
-        final TopicName dest = TopicName.get("persistent", property, cluster, namespace, topicName);
+        final TopicName dest = TopicName.get("persistent", tenant, namespace, topicName);
         admin.clusters().createCluster(cluster,
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant(property,
+        admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
-        admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
+        admin.namespaces().createNamespace(tenant + "/" + namespace);
         admin.topics().createPartitionedTopic(dest.toString(), totalPartitions);
 
         URI brokerServiceUrl = new URI(pulsar.getSafeWebServiceAddress());
 
         URL url = brokerServiceUrl.toURL();
-        String path = String.format("admin/%s/partitions", dest.getLookupName());
+        String path = String.format("admin/v2/%s/partitions", dest.getLookupName());
 
         AsyncHttpClient httpClient = getHttpClient("Pulsar-Java-1.20");
         PartitionedTopicMetadata metadata = getPartitionedMetadata(httpClient, url, path);

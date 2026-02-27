@@ -142,12 +142,10 @@ public class NamespaceService implements AutoCloseable {
 
     public static final int BUNDLE_SPLIT_RETRY_LIMIT = 7;
     public static final String SLA_NAMESPACE_PROPERTY = "sla-monitor";
-    public static final Pattern HEARTBEAT_NAMESPACE_PATTERN = Pattern.compile("pulsar/[^/]+/([^:]+:\\d+)");
-    public static final Pattern HEARTBEAT_NAMESPACE_PATTERN_V2 = Pattern.compile("pulsar/([^:]+:\\d+)");
-    public static final Pattern SLA_NAMESPACE_PATTERN = Pattern.compile(SLA_NAMESPACE_PROPERTY + "/[^/]+/([^:]+:\\d+)");
-    public static final String HEARTBEAT_NAMESPACE_FMT = "pulsar/%s/%s";
-    public static final String HEARTBEAT_NAMESPACE_FMT_V2 = "pulsar/%s";
-    public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s/%s";
+    public static final Pattern HEARTBEAT_NAMESPACE_PATTERN = Pattern.compile("pulsar/([^:]+:\\d+)");
+    public static final Pattern SLA_NAMESPACE_PATTERN = Pattern.compile(SLA_NAMESPACE_PROPERTY + "/([^:]+:\\d+)");
+    public static final String HEARTBEAT_NAMESPACE_FMT = "pulsar/%s";
+    public static final String SLA_NAMESPACE_FMT = SLA_NAMESPACE_PROPERTY + "/%s";
 
     private final Map<ClusterDataImpl, PulsarClientImpl> namespaceClients = new ConcurrentHashMap<>();
 
@@ -393,12 +391,6 @@ public class NamespaceService implements AutoCloseable {
                     getHeartbeatNamespace(brokerId, config));
         }
 
-        // ensure that we own the heartbeat namespace
-        if (registerNamespace(getHeartbeatNamespaceV2(brokerId, config), true)) {
-            LOG.info("added heartbeat namespace name in local cache: ns={}",
-                    getHeartbeatNamespaceV2(brokerId, config));
-        }
-
         // we may not need strict ownership checking for bootstrap names for now
         for (String namespace : config.getBootstrapNamespaces()) {
             if (registerNamespace(NamespaceName.get(namespace), false)) {
@@ -548,10 +540,6 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<String> getHeartbeatOrSLAMonitorBrokerId(
             ServiceUnitId serviceUnit, Function<String, CompletableFuture<Boolean>> isBrokerActive) {
         String candidateBroker = NamespaceService.checkHeartbeatNamespace(serviceUnit);
-        if (candidateBroker != null) {
-            return CompletableFuture.completedFuture(candidateBroker);
-        }
-        candidateBroker = NamespaceService.checkHeartbeatNamespaceV2(serviceUnit);
         if (candidateBroker != null) {
             return CompletableFuture.completedFuture(candidateBroker);
         }
@@ -1770,31 +1758,17 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public static NamespaceName getHeartbeatNamespace(String lookupBroker, ServiceConfiguration config) {
-        return NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), lookupBroker));
-    }
-
-    public static NamespaceName getHeartbeatNamespaceV2(String lookupBroker, ServiceConfiguration config) {
-        return NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT_V2, lookupBroker));
+        return NamespaceName.get(String.format(HEARTBEAT_NAMESPACE_FMT, lookupBroker));
     }
 
     public static NamespaceName getSLAMonitorNamespace(String lookupBroker, ServiceConfiguration config) {
-        return NamespaceName.get(String.format(SLA_NAMESPACE_FMT, config.getClusterName(), lookupBroker));
+        return NamespaceName.get(String.format(SLA_NAMESPACE_FMT, lookupBroker));
     }
 
     public static String checkHeartbeatNamespace(ServiceUnitId ns) {
         Matcher m = HEARTBEAT_NAMESPACE_PATTERN.matcher(ns.getNamespaceObject().toString());
         if (m.matches()) {
             LOG.debug("Heartbeat namespace matched the lookup namespace {}", ns.getNamespaceObject().toString());
-            return m.group(1);
-        } else {
-            return null;
-        }
-    }
-
-    public static String checkHeartbeatNamespaceV2(ServiceUnitId ns) {
-        Matcher m = HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(ns.getNamespaceObject().toString());
-        if (m.matches()) {
-            LOG.debug("Heartbeat namespace v2 matched the lookup namespace {}", ns.getNamespaceObject().toString());
             return m.group(1);
         } else {
             return null;
@@ -1813,8 +1787,7 @@ public class NamespaceService implements AutoCloseable {
     public static boolean isSystemServiceNamespace(String namespace) {
         return SYSTEM_NAMESPACE.toString().equals(namespace)
                 || SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
-                || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
-                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
+                || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches();
     }
 
     /**
@@ -1824,14 +1797,12 @@ public class NamespaceService implements AutoCloseable {
      */
     public static boolean isSLAOrHeartbeatNamespace(String namespace) {
         return SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
-                || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
-                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
+                || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches();
     }
 
     public static boolean isHeartbeatNamespace(ServiceUnitId ns) {
         String namespace = ns.getNamespaceObject().toString();
-        return HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
-                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
+        return HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches();
     }
 
     public boolean registerSLANamespace() throws PulsarServerException {

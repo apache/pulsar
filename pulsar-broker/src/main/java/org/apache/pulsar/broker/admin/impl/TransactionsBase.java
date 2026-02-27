@@ -522,13 +522,13 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void validateTopicName(String property, String namespace, String encodedTopic) {
+    protected void validateTopicName(String tenant, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
-            this.namespaceName = NamespaceName.get(property, namespace);
+            this.namespaceName = NamespaceName.get(tenant, namespace);
             this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), property, namespace,
+            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), tenant, namespace,
                     topic, e);
             throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid");
         }

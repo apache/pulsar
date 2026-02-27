@@ -77,7 +77,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
-import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -534,7 +533,6 @@ public abstract class PulsarWebResource {
                                                                                      String clientAppId) {
         CompletableFuture<ClusterData> clusterDataFuture = new CompletableFuture<>();
         if (isValidCluster(pulsar, cluster)
-                // this code should only happen with a v1 namespace format prop/cluster/namespaces
                 || pulsar.getConfiguration().getClusterName().equals(cluster)) {
             clusterDataFuture.complete(null);
             return clusterDataFuture;
@@ -558,31 +556,13 @@ public abstract class PulsarWebResource {
         return clusterDataFuture;
     }
 
-    static boolean isValidCluster(PulsarService pulsarService, String cluster) {// If the cluster name is
-        // cluster == null or "global", don't validate the
-        // cluster ownership. Cluster will be null in v2 naming.
-        // The validation will be done by checking the namespace configuration
-        if (cluster == null || Constants.GLOBAL_CLUSTER.equals(cluster)) {
+    static boolean isValidCluster(PulsarService pulsarService, String cluster) {
+        if (cluster == null) {
             return true;
         }
 
         // Without authorization, any cluster name should be valid and accepted by the broker
         return !pulsarService.getConfiguration().isAuthorizationEnabled();
-    }
-
-    protected void validateBundleOwnership(String tenant, String cluster, String namespace, boolean authoritative,
-            boolean readOnly, NamespaceBundle bundle) {
-        NamespaceName fqnn = NamespaceName.get(tenant, cluster, namespace);
-
-        try {
-            validateBundleOwnership(bundle, authoritative, readOnly);
-        } catch (WebApplicationException wae) {
-            // propagate already wrapped-up WebApplicationExceptions
-            throw wae;
-        } catch (Exception oe) {
-            log.debug("Failed to find owner for namespace {}", fqnn, oe);
-            throw new RestException(oe);
-        }
     }
 
     protected NamespaceBundle validateNamespaceBundleRange(NamespaceName fqnn, BundlesData bundles,
@@ -1191,31 +1171,6 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected CompletableFuture<Void> canUpdateCluster(String tenant, Set<String> oldClusters,
-            Set<String> newClusters) {
-        List<CompletableFuture<Void>> activeNamespaceFuture = new ArrayList<>();
-        for (String cluster : oldClusters) {
-            if (Constants.GLOBAL_CLUSTER.equals(cluster) || newClusters.contains(cluster)) {
-                continue;
-            }
-            CompletableFuture<Void> checkNs = new CompletableFuture<>();
-            activeNamespaceFuture.add(checkNs);
-            tenantResources().getActiveNamespaces(tenant, cluster).whenComplete((activeNamespaces, ex) -> {
-                if (ex != null) {
-                    log.warn("Failed to get namespaces under {}-{}, {}", tenant, cluster, ex.getCause().getMessage());
-                    checkNs.completeExceptionally(ex.getCause());
-                    return;
-                }
-                if (activeNamespaces.size() > 0) {
-                    log.warn("{}/{} Active-namespaces {}", tenant, cluster, activeNamespaces);
-                    checkNs.completeExceptionally(new RestException(Status.PRECONDITION_FAILED, "Active namespaces"));
-                    return;
-                }
-                checkNs.complete(null);
-            });
-        }
-        return FutureUtil.waitForAll(activeNamespaceFuture);
-    }
 
     /**
      * Redirect the call to the specified broker.

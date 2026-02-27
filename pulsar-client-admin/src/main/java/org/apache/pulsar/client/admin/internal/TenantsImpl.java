@@ -23,15 +23,13 @@ import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
-import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 
-@SuppressWarnings("deprecation")
-public class TenantsImpl extends BaseResource implements Tenants, Properties {
+public class TenantsImpl extends BaseResource implements Tenants {
     private final WebTarget adminTenants;
 
     public TenantsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
@@ -103,33 +101,6 @@ public class TenantsImpl extends BaseResource implements Tenants, Properties {
         WebTarget path = adminTenants.path(tenant);
         path = path.queryParam("force", force);
         return asyncDeleteRequest(path);
-    }
-
-    // Compat method names
-
-    @Override
-    public void createProperty(String tenant, TenantInfo config) throws PulsarAdminException {
-        createTenant(tenant, config);
-    }
-
-    @Override
-    public void updateProperty(String tenant, TenantInfo config) throws PulsarAdminException {
-        updateTenant(tenant, config);
-    }
-
-    @Override
-    public void deleteProperty(String tenant) throws PulsarAdminException {
-        deleteTenant(tenant);
-    }
-
-    @Override
-    public List<String> getProperties() throws PulsarAdminException {
-        return getTenants();
-    }
-
-    @Override
-    public TenantInfo getPropertyAdmin(String tenant) throws PulsarAdminException {
-        return getTenantInfo(tenant);
     }
 
     public WebTarget getWebTarget() {

@@ -377,12 +377,6 @@ public class PulsarClusterMetadataSetup {
             resources.getClusterResources().createCluster(arguments.cluster, clusterData);
         }
 
-        // Create marker for "global" cluster
-        ClusterData globalClusterData = ClusterData.builder().build();
-        if (!resources.getClusterResources().clusterExists("global")) {
-            resources.getClusterResources().createCluster("global", globalClusterData);
-        }
-
         // Create public tenant, allowed to use this same cluster, along with other clusters
         createTenantIfAbsent(resources, TopicName.PUBLIC_TENANT, arguments.cluster);
 

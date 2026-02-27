@@ -30,7 +30,6 @@ import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.util.Codec;
@@ -167,34 +166,23 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    @Deprecated
     public void healthcheck() throws PulsarAdminException {
-        healthcheck(TopicVersion.V1, Optional.empty());
+        sync(() -> healthcheckAsync(Optional.empty()));
     }
 
     @Override
-    @Deprecated
     public CompletableFuture<Void> healthcheckAsync() {
-        return healthcheckAsync(TopicVersion.V1, Optional.empty());
-    }
-
-
-    @Override
-    public void healthcheck(TopicVersion topicVersion) throws PulsarAdminException {
-        sync(() -> healthcheckAsync(topicVersion, Optional.empty()));
+        return healthcheckAsync(Optional.empty());
     }
 
     @Override
-    public void healthcheck(TopicVersion topicVersion, Optional<String> brokerId) throws PulsarAdminException {
-        sync(() -> healthcheckAsync(topicVersion, brokerId));
+    public void healthcheck(Optional<String> brokerId) throws PulsarAdminException {
+        sync(() -> healthcheckAsync(brokerId));
     }
 
     @Override
-    public CompletableFuture<Void> healthcheckAsync(TopicVersion topicVersion, Optional<String> brokerId) {
+    public CompletableFuture<Void> healthcheckAsync(Optional<String> brokerId) {
         WebTarget path = adminBrokers.path("health");
-        if (topicVersion != null) {
-            path = path.queryParam("topicVersion", topicVersion);
-        }
         if (brokerId.isPresent()) {
             path = path.queryParam("brokerId", brokerId.get());
         }
