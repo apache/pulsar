@@ -209,6 +209,10 @@ OPTS="-Djava.net.preferIPv4Stack=true $OPTS"
 if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
   OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
 fi
+# Netty tuning
+# These settings are primarily used to modify the Netty allocator configuration,
+# improving memory utilization and reducing the frequency of requesting off-heap memory from the OS
+OPTS="-Dio.netty.leakDetection.level=disabled -Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
 
 OPTS="$OPTS $BOOKIE_MEM $BOOKIE_GC $BOOKIE_GC_LOG $BOOKIE_EXTRA_OPTS"
 

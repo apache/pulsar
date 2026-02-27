@@ -23,6 +23,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocatorMetric;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.common.allocator.OutOfMemoryPolicy;
@@ -52,6 +54,40 @@ public class PulsarByteBufAllocatorDefaultTest {
             PulsarByteBufAllocator.createByteBufAllocator();
             assertTrue(called.get());
         }
+    }
+
+    /**
+     * Verify that a {@link PooledByteBufAllocator} created with {@code maxOrder=10} produces the expected chunk size,
+     * which is consistent with the {@code -Dio.netty.allocator.maxOrder=10} setting in {@code conf/pulsar_env.sh}.
+     *
+     * <p>Netty computes chunk size as: {@code pageSize << maxOrder = 8192 << 10 = 8,388,608 bytes (8 MiB)}.
+     * This test constructs the allocator directly with {@code maxOrder=10} so no JVM argument is required.
+     */
+    @Test
+    public void testDefaultChunkSizeMatchesMaxOrder10() {
+        // Expected chunk size: pageSize (8192 bytes) << maxOrder (10) = 8 MiB
+        final int maxOrder = 10;
+        final int expectedChunkSize = 8192 << maxOrder;
+
+        // Create a PooledByteBufAllocator with maxOrder=10, same as -Dio.netty.allocator.maxOrder=10
+        PooledByteBufAllocator allocator = new PooledByteBufAllocator(
+                true,           // preferDirect
+                0,                        // nHeapArena
+                1,                        // nDirectArena
+                8192,                     // pageSize (default)
+                maxOrder,                 // maxOrder=10
+                64,                       // smallPageSize (default)
+                256,                      // normalPageSize (default)
+                false,
+                0
+        );
+
+        PooledByteBufAllocatorMetric metric = allocator.metric();
+        // Verify that the chunk size derived from maxOrder=10 equals 8 MiB
+        assertEquals(metric.chunkSize(), expectedChunkSize,
+                "Chunk size should be 8 MiB (pageSize << maxOrder = 8192 << 10) "
+                        + "as configured by -Dio.netty.allocator.maxOrder=10 in pulsar_env.sh");
+
     }
 
 }

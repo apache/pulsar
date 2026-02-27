@@ -89,8 +89,13 @@ if [[ -z "$PULSAR_GC_LOG" ]]; then
   fi
 fi
 
-# Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096"}"
+# Extra options to be passed to the jvm, typically used for passing user-defined JVM OPTS configurations.
+# This PULSAR_EXTRA_OPTS parameter has a higher priority than the predefined JVM OPTS in the Pulsar bin files.
+# Therefore, in addition to defining extra JVM parameters here,
+# it can also be used to override JVM parameters with the same name in OPTS
+# For example, if IPv6 functionality needs to be enabled, configure:
+# PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} -Djava.net.preferIPv4Stack=false"
+PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS}"
 
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=

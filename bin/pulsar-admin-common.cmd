@@ -83,6 +83,14 @@ if %JAVA_MAJOR_VERSION% GEQ 11 (
   REM Required by Netty for optimized direct byte buffer access
   set "OPTS=%OPTS% --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 )
+REM These two settings work together to ensure the Pulsar process exits immediately and predictably
+REM if it runs out of either Java heap memory or its internal off-heap memory,
+REM as these are unrecoverable errors that require a process restart to clear the faulty state and restore operation
+set "OPTS=-Dpulsar.allocator.exit_on_oom=true %OPTS%"
+REM Netty tuning
+REM These settings are primarily used to modify the Netty allocator configuration,
+REM improving memory utilization and reducing the frequency of requesting off-heap memory from the OS
+set "OPTS=-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 %OPTS%"
 
 set "OPTS=-cp "%PULSAR_CLASSPATH%" %OPTS%"
 set "OPTS=%OPTS% %PULSAR_EXTRA_OPTS%"

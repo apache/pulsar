@@ -114,6 +114,14 @@ OPTS="-Djava.net.preferIPv4Stack=true $OPTS -Dlog4j.configurationFile=`basename 
 if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
   OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
 fi
+# These two settings work together to ensure the Pulsar process exits immediately and predictably
+# if it runs out of either Java heap memory or its internal off-heap memory,
+# as these are unrecoverable errors that require a process restart to clear the faulty state and restore operation
+OPTS="-XX:+ExitOnOutOfMemoryError -Dpulsar.allocator.exit_on_oom=true $OPTS"
+# Netty tuning
+# These settings are primarily used to modify the Netty allocator configuration,
+# improving memory utilization and reducing the frequency of requesting off-heap memory from the OS
+OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
