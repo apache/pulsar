@@ -72,7 +72,8 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
         @Cleanup
-        Producer<byte[]> producer = client.newProducer().topic(ANALYZE_BACKLOG_TOPIC_NAME).create();
+        Producer<byte[]> producer =
+                client.newProducer().topic(ANALYZE_BACKLOG_TOPIC_NAME).enableBatching(false).create();
         @Cleanup
         Consumer<byte[]> consumer = client.newConsumer().topic(ANALYZE_BACKLOG_TOPIC_NAME)
                 .subscriptionName(ANALYZE_BACKLOG_SUBSCRIPTION_NAME).subscribe();
