@@ -87,12 +87,13 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
 
     @Test
     public void testAnalyzeBacklogClientSideLoopUsingPlainPrint() throws Exception {
-        int backlogNum = 35;
+        int backlogNum = 50;
         prepareSubscriptionBacklog(backlogNum);
 
+        int backlogScanMaxEntries = 40;
         ContainerExecResult result =
                 pulsarCluster.runAdminCommandOnAnyBroker(TOPICS_CMD, "analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME,
-                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-b", String.valueOf(backlogNum), "-pp");
+                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-b", String.valueOf(backlogScanMaxEntries), "-pp");
 
         int expectedResultLines = 4;
         String stdout = result.getStdout();
@@ -108,20 +109,23 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
 
     @Test
     public void testAnalyzeBacklogClientSideLoopUsingQuietPlainPrint() throws Exception {
-        int backlogNum = 30;
+        int backlogNum = 50;
         prepareSubscriptionBacklog(backlogNum);
 
+        int backlogScanMaxEntries = 35;
         ContainerExecResult result =
                 pulsarCluster.runAdminCommandOnAnyBroker(TOPICS_CMD, "analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME,
-                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-b", String.valueOf(backlogNum), "-q", "-pp");
+                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-b", String.valueOf(backlogScanMaxEntries), "-q",
+                        "-pp");
 
         String stdout = result.getStdout();
         String[] lines = stdout.split(LINE_SEPARATOR_REGEX);
         assertEquals(1, lines.length);
 
+        int expectedEntries = 40;
         AnalyzeSubscriptionBacklogResult backlogResult =
                 jsonMapper().readValue(stdout, AnalyzeSubscriptionBacklogResult.class);
-        assertEquals(backlogNum, backlogResult.getEntries());
+        assertEquals(expectedEntries, backlogResult.getEntries());
     }
 
     private void prepareSubscriptionBacklog(int backlogNum) throws Exception {
