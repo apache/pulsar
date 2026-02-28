@@ -128,7 +128,7 @@ public abstract class CliCommand implements Callable<Integer> {
             } else if (prettyPrint) {
                 prettyPrint(item);
             } else {
-                commandSpec.commandLine().getOut().println(MAPPER.writeValueAsString(item));
+                plainPrint(item);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

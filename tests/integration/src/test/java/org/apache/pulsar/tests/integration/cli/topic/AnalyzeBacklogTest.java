@@ -74,7 +74,7 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
 
         ContainerExecResult result =
                 pulsarCluster.runAdminCommandOnAnyBroker(TOPICS_CMD, "analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME,
-                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-pp", "false");
+                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-pp");
 
         String stdout = result.getStdout();
         AnalyzeSubscriptionBacklogResult backlogResult =
@@ -92,7 +92,7 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
 
         ContainerExecResult result =
                 pulsarCluster.runAdminCommandOnAnyBroker(TOPICS_CMD, "analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME,
-                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-pp", "false");
+                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-b", String.valueOf(backlogNum), "-pp");
 
         int expectedResultLines = 4;
         String stdout = result.getStdout();
@@ -113,7 +113,7 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
 
         ContainerExecResult result =
                 pulsarCluster.runAdminCommandOnAnyBroker(TOPICS_CMD, "analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME,
-                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-q", "true", "-pp", "false");
+                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-b", String.valueOf(backlogNum), "-q", "-pp");
 
         String stdout = result.getStdout();
         String[] lines = stdout.split(LINE_SEPARATOR_REGEX);

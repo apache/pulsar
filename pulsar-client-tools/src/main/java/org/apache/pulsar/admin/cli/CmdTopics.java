@@ -3017,9 +3017,9 @@ public class CmdTopics extends CmdBase {
         @Option(names = {"--quiet", "-q"}, description = "Disable analyze-backlog progress reporting", required = false)
         private boolean quiet = false;
 
-        @Option(names = {"--pretty-print",
-                "-pp"}, description = "Pretty print the final result output", required = false)
-        private boolean prettyPrint = true;
+        @Option(names = {"--plain-print",
+                "-pp"}, description = "Plain(Non-pretty) print the final result output as NDJSON", required = false)
+        private boolean plainPrint = false;
 
         @Override
         void run() throws Exception {
@@ -3039,7 +3039,7 @@ public class CmdTopics extends CmdBase {
                         }
                         return terminate;
                     }).get();
-            print(backlogResult, prettyPrint);
+            print(backlogResult, !plainPrint);
         }
     }
 
