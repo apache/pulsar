@@ -99,10 +99,10 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
         String[] lines = stdout.split(LINE_SEPARATOR_REGEX);
         assertEquals(expectedResultLines, lines.length);
 
-        for (int i = 1; i <= expectedResultLines; i++) {
+        for (int i = 0; i < expectedResultLines; i++) {
             AnalyzeSubscriptionBacklogResult backlogResult =
                     jsonMapper().readValue(lines[i], AnalyzeSubscriptionBacklogResult.class);
-            assertEquals((long) SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES * i, backlogResult.getEntries());
+            assertEquals((long) SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES * (i + 1), backlogResult.getEntries());
         }
     }
 
