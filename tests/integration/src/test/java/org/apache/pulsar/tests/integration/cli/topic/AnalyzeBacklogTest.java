@@ -52,7 +52,7 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
     }
 
     @Test
-    public void testAnalyzeBacklog() throws Exception {
+    public void testAnalyzeBacklogUsingDefaultConfig() throws Exception {
         prepareSubscriptionBacklog(SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES + 1);
 
         ContainerExecResult result =
@@ -66,6 +66,62 @@ public class AnalyzeBacklogTest extends PulsarTestSuite {
 
         String[] lines = stdout.split(LINE_SEPARATOR_REGEX);
         assertTrue(lines.length > 1);
+    }
+
+    @Test
+    public void testAnalyzeBacklogUsingPlainPrint() throws Exception {
+        prepareSubscriptionBacklog(SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES + 1);
+
+        ContainerExecResult result =
+                pulsarCluster.runAdminCommandOnAnyBroker(TOPICS_CMD, "analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME,
+                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-pp", "false");
+
+        String stdout = result.getStdout();
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                jsonMapper().readValue(stdout, AnalyzeSubscriptionBacklogResult.class);
+        assertEquals(SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES, backlogResult.getEntries());
+
+        String[] lines = stdout.split(LINE_SEPARATOR_REGEX);
+        assertEquals(1, lines.length);
+    }
+
+    @Test
+    public void testAnalyzeBacklogClientSideLoopUsingPlainPrint() throws Exception {
+        int backlogNum = 35;
+        prepareSubscriptionBacklog(backlogNum);
+
+        ContainerExecResult result =
+                pulsarCluster.runAdminCommandOnAnyBroker(TOPICS_CMD, "analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME,
+                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-pp", "false");
+
+        int expectedResultLines = 4;
+        String stdout = result.getStdout();
+        String[] lines = stdout.split(LINE_SEPARATOR_REGEX);
+        assertEquals(expectedResultLines, lines.length);
+
+        for (int i = 1; i <= expectedResultLines; i++) {
+            AnalyzeSubscriptionBacklogResult backlogResult =
+                    jsonMapper().readValue(lines[i], AnalyzeSubscriptionBacklogResult.class);
+            assertEquals((long) SUBSCRIPTION_BACKLOG_SCAN_MAX_ENTRIES * i, backlogResult.getEntries());
+        }
+    }
+
+    @Test
+    public void testAnalyzeBacklogClientSideLoopUsingQuietPlainPrint() throws Exception {
+        int backlogNum = 30;
+        prepareSubscriptionBacklog(backlogNum);
+
+        ContainerExecResult result =
+                pulsarCluster.runAdminCommandOnAnyBroker(TOPICS_CMD, "analyze-backlog", ANALYZE_BACKLOG_TOPIC_NAME,
+                        "-s", ANALYZE_BACKLOG_SUBSCRIPTION_NAME, "-q", "true", "-pp", "false");
+
+        String stdout = result.getStdout();
+        String[] lines = stdout.split(LINE_SEPARATOR_REGEX);
+        assertEquals(1, lines.length);
+
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                jsonMapper().readValue(stdout, AnalyzeSubscriptionBacklogResult.class);
+        assertEquals(backlogNum, backlogResult.getEntries());
     }
 
     private void prepareSubscriptionBacklog(int backlogNum) throws Exception {
