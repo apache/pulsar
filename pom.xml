@@ -159,7 +159,7 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.bcprov-ext-jdk18on.version>1.78.1</bouncycastle.bcprov-ext-jdk18on.version>
     <bouncycastle.bcpkix-fips.version>2.0.10</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>2.0.1</bouncycastle.bc-fips.version>
-    <jackson.version>2.17.2</jackson.version>
+    <jackson.version>2.18.6</jackson.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.10</swagger.version>
     <puppycrawl.checkstyle.version>10.14.2</puppycrawl.checkstyle.version>
@@ -862,6 +862,10 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>jakarta.activation</groupId>
             <artifactId>jakarta.activation-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
