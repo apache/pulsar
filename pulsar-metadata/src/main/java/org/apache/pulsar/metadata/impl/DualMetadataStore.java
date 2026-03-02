@@ -35,6 +35,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -163,6 +164,24 @@ public class DualMetadataStore implements MetadataStoreExtended {
         try {
             log.info("=== Starting Metadata Migration Preparation ===");
             log.info("Target metadata store URL: {}", migrationState.getTargetUrl());
+
+            long startTime = System.currentTimeMillis();
+            Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 60,
+                    TimeUnit.SECONDS);
+            while (System.currentTimeMillis() - startTime < 60_000) {
+                int pending = pendingSourceWrites.get();
+                if (pending == 0) {
+                    break;
+                } else {
+                    log.info("Waiting for {} pending source writes to complete", pendingSourceWrites.get());
+                    Thread.sleep(backoff.next());
+                }
+            }
+
+            if (pendingSourceWrites.get() != 0) {
+                log.error("Failed to wait for pending writes to complete");
+                return;
+            }
 
             // Mark the session as lost so that all the component will avoid trying to make metadata writes
             // for anything that can be deferred (eg: ledgers rollovers)

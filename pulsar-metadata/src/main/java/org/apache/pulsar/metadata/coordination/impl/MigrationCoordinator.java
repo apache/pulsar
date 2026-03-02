@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -121,17 +122,22 @@ public class MigrationCoordinator {
     private void waitForPreparation() throws Exception {
         log.info("Waiting for all participants to prepare...");
 
-        while (true) {
+        long startTime = System.currentTimeMillis();
+        Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 60,
+                TimeUnit.SECONDS);
+        while (System.currentTimeMillis() - startTime < 60_000) {
             List<String> pending = sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).get();
             if (pending.isEmpty()) {
-                break;
+                log.info("All migration participants ready");
+                return;
             }
 
             log.info("Waiting for participants to prepare. pending: {}", pending);
-            Thread.sleep(1000);
+            Thread.sleep(backoff.next());
         }
 
-        log.info("All migration participants ready");
+        log.error("Failed to wait for all participants to prepare. pending participants: {}",
+                sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).get());
     }
 
     private void copyPersistentData() throws Exception {
