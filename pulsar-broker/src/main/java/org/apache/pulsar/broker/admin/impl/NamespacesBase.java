@@ -1894,8 +1894,6 @@ public abstract class NamespacesBase extends AdminResource {
                     return FutureUtil.waitForAll(futures);
                 }).exceptionally(ex -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Failed to clear backlog for namespace {}/{}, subscription: {}", clientAppId(),
-                            nsName, bundleRange, subscription, cause);
                     throw new RestException(cause);
                 });
     }
