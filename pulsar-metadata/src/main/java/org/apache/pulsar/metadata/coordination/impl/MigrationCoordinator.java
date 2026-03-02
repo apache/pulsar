@@ -175,9 +175,10 @@ public class MigrationCoordinator {
             getChildren(path).whenComplete((res, e) -> {
                 if (e != null) {
                     exception.compareAndSet(null, e);
+                } else {
+                    workQueue.addAll(res);
                 }
 
-                workQueue.addAll(res);
                 semaphore.release();
             });
 
