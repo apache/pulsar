@@ -1937,8 +1937,6 @@ public abstract class NamespacesBase extends AdminResource {
                     return FutureUtil.waitForAll(futures);
                 }).exceptionally(ex -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Failed to unsubscribe {} for namespace {}/{}", clientAppId(), subscription,
-                            nsName.toString(), bundleRange, cause);
                     if (cause instanceof SubscriptionBusyException) {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Subscription has active connected consumers");
