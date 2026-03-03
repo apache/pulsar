@@ -50,7 +50,7 @@ import lombok.Getter;
  */
 public class Backoff {
     private static final Duration DEFAULT_INITIAL_DELAY = Duration.ofMillis(100);
-    private static final Duration DEFAULT_MAX_BACKOFF_INTERVAL = Duration.ofSeconds(30);
+    private static final Duration DEFAULT_MAX_BACKOFF_INTERVAL = Duration.ofMinutes(1);
     private static final Random random = new Random();
 
     @Getter
@@ -77,6 +77,16 @@ public class Backoff {
         if (initial.isZero() && max.isZero() && mandatoryStop.isZero()) {
             this.mandatoryStopMade = true;
         }
+    }
+
+    /**
+     * Creates a {@link Backoff} with the default configuration (initial delay 100 ms, max 1 min,
+     * no mandatory stop).
+     *
+     * @return a new Backoff with default settings
+     */
+    public static Backoff create() {
+        return new Builder().build();
     }
 
     /**
@@ -152,7 +162,7 @@ public class Backoff {
     /**
      * Builder for {@link Backoff}.
      *
-     * <p>Defaults: initial delay 100 ms, max backoff 30 s, no mandatory stop.
+     * <p>Defaults: initial delay 100 ms, max backoff 1 min, no mandatory stop.
      */
     public static class Builder {
         private Duration initialDelay = DEFAULT_INITIAL_DELAY;
@@ -172,7 +182,7 @@ public class Backoff {
         }
 
         /**
-         * Sets the upper bound for the backoff delay. Defaults to 30 s.
+         * Sets the upper bound for the backoff delay. Defaults to 1 min.
          *
          * @param maxBackoff the maximum delay
          * @return this builder

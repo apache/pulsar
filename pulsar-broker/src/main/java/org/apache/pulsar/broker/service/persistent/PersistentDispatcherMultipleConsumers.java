@@ -169,7 +169,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         this.readFailureBackoff = Backoff.builder()
                 .initialDelay(Duration.ofMillis(serviceConfiguration
                         .getDispatcherReadFailureBackoffInitialTimeInMs()))
-                .maxBackoff(Duration.ofMinutes(1))
                 .build();
         retryBackoff = Backoff.builder()
                 .initialDelay(Duration.ofMillis(serviceConfiguration.getDispatcherRetryBackoffInitialTimeInMs()))

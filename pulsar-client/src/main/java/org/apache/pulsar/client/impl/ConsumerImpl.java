@@ -2459,9 +2459,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             // calculate backoff time for given failure count
             Backoff backoff = Backoff.builder()
-                    .initialDelay(Duration.ofMillis(100))
                     .mandatoryStop(Duration.ofMillis(client.getConfiguration().getOperationTimeoutMs() * 2))
-                    .maxBackoff(Duration.ofMinutes(1))
                     .build();
             long backoffTimeMillis = 0;
             for (int i = 0; i < failureCount; i++) {
@@ -2568,7 +2566,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                       Long seekTimestamp, String seekBy) {
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = Backoff.builder()
-                .initialDelay(Duration.ofMillis(100))
                 .maxBackoff(Duration.ofMillis(opTimeoutMs.get() * 2))
                 .build();
 
@@ -2836,7 +2833,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = Backoff.builder()
-                .initialDelay(Duration.ofMillis(100))
                 .maxBackoff(Duration.ofMillis(opTimeoutMs.get() * 2))
                 .build();
 

@@ -162,7 +162,6 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         this.readFailureBackoff = Backoff.builder()
                 .initialDelay(Duration.ofMillis(topic.getBrokerService().pulsar().getConfiguration()
                         .getDispatcherReadFailureBackoffInitialTimeInMs()))
-                .maxBackoff(Duration.ofMinutes(1))
                 .build();
     }
 

@@ -322,7 +322,6 @@ public class TopicListService {
                 .build();
         this.topicResources = pulsar.getPulsarResources().getTopicResources();
         this.retryBackoff = Backoff.builder()
-                .initialDelay(Duration.ofMillis(100))
                 .maxBackoff(Duration.ofSeconds(25))
                 .build();
     }

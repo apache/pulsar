@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.metadata.coordination.impl;
 
-import java.time.Duration;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -73,10 +72,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         this.sequencer = FutureUtil.Sequencer.create();
         this.state = State.Init;
         this.executor = executor;
-        this.backoff = Backoff.builder()
-                .initialDelay(Duration.ofMillis(100))
-                .maxBackoff(Duration.ofSeconds(60))
-                .build();
+        this.backoff = Backoff.create();
     }
 
     @Override

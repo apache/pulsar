@@ -148,7 +148,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     public final Backoff backoff = Backoff.builder()
             .initialDelay(Duration.ofMillis(pendingAckInitFailureBackoffInitialTimeInMs))
-            .maxBackoff(Duration.ofMinutes(1))
             .build();
 
     private final Timer transactionOpTimer;

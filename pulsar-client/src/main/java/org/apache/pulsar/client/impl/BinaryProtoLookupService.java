@@ -359,9 +359,7 @@ public class BinaryProtoLookupService implements LookupService {
         CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = Backoff.builder()
-                .initialDelay(Duration.ofMillis(100))
                 .mandatoryStop(Duration.ofMillis(opTimeoutMs.get() * 2))
-                .maxBackoff(Duration.ofMinutes(1))
                 .build();
         getTopicsUnderNamespace(namespace, backoff, opTimeoutMs, topicsFuture, mode,
                 topicsPattern, topicsHash, properties);

@@ -146,7 +146,6 @@ public class NamespaceBundleFactory {
 
     private static Backoff createBackoff() {
         return Backoff.builder()
-                .initialDelay(Duration.ofMillis(100))
                 .maxBackoff(Duration.ofSeconds(5))
                 .build();
     }

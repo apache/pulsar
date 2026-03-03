@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.annotations.VisibleForTesting;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -66,10 +65,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
     private volatile State state;
     public static final String SUBSCRIPTION_NAME = "metadata-syncer";
     private static final int MAX_PRODUCER_PENDING_SIZE = 1000;
-    protected final Backoff backOff = Backoff.builder()
-            .initialDelay(Duration.ofMillis(100))
-            .maxBackoff(Duration.ofMinutes(1))
-            .build();
+    protected final Backoff backOff = Backoff.create();
     private volatile CompletableFuture<Void> closeFuture;
 
     public enum State {

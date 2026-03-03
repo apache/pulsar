@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.Attributes;
-import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -72,10 +71,7 @@ public abstract class AbstractReplicator implements Replicator {
     protected final int producerQueueSize;
     protected final ProducerBuilder<byte[]> producerBuilder;
 
-    protected final Backoff backOff = Backoff.builder()
-            .initialDelay(Duration.ofMillis(100))
-            .maxBackoff(Duration.ofMinutes(1))
-            .build();
+    protected final Backoff backOff = Backoff.create();
 
     protected final String replicatorPrefix;
 
