@@ -25,6 +25,7 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWit
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -145,8 +146,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     private final long pendingAckInitFailureBackoffInitialTimeInMs = 100;
 
-    public final Backoff backoff = new Backoff(pendingAckInitFailureBackoffInitialTimeInMs, TimeUnit.MILLISECONDS,
-            1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+    public final Backoff backoff = Backoff.builder()
+            .initialDelay(Duration.ofMillis(pendingAckInitFailureBackoffInitialTimeInMs))
+            .maxBackoff(Duration.ofMinutes(1))
+            .build();
 
     private final Timer transactionOpTimer;
 
@@ -958,7 +961,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public void exceptionHandleFuture(Throwable t) {
         if (isRetryableException(t)) {
             this.state = State.None;
-            long retryTime = backoff.next();
+            long retryTime = backoff.next().toMillis();
             log.warn("[{}][{}] Failed to init transaction pending ack. It will be retried in {} Ms",
                     persistentSubscription.getTopic().getName(), subName, retryTime, t);
             transactionOpTimer.newTimeout((timeout) -> init(), retryTime, TimeUnit.MILLISECONDS);

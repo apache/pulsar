@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.Attributes;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -71,8 +72,10 @@ public abstract class AbstractReplicator implements Replicator {
     protected final int producerQueueSize;
     protected final ProducerBuilder<byte[]> producerBuilder;
 
-    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0,
-            TimeUnit.MILLISECONDS);
+    protected final Backoff backOff = Backoff.builder()
+            .initialDelay(Duration.ofMillis(100))
+            .maxBackoff(Duration.ofMinutes(1))
+            .build();
 
     protected final String replicatorPrefix;
 
@@ -209,7 +212,7 @@ public abstract class AbstractReplicator implements Replicator {
         }).exceptionally(ex -> {
             Pair<Boolean, State> setDisconnectedRes = compareSetAndGetState(State.Starting, State.Disconnected);
             if (setDisconnectedRes.getLeft()) {
-                long waitTimeMs = backOff.next();
+                long waitTimeMs = backOff.next().toMillis();
                 log.warn("[{}] Failed to create remote producer ({}), retrying in {} s",
                         replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
                 // BackOff before retrying
@@ -238,7 +241,7 @@ public abstract class AbstractReplicator implements Replicator {
      * If we start a producer immediately, we will get a conflict producer(same name producer) registered error.
      */
     protected void delayStartProducerAfterDisconnected() {
-        long waitTimeMs = backOff.next();
+        long waitTimeMs = backOff.next().toMillis();
         if (log.isDebugEnabled()) {
             log.debug(
                     "[{}] waiting for producer to close before attempting to reconnect, retrying in {} s",
@@ -364,7 +367,7 @@ public abstract class AbstractReplicator implements Replicator {
                      *   Nit: The better solution is creating a {@link CompletableFuture} to trace the in-progress
                      *     creation and call "inProgressCreationFuture.thenApply(closeProducer())".
                      */
-                    long waitTimeMs = backOff.next();
+                    long waitTimeMs = backOff.next().toMillis();
                     brokerService.executor().schedule(() -> closeProducerAsync(true),
                             waitTimeMs, TimeUnit.MILLISECONDS);
                 } else {
@@ -415,7 +418,7 @@ public abstract class AbstractReplicator implements Replicator {
         return future.thenRun(() -> {
             actionAfterClosed.run();
         }).exceptionally(ex -> {
-            long waitTimeMs = backOff.next();
+            long waitTimeMs = backOff.next().toMillis();
             log.warn(
                     "[{}] Exception: '{}' occurred while trying to close the producer. Replicator state: {}."
                             + " Retrying again in {} s.",

@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAG
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -165,14 +166,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         this.initializeDispatchRateLimiterIfNeeded();
         this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addEntryToReplay, subscription);
         ServiceConfiguration serviceConfiguration = topic.getBrokerService().pulsar().getConfiguration();
-        this.readFailureBackoff = new Backoff(
-                serviceConfiguration.getDispatcherReadFailureBackoffInitialTimeInMs(),
-                TimeUnit.MILLISECONDS,
-                1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
-        retryBackoff = new Backoff(
-                serviceConfiguration.getDispatcherRetryBackoffInitialTimeInMs(), TimeUnit.MILLISECONDS,
-                serviceConfiguration.getDispatcherRetryBackoffMaxTimeInMs(), TimeUnit.MILLISECONDS,
-                0, TimeUnit.MILLISECONDS);
+        this.readFailureBackoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(serviceConfiguration
+                        .getDispatcherReadFailureBackoffInitialTimeInMs()))
+                .maxBackoff(Duration.ofMinutes(1))
+                .build();
+        retryBackoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(serviceConfiguration.getDispatcherRetryBackoffInitialTimeInMs()))
+                .maxBackoff(Duration.ofMillis(serviceConfiguration.getDispatcherRetryBackoffMaxTimeInMs()))
+                .build();
     }
 
     @Override
@@ -515,7 +517,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized void reScheduleReadWithBackoff() {
-        reScheduleReadInMs(retryBackoff.next());
+        reScheduleReadInMs(retryBackoff.next().toMillis());
     }
 
     protected void reScheduleReadInMs(long readAfterMs) {
@@ -1000,7 +1002,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
 
         ReadType readType = (ReadType) ctx;
-        long waitTimeMillis = readFailureBackoff.next();
+        long waitTimeMillis = readFailureBackoff.next().toMillis();
 
         // Do not keep reading more entries if the cursor is already closed.
         if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {

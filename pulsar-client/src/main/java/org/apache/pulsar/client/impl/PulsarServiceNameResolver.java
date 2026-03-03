@@ -37,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.common.util.Backoff;
-import org.apache.pulsar.common.util.BackoffBuilder;
 
 /**
  * The default implementation of {@link ServiceNameResolver}.
@@ -220,10 +219,10 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
      * @return a new {@link EndpointStatus} instance
      */
     private EndpointStatus createEndpointStatus(boolean isAvailable, InetSocketAddress inetSocketAddress) {
-        Backoff backoff = new BackoffBuilder()
-                .setInitialTime(serviceUrlQuarantineInitDurationMs, TimeUnit.MILLISECONDS)
-                .setMax(serviceUrlQuarantineMaxDurationMs, TimeUnit.MILLISECONDS)
-                .create();
+        Backoff backoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(serviceUrlQuarantineInitDurationMs))
+                .maxBackoff(Duration.ofMillis(serviceUrlQuarantineMaxDurationMs))
+                .build();
         EndpointStatus endpointStatus =
                 new EndpointStatus(inetSocketAddress, backoff, System.currentTimeMillis(), 0,
                         isAvailable);

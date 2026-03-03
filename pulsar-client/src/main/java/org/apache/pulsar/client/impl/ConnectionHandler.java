@@ -179,7 +179,7 @@ public class ConnectionHandler {
                     state.topic, state.getHandlerName(), state.getState());
             return;
         }
-        long delayMs = backoff.next();
+        long delayMs = backoff.next().toMillis();
         log.warn("[{}] [{}] Could not get connection to broker: {} -- Will try again in {} s",
                 state.topic, state.getHandlerName(),
                 exception.getMessage(), delayMs / 1000.0);
@@ -208,7 +208,7 @@ public class ConnectionHandler {
                         state.topic, state.getHandlerName(), state.getState());
                 return;
             }
-            long delayMs = initialConnectionDelayMs.orElse(backoff.next());
+            long delayMs = initialConnectionDelayMs.orElseGet(() -> backoff.next().toMillis());
             log.info("[{}] [{}] Closed connection {} -- Will try again in {} s, hostUrl: {}",
                     state.topic, state.getHandlerName(), cnx.channel(), delayMs / 1000.0, hostUrl.orElse(null));
             state.client.timer().newTimeout(timeout -> {

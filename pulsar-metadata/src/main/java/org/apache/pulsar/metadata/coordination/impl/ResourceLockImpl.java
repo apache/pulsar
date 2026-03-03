@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.coordination.impl;
 
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -27,7 +28,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.Backoff;
-import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataSerde;
@@ -73,10 +73,10 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         this.sequencer = FutureUtil.Sequencer.create();
         this.state = State.Init;
         this.executor = executor;
-        this.backoff = new BackoffBuilder()
-                .setInitialTime(100, TimeUnit.MILLISECONDS)
-                .setMax(60, TimeUnit.SECONDS)
-                .create();
+        this.backoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(100))
+                .maxBackoff(Duration.ofSeconds(60))
+                .build();
     }
 
     @Override
@@ -251,7 +251,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             // on Reconnected or SessionReestablished events.
                             revalidateAfterReconnection = true;
 
-                            long delayMillis = backoff.next();
+                            long delayMillis = backoff.next().toMillis();
                             log.warn("Failed to revalidate the lock at {}: {} - Retrying in {} seconds", path,
                                     realCause.getMessage(), delayMillis / 1000.0);
                             revalidateTask =

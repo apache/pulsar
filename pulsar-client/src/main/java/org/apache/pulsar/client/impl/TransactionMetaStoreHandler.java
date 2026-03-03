@@ -27,6 +27,7 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.io.Closeable;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -48,7 +49,6 @@ import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
-import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,11 +105,12 @@ public class TransactionMetaStoreHandler extends HandlerState
                 pulsarClient.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
         this.connectionHandler = new ConnectionHandler(
             this,
-            new BackoffBuilder()
-                .setInitialTime(pulsarClient.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                .setMax(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                .setMandatoryStop(100, TimeUnit.MILLISECONDS)
-                .create(),
+            Backoff.builder()
+                .initialDelay(Duration.ofNanos(pulsarClient.getConfiguration()
+                        .getInitialBackoffIntervalNanos()))
+                .maxBackoff(Duration.ofNanos(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos()))
+                .mandatoryStop(Duration.ofMillis(100))
+                .build(),
             this);
         this.connectFuture = connectFuture;
         this.internalPinnedExecutor = pulsarClient.getInternalExecutorService();
@@ -296,7 +297,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                                     }
                                 });
                             }
-                            , op.backoff.next(), TimeUnit.MILLISECONDS);
+                            , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
                 LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(),
@@ -381,7 +382,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                                     }
                                 });
                             }
-                            , op.backoff.next(), TimeUnit.MILLISECONDS);
+                            , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
                 LOG.error("{} for request {}, transaction {}, error: {}",
@@ -478,7 +479,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                                     }
                                 });
                             }
-                            , op.backoff.next(), TimeUnit.MILLISECONDS);
+                            , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
                 LOG.error("{} failed for request {} error {}.", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
@@ -560,7 +561,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                                     }
                                 });
                             }
-                            , op.backoff.next(), TimeUnit.MILLISECONDS);
+                            , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
                 LOG.error("Got {} response for request {}, transaction {}, error: {}",
@@ -604,12 +605,11 @@ public class TransactionMetaStoreHandler extends HandlerState
             OpForTxnIdCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
-            op.backoff = new BackoffBuilder()
-                    .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
-                            TimeUnit.NANOSECONDS)
-                    .setMax(client.getConfiguration().getMaxBackoffIntervalNanos() / 10, TimeUnit.NANOSECONDS)
-                    .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                    .create();
+            op.backoff = Backoff.builder()
+                    .initialDelay(Duration.ofNanos(client.getConfiguration()
+                            .getInitialBackoffIntervalNanos()))
+                    .maxBackoff(Duration.ofNanos(client.getConfiguration().getMaxBackoffIntervalNanos() / 10))
+                    .build();
             op.description = description;
             op.clientCnx = clientCnx;
             return op;
@@ -646,12 +646,11 @@ public class TransactionMetaStoreHandler extends HandlerState
             OpForVoidCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
-            op.backoff = new BackoffBuilder()
-                    .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
-                            TimeUnit.NANOSECONDS)
-                    .setMax(client.getConfiguration().getMaxBackoffIntervalNanos() / 10, TimeUnit.NANOSECONDS)
-                    .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                    .create();
+            op.backoff = Backoff.builder()
+                    .initialDelay(Duration.ofNanos(client.getConfiguration()
+                            .getInitialBackoffIntervalNanos()))
+                    .maxBackoff(Duration.ofNanos(client.getConfiguration().getMaxBackoffIntervalNanos() / 10))
+                    .build();
             op.description = description;
             op.clientCnx = clientCnx;
             return op;
