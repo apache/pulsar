@@ -64,7 +64,7 @@ PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
 # For example, if IPv6 functionality needs to be enabled, configure:
 # PULSAR_EXTRA_OPTS="${PULSAR_MEM} ${PULSAR_GC} ${PULSAR_GC_LOG} ${PULSAR_EXTRA_OPTS} -Djava.net.preferIPv4Stack=false"
 # If you need to obtain more details, you can refer to the generation strategy of `OPTS` in the `bin/pulsar-admin-common.sh` file
-# PULSAR_EXTRA_OPTS=
+PULSAR_EXTRA_OPTS="${PULSAR_MEM} ${PULSAR_GC} ${PULSAR_GC_LOG} ${PULSAR_EXTRA_OPTS}"
 
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=
