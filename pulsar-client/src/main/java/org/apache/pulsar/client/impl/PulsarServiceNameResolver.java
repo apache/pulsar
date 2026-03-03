@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
@@ -260,13 +259,13 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
                             Duration.ofMillis(elapsedTimeMsSinceLast));
                     status.setAvailable(true);
                     status.setLastUpdateTimeStampMs(System.currentTimeMillis());
-                    status.setNextDelayMsToRecover(status.getQuarantineBackoff().next());
+                    status.setNextDelayMsToRecover(status.getQuarantineBackoff().next().toMillis());
                 }
             } else {
                 // from available to unavailable
                 status.setAvailable(false);
                 status.setLastUpdateTimeStampMs(System.currentTimeMillis());
-                status.setNextDelayMsToRecover(status.getQuarantineBackoff().next());
+                status.setNextDelayMsToRecover(status.getQuarantineBackoff().next().toMillis());
             }
         } else if (!status.isAvailable()) {
             // from unavailable to available
