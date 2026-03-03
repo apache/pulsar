@@ -21,6 +21,7 @@ package org.apache.bookkeeper.client;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
@@ -42,15 +43,18 @@ class PulsarMockReadHandle implements ReadHandle {
     private final LedgerMetadata metadata;
     private final List<LedgerEntryImpl> entries;
     private final Supplier<PulsarMockReadHandleInterceptor> readHandleInterceptorSupplier;
+    private final AtomicLong totalLengthCounter;
 
     PulsarMockReadHandle(PulsarMockBookKeeper bk, long ledgerId, LedgerMetadata metadata,
                          List<LedgerEntryImpl> entries,
-                         Supplier<PulsarMockReadHandleInterceptor> readHandleInterceptorSupplier) {
+                         Supplier<PulsarMockReadHandleInterceptor> readHandleInterceptorSupplier,
+                         AtomicLong totalLengthCounter) {
         this.bk = bk;
         this.ledgerId = ledgerId;
         this.metadata = metadata;
         this.entries = entries;
         this.readHandleInterceptorSupplier = readHandleInterceptorSupplier;
+        this.totalLengthCounter = totalLengthCounter;
     }
 
     @Override
@@ -99,12 +103,7 @@ class PulsarMockReadHandle implements ReadHandle {
 
     @Override
     public long getLength() {
-        long length = 0;
-        for (LedgerEntryImpl entry : entries) {
-            length += entry.getLength();
-        }
-
-        return length;
+        return totalLengthCounter.get();
     }
 
     @Override

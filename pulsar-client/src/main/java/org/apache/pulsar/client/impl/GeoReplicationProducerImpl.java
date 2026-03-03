@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.channel.Channel;
 import io.netty.util.ReferenceCountUtil;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +28,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Markers;
 
@@ -159,9 +161,27 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
             return;
         }
 
-        // Case-4: Unexpected
-        //   4-1: got null source cluster's entry position, which is unexpected.
-        //   4-2: unknown error, which is unexpected.
+        // Case-4: Received an out-of-order msg send receipt, and the first item in pending queue is a marker.
+        if (op.msg.getMessageBuilder().hasMarkerType()
+                && Markers.isReplicationMarker(op.msg.getMessageBuilder().getMarkerType())) {
+            log.warn("[{}] [{}] Received an out-of-order msg send receipt because enabled replicated subscription,"
+                    + " which is expected, it always happens when repeatedly publishing a pair of mixed"
+                    + " replication marker messages and user messages."
+                    + " source position {}:{}, pending send[marker type: {}]: {}:{}, latest persisted: {}:{}."
+                    + " Drop the pending publish marker command because it is a marker and it almost no effect.",
+                    topic, producerName, sourceLId, sourceEId,
+                    MarkerType.valueOf(op.msg.getMessageBuilder().getMarkerType()), pendingLId, pendingEId,
+                    lastPersistedSourceLedgerId, lastPersistedSourceEntryId);
+            // Drop pending marker. The next ack receipt of this marker message will be dropped after it come in.
+            ackReceivedReplMarker(cnx, op, op.sequenceId, -1 /*non-batch message*/, -1, -1);
+            // Handle the current send receipt.
+            ackReceived(cnx, sourceLId, sourceEId, targetLId, targetEid);
+            return;
+        }
+
+        // Case-5: Unexpected
+        //   5-1: got null source cluster's entry position, which is unexpected.
+        //   5-2: unknown error, which is unexpected.
         log.error("[{}] [{}] Received an msg send receipt[error]: source entry {}:{}, target entry: {}:{},"
                 + " pending send: {}:{}, latest persisted: {}:{}, queue-size: {}",
                 topic, producerName, sourceLId, sourceEId, targetLId, targetEid, pendingLId, pendingEId,
@@ -242,6 +262,13 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
     private boolean isReplicationMarker(OpSendMsg op) {
         return op.msg != null && op.msg.getMessageBuilder().hasMarkerType()
                 && Markers.isReplicationMarker(op.msg.getMessageBuilder().getMarkerType());
+    }
+
+    @Override
+    public void printWarnLogWhenCanNotDetermineDeduplication(Channel channel, long sourceLId, long sourceEId) {
+        log.warn("[{}] producer [id:{}, name:{}, channel: {}] message with source entry {}-{} published by has been"
+            + " dropped because Broker can not determine whether is duplicate or not",
+            topic, producerId, producerName, channel, sourceLId, sourceEId);
     }
 
     private boolean isReplicationMarker(long highestSeq) {

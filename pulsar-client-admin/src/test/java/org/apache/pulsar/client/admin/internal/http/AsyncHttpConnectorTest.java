@@ -176,7 +176,7 @@ public class AsyncHttpConnectorTest {
         };
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, requestTimeout,
-                requestTimeout, 0, conf, false) {
+                requestTimeout, 0, conf, false, null) {
             @Override
             protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
                 // delay the response to simulate a timeout
@@ -226,7 +226,7 @@ public class AsyncHttpConnectorTest {
 
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
-                5000, 0, conf, false);
+                5000, 0, conf, false, null);
 
         Request request = new RequestBuilder("GET")
                 .setUrl("http://localhost:" + server.port() + "/admin/v2/clusters")
@@ -272,7 +272,7 @@ public class AsyncHttpConnectorTest {
 
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
-                5000, 0, conf, false);
+                5000, 0, conf, false, null);
 
         Request request = new RequestBuilder("GET")
                 .setUrl("http://localhost:" + server.port() + "/path1")
@@ -298,7 +298,7 @@ public class AsyncHttpConnectorTest {
 
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
-                5000, 0, conf, false);
+                5000, 0, conf, false, null);
 
         Request request = new RequestBuilder("POST")
                 .setUrl("http://localhost:" + server.port() + "/path1")
@@ -322,7 +322,7 @@ public class AsyncHttpConnectorTest {
 
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000,
-                5000, 0, conf, false);
+                5000, 0, conf, false, null);
 
         Request request = new RequestBuilder("POST")
                 .setUrl("http://localhost:" + server.port() + "/concurrency-test")

@@ -80,7 +80,8 @@ public class PulsarTestClient extends PulsarClientImpl {
                 new DefaultThreadFactory("pulsar-test-client-io", Thread.currentThread().isDaemon()));
 
         AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference = new AtomicReference<>();
-        ConnectionPool connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConfigurationData, eventLoopGroup,
+        ConnectionPool connectionPool =
+                new ConnectionPool(InstrumentProvider.NOOP, clientConfigurationData, eventLoopGroup,
                 () -> clientCnxSupplierReference.get().get(), null);
 
         return new PulsarTestClient(clientConfigurationData, eventLoopGroup, connectionPool,
@@ -90,7 +91,7 @@ public class PulsarTestClient extends PulsarClientImpl {
     private PulsarTestClient(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                              AtomicReference<Supplier<ClientCnx>> clientCnxSupplierReference)
             throws PulsarClientException {
-        super(conf, eventLoopGroup, cnxPool);
+        super(conf, eventLoopGroup, cnxPool, null, null, null, null, null, new DnsResolverGroupImpl(conf));
         // workaround initialization order issue so that ClientCnx can be created in this class
         clientCnxSupplierReference.set(this::createClientCnx);
     }

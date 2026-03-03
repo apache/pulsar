@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
@@ -71,7 +72,6 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     private ConsumerConfigurationData<T> conf;
     private final Schema<T> schema;
     private List<ConsumerInterceptor<T>> interceptorList;
-    private volatile boolean interruptedBeforeConsumerCreation;
 
     private static final long MIN_ACK_TIMEOUT_MILLIS = 1000;
     private static final long MIN_TICK_TIME_MILLIS = 100;
@@ -101,31 +101,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public Consumer<T> subscribe() throws PulsarClientException {
-        CompletableFuture<Consumer<T>> future = new CompletableFuture<>();
         try {
-            subscribeAsync().whenComplete((c, e) -> {
-                if (e != null) {
-                    // If the subscription fails, there is no need to close the consumer here,
-                    // as it will be handled in the subscribeAsync method.
-                    future.completeExceptionally(e);
-                    return;
-                }
-                if (interruptedBeforeConsumerCreation) {
-                    c.closeAsync().exceptionally(closeEx -> {
-                        log.error("Failed to close consumer after interruption", closeEx.getCause());
-                        return null;
-                    });
-                    future.completeExceptionally(new PulsarClientException(
-                            "Subscription was interrupted before the consumer could be fully created"));
-                } else {
-                    future.complete(c);
-                }
-            });
-            return future.get();
-        } catch (InterruptedException e) {
-            interruptedBeforeConsumerCreation = true;
-            Thread.currentThread().interrupt();
-            throw PulsarClientException.unwrap(e);
+            return FutureUtil.getAndCleanupOnInterrupt(subscribeAsync(), Consumer::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
@@ -172,6 +149,17 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             return FutureUtil.failedFuture(
                     new InvalidConfigurationException("KeySharedPolicy must set with KeyShared subscription"));
         }
+        if (conf.getDecryptFailListener() != null && conf.getMessageListener() == null) {
+            return FutureUtil.failedFuture(
+                    new InvalidConfigurationException("decryptFailListener must be set with messageListener"));
+        }
+        if (conf.getDecryptFailListener() != null && conf.getCryptoFailureAction() != null) {
+            return FutureUtil.failedFuture(
+                    new InvalidConfigurationException("decryptFailListener can't be set with cryptoFailureAction"));
+        }
+        if (conf.getDecryptFailListener() == null && conf.getCryptoFailureAction() == null) {
+            conf.setCryptoFailureAction(ConsumerCryptoFailureAction.FAIL);
+        }
         if (conf.getBatchReceivePolicy() != null) {
             conf.setReceiverQueueSize(
                     Math.max(conf.getBatchReceivePolicy().getMaxNumMessages(), conf.getReceiverQueueSize()));
@@ -187,8 +175,18 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             DeadLetterPolicy deadLetterPolicy = conf.getDeadLetterPolicy();
             if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())
                     || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
-                CompletableFuture<Boolean> retryLetterTopicMetadata = checkDlqAlreadyExists(oldRetryLetterTopic);
-                CompletableFuture<Boolean> deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
+                CompletableFuture<Boolean> retryLetterTopicMetadata;
+                if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getRetryLetterTopic())) {
+                    retryLetterTopicMetadata = checkDlqAlreadyExists(oldRetryLetterTopic);
+                } else {
+                    retryLetterTopicMetadata = CompletableFuture.completedFuture(false);
+                }
+                CompletableFuture<Boolean> deadLetterTopicMetadata;
+                if (deadLetterPolicy == null || StringUtils.isBlank(deadLetterPolicy.getDeadLetterTopic())) {
+                    deadLetterTopicMetadata = checkDlqAlreadyExists(oldDeadLetterTopic);
+                } else {
+                    deadLetterTopicMetadata = CompletableFuture.completedFuture(false);
+                }
                 applyDLQConfig = CompletableFuture.allOf(retryLetterTopicMetadata, deadLetterTopicMetadata)
                         .thenAccept(__ -> {
                             String retryLetterTopic = RetryMessageUtil.getRetryTopic(topicFirst.toString(),
@@ -225,10 +223,22 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
             applyDLQConfig = CompletableFuture.completedFuture(null);
         }
         return applyDLQConfig.thenCompose(__ -> {
-            if (interceptorList == null || interceptorList.size() == 0) {
+            // Automatically add tracing interceptor if tracing is enabled
+            List<ConsumerInterceptor<T>> effectiveInterceptors = interceptorList;
+            if (client.getConfiguration().isTracingEnabled()) {
+                if (effectiveInterceptors == null) {
+                    effectiveInterceptors = new java.util.ArrayList<>();
+                } else {
+                    effectiveInterceptors = new java.util.ArrayList<>(effectiveInterceptors);
+                }
+                effectiveInterceptors.add(
+                        new org.apache.pulsar.client.impl.tracing.OpenTelemetryConsumerInterceptor<>());
+            }
+
+            if (effectiveInterceptors == null || effectiveInterceptors.size() == 0) {
                 return client.subscribeAsync(conf, schema, null);
             } else {
-                return client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(interceptorList));
+                return client.subscribeAsync(conf, schema, new ConsumerInterceptors<>(effectiveInterceptors));
             }
         });
     }
@@ -330,6 +340,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     @Override
     public ConsumerBuilder<T> messageListener(@NonNull MessageListener<T> messageListener) {
         conf.setMessageListener(messageListener);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> decryptFailListener(@NonNull DecryptFailListener<T> messageListener) {
+        conf.setDecryptFailListener(messageListener);
         return this;
     }
 

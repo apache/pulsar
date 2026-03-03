@@ -380,6 +380,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (stats != null) {
                 stats.incrSysExceptions(deathException);
             }
+            // clear possible thread interrupted state so that closing can be handled gracefully
+            Thread.interrupted();
         } finally {
             log.info("Closing instance");
             close();
@@ -1180,7 +1182,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private static boolean isProtobufClass(Class<?> pojoClazz) {
         try {
-            Class<?> protobufBaseClass = Class.forName("com.google.protobuf.GeneratedMessageV3");
+            Class<?> protobufBaseClass = Class.forName("com.google.protobuf.Message");
             return protobufBaseClass.isAssignableFrom(pojoClazz);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             // If sink does not have protobuf in classpath then it cannot be protobuf

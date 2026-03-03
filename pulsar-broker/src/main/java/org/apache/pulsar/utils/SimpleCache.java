@@ -41,7 +41,7 @@ public class SimpleCache<K, V> {
 
         boolean tryExpire() {
             if (System.currentTimeMillis() >= deadlineMs) {
-                expireCallback.accept(value);
+                cancel();
                 return true;
             } else {
                 return false;
@@ -50,6 +50,10 @@ public class SimpleCache<K, V> {
 
         void updateDeadline() {
             deadlineMs = System.currentTimeMillis() + timeoutMs;
+        }
+
+        void cancel() {
+            expireCallback.accept(value);
         }
     }
 
@@ -79,5 +83,15 @@ public class SimpleCache<K, V> {
         newValue.updateDeadline();
         cache.put(key, newValue);
         return newValue.value;
+    }
+
+    public void remove(final K key) {
+        final ExpirableValue<V> value;
+        synchronized (this) {
+            value = cache.remove(key);
+        }
+        if (value != null) {
+            value.cancel();
+        }
     }
 }

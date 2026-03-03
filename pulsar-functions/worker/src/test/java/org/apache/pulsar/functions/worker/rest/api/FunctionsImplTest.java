@@ -304,19 +304,23 @@ public class FunctionsImplTest {
 
         // test proxy user with tenant admin original principal
         assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns",
-                AuthenticationParameters.builder().clientRole(proxyUser).originalPrincipal("tenant-admin").build()));
+                AuthenticationParameters.builder().clientRole(proxyUser)
+                        .originalPrincipal("tenant-admin").build()));
 
         // test proxy user with non admin user
         assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns",
-                AuthenticationParameters.builder().clientRole(proxyUser).originalPrincipal("test-non-admin-user").build()));
+                AuthenticationParameters.builder().clientRole(proxyUser)
+                        .originalPrincipal("test-non-admin-user").build()));
 
         // test proxy user with allow function action
         assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns",
-                AuthenticationParameters.builder().clientRole(proxyUser).originalPrincipal("test-function-user").build()));
+                AuthenticationParameters.builder().clientRole(proxyUser)
+                        .originalPrincipal("test-function-user").build()));
 
         // test non-proxy user passing original principal
         assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns",
-                AuthenticationParameters.builder().clientRole("nobody").originalPrincipal("test-non-admin-user").build()));
+                AuthenticationParameters.builder().clientRole("nobody")
+                        .originalPrincipal("test-non-admin-user").build()));
     }
 
     @Test

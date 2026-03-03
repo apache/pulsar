@@ -23,6 +23,11 @@ import com.microsoft.azure.kusto.data.ClientFactory;
 import com.microsoft.azure.kusto.data.KustoOperationResult;
 import com.microsoft.azure.kusto.data.KustoResultSetTable;
 import com.microsoft.azure.kusto.data.auth.ConnectionStringBuilder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.SinkRecord;
@@ -33,12 +38,6 @@ import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 public class ADXSinkE2ETest {
@@ -60,7 +59,7 @@ public class ADXSinkE2ETest {
         appId = System.getenv("kustoAadAppId");
         appKey = System.getenv("kustoAadAppSecret");
 
-        if(cluster == null){
+        if (cluster == null) {
             throw new SkipException("Skipping tests because environment vars was not accessible.");
         }
 
@@ -80,13 +79,14 @@ public class ADXSinkE2ETest {
                 ConnectionStringBuilder.createWithAadApplicationCredentials(ADXSinkUtils.getQueryEndpoint(cluster),
                         appId, appKey, authorityId);
         kustoAdminClient = ClientFactory.createClient(engineKcsb);
-        String createTableCommand = ".create table " + table +
-                " ( key:string , value:string, eventTime:datetime , producerName:string , sequenceId:long ,properties:dynamic )";
+        String createTableCommand = ".create table " + table + " ( key:string , value:string, eventTime:datetime , "
+                + "producerName:string , sequenceId:long ,properties:dynamic )";
         log.info("Creating test table {} ", table);
         kustoAdminClient.execute(database, createTableCommand);
         kustoAdminClient.execute(database, generateAlterIngestionBatchingPolicyCommand(database,
-                "{\"MaximumBatchingTimeSpan\":\"00:00:10\", \"MaximumNumberOfItems\": 500, \"MaximumRawDataSizeMB\": 1024}"));
-        log.info("Ingestion policy on table {} altered",table);
+                "{\"MaximumBatchingTimeSpan\":\"00:00:10\", \"MaximumNumberOfItems\": 500, "
+                        + "\"MaximumRawDataSizeMB\": 1024}"));
+        log.info("Ingestion policy on table {} altered", table);
     }
 
     private String generateAlterIngestionBatchingPolicyCommand(String entityName, String targetBatchingPolicy) {

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.time.Duration;
@@ -59,6 +60,8 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
 
+  @VisibleForTesting
+  static Runnable injectionAfterSeekInPhaseTwo = () -> {};
   private static final Logger log = LoggerFactory.getLogger(AbstractTwoPhaseCompactor.class);
   protected static final int MAX_OUTSTANDING = 500;
   protected final Duration phaseOneLoopReadTimeout;
@@ -188,6 +191,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     CompletableFuture<Long> promise = new CompletableFuture<>();
 
     reader.seekAsync(from).thenCompose((v) -> {
+          injectionAfterSeekInPhaseTwo.run();
           Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
           CompletableFuture<Void> loopPromise = new CompletableFuture<>();
           phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise, MessageId.earliest);

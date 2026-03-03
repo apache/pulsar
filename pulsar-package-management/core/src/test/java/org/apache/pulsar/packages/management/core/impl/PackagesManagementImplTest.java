@@ -45,7 +45,8 @@ public class PackagesManagementImplTest {
 
     @BeforeMethod
     public static void setup() throws IOException {
-        PackagesStorageProvider storageProvider = PackagesStorageProvider.newProvider(MockedPackagesStorageProvider.class.getName());
+        PackagesStorageProvider storageProvider =
+                PackagesStorageProvider.newProvider(MockedPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration packagesStorageConfiguration = new DefaultPackagesStorageConfiguration();
         storage = storageProvider.getStorage(packagesStorageConfiguration);
 
@@ -111,7 +112,8 @@ public class PackagesManagementImplTest {
 
         // list the packages in a non-existent namespace should fail
         try {
-            packagesManagement.list(packageName.getPkgType(), packageName.getTenant(), packageName.getNamespace()).get();
+            packagesManagement.list(packageName.getPkgType(), packageName.getTenant(),
+                    packageName.getNamespace()).get();
         } catch (Exception e) {
             if (!(e.getCause() instanceof PackagesManagementException.NotFoundException)) {
                 Assert.fail("should not throw any exception");
@@ -123,7 +125,7 @@ public class PackagesManagementImplTest {
             .contact("test@apache.org")
             .description("A mocked test package")
             .createTime(System.currentTimeMillis()).build();
-        try (ByteArrayInputStream inputStream= new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
             packagesManagement.upload(packageName, metadata, inputStream).get();
         } catch (Exception e) {
             Assert.fail("should not throw any exception");

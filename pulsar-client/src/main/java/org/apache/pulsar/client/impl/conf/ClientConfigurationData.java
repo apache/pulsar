@@ -71,6 +71,20 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @ApiModelProperty(
+            name = "serviceUrlQuarantineInitDurationMs",
+            value = "The initial duration (in milliseconds) to quarantine endpoints that fail to connect."
+                    + "A value of 0 means don't quarantine any endpoints even if they fail."
+    )
+    private long serviceUrlQuarantineInitDurationMs = 60000;
+
+    @ApiModelProperty(
+            name = "serviceUrlQuarantineMaxDurationMs",
+            value = "The max duration (in milliseconds) to quarantine endpoints that fail to connect."
+                    + "A value of 0 means don't quarantine any endpoints even if they fail."
+    )
+    private long serviceUrlQuarantineMaxDurationMs = TimeUnit.DAYS.toMillis(1);
+
+    @ApiModelProperty(
             name = "authentication",
             value = "Authentication settings of the client."
     )
@@ -96,6 +110,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     )
     @Secret
     private Map<String, String> authParamMap;
+
+    @ApiModelProperty(
+            name = "originalPrincipal",
+            value = "Original principal for proxy authentication scenarios."
+    )
+    private String originalPrincipal;
 
     @ApiModelProperty(
             name = "operationTimeoutMs",
@@ -416,6 +436,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private Map<String, String> lookupProperties;
 
     private transient OpenTelemetry openTelemetry;
+
+    @ApiModelProperty(
+            name = "tracingEnabled",
+            value = "Whether to enable OpenTelemetry distributed tracing. When enabled, "
+                    + "tracing interceptors are automatically added to producers and consumers."
+    )
+    private boolean tracingEnabled = false;
 
     /**
      * Gets the authentication settings for the client.

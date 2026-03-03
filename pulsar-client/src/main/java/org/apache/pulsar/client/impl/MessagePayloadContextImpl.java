@@ -137,7 +137,8 @@ public class MessagePayloadContextImpl implements MessagePayloadContext {
                     ackBitSet,
                     ackSetInMessageId,
                     redeliveryCount,
-                    consumerEpoch);
+                    consumerEpoch,
+                    false);
         } finally {
             payloadBuffer.release();
         }

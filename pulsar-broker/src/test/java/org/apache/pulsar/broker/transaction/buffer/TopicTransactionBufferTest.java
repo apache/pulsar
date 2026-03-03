@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.fail;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import lombok.Cleanup;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.opentelemetry.api.common.Attributes;
 import java.time.Duration;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,7 +35,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
@@ -48,10 +46,13 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicLoadingContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.broker.transaction.buffer.utils.TransactionBufferTestImpl;
@@ -60,17 +61,16 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageIdImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -179,7 +179,8 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .newTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService),
                         Mockito.eq(PersistentTopic.class));
 
-        brokerService.createPersistentTopic0(topic, true, new CompletableFuture<>(), Collections.emptyMap());
+        brokerService.createPersistentTopic0(new TopicLoadingContext(TopicName.get(topic), true,
+                new CompletableFuture<>()));
 
         Awaitility.waitAtMost(1, TimeUnit.MINUTES).until(() -> reference.get() != null);
         PersistentTopic persistentTopic = reference.get();
@@ -513,14 +514,6 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.HOURS)
                 .build().get();
 
-        // 2. Set a new future in transaction buffer as `transactionBufferFuture` to simulate whether the
-        // transaction buffer recover completely.
-        TransactionBufferTestImpl topicTransactionBuffer = (TransactionBufferTestImpl) persistentTopic
-                .getTransactionBuffer();
-        CompletableFuture<Position> completableFuture = new CompletableFuture<>();
-        CompletableFuture<Position> originalFuture = topicTransactionBuffer.getPublishFuture();
-        topicTransactionBuffer.setPublishFuture(completableFuture);
-        topicTransactionBuffer.setState(TopicTransactionBufferState.State.Ready);
         // Register this topic to the transaction in advance to avoid the sending request pending here.
         ((TransactionImpl) transaction).registerProducedTopic(topic).get(5, TimeUnit.SECONDS);
         // 3. Test the messages sent before transaction buffer ready is in order.
@@ -528,7 +521,6 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
             producer.newMessage(transaction).value(i).sendAsync();
         }
         // 4. Test the messages sent after transaction buffer ready is in order.
-        completableFuture.complete(originalFuture.get());
         for (int i = 50; i < 100; i++) {
             producer.newMessage(transaction).value(i).sendAsync();
         }
@@ -569,19 +561,43 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .get(5, TimeUnit.SECONDS);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf2.refCnt(), 1));
         // 2.3 Test sending message failed.
-        topicTransactionBuffer.setPublishFuture(FutureUtil.failedFuture(new Exception("fail")));
+        topicTransactionBuffer.setFollowingInternalAppendBufferToTxnFail(true);
         ByteBuf byteBuf3 = Unpooled.buffer();
         try {
             topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf1)
                     .get(5, TimeUnit.SECONDS);
-            fail();
+            fail("this appending should fail because we injected an error");
         } catch (Exception e) {
-            assertEquals(e.getCause().getMessage(), "fail");
+            assertEquals(e.getCause().getMessage(), "failed because an injected error for test");
         }
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(byteBuf3.refCnt(), 1));
+        topicTransactionBuffer.setFollowingInternalAppendBufferToTxnFail(false);
         // 3. release resource
         byteBuf1.release();
         byteBuf2.release();
         byteBuf3.release();
+    }
+
+    @Test(timeOut = 10000)
+    public void testAppendBufferToTxnWithInMemTransactionBuffer() throws Exception {
+        // 1. Prepare test resource
+        this.pulsarServiceList.forEach(pulsarService ->  {
+            pulsarService.setTransactionBufferProvider(new InMemTransactionBufferProvider());
+        });
+        String topic = "persistent://" + NAMESPACE1 + "/testAppendBufferToTxnWithInMemTransactionBuffer";
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsarServiceList.get(0).getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get();
+        InMemTransactionBuffer topicTransactionBuffer = (InMemTransactionBuffer) persistentTopic
+                .getTransactionBuffer();
+        ByteBuf byteBuf = Unpooled.buffer();
+        Position position = topicTransactionBuffer.appendBufferToTxn(new TxnID(1, 1), 1L, byteBuf)
+                .get(5, TimeUnit.SECONDS);
+        // 2.position should be PositionFactory.EARLIEST with InMemTransactionBuffer
+        assertEquals(PositionFactory.EARLIEST, position);
+        // 3. release resource
+        byteBuf.release();
     }
 }

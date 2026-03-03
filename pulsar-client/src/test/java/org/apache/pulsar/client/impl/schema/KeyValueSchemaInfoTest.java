@@ -24,7 +24,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -112,8 +111,8 @@ public class KeyValueSchemaInfoTest {
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(kvSchemaInfo),
             encodingType);
 
-        SchemaInfo encodedSchemaInfo =
-                DefaultImplementation.getDefaultImplementation().encodeKeyValueSchemaInfo(FOO_SCHEMA, BAR_SCHEMA, encodingType);
+        SchemaInfo encodedSchemaInfo = DefaultImplementation.getDefaultImplementation()
+                .encodeKeyValueSchemaInfo(FOO_SCHEMA, BAR_SCHEMA, encodingType);
         assertEquals(encodedSchemaInfo, kvSchemaInfo);
         assertEquals(
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(encodedSchemaInfo),
@@ -155,8 +154,8 @@ public class KeyValueSchemaInfoTest {
 
         assertEquals(schemaInfoKeyValue.getKey(), FOO_SCHEMA.getSchemaInfo());
         assertEquals(schemaInfoKeyValue.getValue().getType(), SchemaType.KEY_VALUE);
-        KeyValue<SchemaInfo, SchemaInfo> nestedSchemaInfoKeyValue =
-                DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfoKeyValue.getValue());
+        KeyValue<SchemaInfo, SchemaInfo> nestedSchemaInfoKeyValue = DefaultImplementation.getDefaultImplementation()
+                .decodeKeyValueSchemaInfo(schemaInfoKeyValue.getValue());
 
         assertEquals(nestedSchemaInfoKeyValue.getKey(), Schema.STRING.getSchemaInfo());
         assertEquals(nestedSchemaInfoKeyValue.getValue(), BAR_SCHEMA.getSchemaInfo());

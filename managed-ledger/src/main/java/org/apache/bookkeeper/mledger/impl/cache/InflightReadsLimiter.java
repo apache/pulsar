@@ -42,7 +42,8 @@ public class InflightReadsLimiter implements AutoCloseable {
 
     @PulsarDeprecatedMetric(newMetricName = INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME)
     @Deprecated
-    private static final Gauge PULSAR_ML_READS_BUFFER_SIZE = Gauge
+    @VisibleForTesting
+    static final Gauge PULSAR_ML_READS_BUFFER_SIZE = Gauge
             .build()
             .name("pulsar_ml_reads_inflight_bytes")
             .help("Estimated number of bytes retained by data read from storage or cache")
@@ -55,7 +56,8 @@ public class InflightReadsLimiter implements AutoCloseable {
 
     @PulsarDeprecatedMetric(newMetricName = INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME)
     @Deprecated
-    private static final Gauge PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE = Gauge
+    @VisibleForTesting
+    static final Gauge PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE = Gauge
             .build()
             .name("pulsar_ml_reads_available_inflight_bytes")
             .help("Available space for inflight data read from storage or cache")
@@ -87,6 +89,7 @@ public class InflightReadsLimiter implements AutoCloseable {
         if (maxReadsInFlightSize > 0) {
             enabled = true;
             this.queuedHandles = new ArrayDeque<>();
+            updateMetrics();
         } else {
             enabled = false;
             this.queuedHandles = null;
@@ -177,8 +180,13 @@ public class InflightReadsLimiter implements AutoCloseable {
             return Optional.of(new Handle(maxReadsInFlightSize, handle.creationTime, true));
         } else {
             if (queuedHandles.size() >= maxReadsInFlightAcquireQueueSize) {
-                log.warn("Failed to queue handle for acquiring permits: {}, creationTime: {}, remainingBytes:{}",
-                        permits, handle.creationTime, remainingBytes);
+                log.warn("Failed to queue handle for acquiring permits: {}, creationTime: {}, remainingBytes:{},"
+                    + " maxReadsInFlightAcquireQueueSize:{}, pending-queue-size: {}, please increase broker"
+                    + " config managedLedgerMaxReadsInFlightPermitsAcquireQueueSize and confirm the configuration of"
+                    + " managedLedgerMaxReadsInFlightSizeInMB and"
+                    + " managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis are suitable.",
+                    permits, handle.creationTime, remainingBytes, maxReadsInFlightAcquireQueueSize,
+                    queuedHandles.size());
                 return Optional.of(new Handle(0, handle.creationTime, false));
             } else {
                 queuedHandles.offer(new QueuedHandle(handle, callback));
@@ -223,15 +231,17 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     private void handleTimeout(QueuedHandle queuedHandle) {
-        if (log.isDebugEnabled()) {
-            log.debug("timed out queued permits: {}, creationTime: {}, remainingBytes:{}",
-                    queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes);
-        }
+        log.warn("timed out queued permits: {}, creationTime: {}, remainingBytes:{}, acquireTimeoutMillis: {}. Please"
+                + " review whether the BK read requests is fast enough or broker config"
+                + " managedLedgerMaxReadsInFlightSizeInMB and managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis"
+                + " are suitable",
+                queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, acquireTimeoutMillis);
         try {
             queuedHandle.callback.accept(new Handle(0, queuedHandle.handle.creationTime, false));
         } catch (Exception e) {
-            log.error("Error in callback of timed out queued permits: {}, creationTime: {}, remainingBytes:{}",
-                    queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, e);
+            log.error("Error in callback of timed out queued permits: {}, creationTime: {}, remainingBytes:{},"
+                + " acquireTimeoutMillis: {}",
+                queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, acquireTimeoutMillis, e);
         }
     }
 

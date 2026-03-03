@@ -33,7 +33,9 @@ import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
@@ -268,8 +270,8 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testNegativeClientMemory() throws Exception {
-        final String topicName = "persistent://public/default/testMemory-" +
-                UUID.randomUUID().toString();
+        final String topicName = "persistent://public/default/testMemory-"
+                + UUID.randomUUID().toString();
         final String subName = "my-sub";
 
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -315,8 +317,40 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         });
 
 
-        MemoryLimitController controller = ((PulsarClientImpl)pulsarClient).getMemoryLimitController();
+        MemoryLimitController controller = ((PulsarClientImpl) pulsarClient).getMemoryLimitController();
         Assert.assertEquals(controller.currentUsage(), 0);
         Assert.assertEquals(controller.currentUsagePercent(), 0);
+    }
+
+    @Test
+    public void testWithoutMemoryLimit() throws PulsarClientException {
+        @Cleanup
+        PulsarClient clientWithoutMemoryLimit = PulsarClient.builder()
+                .memoryLimit(0, SizeUnit.BYTES)
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .build();
+
+        String topic = "persistent://public/default/testWithoutMemoryLimit";
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) clientWithoutMemoryLimit.newConsumer()
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .receiverQueueSize(3)
+                .autoScaledReceiverQueueSizeEnabled(true)
+                .subscribe();
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 1);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        byte[] data = "data".getBytes(StandardCharsets.UTF_8);
+
+        producer.send(data);
+        Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
+        Assert.assertNotNull(consumer.receive());
+
+        // this will trigger a receiver queue size expansion
+        Assert.assertNull(consumer.receive(0, TimeUnit.MILLISECONDS));
+
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 2);
     }
 }

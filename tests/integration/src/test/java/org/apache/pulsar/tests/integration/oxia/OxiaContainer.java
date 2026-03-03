@@ -32,7 +32,7 @@ public class OxiaContainer extends ChaosContainer<OxiaContainer> {
     public static final int METRICS_PORT = 8080;
     private static final int DEFAULT_SHARDS = 1;
 
-    private static final String DEFAULT_IMAGE_NAME = "streamnative/oxia:main";
+    private static final String DEFAULT_IMAGE_NAME = "oxia/oxia:main";
 
     public OxiaContainer(String clusterName) {
         this(clusterName, DEFAULT_IMAGE_NAME, DEFAULT_SHARDS);

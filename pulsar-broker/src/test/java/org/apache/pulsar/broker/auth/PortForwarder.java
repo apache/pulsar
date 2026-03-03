@@ -71,7 +71,7 @@ public class PortForwarder implements AutoCloseable {
                     .bind(listenAddress).sync().channel();
 
             LOG.info("Started port forwarding service on {}, target: {}", listenAddress, targetAddress);
-        } catch(Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException(String.format("failed to bind to %s: %s", listenAddress, e.getMessage()), e);
         }
     }

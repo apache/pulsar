@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.ReaderDecryptFailListener;
 import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
@@ -73,7 +74,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public Reader<T> create() throws PulsarClientException {
         try {
-            return createAsync().get();
+            return FutureUtil.getAndCleanupOnInterrupt(createAsync(), Reader::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
@@ -100,6 +101,16 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
             conf.setStartMessageId(MessageId.earliest);
         }
 
+        if (conf.getReaderDecryptFailListener() != null && conf.getReaderListener() == null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "readerDecryptFailListener must be set with readerListener"
+            ));
+        }
+        if (conf.getCryptoFailureAction() != null && conf.getReaderDecryptFailListener() != null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "readerDecryptFailListener cannot set with cryptoFailureAction"
+            ));
+        }
         return client.createReaderAsync(conf, schema);
     }
 
@@ -149,6 +160,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public ReaderBuilder<T> readerListener(ReaderListener<T> readerListener) {
         conf.setReaderListener(readerListener);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> readerDecryptFailListener(ReaderDecryptFailListener<T> readerDecryptFailListener) {
+        conf.setReaderDecryptFailListener(readerDecryptFailListener);
         return this;
     }
 

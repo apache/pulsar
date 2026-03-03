@@ -19,8 +19,9 @@
 package org.apache.pulsar.structuredeventlog.slf4j;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.StringReader;
@@ -38,7 +39,7 @@ import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.appender.WriterAppender;
 import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig ;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.JsonLayout;
 import org.apache.pulsar.structuredeventlog.Event;
 import org.apache.pulsar.structuredeventlog.EventGroup;
@@ -48,7 +49,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class StructuredEventLogTest {
-    private final static String APPENDER_NAME = "stevlogtest";
+    private static final String APPENDER_NAME = "stevlogtest";
     StringWriter writer;
 
     @BeforeMethod
@@ -289,9 +290,9 @@ public class StructuredEventLogTest {
         List<Map<String, Object>> logged = getLogged();
         assertThat(logged.get(0).get("message"), equalTo("info1"));
 
-        assertThat(((Map<String, Object>)logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
+        assertThat(((Map<String, Object>) logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
         assertThat(logged.get(1).get("message"), equalTo("info2"));
-        assertThat(((Map<String, Object>)logged.get(1).get("thrown")).get("message"), equalTo("cause2"));
+        assertThat(((Map<String, Object>) logged.get(1).get("thrown")).get("message"), equalTo("cause2"));
     }
 
     @Test
@@ -314,7 +315,7 @@ public class StructuredEventLogTest {
 
         List<Map<String, Object>> logged = getLogged();
         assertThat(logged.get(0).get("message"), equalTo("warn1"));
-        assertThat(((Map<String, Object>)logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
+        assertThat(((Map<String, Object>) logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
     }
 
     @Test
@@ -337,7 +338,7 @@ public class StructuredEventLogTest {
 
         List<Map<String, Object>> logged = getLogged();
         assertThat(logged.get(0).get("message"), equalTo("error1"));
-        assertThat(((Map<String, Object>)logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
+        assertThat(((Map<String, Object>) logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
     }
 
 
@@ -356,7 +357,7 @@ public class StructuredEventLogTest {
         assertThat(contextMapField(logged.get(0), "durationMs"), equalTo("1234"));
     }
 
-    @EventGroup(component="foobar")
+    @EventGroup(component = "foobar")
     public enum Events {
         TEST_EVENT
     }
@@ -391,7 +392,7 @@ public class StructuredEventLogTest {
 
     @SuppressWarnings("unchecked")
     private Object contextMapField(Map<String, Object> map, String field) {
-        return ((Map<String, Object>)map.get("contextMap")).get(field);
+        return ((Map<String, Object>) map.get("contextMap")).get(field);
     }
 
     @SuppressWarnings("unchecked")
@@ -424,7 +425,7 @@ public class StructuredEventLogTest {
         }
 
         @Override
-        public ZoneId getZone( ) {
+        public ZoneId getZone() {
             return ZoneId.of("UTC");
         }
 

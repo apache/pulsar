@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -209,12 +210,12 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return AvroSchema.of(schemaDefinition);
     }
 
-    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(
+    public <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufSchema.of(schemaDefinition);
     }
 
-    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+    public <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufNativeSchema.of(schemaDefinition);
     }
@@ -402,5 +403,10 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
             }
         }
         return new TopicMessageIdImpl(topic, messageIdAdv);
+    }
+
+    @Override
+    public PulsarClientSharedResourcesBuilder newSharedResourcesBuilder() {
+        return new PulsarClientSharedResourcesBuilderImpl();
     }
 }

@@ -81,8 +81,10 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
     @Test(timeOut = 30000)
     public void socketTest() throws Exception {
 
-        String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
-        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
+        String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
+        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
 
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
@@ -94,13 +96,13 @@ public class ProxyPublishConsumeWithoutZKTest extends ProducerConsumerBase {
 
         try {
             consumeClient.start();
-            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
-            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeUri, consumeRequest);
+            ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
+            Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
             log.info("Connecting to : {}", consumeUri);
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
             produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             // let it connect
             Assert.assertTrue(consumerFuture.get().isOpen());
             Assert.assertTrue(producerFuture.get().isOpen());

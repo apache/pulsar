@@ -194,10 +194,15 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
 
         @Override
         public void run() {
-            if (readHandle.getLength() == 0 || !readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
+            if (!readHandle.isClosed() || readHandle.getLastAddConfirmed() < 0) {
                 promise.completeExceptionally(
                         new IllegalArgumentException("An empty or open ledger should never be offloaded"));
                 return;
+            }
+            if (readHandle.getLength() <= 0) {
+                log.warn("Ledger [{}] has zero length, but it contains {} entries. "
+                    + " Attempting to offload ledger since it contains entries.", readHandle.getId(),
+                    readHandle.getLastAddConfirmed() + 1);
             }
             long ledgerId = readHandle.getId();
             final String managedLedgerName = extraMetadata.get(MANAGED_LEDGER_NAME);

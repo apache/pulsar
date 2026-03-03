@@ -129,7 +129,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
         log.info("try with fully compat");
         try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
-            p.send(new V4Data("test2", 1, (short)100));
+            p.send(new V4Data("test2", 1, (short) 100));
         }
     }
 
@@ -177,11 +177,11 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
         log.info("try with fully compat, again");
         try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
-            p.send(new V4Data("test2", 1, (short)100));
+            p.send(new V4Data("test2", 1, (short) 100));
         }
     }
 
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V1Data {
         String foo;
         int bar;
@@ -193,7 +193,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     // backward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V2Data {
         String foo;
 
@@ -203,7 +203,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     // forward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V3Data {
         String foo;
         int bar;
@@ -217,7 +217,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     // fully compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V4Data {
         String foo;
         int bar;

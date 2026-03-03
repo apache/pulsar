@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.io.hbase.sink;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.hadoop.hbase.client.Get;
@@ -44,16 +50,8 @@ import org.mockito.Mock;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /**
- * hbase Sink test
+ * hbase Sink test.
  */
 @Slf4j
 public class HbaseGenericRecordSinkTest {
@@ -61,7 +59,7 @@ public class HbaseGenericRecordSinkTest {
 
 
     /**
-     * A Simple class to test hbase class
+     * A Simple class to test hbase class.
      */
     @Data
     public static class Foo {
@@ -82,7 +80,7 @@ public class HbaseGenericRecordSinkTest {
     protected SinkContext mockSinkContext;
 
     @Test(enabled = false)
-    public void TestOpenAndWriteSink() throws Exception {
+    public void testOpenAndWriteSink() throws Exception {
         message = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;
 
@@ -99,7 +97,7 @@ public class HbaseGenericRecordSinkTest {
         qualifierNames.add(address);
         qualifierNames.add(age);
         qualifierNames.add(flag);
-        map.put("qualifierNames",qualifierNames);
+        map.put("qualifierNames", qualifierNames);
 
         mockSinkContext = mock(SinkContext.class);
         HbaseGenericRecordSink sink = new HbaseGenericRecordSink();
@@ -131,7 +129,8 @@ public class HbaseGenericRecordSinkTest {
                     consumer.acknowledgeAsync(message);
                 }
             }).failFunction(() -> {
-                if (pulsarSourceConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                if (pulsarSourceConfig.getProcessingGuarantees()
+                        == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                     throw new RuntimeException("Failed to process message: " + message.getMessageId());
                 }
             })
@@ -151,7 +150,7 @@ public class HbaseGenericRecordSinkTest {
         map.put("batchTimeMs", 1);
         map.put("batchSize", 1);
         // open should success
-        sink.open(map,mockSinkContext);
+        sink.open(map, mockSinkContext);
 
         // write should success.
         sink.write(record);

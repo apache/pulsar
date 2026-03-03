@@ -74,7 +74,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         int exitCode = lastExitCode.get();
         if (exitCode != 0) {
-            fail("Unexpected JVM exit code "+exitCode);
+            fail("Unexpected JVM exit code " + exitCode);
         }
     }
 
@@ -201,13 +201,15 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNotExistIMessageFormatter() {
-        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
+        IMessageFormatter msgFormatter =
+                PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
         Assert.assertNull(msgFormatter);
     }
 
     @Test
     public void testDefaultIMessageFormatter() {
-        IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
+        IMessageFormatter msgFormatter =
+                PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
         Assert.assertTrue(msgFormatter instanceof DefaultMessageFormatter);
     }
 

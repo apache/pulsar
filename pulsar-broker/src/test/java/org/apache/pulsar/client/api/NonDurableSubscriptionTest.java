@@ -125,7 +125,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
             consumer.acknowledge(message);
         }
         // 4 trigger reconnect
-        ((ConsumerImpl)consumer).getClientCnx().close();
+        ((ConsumerImpl) consumer).getClientCnx().close();
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < messageNum; i++) {
             Message<String> message = consumer.receive();
@@ -210,7 +210,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "subscriptionTypes")
     public void testNonDurableSubscriptionRecovery(SubscriptionType subscriptionType) throws Exception {
         log.info("testing {}", subscriptionType);
-        String topicName = "persistent://my-property/my-ns/nonDurable-sub-recorvery-"+subscriptionType;
+        String topicName = "persistent://my-property/my-ns/nonDurable-sub-recorvery-" + subscriptionType;
         // 1 setup producer、consumer
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
@@ -235,7 +235,7 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
             consumer.acknowledge(message);
         }
         // 4 trigger reconnect
-        ((ConsumerImpl)consumer).getClientCnx().close();
+        ((ConsumerImpl) consumer).getClientCnx().close();
 
         // 5 for non-durable we are going to restart from the next entry
         for (int i = 5; i < 10; i++) {
@@ -495,7 +495,8 @@ public class NonDurableSubscriptionTest extends ProducerConsumerBase {
         Reader<String> reader10 = pulsarClient.newReader(Schema.STRING).topic(topicName).subscriptionName(s10)
                 .receiverQueueSize(0).startMessageId(startMessageId10).create();
         ManagedLedgerInternalStats.CursorStats cursor10 = admin.topics().getInternalStats(topicName).cursors.get(s10);
-        log.info("cursor10 readPosition: {}, markDeletedPosition: {}", cursor10.readPosition, cursor10.markDeletePosition);
+        log.info("cursor10 readPosition: {}, markDeletedPosition: {}",
+                cursor10.readPosition, cursor10.markDeletePosition);
         Position p10 = parseReadPosition(cursor10);
         assertEquals(p10.getLedgerId(), ledgers.get(2));
         assertEquals(p10.getEntryId(), 0);

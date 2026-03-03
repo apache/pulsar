@@ -31,7 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
@@ -108,13 +108,13 @@ public class BrokerLoadDataReporterTest {
     public void testGenerate() throws IllegalAccessException {
         try (MockedStatic<LoadManagerShared> mockLoadManagerShared = Mockito.mockStatic(LoadManagerShared.class)) {
             mockLoadManagerShared.when(() -> LoadManagerShared.getSystemResourceUsage(any())).thenReturn(usage);
-            doReturn(0l).when(pulsarStats).getUpdatedAt();
+            doReturn(0L).when(pulsarStats).getUpdatedAt();
             var target = new BrokerLoadDataReporter(pulsar, "", store);
             var expected = new BrokerLoadData();
             expected.update(usage, 1, 2, 3, 4, 5, 6, config);
-            FieldUtils.writeDeclaredField(expected, "updatedAt", 0l, true);
+            FieldUtils.writeDeclaredField(expected, "updatedAt", 0L, true);
             var actual = target.generateLoadData();
-            FieldUtils.writeDeclaredField(actual, "updatedAt", 0l, true);
+            FieldUtils.writeDeclaredField(actual, "updatedAt", 0L, true);
             assertEquals(actual, expected);
         }
     }
@@ -136,7 +136,7 @@ public class BrokerLoadDataReporterTest {
             target.reportAsync(false);
             verify(store, times(1)).pushAsync(eq("broker-1"), any());
 
-            localData.setReportedAt(0l);
+            localData.setReportedAt(0L);
             target.reportAsync(false);
             verify(store, times(2)).pushAsync(eq("broker-1"), any());
 

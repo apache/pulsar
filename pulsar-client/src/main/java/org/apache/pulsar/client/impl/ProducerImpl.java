@@ -32,6 +32,7 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandler;
 import io.netty.channel.ChannelPromise;
@@ -55,7 +56,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -191,6 +191,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final Counter producersOpenedCounter;
     private final Counter producersClosedCounter;
     private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
+    // This variable can be exposed as a metrics in the future, a PIP is needed.
+    private final AtomicInteger pendingQueueFullCounter;
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -309,11 +311,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 "The number of producer sessions opened", topic, Attributes.empty());
         producersClosedCounter = ip.newCounter("pulsar.client.producer.closed", Unit.Sessions,
                 "The number of producer sessions closed", topic, Attributes.empty());
+        pendingQueueFullCounter = new AtomicInteger();
 
         this.connectionHandler = initConnectionHandler();
         setChunkMaxMessageSize();
         grabCnx();
         producersOpenedCounter.increment();
+    }
+
+    @VisibleForTesting
+    public int getPendingQueueFullCount() {
+        return pendingQueueFullCounter.get();
     }
 
     ConnectionHandler initConnectionHandler() {
@@ -394,6 +402,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
         return future;
+    }
+
+    public void printWarnLogWhenCanNotDetermineDeduplication(Channel channel, long sequenceId,
+                                                             long highestSequenceId) {
+        log.warn("[{}] producer [id:{}, name:{}, channel: {}] message with sequence-id {}-{} published by has been"
+                        + " dropped because Broker can not determine whether is duplicate or not",
+                topic, producerId, producerName, channel, sequenceId, highestSequenceId);
     }
 
     private class DefaultSendMessageCallback implements SendCallback {
@@ -1074,6 +1089,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 client.getMemoryLimitController().reserveMemory(payloadSize);
             } else {
                 if (!semaphore.map(Semaphore::tryAcquire).orElse(true)) {
+                    pendingQueueFullCounter.incrementAndGet();
                     callback.sendComplete(new PulsarClientException.ProducerQueueIsFullError(
                             "Producer send queue is full", sequenceId), null);
                     return false;
@@ -1186,6 +1202,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return State.Closing;
         });
 
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        List<CompletableFuture<Void>> closeTasks = new ArrayList<>();
+        closeTasks.add(closeFuture);
+        if (schema != null) {
+            closeTasks.add(schema.closeAsync().whenComplete((__, t) -> {
+                if (t != null) {
+                    log.warn("Exception ignored in closing schema of producer", t);
+                }
+            }));
+        }
+        CompletableFuture<Void> compositeCloseFuture = FutureUtil.waitForAll(closeTasks);
+
         if (currentState == State.Closed || currentState == State.Closing) {
             return CompletableFuture.completedFuture(null);
         }
@@ -1203,7 +1231,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newCloseProducer(producerId, requestId);
 
-        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         cnx.sendRequestWithId(cmd, requestId).handle((v, exception) -> {
             cnx.removeProducer(producerId);
             if (exception == null || !cnx.ctx().channel().isActive()) {
@@ -1219,7 +1246,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return null;
         });
 
-        return closeFuture;
+        return compositeCloseFuture;
     }
 
     @VisibleForTesting
@@ -1753,7 +1780,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      */
     protected static class OpSendMsgQueue implements Iterable<OpSendMsg> {
         @VisibleForTesting
-        final Queue<OpSendMsg> delegate = new ArrayDeque<>();
+        final ArrayDeque<OpSendMsg> delegate = new ArrayDeque<>();
         private int forEachDepth = 0;
         private List<OpSendMsg> postponedOpSendMgs;
         private final AtomicInteger messagesCount = new AtomicInteger(0);
@@ -1793,11 +1820,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             messagesCount.set(0);
         }
 
-        public void remove() {
+        public OpSendMsg remove() {
             OpSendMsg op = delegate.remove();
             if (op != null) {
                 messagesCount.addAndGet(-op.numMessagesInBatch);
             }
+            return op;
         }
 
         public OpSendMsg peek() {
@@ -1806,6 +1834,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         public int messagesCount() {
             return messagesCount.get();
+        }
+
+        public int size() {
+            return delegate.size();
         }
 
         @Override
@@ -1973,13 +2005,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             // Close the producer since topic does not exist.
-            if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
-                closeAsync().whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        log.error("Failed to close producer on TopicDoesNotExistException.", ex);
-                    }
-                    producerCreatedFuture.completeExceptionally(cause);
-                });
+            if (isUnrecoverableError(cause)) {
+                closeWhenReceivedUnrecoverableError(cause, cnx);
                 future.complete(null);
                 return null;
             }
@@ -2025,8 +2052,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 closeProducerTasks();
                 client.cleanupProducer(this);
             } else if (producerCreatedFuture.isDone() || (
-                    cause instanceof PulsarClientException
-                            && PulsarClientException.isRetriableError(cause)
+                            PulsarClientException.isRetriableError(cause)
                             && System.currentTimeMillis() < PRODUCER_DEADLINE_UPDATER.get(ProducerImpl.this)
             )) {
                 // Either we had already created the producer once (producerCreatedFuture.isDone()) or we are
@@ -2051,8 +2077,28 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return future;
     }
 
+    protected boolean isUnrecoverableError(Throwable t) {
+        // TopicDoesNotExistException: topic has been deleted.
+        // NotFoundException: topic has been deleted.
+        // IllegalStateException: producer has been closed.
+        return (t instanceof PulsarClientException.TopicDoesNotExistException) || (t instanceof IllegalStateException)
+                || (t instanceof PulsarClientException.NotFoundException);
+    }
+
+    protected void closeWhenReceivedUnrecoverableError(Throwable t, ClientCnx cnx) {
+        final String cnxStr = cnx == null ? "null" : String.valueOf(cnx.channel().remoteAddress());
+        log.warn("[{}][{}] {} Closed producer because get an error that does not support to retry: {} {}",
+                topic, producerName, cnxStr, t.getClass().getName(), t.getMessage());
+        closeAsync().whenComplete((v, ex) -> {
+            if (ex != null) {
+                log.error("Failed to close producer on TopicDoesNotExistException.", ex);
+            }
+            producerCreatedFuture.completeExceptionally(t);
+        });
+    }
+
     @Override
-    public void connectionFailed(PulsarClientException exception) {
+    public boolean connectionFailed(PulsarClientException exception) {
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean timeout = System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
@@ -2067,10 +2113,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 closeProducerTasks();
                 setState(State.Failed);
                 client.cleanupProducer(this);
+                return false;
+            } else {
+                Throwable actError = FutureUtil.unwrapCompletionException(exception);
+                if (isUnrecoverableError(actError)) {
+                    closeWhenReceivedUnrecoverableError(actError, null);
+                    return false;
+                }
             }
         } else {
             previousExceptionCount.incrementAndGet();
         }
+        return true;
     }
 
     private void closeProducerTasks() {
@@ -2098,7 +2152,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
 
                 int messagesToResend = pendingMessages.messagesCount();
-                if (messagesToResend == 0) {
+                if (pendingMessages.size() == 0) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] [{}] No pending messages to resend {}", topic, producerName, messagesToResend);
                     }
@@ -2242,14 +2296,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     /**
-     * This fails and clears the pending messages with the given exception. This method should be called from within the
-     * ProducerImpl object mutex.
+     * This fails the pending messages at the start of the call, without dropping newly enqueued
+     * retry messages. This method should be called from within the ProducerImpl object mutex.
      */
-    private synchronized void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
+    @VisibleForTesting
+    synchronized void failPendingMessages(ClientCnx cnx, PulsarClientException ex) {
         if (cnx == null) {
             final AtomicInteger releaseCount = new AtomicInteger();
             final boolean batchMessagingEnabled = isBatchMessagingEnabled();
-            pendingMessages.forEach(op -> {
+            // Track message count to fail so that newly added messages by synchronous retries
+            // triggered by op.sendComplete(ex); don't get removed
+            int pendingMessagesToFailCount = pendingMessages.size();
+
+            for (int i = 0; i < pendingMessagesToFailCount; i++) {
+                OpSendMsg op = pendingMessages.remove();
                 releaseCount.addAndGet(batchMessagingEnabled ? op.numMessagesInBatch : 1);
                 try {
                     // Need to protect ourselves from any exception being thrown in the future handler from the
@@ -2269,9 +2329,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
                 ReferenceCountUtil.safeRelease(op.cmd);
                 op.recycle();
-            });
+            }
 
-            pendingMessages.clear();
             semaphoreRelease(releaseCount.get());
             if (batchMessagingEnabled) {
                 failPendingBatchMessages(ex);

@@ -266,13 +266,11 @@ public class FunctionActioner {
         } else if (downloadFromPackageManagementService) {
             getPulsarAdmin().packages().download(pkgLocationPath, tempPkgFile.getPath());
         } else {
-            FileOutputStream tempPkgFos = new FileOutputStream(tempPkgFile);
-            WorkerUtils.downloadFromBookkeeper(
-                    dlogNamespace,
-                    tempPkgFos,
-                    pkgLocationPath);
-            if (tempPkgFos != null) {
-                tempPkgFos.close();
+            try (FileOutputStream tempPkgFos = new FileOutputStream(tempPkgFile)) {
+                WorkerUtils.downloadFromBookkeeper(
+                        dlogNamespace,
+                        tempPkgFos,
+                        pkgLocationPath);
             }
         }
 
@@ -601,7 +599,7 @@ public class FunctionActioner {
 
     private static String getDownloadFileName(FunctionDetails functionDetails,
                                              Function.PackageLocationMetaData packageLocation) {
-        if (!org.apache.commons.lang.StringUtils.isEmpty(packageLocation.getOriginalFileName())) {
+        if (!org.apache.commons.lang3.StringUtils.isEmpty(packageLocation.getOriginalFileName())) {
             return packageLocation.getOriginalFileName();
         }
         String[] hierarchy = functionDetails.getClassName().split("\\.");

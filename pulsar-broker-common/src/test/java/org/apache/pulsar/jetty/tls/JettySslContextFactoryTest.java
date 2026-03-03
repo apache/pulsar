@@ -37,14 +37,14 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.testng.annotations.Test;
-import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
-import org.apache.pulsar.common.util.PulsarSslConfiguration;
-import org.apache.pulsar.common.util.PulsarSslFactory;
 
 @Slf4j
 public class JettySslContextFactoryTest {
@@ -66,7 +66,7 @@ public class JettySslContextFactoryTest {
         PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
         sslFactory.initialize(sslConfiguration);
         sslFactory.createInternalSslContext();
-        SslContextFactory factory = JettySslContextFactory.createSslContextFactory(null,
+        SslContextFactory.Server factory = JettySslContextFactory.createSslContextFactory(null,
                 sslFactory, true, null, null);
 
         ServerConnector connector = new ServerConnector(server, factory);
@@ -109,7 +109,7 @@ public class JettySslContextFactoryTest {
         PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
         sslFactory.initialize(sslConfiguration);
         sslFactory.createInternalSslContext();
-        SslContextFactory factory = JettySslContextFactory.createSslContextFactory(null,
+        SslContextFactory.Server factory = JettySslContextFactory.createSslContextFactory(null,
                 sslFactory, true, null,
                 new HashSet<String>() {
                     {
@@ -162,7 +162,7 @@ public class JettySslContextFactoryTest {
         PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
         sslFactory.initialize(sslConfiguration);
         sslFactory.createInternalSslContext();
-        SslContextFactory factory = JettySslContextFactory.createSslContextFactory(null,
+        SslContextFactory.Server factory = JettySslContextFactory.createSslContextFactory(null,
                 sslFactory, true,
                 new HashSet<String>() {
                     {

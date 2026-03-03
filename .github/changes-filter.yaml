@@ -12,6 +12,8 @@ docs:
   - 'deployment/**'
   - 'wiki/**'
   - 'pip/**'
+  - '.gitignore'
+  - '.gitattributes'
 java_non_tests:
   - '**/src/main/java/**/*.java'
 tests:
@@ -21,3 +23,9 @@ need_owasp:
   - '**/pom.xml'
   - 'src/owasp-dependency-check-false-positives.xml'
   - 'src/owasp-dependency-check-suppressions.xml'
+pulsar_dockerfile_wolfi:
+  - 'docker/pulsar/Dockerfile.wolfi'
+  - 'tests/docker-images/java-test-image/Dockerfile'
+pulsar_all_dockerfile_wolfi:
+  - 'docker/pulsar-all/Dockerfile.wolfi'
+  - 'tests/docker-images/latest-version-image/Dockerfile'

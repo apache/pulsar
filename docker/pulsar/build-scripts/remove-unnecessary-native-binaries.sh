@@ -41,9 +41,13 @@ unzip $ROCKSDB_JAR > /dev/null
 
 if [ "$ARCH" = "x86_64" ]
 then
-  ROCKSDB_TO_KEEP=linux64-musl
+  ROCKSDB_TO_KEEP=linux64
 else
-  ROCKSDB_TO_KEEP=linux-$ARCH-musl
+  ROCKSDB_TO_KEEP=linux-$ARCH
+fi
+
+if [ "$1" != "glibc" ]; then
+  ROCKSDB_TO_KEEP="${ROCKSDB_TO_KEEP}-musl"
 fi
 
 ls librocksdbjni-* | grep -v librocksdbjni-${ROCKSDB_TO_KEEP}.so | xargs rm

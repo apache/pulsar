@@ -94,7 +94,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
                         FieldUtils.readDeclaredField(
                                 loadManager, "antiAffinityGroupPolicyHelper", true);
         var brokerToFailureDomainMap = (Map<String, String>)
-                org.apache.commons.lang.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
+                org.apache.commons.lang3.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
                         "brokerToFailureDomainMap", true);
         return !brokerToFailureDomainMap.isEmpty();
     }

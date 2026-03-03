@@ -60,7 +60,8 @@ import picocli.CommandLine;
 public class CmdFunctionsTest {
 
     private static final String TEST_NAME = "test_name";
-    private static final String JAR_NAME = CmdFunctionsTest.class.getClassLoader().getResource("dummyexamples.jar").getFile();
+    private static final String JAR_NAME = CmdFunctionsTest.class.getClassLoader()
+            .getResource("dummyexamples.jar").getFile();
     private static final String GO_EXEC_FILE_NAME = "test-go-function-with-url";
     private static final String PYTHON_FILE_NAME = "test-go-function-with-url";
     private static final String URL = "file:" + JAR_NAME;
@@ -789,7 +790,8 @@ public class CmdFunctionsTest {
         // Disk/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
-        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
+        verify(functions, times(1)).updateFunctionWithUrl(
+                any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
     @Test
@@ -815,7 +817,8 @@ public class CmdFunctionsTest {
         // cpu/disk should be default
         assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0, 0);
         assertEquals(updater.getFunctionConfig().getResources().getDisk(), Long.valueOf(10737418240L));
-        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
+        verify(functions, times(1)).updateFunctionWithUrl(
+                any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
     @Test
@@ -841,7 +844,8 @@ public class CmdFunctionsTest {
         // cpu/Ram should be default
         assertEquals(updater.getFunctionConfig().getResources().getRam(), Long.valueOf(1073741824L));
         assertEquals(updater.getFunctionConfig().getResources().getCpu(), 1.0, 0);
-        verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
+        verify(functions, times(1)).updateFunctionWithUrl(
+                any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
     @Test

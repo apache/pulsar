@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import com.google.re2j.Pattern;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
@@ -30,44 +28,51 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T> implements TimerTask {
-    private final Pattern topicsPattern;
+    private final TopicsPattern topicsPattern;
     final TopicsChangedListener topicsChangeListener;
     private final Mode subscriptionMode;
+    @Getter(value = AccessLevel.PROTECTED, onMethod_ = @VisibleForTesting)
+    private volatile TopicListWatcher topicListWatcher;
+    @Getter(onMethod_ = @VisibleForTesting)
     private final CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
     protected NamespaceName namespaceName;
 
     private final AtomicInteger recheckPatternEpoch = new AtomicInteger();
-    // If recheckPatternTimeout is not null, it means the broker's topic watcher is disabled.
-    // The client need falls back to the polling model.
     private volatile Timeout recheckPatternTimeout = null;
-    private volatile String topicsHash;
 
     private PatternConsumerUpdateQueue updateTaskQueue;
+    private volatile boolean closed = false;
 
     /***
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
      */
-    public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
-                                          String topicsHash,
+    public PatternMultiTopicsConsumerImpl(TopicsPattern topicsPattern,
                                           PulsarClientImpl client,
                                           ConsumerConfigurationData<T> conf,
                                           ExecutorProvider executorProvider,
@@ -78,39 +83,46 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         super(client, conf, executorProvider, subscribeFuture, schema, interceptors,
                 false /* createTopicIfDoesNotExist */);
         this.topicsPattern = topicsPattern;
-        this.topicsHash = topicsHash;
         this.subscriptionMode = subscriptionMode;
-
-        if (this.namespaceName == null) {
-            this.namespaceName = getNameSpaceFromPattern(topicsPattern);
-        }
-        checkArgument(getNameSpaceFromPattern(topicsPattern).toString().equals(this.namespaceName.toString()));
-
+        this.namespaceName = topicsPattern.namespace();
         this.topicsChangeListener = new PatternTopicsChangedListener();
         this.updateTaskQueue = new PatternConsumerUpdateQueue(this);
         if (subscriptionMode == Mode.PERSISTENT) {
-            long watcherId = client.newTopicListWatcherId();
-            new TopicListWatcher(updateTaskQueue, client, topicsPattern, watcherId,
-                namespaceName, topicsHash, watcherFuture, () -> recheckTopicsChangeAfterReconnect());
-            watcherFuture
-               .exceptionally(ex -> {
-                   log.warn("Pattern consumer [{}] unable to create topic list watcher. Falling back to only polling"
-                           + " for new topics", conf.getSubscriptionName(), ex);
-                   this.recheckPatternTimeout = client.timer().newTimeout(
-                           this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
-                   return null;
-               });
+            subscribeFuture.whenComplete((__, exception) -> {
+                if (!closed && exception == null) {
+                    long watcherId = client.newTopicListWatcherId();
+                    topicListWatcher = new TopicListWatcher(updateTaskQueue, client, topicsPattern, watcherId,
+                            namespaceName, this::getLocalStateTopicsHash, watcherFuture,
+                            this::getNextRecheckPatternEpoch);
+                    watcherFuture.whenComplete((watcher, ex) -> {
+                        if (closed) {
+                            log.warn("Pattern consumer [{}] was closed while creating topic list watcher",
+                                    conf.getSubscriptionName(), ex);
+                        } else if (ex != null) {
+                            if (ex instanceof PulsarClientException.NotAllowedException) {
+                                // create info message when topic watchers aren't supported
+                                log.info("Pattern consumer [{}] unable to create topic list watcher. {}",
+                                        conf.getSubscriptionName(), ex.getMessage());
+                            } else {
+                                log.warn("Pattern consumer [{}] unable to create topic list watcher.",
+                                        conf.getSubscriptionName(), ex);
+                            }
+                        }
+                        scheduleRecheckTopics();
+                    });
+                }
+            });
         } else {
             log.debug("Pattern consumer [{}] not creating topic list watcher for subscription mode {}",
                     conf.getSubscriptionName(), subscriptionMode);
+            topicListWatcher = null;
             watcherFuture.complete(null);
-            this.recheckPatternTimeout = client.timer().newTimeout(
-                    this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+            subscribeFuture.whenComplete((__, ex) -> {
+                if (!closed && ex == null) {
+                    scheduleRecheckTopics();
+                }
+            });
         }
-    }
-
-    public static NamespaceName getNameSpaceFromPattern(Pattern pattern) {
-        return TopicName.get(pattern.pattern()).getNamespaceObject();
     }
 
     /**
@@ -128,53 +140,131 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     // TimerTask to recheck topics change, and trigger subscribe/unsubscribe based on the change.
     @Override
     public void run(Timeout timeout) throws Exception {
-        if (timeout.isCancelled()) {
+        if (timeout.isCancelled() || closed) {
             return;
         }
         updateTaskQueue.appendRecheckOp();
     }
 
     CompletableFuture<Void> recheckTopicsChange() {
-        String pattern = topicsPattern.pattern();
-        final int epoch = recheckPatternEpoch.incrementAndGet();
-        return client.getLookup().getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern, topicsHash)
-            .thenCompose(getTopicsResult -> {
-                // If "recheckTopicsChange" has been called more than one times, only make the last one take affects.
-                // Use "synchronized (recheckPatternTaskBackoff)" instead of
-                // `synchronized(PatternMultiTopicsConsumerImpl.this)` to avoid locking in a wider range.
-                synchronized (PatternMultiTopicsConsumerImpl.this) {
-                    if (recheckPatternEpoch.get() > epoch) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    if (log.isDebugEnabled()) {
-                        log.debug("Pattern consumer [{}] get topics under namespace {}, topics.size: {},"
-                                        + " topicsHash: {}, filtered: {}",
-                                PatternMultiTopicsConsumerImpl.this.getSubscription(),
-                                namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
-                                getTopicsResult.isFiltered());
-                        getTopicsResult.getTopics().forEach(topicName ->
-                                log.debug("Get topics under namespace {}, topic: {}", namespaceName, topicName));
-                    }
+        final int epoch = getNextRecheckPatternEpoch();
 
-                    final List<String> oldTopics = new ArrayList<>(getPartitions());
-                    return updateSubscriptions(topicsPattern, this::setTopicsHash, getTopicsResult,
-                            topicsChangeListener, oldTopics, subscription);
+        CompletableFuture<Void> recheckFuture;
+        // Prefer watcher-based reconcile when a watcher exists and is connected. Fallback to lookup if watcher
+        // is not available or the watcher-based request fails.
+        if (supportsTopicListWatcherReconcile()) {
+            String localStateTopicsHash = getLocalStateTopicsHash();
+            recheckFuture = topicListWatcher.reconcile(localStateTopicsHash).thenCompose(response -> {
+                return handleWatchTopicListSuccess(response, localStateTopicsHash, epoch);
+            }).handle((res, ex) -> {
+                if (ex != null) {
+                    // watcher-based reconcile failed -> fall back to lookup-based recheck
+                    return doLookupBasedRecheck(epoch);
+                } else {
+                    // watcher-based reconcile completed successfully
+                    return CompletableFuture.<Void>completedFuture(null);
                 }
-            }).thenAccept(__ -> {
-                if (recheckPatternTimeout != null) {
-                    this.recheckPatternTimeout = client.timer().newTimeout(
-                            this, Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
-                }
-            });
+            }).thenCompose(Function.identity());
+        } else {
+            // Fallback: perform the existing lookup-based recheck
+            recheckFuture = doLookupBasedRecheck(epoch);
+        }
+
+        return recheckFuture.handle((__, ex) -> {
+            if (ex != null) {
+                log.info("[{}][{}] Pattern consumer failed to recheck topics changes: {}",
+                        getPattern().inputPattern(), getSubscription(), ex.getMessage());
+            }
+            scheduleRecheckTopics();
+            return null;
+        });
     }
 
-    static CompletableFuture<Void> updateSubscriptions(Pattern topicsPattern,
-                                                       java.util.function.Consumer<String> topicsHashSetter,
+    int getNextRecheckPatternEpoch() {
+        return recheckPatternEpoch.incrementAndGet();
+    }
+
+    CompletableFuture<Void> handleWatchTopicListSuccess(CommandWatchTopicListSuccess response,
+                                                        String localStateTopicsHash, int epoch) {
+        synchronized (PatternMultiTopicsConsumerImpl.this) {
+            if (recheckPatternEpoch.get() > epoch) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Build a GetTopicsResult-like object from the watch response
+            // so we can reuse updateSubscriptions
+            final List<String> topics = (response != null)
+                    ? response.getTopicsList()
+                    : Collections.emptyList();
+            final String hash = (response != null && response.hasTopicsHash())
+                    ? response.getTopicsHash()
+                    : null;
+            final boolean changed = !localStateTopicsHash.equals(hash);
+            final GetTopicsResult getTopicsResult =
+                    new GetTopicsResult(topics, hash, true, changed);
+
+            final List<String> oldTopics = new ArrayList<>(getPartitions());
+            return updateSubscriptions(topicsPattern, getTopicsResult, topicsChangeListener, oldTopics,
+                    subscription);
+        }
+    }
+
+    boolean supportsTopicListWatcherReconcile() {
+        return topicListWatcher != null && topicListWatcher.supportsReconcile() && watcherFuture.isDone()
+                && !watcherFuture.isCompletedExceptionally() && topicListWatcher.isConnected();
+    }
+
+    private synchronized void scheduleRecheckTopics() {
+        if (!closed) {
+            // cancel previous timeout if it exists
+            Timeout oldTimeout = this.recheckPatternTimeout;
+            if (oldTimeout != null) {
+                // cancel is a no-op if the timeout has already been executed or cancelled
+                oldTimeout.cancel();
+            }
+            this.recheckPatternTimeout = client.timer().newTimeout(this,
+                    Math.max(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.SECONDS);
+        }
+    }
+
+    private CompletableFuture<Void> doLookupBasedRecheck(final int epoch) {
+        final String pattern = topicsPattern.inputPattern();
+        return client.getLookup()
+                .getTopicsUnderNamespace(namespaceName, subscriptionMode, pattern,
+                    getLocalStateTopicsHash(), conf.getProperties())
+                .thenCompose(getTopicsResult -> {
+                    // If "recheckTopicsChange" has been called more than one times, only make the last one take
+                    // affects.
+                    // Use "synchronized (recheckPatternTaskBackoff)" instead of
+                    // `synchronized(PatternMultiTopicsConsumerImpl.this)` to avoid locking in a wider range.
+                    synchronized (PatternMultiTopicsConsumerImpl.this) {
+                        if (recheckPatternEpoch.get() > epoch) {
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        if (log.isDebugEnabled()) {
+                            log.debug("Pattern consumer [{}] get topics under namespace {}, "
+                                    + "topics.size: {}, "
+                                    + "topicsHash: {}, filtered: {}",
+                                    getSubscription(), namespaceName,
+                                    getTopicsResult.getTopics().size(),
+                                    getTopicsResult.getTopicsHash(),
+                                    getTopicsResult.isFiltered());
+                            getTopicsResult.getTopics().forEach(topicName ->
+                                    log.debug("Get topics under namespace {}, topic: {}",
+                                            namespaceName, topicName));
+                        }
+
+                        final List<String> oldTopics = new ArrayList<>(getPartitions());
+                        return updateSubscriptions(topicsPattern, getTopicsResult, topicsChangeListener, oldTopics,
+                                subscription);
+                    }
+                });
+    }
+
+    static CompletableFuture<Void> updateSubscriptions(TopicsPattern topicsPattern,
                                                        GetTopicsResult getTopicsResult,
                                                        TopicsChangedListener topicsChangedListener,
                                                        List<String> oldTopics,
                                                        String subscriptionForLog) {
-        topicsHashSetter.accept(getTopicsResult.getTopicsHash());
         if (!getTopicsResult.isChanged()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -198,13 +288,8 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         return FutureUtil.waitForAll(Collections.unmodifiableList(listenersCallback));
     }
 
-    public Pattern getPattern() {
+    public TopicsPattern getPattern() {
         return this.topicsPattern;
-    }
-
-    @VisibleForTesting
-    void setTopicsHash(String topicsHash) {
-        this.topicsHash = topicsHash;
     }
 
     interface TopicsChangedListener {
@@ -389,21 +474,18 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     @Override
     @SuppressFBWarnings
     public CompletableFuture<Void> closeAsync() {
+        closed = true;
         Timeout timeout = recheckPatternTimeout;
         if (timeout != null) {
             timeout.cancel();
             recheckPatternTimeout = null;
         }
-        List<CompletableFuture<?>> closeFutures = new ArrayList<>(2);
-        if (watcherFuture.isDone() && !watcherFuture.isCompletedExceptionally()) {
-            TopicListWatcher watcher = watcherFuture.getNow(null);
-            // watcher can be null when subscription mode is not persistent
-            if (watcher != null) {
-                closeFutures.add(watcher.closeAsync());
-            }
-        }
-        closeFutures.add(updateTaskQueue.cancelAllAndWaitForTheRunningTask().thenCompose(__ -> super.closeAsync()));
-        return FutureUtil.waitForAll(closeFutures);
+        CompletableFuture<Void> topicListWatcherCloseFuture =
+                Optional.ofNullable(topicListWatcher).map(TopicListWatcher::closeAsync)
+                        .orElse(CompletableFuture.completedFuture(null)).exceptionally(t -> null);
+        CompletableFuture<Void> runningTaskCancelFuture = updateTaskQueue.cancelAllAndWaitForTheRunningTask();
+        return FutureUtil.waitForAll(Lists.newArrayList(topicListWatcherCloseFuture, runningTaskCancelFuture))
+                .exceptionally(t -> null).thenCompose(__ -> super.closeAsync());
     }
 
     @VisibleForTesting
@@ -414,6 +496,15 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     @VisibleForTesting
     Timeout getRecheckPatternTimeout() {
         return recheckPatternTimeout;
+    }
+
+    /**
+     * Get the current topics hash calculated from the pattern consumer's topic list.
+     * This is used to validate incremental updates against the broker's hash.
+     */
+    @VisibleForTesting
+    String getLocalStateTopicsHash() {
+        return TopicList.calculateHash(getPartitions());
     }
 
     protected void handleSubscribeOneTopicError(String topicName,

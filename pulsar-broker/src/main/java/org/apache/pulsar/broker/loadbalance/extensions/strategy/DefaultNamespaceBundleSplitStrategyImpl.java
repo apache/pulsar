@@ -244,7 +244,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
             } catch (Throwable e) {
                 counter.update(Failure, Unknown);
-                log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG + " Failed to get split boundaries.", bundle, e));
+                log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG + " Failed to get split boundaries.", bundle), e);
                 continue;
             }
             if (splitBoundary == null) {

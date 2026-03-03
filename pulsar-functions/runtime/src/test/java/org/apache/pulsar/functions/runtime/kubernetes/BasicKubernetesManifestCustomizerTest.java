@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
 import com.google.gson.Gson;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.openapi.models.V1Toleration;
-import org.testng.annotations.Test;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNull;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link BasicKubernetesManifestCustomizerTest}.
@@ -40,7 +38,7 @@ import static org.testng.Assert.assertNull;
 public class BasicKubernetesManifestCustomizerTest {
 
     @Test
-    public void TestInitializeWithNullData() {
+    public void testInitializeWithNullData() {
         BasicKubernetesManifestCustomizer customizer = new BasicKubernetesManifestCustomizer();
         customizer.initialize(null);
         assertNotEquals(customizer.getRuntimeOpts(), null);
@@ -52,7 +50,7 @@ public class BasicKubernetesManifestCustomizerTest {
     }
 
     @Test
-    public void TestInitializeWithData() {
+    public void testInitializeWithData() {
         BasicKubernetesManifestCustomizer customizer = new BasicKubernetesManifestCustomizer();
         Map<String, Object> confs = new HashMap<>();
         confs.put("jobNamespace", "custom-ns");
@@ -64,8 +62,9 @@ public class BasicKubernetesManifestCustomizerTest {
     }
 
     @Test
-    public void TestMergeRuntimeOpts() {
-        Map<String, Object> configs = new Gson().fromJson(KubernetesRuntimeTest.createRuntimeCustomizerConfig(), HashMap.class);
+    public void testMergeRuntimeOpts() {
+        Map<String, Object> configs = new Gson().fromJson(KubernetesRuntimeTest.createRuntimeCustomizerConfig(),
+                HashMap.class);
         BasicKubernetesManifestCustomizer customizer = new BasicKubernetesManifestCustomizer();
         customizer.initialize(configs);
         BasicKubernetesManifestCustomizer.RuntimeOpts newOpts = new BasicKubernetesManifestCustomizer.RuntimeOpts();
@@ -113,7 +112,7 @@ public class BasicKubernetesManifestCustomizerTest {
         V1ResourceRequirements requirements = new V1ResourceRequirements();
         requirements.setLimits(new HashMap<>());
         BasicKubernetesManifestCustomizer.RuntimeOpts opts2 = new BasicKubernetesManifestCustomizer.RuntimeOpts(
-                "namespace2", "job2", testMap, testMap, testMap,requirements, testList);
+                "namespace2", "job2", testMap, testMap, testMap, requirements, testList);
 
         // Merge the runtime opts
         BasicKubernetesManifestCustomizer.RuntimeOpts result =

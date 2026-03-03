@@ -73,7 +73,7 @@ public class PerfClientUtilsTest {
         args.maxLookupRequest = 100000;
         args.memoryLimit = 10240;
 
-        final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
+        final ClientBuilderImpl builder = (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
 
         Assert.assertTrue(conf.isTlsHostnameVerificationEnable());
@@ -104,7 +104,7 @@ public class PerfClientUtilsTest {
         args.proxyServiceURL = "pulsar+ssl://my-proxy-pulsar:4443";
         args.proxyProtocol = ProxyProtocol.SNI;
 
-        final ClientBuilderImpl builder = (ClientBuilderImpl)PerfClientUtils.createClientBuilderFromArguments(args);
+        final ClientBuilderImpl builder = (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
         final ClientConfigurationData conf = builder.getClientConfigurationData();
 
         Assert.assertEquals(conf.getProxyServiceUrl(), "pulsar+ssl://my-proxy-pulsar:4443");
@@ -160,7 +160,7 @@ public class PerfClientUtilsTest {
                     (ClientBuilderImpl) PerfClientUtils.createClientBuilderFromArguments(args);
             final ClientConfigurationData conf = builder.getClientConfigurationData();
 
-            Assert.assertEquals(conf.getProxyServiceUrl(),"");
+            Assert.assertEquals(conf.getProxyServiceUrl(), "");
             Assert.assertNull(conf.getProxyProtocol());
         } finally {
             Files.deleteIfExists(testConf);

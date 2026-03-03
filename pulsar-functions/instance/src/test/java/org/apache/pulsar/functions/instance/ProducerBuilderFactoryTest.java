@@ -82,7 +82,7 @@ public class ProducerBuilderFactoryTest {
         pulsarClient = null;
         MockUtil.resetMock(producerBuilder);
         producerBuilder = null;
-        TestCryptoKeyReader.LAST_INSTANCE = null;
+        TestCryptoKeyReader.lastInstance = null;
     }
 
     @Test
@@ -168,7 +168,7 @@ public class ProducerBuilderFactoryTest {
         verify(producerBuilder).batcherBuilder(BatcherBuilder.KEY_BASED);
         verify(producerBuilder).maxPendingMessages(5000);
         verify(producerBuilder).maxPendingMessagesAcrossPartitions(50000);
-        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.LAST_INSTANCE;
+        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.lastInstance;
         assertNotNull(lastInstance);
         assertEquals(lastInstance.configs, cryptoConfig.getCryptoKeyReaderConfig());
         verify(producerBuilder).cryptoKeyReader(lastInstance);
@@ -204,7 +204,7 @@ public class ProducerBuilderFactoryTest {
         verify(producerBuilder).batcherBuilder(BatcherBuilder.KEY_BASED);
         verify(producerBuilder).maxPendingMessages(5000);
         verify(producerBuilder).maxPendingMessagesAcrossPartitions(50000);
-        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.LAST_INSTANCE;
+        TestCryptoKeyReader lastInstance = TestCryptoKeyReader.lastInstance;
         assertNotNull(lastInstance);
         assertEquals(lastInstance.configs, cryptoConfig.getCryptoKeyReaderConfig());
         verify(producerBuilder).cryptoKeyReader(lastInstance);
@@ -216,13 +216,13 @@ public class ProducerBuilderFactoryTest {
     }
 
     public static class TestCryptoKeyReader implements CryptoKeyReader {
-        static TestCryptoKeyReader LAST_INSTANCE;
+        static TestCryptoKeyReader lastInstance;
         Map<String, Object> configs;
 
         public TestCryptoKeyReader(Map<String, Object> configs) {
             this.configs = configs;
-            assert LAST_INSTANCE == null;
-            LAST_INSTANCE = this;
+            assert lastInstance == null;
+            lastInstance = this;
         }
 
         @Override

@@ -143,8 +143,8 @@ public class ProduceWithMessageIdTest extends ProducerConsumerBase {
             public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
                 log.info("sendComplete", e);
                 if (e == null){
-                    cdl.countDown();
                     sendMsgStats.set(opSendMsgStats);
+                    cdl.countDown();
                 }
             }
 
@@ -187,7 +187,7 @@ public class ProduceWithMessageIdTest extends ProducerConsumerBase {
         Assert.assertEquals(opSendMsgStats.getRetryCount(), 1);
         Assert.assertEquals(opSendMsgStats.getBatchSizeByte(), totalReadabled);
         Assert.assertEquals(opSendMsgStats.getNumMessagesInBatch(), batchSize);
-        Assert.assertEquals(opSendMsgStats.getHighestSequenceId(), batchSize-1);
+        Assert.assertEquals(opSendMsgStats.getHighestSequenceId(), batchSize - 1);
         Assert.assertEquals(opSendMsgStats.getTotalChunks(), 0);
         Assert.assertEquals(opSendMsgStats.getChunkId(), -1);
     }

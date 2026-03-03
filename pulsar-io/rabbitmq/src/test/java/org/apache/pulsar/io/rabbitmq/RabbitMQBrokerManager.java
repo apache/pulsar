@@ -18,36 +18,34 @@
  */
 package org.apache.pulsar.io.rabbitmq;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.qpid.server.SystemLauncher;
-import org.apache.qpid.server.model.SystemConfig;
+import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.utility.DockerImageName;
 
 public class RabbitMQBrokerManager {
+    private RabbitMQContainer rabbitMQContainer;
 
-    private final SystemLauncher systemLauncher = new SystemLauncher();
-
-    public void startBroker(String port) throws Exception {
-        Map<String, Object> brokerOptions = getBrokerOptions(port);
-        systemLauncher.startup(brokerOptions);
+    public void startBroker() throws Exception {
+        rabbitMQContainer = new RabbitMQContainer(DockerImageName.parse("rabbitmq:3.7.25-management-alpine"));
+        rabbitMQContainer.withVhost("default");
+        rabbitMQContainer.start();
     }
 
     public void stopBroker() {
-        systemLauncher.shutdown();
+        if (rabbitMQContainer != null) {
+            rabbitMQContainer.stop();
+            rabbitMQContainer = null;
+        }
     }
 
-    Map<String, Object> getBrokerOptions(String port) throws Exception {
-        Path tmpFolder = Files.createTempDirectory("qpidWork");
-        Map<String, Object> config = new HashMap<>();
-        config.put("qpid.work_dir", tmpFolder.toAbsolutePath().toString());
-        config.put("qpid.amqp_port", port);
+    public int getPort() {
+        return rabbitMQContainer.getAmqpPort();
+    }
 
-        Map<String, Object> context = new HashMap<>();
-        context.put(SystemConfig.INITIAL_CONFIGURATION_LOCATION, "classpath:qpid.json");
-        context.put(SystemConfig.TYPE, "Memory");
-        context.put(SystemConfig.CONTEXT, config);
-        return context;
+    public String getUser() {
+        return rabbitMQContainer.getAdminUsername();
+    }
+
+    public String getPassword() {
+        return rabbitMQContainer.getAdminPassword();
     }
 }

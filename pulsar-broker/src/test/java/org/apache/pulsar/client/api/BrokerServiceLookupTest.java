@@ -82,7 +82,6 @@ import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
-import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -363,7 +362,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(map).when(brokerService).getBundleStats();
-        ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
+        ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper) pulsar.getLoadManager().get();
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(10);
@@ -880,8 +879,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
 
             // Unload the NamespacePolicies and AntiAffinity check.
             String currentBroker = pulsar.getBrokerId();
-            assertTrue(loadManager.shouldNamespacePoliciesUnload(namespace,"0x00000000_0xffffffff", currentBroker));
-            assertTrue(loadManager.shouldAntiAffinityNamespaceUnload(namespace,"0x00000000_0xffffffff", currentBroker));
+            assertTrue(loadManager.shouldNamespacePoliciesUnload(namespace,
+                    "0x00000000_0xffffffff", currentBroker));
+            assertTrue(loadManager.shouldAntiAffinityNamespaceUnload(namespace,
+                    "0x00000000_0xffffffff", currentBroker));
 
             // (7) Make lookup request again to Broker-2 which should succeed.
             final String topic3 = "persistent://" + namespace + "/topic3";
@@ -955,7 +956,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         // Assert the lookup service is a "BinaryProtoLookupService".
         final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         final LookupService lookupService = pulsarClientImpl.getLookup();
-        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        assertTrue(lookupService.isBinaryProtoLookupService());
 
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final int topicPartitions = 10;
@@ -979,7 +980,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         // Assert the lookup service is a "BinaryProtoLookupService".
         final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         final LookupService lookupService = pulsarClientImpl.getLookup();
-        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        assertTrue(lookupService.isBinaryProtoLookupService());
 
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(tpName);
@@ -1184,7 +1185,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         return new DefaultAsyncHttpClient(config);
     }
 
-    /**** helper classes ****/
+    /**** helper classes. ****/
 
     public static class MockAuthenticationProvider implements AuthenticationProvider {
         @Override
@@ -1232,7 +1233,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         Consumer<String> consumer = pulsarClientImpl.newConsumer(Schema.STRING).topic(tpName)
                 .subscriptionName("s1").isAckReceiptEnabled(true).subscribe();
         LookupService lookupService = pulsarClientImpl.getLookup();
-        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        assertTrue(lookupService.isBinaryProtoLookupService());
         ClientCnx lookupConnection = pulsarClientImpl.getCnxPool().getConnection(lookupService.resolveHost()).join();
 
         var metricReader = pulsarTestContext.getOpenTelemetryMetricReader();

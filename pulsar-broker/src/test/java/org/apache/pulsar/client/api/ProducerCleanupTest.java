@@ -19,14 +19,13 @@
 package org.apache.pulsar.client.api;
 
 import io.netty.util.HashedWheelTimer;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker-api")
 public class ProducerCleanupTest extends ProducerConsumerBase {
@@ -34,6 +33,8 @@ public class ProducerCleanupTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
+        isTcpLookup = true;
         super.internalSetup();
         super.producerBaseSetup();
     }

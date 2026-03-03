@@ -1,10 +1,9 @@
-From 96ba2eb7145363586529e6c770dcc0920bf04ac2 Mon Sep 17 00:00:00 2001
+From 76518befa2b3b79931044267722feecfe1465d19 Mon Sep 17 00:00:00 2001
 From: Lari Hotari <lhotari@users.noreply.github.com>
-Date: Wed, 18 Dec 2024 17:16:02 +0200
-Subject: [PATCH] Adapt build for Alpine, fix issue with NULL_BACKTRACE support
+Date: Fri, 22 Aug 2025 21:25:49 +0300
+Subject: [PATCH] [PATCH] Adapt build for Alpine, fix issue with NULL_BACKTRACE
+ support
 
-- also use dynamic linking to some libraries (zlib, openssl, libz, libcurl, libcrypto)
-  to reduce binary size
 ---
  CMakeLists.txt                        | 20 +++++++++++---------
  aws/utils/backtrace/bsd_backtrace.cc  |  2 +-
@@ -14,18 +13,24 @@ Subject: [PATCH] Adapt build for Alpine, fix issue with NULL_BACKTRACE support
  5 files changed, 15 insertions(+), 16 deletions(-)
 
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 2dd7084..2ba47e6 100644
+index 8803f5c..6152b3d 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -213,22 +213,24 @@ set(STATIC_LIBS
-         boost_chrono)
+@@ -213,8 +213,10 @@ set(STATIC_LIBS
  
+ find_package(Protobuf REQUIRED)
  find_package(Threads)
 -find_package(ZLIB)
 +find_package(ZLIB REQUIRED)
  find_package(AWSSDK REQUIRED COMPONENTS kinesis monitoring sts)
 +find_package(OpenSSL REQUIRED)
 +find_package(CURL REQUIRED)
+ 
+ # Specify the output directory for generated protobuf files
+ set(PROTO_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/aws/kinesis/protobuf/)
+@@ -239,19 +241,19 @@ foreach(proto ${PROTO_FILES})
+     )
+ endforeach()
  
 -add_library(LibCrypto STATIC IMPORTED)
 -set_property(TARGET LibCrypto PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_LIB_DIR}/libcrypto.a)
@@ -123,5 +128,5 @@ index b58ab0e..f483c77 100644
  #include <cstring>
  #include <cstdint>
 -- 
-2.47.1
+2.51.0
 

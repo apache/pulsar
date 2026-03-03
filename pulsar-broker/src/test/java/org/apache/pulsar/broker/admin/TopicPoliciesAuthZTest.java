@@ -55,7 +55,7 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
         configureTokenAuthentication();
         configureDefaultAuthorization();
         start();
-        this.superUserAdmin =PulsarAdmin.builder()
+        this.superUserAdmin = PulsarAdmin.builder()
                 .serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
                 .build();
@@ -316,7 +316,8 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
         superUserAdmin.topicPolicies().removeMaxUnackedMessagesOnConsumer(topic);
 
         await().untilAsserted(() -> {
-            final Integer unackedMessagesOnConsumer = superUserAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            final Integer unackedMessagesOnConsumer = superUserAdmin.topicPolicies()
+                    .getMaxUnackedMessagesOnConsumer(topic);
             Assert.assertNull(unackedMessagesOnConsumer);
         });
 
@@ -324,12 +325,14 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
 
         tenantManagerAdmin.topicPolicies().setMaxUnackedMessagesOnConsumer(topic, definedUnackedMessagesOnConsumer);
         await().untilAsserted(() -> {
-            final int unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            final int unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies()
+                    .getMaxUnackedMessagesOnConsumer(topic);
             Assert.assertEquals(unackedMessagesOnConsumer, definedUnackedMessagesOnConsumer);
         });
         tenantManagerAdmin.topicPolicies().removeMaxUnackedMessagesOnConsumer(topic);
         await().untilAsserted(() -> {
-            final Integer unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies().getMaxUnackedMessagesOnConsumer(topic);
+            final Integer unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies()
+                    .getMaxUnackedMessagesOnConsumer(topic);
             Assert.assertNull(unackedMessagesOnConsumer);
         });
 
@@ -425,7 +428,8 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
 
         tenantManagerAdmin.topicPolicies().setMaxUnackedMessagesOnSubscription(topic, definedUnackedMessagesOnConsumer);
         await().untilAsserted(() -> {
-            final int unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic);
+            final int unackedMessagesOnConsumer = tenantManagerAdmin.topicPolicies()
+                    .getMaxUnackedMessagesOnSubscription(topic);
             Assert.assertEquals(unackedMessagesOnConsumer, definedUnackedMessagesOnConsumer);
         });
         tenantManagerAdmin.topicPolicies().removeMaxUnackedMessagesOnSubscription(topic);
@@ -487,5 +491,89 @@ public final class TopicPoliciesAuthZTest extends MockedPulsarStandalone {
             superUserAdmin.namespaces().revokePermissionsOnNamespace("public/default", subject);
         }
 
+    }
+
+    @SneakyThrows
+    @Test
+    public void testSubscriptionExpirationTime() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject = UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        superUserAdmin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+
+        int expirationTimeInMinutes = 10;
+
+        // test superuser
+        superUserAdmin.topicPolicies().setSubscriptionExpirationTime(topic, expirationTimeInMinutes);
+        await().untilAsserted(() -> Assert.assertEquals(
+                superUserAdmin.topicPolicies().getSubscriptionExpirationTime(topic).intValue(),
+                expirationTimeInMinutes));
+        superUserAdmin.topicPolicies().removeSubscriptionExpirationTime(topic);
+        await().untilAsserted(() ->
+                Assert.assertNull(superUserAdmin.topicPolicies().getSubscriptionExpirationTime(topic)));
+
+        // test tenant manager
+        tenantManagerAdmin.topicPolicies().setSubscriptionExpirationTime(topic, expirationTimeInMinutes);
+        await().untilAsserted(() -> Assert.assertEquals(
+                tenantManagerAdmin.topicPolicies().getSubscriptionExpirationTime(topic).intValue(),
+                expirationTimeInMinutes));
+        tenantManagerAdmin.topicPolicies().removeSubscriptionExpirationTime(topic);
+        await().untilAsserted(() ->
+                Assert.assertNull(tenantManagerAdmin.topicPolicies().getSubscriptionExpirationTime(topic)));
+
+        // test nobody
+        try {
+            subAdmin.topicPolicies().getSubscriptionExpirationTime(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+            subAdmin.topicPolicies().setSubscriptionExpirationTime(topic, expirationTimeInMinutes);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        try {
+            subAdmin.topicPolicies().removeSubscriptionExpirationTime(topic);
+            Assert.fail("unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+        }
+
+        // test sub user with permissions
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.namespaces().grantPermissionOnNamespace("public/default", subject, Set.of(action));
+            try {
+                subAdmin.topicPolicies().getSubscriptionExpirationTime(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+                subAdmin.topicPolicies().setSubscriptionExpirationTime(topic, expirationTimeInMinutes);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+
+            try {
+                subAdmin.topicPolicies().removeSubscriptionExpirationTime(topic);
+                Assert.fail("unexpected behaviour");
+            } catch (PulsarAdminException ex) {
+                Assert.assertTrue(ex instanceof PulsarAdminException.NotAuthorizedException);
+            }
+            superUserAdmin.namespaces().revokePermissionsOnNamespace("public/default", subject);
+        }
     }
 }

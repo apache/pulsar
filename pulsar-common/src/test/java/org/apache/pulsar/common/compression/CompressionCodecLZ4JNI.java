@@ -24,7 +24,7 @@ import java.nio.ByteBuffer;
 import lombok.extern.slf4j.Slf4j;
 import net.jpountz.lz4.LZ4Compressor;
 import net.jpountz.lz4.LZ4Factory;
-import net.jpountz.lz4.LZ4FastDecompressor;
+import net.jpountz.lz4.LZ4SafeDecompressor;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 /**
@@ -44,7 +44,7 @@ public class CompressionCodecLZ4JNI implements CompressionCodec {
 
     private static final LZ4Factory lz4Factory = LZ4Factory.fastestInstance();
     private static final LZ4Compressor compressor = lz4Factory.fastCompressor();
-    private static final LZ4FastDecompressor decompressor = lz4Factory.fastDecompressor();
+    private static final LZ4SafeDecompressor decompressor = lz4Factory.safeDecompressor();
 
     @Override
     public ByteBuf encode(ByteBuf source) {
@@ -67,8 +67,8 @@ public class CompressionCodecLZ4JNI implements CompressionCodec {
         ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
 
         ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
-        decompressor.decompress(encodedNio, encodedNio.position(), uncompressedNio, uncompressedNio.position(),
-                uncompressedNio.remaining());
+        decompressor.decompress(encodedNio, encodedNio.position(), encodedNio.remaining(),
+                uncompressedNio, uncompressedNio.position(), uncompressedNio.remaining());
 
         uncompressed.writerIndex(uncompressedLength);
         return uncompressed;

@@ -120,6 +120,8 @@ public interface ConsumerStats {
     long getLastAckedTimestamp();
     long getLastConsumedTimestamp();
     long getLastConsumedFlowTimestamp();
+    long getFirstMessagesSentTimestamp();
+    long getFirstConsumedFlowTimestamp();
 
     /**
      * Hash ranges assigned to this consumer if in Key_Shared subscription mode.

@@ -37,7 +37,7 @@ import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.mutable.MutableBoolean;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -84,7 +84,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
         conf.setBrokerClientAuthenticationParameters(
-                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8")));
+                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
+                        getTlsFileForClient("admin.key-pk8")));
         conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setBrokerClientTlsEnabled(true);
         conf.setNumExecutorThreadPoolSize(5);
@@ -473,7 +474,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         Path keyFilePath = Paths.get(keyFile.getAbsolutePath());
         int autoCertRefreshTimeSec = 1;
         try {
-            Files.copy(Paths.get(getTlsFileForClient(user2 + ".key-pk8")), keyFilePath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(Paths.get(getTlsFileForClient(user2 + ".key-pk8")), keyFilePath,
+                    StandardCopyOption.REPLACE_EXISTING);
             @Cleanup
             PulsarAdmin admin = PulsarAdmin.builder()
                     .allowTlsInsecureConnection(false)
@@ -503,7 +505,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                             new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
                     success.setValue(true);
                     return true;
-                }catch(Exception e) {
+                } catch (Exception e) {
                     return false;
                 }
             }, 5, 1000);

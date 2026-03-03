@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.packages.management.storage.bookkeeper.bookkeeper.test;
 
-import lombok.Cleanup;
-
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.Inet4Address;
@@ -31,6 +29,7 @@ import java.nio.channels.FileLock;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import lombok.Cleanup;
 
 /**
  * Port manager allows a base port to be specified on the commandline. Tests will then use ports, counting up from this
@@ -40,16 +39,16 @@ public class PortManager {
 
     private static final String lockFilename = System.getProperty("test.lockFilename",
             "/tmp/pulsar-test-port-manager.lock");
-    private static final int basePort = Integer.parseInt(System.getProperty("test.basePort", "15000"));
+    private static final int BASE_PORT = Integer.parseInt(System.getProperty("test.basePort", "15000"));
 
-    private static final int maxPort = 32000;
+    private static final int MAX_PORT = 32000;
 
     /**
      * Return a TCP port that is currently unused.
      *
      * Keeps track of assigned ports and avoid race condition between different processes
      */
-    public synchronized static int nextFreePort() {
+    public static synchronized int nextFreePort() {
         Path path = Paths.get(lockFilename);
 
         try {
@@ -66,7 +65,7 @@ public class PortManager {
             int len = fileChannel.read(buffer, 0L);
             buffer.flip();
 
-            int lastUsedPort = basePort;
+            int lastUsedPort = BASE_PORT;
             if (len > 0) {
                 byte[] bytes = new byte[buffer.remaining()];
                 buffer.get(bytes);
@@ -91,12 +90,12 @@ public class PortManager {
 
     private static final int MAX_PORT_CONFLICTS = 10;
 
-    private synchronized static int probeFreePort(int port) {
+    private static synchronized int probeFreePort(int port) {
         int exceptionCount = 0;
         while (true) {
-            if (port == maxPort) {
+            if (port == MAX_PORT) {
                 // Rollover the port probe
-                port = basePort;
+                port = BASE_PORT;
             }
 
             try (Socket s = new Socket()) {

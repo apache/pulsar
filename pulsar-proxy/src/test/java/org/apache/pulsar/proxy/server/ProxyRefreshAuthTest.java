@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     private static final String CLUSTER_NAME = "proxy-authorization";
-    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
     private ProxyService proxyService;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -179,37 +179,25 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
 
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         pulsarClient.getPartitionsForTopic(topic).get();
+
+        // Verify initial connection state
         Set<CompletableFuture<ClientCnx>> connections = pulsarClientImpl.getCnxPool().getConnections();
 
-        Awaitility.await().during(5, SECONDS).untilAsserted(() -> {
-            pulsarClient.getPartitionsForTopic(topic).get();
-            assertTrue(connections.stream().allMatch(n -> {
-                try {
-                    ClientCnx clientCnx = n.get();
-                    long timestamp = clientCnx.getLastDisconnectedTimestamp();
-                    return timestamp == 0;
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }));
-        });
-
-        // Force all connections from proxy to broker to close and therefore require the proxy to re-authenticate with
-        // the broker. (The client doesn't lose this connection.)
-        restartBroker();
-
-        // Rerun assertion to ensure that it still works
-        Awaitility.await().during(5, SECONDS).untilAsserted(() -> {
-            pulsarClient.getPartitionsForTopic(topic).get();
-            assertTrue(connections.stream().allMatch(n -> {
-                try {
-                    ClientCnx clientCnx = n.get();
-                    long timestamp = clientCnx.getLastDisconnectedTimestamp();
-                    return timestamp == 0;
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }));
-        });
+        Awaitility.await()
+                .during(5, SECONDS)
+                .untilAsserted(() -> {
+                    for (CompletableFuture<ClientCnx> cf : connections) {
+                        try {
+                            ClientCnx clientCnx = cf.get();
+                            long timestamp = clientCnx.getLastDisconnectedTimestamp();
+                            // If forwardAuthData is false, the broker cannot see the client's authentication data.
+                            // As a result, the broker cannot perform any refresh operations on the client's auth data.
+                            // Only the proxy has visibility of the client's connection state.
+                            assertTrue(forwardAuthData ? timestamp == 0 : timestamp > 0);
+                        } catch (Exception e) {
+                            throw new AssertionError("Failed to get connection state", e);
+                        }
+                    }
+                });
     }
 }

@@ -35,12 +35,13 @@ public abstract class PulsarTestSuite extends PulsarClusterTestBase {
         cleanup();
     }
 
-    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis) throws Exception {
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
+            throws Exception {
         retryStrategically(predicate, retryCount, intSleepTimeInMillis, false);
     }
 
-    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis, boolean throwException)
-            throws Exception {
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis,
+                                          boolean throwException) throws Exception {
 
         for (int i = 0; i < retryCount; i++) {
             if (throwException) {

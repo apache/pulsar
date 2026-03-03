@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import java.io.IOException;
-import java.util.Map;
-
-import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-import org.testng.collections.Maps;
-
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicSessionCredentials;
 import com.google.gson.Gson;
+import java.io.IOException;
+import java.util.Map;
+import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+import org.testng.collections.Maps;
 
 public class KinesisSinkAuthTest {
 
@@ -78,11 +76,11 @@ public class KinesisSinkAuthTest {
                 .getCredentialProvider();
         Assert.assertNotNull(credentialProvider);
         Assert.assertEquals(credentialProvider.getCredentials().getAWSAccessKeyId(),
-                AwsCredentialProviderPluginImpl.accessKey);
+                AwsCredentialProviderPluginImpl.ACCESS_KEY);
         Assert.assertEquals(credentialProvider.getCredentials().getAWSSecretKey(),
-                AwsCredentialProviderPluginImpl.secretKey);
+                AwsCredentialProviderPluginImpl.SECRET_KEY);
         Assert.assertEquals(((BasicSessionCredentials) credentialProvider.getCredentials()).getSessionToken(),
-                AwsCredentialProviderPluginImpl.sessionToken);
+                AwsCredentialProviderPluginImpl.SESSION_TOKEN);
 
         sink.close();
     }
@@ -96,20 +94,20 @@ public class KinesisSinkAuthTest {
                 .getCredentialProvider();
         Assert.assertNotNull(credentialProvider);
         Assert.assertEquals(credentialProvider.getCredentials().getAWSAccessKeyId(),
-                AwsCredentialProviderPluginImpl.accessKey);
+                AwsCredentialProviderPluginImpl.ACCESS_KEY);
         Assert.assertEquals(credentialProvider.getCredentials().getAWSSecretKey(),
-                AwsCredentialProviderPluginImpl.secretKey);
+                AwsCredentialProviderPluginImpl.SECRET_KEY);
         Assert.assertEquals(((BasicSessionCredentials) credentialProvider.getCredentials()).getSessionToken(),
-                AwsCredentialProviderPluginImpl.sessionToken);
+                AwsCredentialProviderPluginImpl.SESSION_TOKEN);
 
         sink.close();
     }
 
     public static class AwsCredentialProviderPluginImpl implements AwsCredentialProviderPlugin {
 
-        public static final String accessKey = "ak";
-        public static final String secretKey = "sk";
-        public static final String sessionToken = "st";
+        public static final String ACCESS_KEY = "ak";
+        public static final String SECRET_KEY = "sk";
+        public static final String SESSION_TOKEN = "st";
 
         public void init(String param) {
             // no-op
@@ -120,19 +118,19 @@ public class KinesisSinkAuthTest {
             return new AWSCredentialsProvider() {
                 @Override
                 public AWSCredentials getCredentials() {
-                    return new BasicSessionCredentials(accessKey, secretKey, sessionToken) {
+                    return new BasicSessionCredentials(ACCESS_KEY, SECRET_KEY, SESSION_TOKEN) {
 
                         @Override
                         public String getAWSAccessKeyId() {
-                            return accessKey;
+                            return ACCESS_KEY;
                         }
                         @Override
                         public String getAWSSecretKey() {
-                            return secretKey;
+                            return SECRET_KEY;
                         }
                         @Override
                         public String getSessionToken() {
-                            return sessionToken;
+                            return SESSION_TOKEN;
                         }
                     };
                 }

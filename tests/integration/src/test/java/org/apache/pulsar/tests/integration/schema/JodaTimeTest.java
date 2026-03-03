@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.schema;
 
+import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
+import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -35,13 +40,6 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 import org.testng.annotations.Test;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalTime;
-
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.testng.Assert.assertEquals;
 
 @Slf4j
 public class JodaTimeTest extends PulsarTestSuite {
@@ -73,12 +71,12 @@ public class JodaTimeTest extends PulsarTestSuite {
     @Data
     private static class JodaSchema {
 
-        @org.apache.avro.reflect.AvroSchema("{\n" +
-                "  \"type\": \"bytes\",\n" +
-                "  \"logicalType\": \"decimal\",\n" +
-                "  \"precision\": 4,\n" +
-                "  \"scale\": 2\n" +
-                "}")
+        @org.apache.avro.reflect.AvroSchema("{\n"
+                + "  \"type\": \"bytes\",\n"
+                + "  \"logicalType\": \"decimal\",\n"
+                + "  \"precision\": 4,\n"
+                + "  \"scale\": 2\n"
+                + "}")
         BigDecimal decimal;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"date\"}")
         LocalDate date;

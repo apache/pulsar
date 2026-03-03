@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertEquals;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -134,7 +132,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
         ClientCnx clientCnx = consumer.getClientCnx();
         ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService()
-                .getTopic(topicName,false).join().get().getSubscription(subscriptionName)
+                .getTopic(topicName, false).join().get().getSubscription(subscriptionName)
                 .getDispatcher().getConsumers().get(0).cnx();
 
         // Make a disconnect to trigger broker remove the consumer which related this connection.

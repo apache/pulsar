@@ -25,6 +25,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -37,9 +38,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.Cleanup;
-import com.google.common.base.Splitter;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
@@ -56,10 +55,11 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
+import org.eclipse.jetty.ee8.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.ee8.websocket.api.Session;
+import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
 import org.eclipse.jetty.http.HttpStatus;
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
@@ -103,7 +103,8 @@ public class AbstractWebSocketHandlerTest {
 
         httpServletRequest = mock(HttpServletRequest.class);
 
-        when(httpServletRequest.getRequestURI()).thenReturn(producerV1 + URLEncoder.encode(producerV1Topic, StandardCharsets.UTF_8.name()));
+        when(httpServletRequest.getRequestURI()).thenReturn(producerV1
+                + URLEncoder.encode(producerV1Topic, StandardCharsets.UTF_8.name()));
         WebSocketHandlerImpl webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         TopicName topicName = webSocketHandler.getTopic();
         assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/" + producerV1Topic);
@@ -216,8 +217,10 @@ public class AbstractWebSocketHandlerTest {
 
     static class WebSocketHandlerImpl extends AbstractWebSocketHandler {
 
-        public WebSocketHandlerImpl(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        public WebSocketHandlerImpl(WebSocketService service, HttpServletRequest request,
+                                    JettyServerUpgradeResponse response) {
             super(service, request, response);
+            allowConnect = true;
         }
 
         @Override
@@ -236,15 +239,15 @@ public class AbstractWebSocketHandlerTest {
 
     }
 
-    static class MockedServletUpgradeResponse extends ServletUpgradeResponse {
+    abstract static class MockedServletUpgradeResponse implements JettyServerUpgradeResponse {
 
         @Getter
         private int statusCode;
         @Getter
         private String message;
 
-        public MockedServletUpgradeResponse(HttpServletResponse response) {
-            super(response);
+        public MockedServletUpgradeResponse() {
+
         }
 
         public void sendError(int statusCode, String message) {
@@ -264,7 +267,8 @@ public class AbstractWebSocketHandlerTest {
 
     class MockedProducerHandler extends ProducerHandler {
 
-        public MockedProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        public MockedProducerHandler(WebSocketService service, HttpServletRequest request,
+                                     JettyServerUpgradeResponse response) {
             super(service, request, response);
         }
 
@@ -307,7 +311,7 @@ public class AbstractWebSocketHandlerTest {
         when(service.isAuthorizationEnabled()).thenReturn(false);
         when(service.getPulsarClient()).thenReturn(newPulsarClient());
 
-        MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
+        MockedServletUpgradeResponse response = mock(MockedServletUpgradeResponse.class, Answers.CALLS_REAL_METHODS);
 
         MockedProducerHandler producerHandler = new MockedProducerHandler(service, httpServletRequest, response);
         assertEquals(response.getStatusCode(), 500);
@@ -341,7 +345,8 @@ public class AbstractWebSocketHandlerTest {
 
     class MockedConsumerHandler extends ConsumerHandler {
 
-        public MockedConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        public MockedConsumerHandler(WebSocketService service, HttpServletRequest request,
+                                     JettyServerUpgradeResponse response) {
             super(service, request, response);
         }
 
@@ -381,7 +386,7 @@ public class AbstractWebSocketHandlerTest {
         when(service.isAuthorizationEnabled()).thenReturn(false);
         when(service.getPulsarClient()).thenReturn(newPulsarClient());
 
-        MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
+        MockedServletUpgradeResponse response = mock(MockedServletUpgradeResponse.class, Answers.CALLS_REAL_METHODS);
 
         MockedConsumerHandler consumerHandler = new MockedConsumerHandler(service, httpServletRequest, response);
         assertEquals(response.getStatusCode(), 500);
@@ -435,8 +440,9 @@ public class AbstractWebSocketHandlerTest {
         when(httpServletRequest.getRequestURI()).thenReturn(consumerV2);
         when(httpServletRequest.getParameterMap()).thenReturn(queryParams);
 
-        MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
-        AbstractWebSocketHandler webSocketHandler = new WebSocketHandlerImpl(webSocketService, httpServletRequest, response);
+        MockedServletUpgradeResponse response = mock(MockedServletUpgradeResponse.class, Answers.CALLS_REAL_METHODS);
+        AbstractWebSocketHandler webSocketHandler =
+                new WebSocketHandlerImpl(webSocketService, httpServletRequest, response);
 
         Session session = mock(Session.class);
         RemoteEndpoint remoteEndpoint = mock(RemoteEndpoint.class);

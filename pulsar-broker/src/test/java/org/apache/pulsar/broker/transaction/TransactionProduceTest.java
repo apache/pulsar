@@ -173,7 +173,8 @@ public class TransactionProduceTest extends TransactionTestBase {
             List<Entry> entries = originTopicCursor.readEntries((int) originTopicCursor.getNumberOfEntries());
             Assert.assertEquals(messageCntPerPartition + 1, entries.size());
 
-            MessageMetadata messageMetadata = Commands.parseMessageMetadata(entries.get(messageCntPerPartition).getDataBuffer());
+            MessageMetadata messageMetadata =
+                    Commands.parseMessageMetadata(entries.get(messageCntPerPartition).getDataBuffer());
             if (endAction) {
                 Assert.assertEquals(MarkerType.TXN_COMMIT_VALUE, messageMetadata.getMarkerType());
             } else {
@@ -203,11 +204,13 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         // transactional publish will not update lastMaxReadPositionMovedForwardTimestamp
         producer.newMessage(txn).value("hello world".getBytes()).send();
-        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp() == lastMaxReadPositionMovedForwardTimestamp);
+        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp()
+                == lastMaxReadPositionMovedForwardTimestamp);
 
         // commit transaction will update lastMaxReadPositionMovedForwardTimestamp
         txn.commit().get();
-        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp() > lastMaxReadPositionMovedForwardTimestamp);
+        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp()
+                > lastMaxReadPositionMovedForwardTimestamp);
     }
 
     private PersistentTopic getTopic(String topic) throws ExecutionException, InterruptedException {

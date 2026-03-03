@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>4.1.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
   <artifactId>pulsar-client-admin</artifactId>
   <name>Pulsar Client Admin</name>
@@ -128,7 +128,6 @@
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>commons-*:*</include>
                   <include>commons-codec:commons-codec</include>
-                  <include>commons-collections:commons-collections</include>
                   <include>io.airlift:*</include>
                   <include>io.grpc:*</include>
                   <include>io.netty.incubator:*</include>
@@ -142,7 +141,7 @@
                   <include>jakarta.xml.bind:jakarta.xml.bind-api</include>
                   <include>javax.ws.rs:*</include>
                   <include>javax.xml.bind:jaxb-api</include>
-                  <include>net.jcip:jcip-annotations</include>
+                  <include>com.google.code.findbugs:jsr305</include>
                   <include>org.apache.bookkeeper:*</include>
                   <include>org.apache.commons:commons-compress</include>
                   <include>org.apache.commons:commons-lang3</include>
@@ -339,10 +338,6 @@
                   <pattern>META-INF/versions/(\d+)/org/yaml/</pattern>
                   <shadedPattern>META-INF/versions/$1/org/apache/pulsar/shade/org/yaml/</shadedPattern>
                   <rawString>true</rawString>
-                </relocation>
-                <relocation>
-                  <pattern>net.jcip</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.net.jcip</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>okio</pattern>

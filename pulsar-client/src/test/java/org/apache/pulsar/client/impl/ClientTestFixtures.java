@@ -38,6 +38,7 @@ import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.SucceededFuture;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -50,7 +51,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.mockito.Mockito;
 
 class ClientTestFixtures {
-    public static ScheduledExecutorService SCHEDULER =
+    public static ScheduledExecutorService scheduler =
             Executors.newSingleThreadScheduledExecutor(
                     new ThreadFactoryBuilder()
                             .setNameFormat("ClientTestFixtures-SCHEDULER-%d")
@@ -61,7 +62,7 @@ class ClientTestFixtures {
 //        return createPulsarClientMock(mock(ExecutorService.class));
 //    }
 
-    static <T> PulsarClientImpl createPulsarClientMock(ExecutorProvider executorProvider,
+    public static <T> PulsarClientImpl createPulsarClientMock(ExecutorProvider executorProvider,
                                                        ExecutorService internalExecutorService) {
         PulsarClientImpl clientMock = mock(PulsarClientImpl.class, Mockito.RETURNS_DEEP_STUBS);
 
@@ -81,11 +82,19 @@ class ClientTestFixtures {
     static <T> PulsarClientImpl createPulsarClientMockWithMockedClientCnx(
             ExecutorProvider executorProvider,
             ExecutorService internalExecutorService) {
-        return mockClientCnx(createPulsarClientMock(executorProvider, internalExecutorService));
+        return createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutorService, mockClientCnx());
     }
 
-    static PulsarClientImpl mockClientCnx(PulsarClientImpl clientMock) {
-        ClientCnx clientCnxMock = mockClientCnx();
+    static <T> PulsarClientImpl createPulsarClientMockWithMockedClientCnx(
+            ExecutorProvider executorProvider,
+            ExecutorService internalExecutorService,
+            ClientCnx clientCnxMock) {
+        return clientMockWithClientCnxMock(createPulsarClientMock(executorProvider, internalExecutorService),
+                clientCnxMock
+        );
+    }
+
+    static PulsarClientImpl clientMockWithClientCnxMock(PulsarClientImpl clientMock, ClientCnx clientCnxMock) {
         when(clientMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         when(clientMock.getConnection(anyString())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         when(clientMock.getConnection(anyString(), anyInt()))
@@ -94,7 +103,10 @@ class ClientTestFixtures {
                 .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         ConnectionPool connectionPoolMock = mock(ConnectionPool.class);
         when(clientMock.getCnxPool()).thenReturn(connectionPoolMock);
-        when(connectionPoolMock.getConnection(any())).thenReturn(CompletableFuture.completedFuture(clientCnxMock));
+        when(connectionPoolMock.getConnection(any(InetSocketAddress.class))).thenReturn(
+                CompletableFuture.completedFuture(clientCnxMock));
+        when(connectionPoolMock.getConnection(any(ServiceNameResolver.class))).thenReturn(
+                CompletableFuture.completedFuture(clientCnxMock));
         when(connectionPoolMock.getConnection(any(), any(), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         return clientMock;
@@ -178,13 +190,13 @@ class ClientTestFixtures {
 
     static <T> CompletableFuture<T> createDelayedCompletedFuture(T result, int delayMillis) {
         CompletableFuture<T> future = new CompletableFuture<>();
-        SCHEDULER.schedule(() -> future.complete(result), delayMillis, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> future.complete(result), delayMillis, TimeUnit.MILLISECONDS);
         return future;
     }
 
     static <T> CompletableFuture<T> createExceptionFuture(Throwable ex, int delayMillis) {
         CompletableFuture<T> future = new CompletableFuture<>();
-        SCHEDULER.schedule(() -> future.completeExceptionally(ex), delayMillis, TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> future.completeExceptionally(ex), delayMillis, TimeUnit.MILLISECONDS);
         return future;
     }
 

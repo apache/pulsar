@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -153,7 +152,8 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
                         .getSubscriptions().get(subscriptionName);
                 assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
-                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
+                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i,
+                        subscriptionName);
                 assertEquals(value, props.get("foo"));
             }
 
@@ -163,7 +163,8 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
                         .getSubscriptions().get(subscriptionName2);
                 assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
 
-                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName2);
+                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i,
+                        subscriptionName2);
                 assertTrue(props.isEmpty());
             }
 
@@ -176,13 +177,15 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
             assertEquals(value, props.get("foo"));
 
         } else {
-            SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            SubscriptionStats subscriptionStats = admin.topics().getStats(topic)
+                    .getSubscriptions().get(subscriptionName);
             assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
             Map<String, String> props = admin.topics().getSubscriptionProperties(topic, subscriptionName);
             assertEquals(value, props.get("foo"));
 
-            SubscriptionStats subscriptionStats2 = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName2);
+            SubscriptionStats subscriptionStats2 = admin.topics().getStats(topic)
+                    .getSubscriptions().get(subscriptionName2);
             assertTrue(subscriptionStats2.getSubscriptionProperties().isEmpty());
 
             Map<String, String> props2 = admin.topics().getSubscriptionProperties(topic, subscriptionName2);
@@ -199,7 +202,8 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
                         .getSubscriptions().get(subscriptionName);
                 assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
 
-                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
+                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i,
+                        subscriptionName);
                 assertTrue(props.isEmpty());
             }
 
@@ -212,7 +216,8 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
             assertTrue(props.isEmpty());
 
         } else {
-            SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            SubscriptionStats subscriptionStats = admin.topics().getStats(topic)
+                    .getSubscriptions().get(subscriptionName);
             assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
 
             Map<String, String> props = admin.topics().getSubscriptionProperties(topic, subscriptionName);
@@ -229,7 +234,8 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
                         .getSubscriptions().get(subscriptionName);
                 assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
-                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
+                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i,
+                        subscriptionName);
                 assertEquals(value, props.get("foo"));
             }
 
@@ -242,13 +248,15 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
             assertEquals(value, props.get("foo"));
 
         } else {
-            SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            SubscriptionStats subscriptionStats = admin.topics().getStats(topic)
+                    .getSubscriptions().get(subscriptionName);
             assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
             Map<String, String> props = admin.topics().getSubscriptionProperties(topic, subscriptionName);
             assertEquals(value, props.get("foo"));
 
-            SubscriptionStats subscriptionStats2 = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName2);
+            SubscriptionStats subscriptionStats2 = admin.topics().getStats(topic)
+                    .getSubscriptions().get(subscriptionName2);
             assertTrue(subscriptionStats2.getSubscriptionProperties().isEmpty());
 
             Map<String, String> props2 = admin.topics().getSubscriptionProperties(topic, subscriptionName2);

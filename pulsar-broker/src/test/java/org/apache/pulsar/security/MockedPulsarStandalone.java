@@ -19,10 +19,10 @@
 package org.apache.pulsar.security;
 
 import static org.apache.pulsar.utils.ResourceUtils.getAbsolutePath;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -134,7 +134,8 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
         final Map<String, String> brokerClientAuthParams = new HashMap<>();
         brokerClientAuthParams.put("tlsCertFile", TLS_EC_BROKER_CLIENT_CERT_PATH);
         brokerClientAuthParams.put("tlsKeyFile", TLS_EC_BROKER_CLIENT_KEY_PATH);
-        serviceConfiguration.setBrokerClientAuthenticationParameters(mapper.writeValueAsString(brokerClientAuthParams));
+        serviceConfiguration.setBrokerClientAuthenticationParameters(
+                MAPPER1.writeValueAsString(brokerClientAuthParams));
     }
 
     @SneakyThrows
@@ -157,7 +158,8 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
         final Map<String, String> brokerClientAuthParams = new HashMap<>();
         brokerClientAuthParams.put("keyStorePath", TLS_EC_KS_BROKER_CLIENT_STORE);
         brokerClientAuthParams.put("keyStorePassword", TLS_EC_KS_BROKER_CLIENT_PASS);
-        serviceConfiguration.setBrokerClientAuthenticationParameters(mapper.writeValueAsString(brokerClientAuthParams));
+        serviceConfiguration.setBrokerClientAuthenticationParameters(
+                MAPPER1.writeValueAsString(brokerClientAuthParams));
     }
 
     protected void enableTlsAuthentication() {
@@ -203,7 +205,7 @@ public abstract class MockedPulsarStandalone implements AutoCloseable {
     }
 
     // Utils
-    protected static final ObjectMapper mapper = new ObjectMapper();
+    protected static final ObjectMapper MAPPER1 = new ObjectMapper();
 
     // Static name
     private static final String DEFAULT_TENANT = "public";

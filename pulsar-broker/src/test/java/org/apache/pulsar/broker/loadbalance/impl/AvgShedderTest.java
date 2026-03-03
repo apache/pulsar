@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
@@ -29,9 +31,6 @@ import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 
 @Test(groups = "broker")
 public class AvgShedderTest {
@@ -118,7 +117,8 @@ public class AvgShedderTest {
         // assert that all the bundles are shed to broker2
         for (String bundle : bundlesToUnload.values()) {
             BundleData bundleData = loadData.getBundleData().get(bundle);
-            assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(), bundleData, loadData, conf).get(), "broker2");
+            assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(),
+                    bundleData, loadData, conf).get(), "broker2");
         }
     }
 
@@ -184,7 +184,8 @@ public class AvgShedderTest {
         // assert that all the bundles are shed to broker2
         for (String bundle : bundlesToUnload.values()) {
             BundleData bundleData = loadData.getBundleData().get(bundle);
-            assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(), bundleData, loadData, conf).get(), "broker2");
+            assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(),
+                    bundleData, loadData, conf).get(), "broker2");
         }
     }
 
@@ -244,7 +245,7 @@ public class AvgShedderTest {
             timeAverageMessageData = new TimeAverageMessageData();
             timeAverageMessageData.setMsgRateIn(450);
             timeAverageMessageData.setMsgRateOut(450);
-            timeAverageMessageData.setNumSamples(i+11);
+            timeAverageMessageData.setNumSamples(i + 11);
             bundle.setShortTermData(timeAverageMessageData);
             loadData.getBundleData().put("bundle3-" + i, bundle);
         }
@@ -268,13 +269,16 @@ public class AvgShedderTest {
             }
         }
 
-        // assert that all the bundles from broker1 are shed to broker2, and all the bundles from broker3 are shed to broker4
+        // assert that all the bundles from broker1 are shed to broker2,
+        // and all the bundles from broker3 are shed to broker4
         for (String bundle : bundlesToUnload.values()) {
             BundleData bundleData = loadData.getBundleData().get(bundle);
             if (bundle.startsWith("bundle1-")) {
-                assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(), bundleData, loadData, conf).get(), "broker2");
+                assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(),
+                        bundleData, loadData, conf).get(), "broker2");
             } else if (bundle.startsWith("bundle3-")) {
-                assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(), bundleData, loadData, conf).get(), "broker4");
+                assertEquals(avgShedder.selectBroker(loadData.getBrokerData().keySet(),
+                        bundleData, loadData, conf).get(), "broker4");
             } else {
                 fail();
             }

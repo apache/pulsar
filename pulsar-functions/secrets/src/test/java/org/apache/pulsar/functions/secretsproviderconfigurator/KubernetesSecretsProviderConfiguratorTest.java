@@ -19,11 +19,10 @@
 package org.apache.pulsar.functions.secretsproviderconfigurator;
 
 import com.google.gson.Gson;
+import java.util.HashMap;
 import org.apache.pulsar.functions.proto.Function;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
 
 /**
  * Unit test of {@link KubernetesSecretsProviderConfigurator}.
@@ -36,7 +35,8 @@ public class KubernetesSecretsProviderConfiguratorTest {
         try {
             HashMap<String, Object> map = new HashMap<String, Object>();
             map.put("secretname", "randomsecret");
-            Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setSecretsMap(new Gson().toJson(map)).build();
+            Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
+                    .setSecretsMap(new Gson().toJson(map)).build();
             provider.doAdmissionChecks(null, null, null, null, functionDetails);
             Assert.fail("Non conforming secret object should not validate");
         } catch (Exception e) {
@@ -46,7 +46,8 @@ public class KubernetesSecretsProviderConfiguratorTest {
             HashMap<String, String> map1 = new HashMap<String, String>();
             map1.put("secretname", "secretvalue");
             map.put("secretname", map1);
-            Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setSecretsMap(new Gson().toJson(map)).build();
+            Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
+                    .setSecretsMap(new Gson().toJson(map)).build();
             provider.doAdmissionChecks(null, null, null, null, functionDetails);
             Assert.fail("Non conforming secret object should not validate");
         } catch (Exception e) {
@@ -57,7 +58,8 @@ public class KubernetesSecretsProviderConfiguratorTest {
             map1.put("path", "secretvalue");
             map1.put("key", "secretvalue");
             map.put("secretname", map1);
-            Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setSecretsMap(new Gson().toJson(map)).build();
+            Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
+                    .setSecretsMap(new Gson().toJson(map)).build();
             provider.doAdmissionChecks(null, null, null, null, functionDetails);
         } catch (Exception e) {
             Assert.fail("Conforming secret object should validate");

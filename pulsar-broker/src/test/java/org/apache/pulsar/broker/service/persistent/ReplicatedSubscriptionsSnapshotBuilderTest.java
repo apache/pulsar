@@ -113,7 +113,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
         // At this point the snapshot should be created
         assertEquals(markers.size(), 1);
-        ReplicatedSubscriptionsSnapshot snapshot = parseReplicatedSubscriptionsSnapshot() ;
+        ReplicatedSubscriptionsSnapshot snapshot = parseReplicatedSubscriptionsSnapshot();
         assertEquals(snapshot.getClustersCount(), 1);
         assertEquals(snapshot.getClusterAt(0).getCluster(), "b");
         assertEquals(snapshot.getClusterAt(0).getMessageId().getLedgerId(), 11);

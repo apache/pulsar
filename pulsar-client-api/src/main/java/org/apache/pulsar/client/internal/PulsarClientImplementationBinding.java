@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -115,9 +116,9 @@ public interface PulsarClientImplementationBinding {
 
     <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition);
 
-    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(SchemaDefinition schemaDefinition);
+    <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(SchemaDefinition schemaDefinition);
 
-    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+    <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition);
 
     <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition);
@@ -255,4 +256,6 @@ public interface PulsarClientImplementationBinding {
                                  Map<String, String> propertiesValue);
 
     TopicMessageId newTopicMessageId(String topic, MessageId messageId);
+
+    PulsarClientSharedResourcesBuilder newSharedResourcesBuilder();
 }

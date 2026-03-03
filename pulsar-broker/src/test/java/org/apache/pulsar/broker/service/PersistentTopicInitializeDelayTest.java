@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -29,15 +38,6 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 @Test(groups = "broker")
 @Slf4j
@@ -107,7 +107,7 @@ public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
             super(topic, ledger, brokerService);
             SystemTopicBasedTopicPoliciesService topicPoliciesService =
                     (SystemTopicBasedTopicPoliciesService) brokerService.getPulsar().getTopicPoliciesService();
-            if (topicPoliciesService.getListeners().containsKey(TopicName.get(topic)) ) {
+            if (topicPoliciesService.getListeners().containsKey(TopicName.get(topic))) {
                 brokerService.getPulsar().getTopicPoliciesService().getTopicPoliciesAsync(TopicName.get(topic),
                         TopicPoliciesService.GetType.LOCAL_ONLY
                 ).thenAccept(optionalPolicies -> optionalPolicies.ifPresent(this::onUpdate));
@@ -128,7 +128,8 @@ public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
                 checkReplicationInvocationCount.incrementAndGet();
                 log.info("checkReplication, count = {}", checkReplicationInvocationCount.get());
                 List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
-                if (!(configuredClusters.size() == 1 && configuredClusters.contains(brokerService.pulsar().getConfiguration().getClusterName()))) {
+                if (!(configuredClusters.size() == 1
+                        && configuredClusters.contains(brokerService.pulsar().getConfiguration().getClusterName()))) {
                     try {
                         // this will cause the get topic timeout.
                         Thread.sleep(8 * 1000);

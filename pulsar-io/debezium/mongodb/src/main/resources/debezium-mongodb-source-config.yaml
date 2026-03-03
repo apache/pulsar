@@ -28,10 +28,11 @@ parallelism: 1
 configs:
   ## config for pg, docker image: debezium/example-mongodb:0.8
   mongodb.hosts: "rs0/mongodb:27017"
-  mongodb.name: "dbserver1"
   mongodb.user: "debezium"
   mongodb.password: "dbz"
   mongodb.task.id: "1"
   database.whitelist: "inventory"
+  topic.prefix: "dbserver1"
 
-  database.history.pulsar.service.url: "pulsar://127.0.0.1:6650"
+  schema.history.internal.pulsar.service.url: "pulsar://127.0.0.1:6650"
+  connector.class: "io.debezium.connector.mongodb.MongoDbConnector"

@@ -88,8 +88,8 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
     }
 
 
-    private Pair<BrokerService, AbstractPersistentDispatcherMultipleConsumers> mockDelayedDeliveryTrackerFactoryAndDispatcher()
-            throws Exception {
+    private Pair<BrokerService, AbstractPersistentDispatcherMultipleConsumers>
+    mockDelayedDeliveryTrackerFactoryAndDispatcher() throws Exception {
         BrokerService brokerService = Mockito.spy(pulsar.getBrokerService());
 
         // Mock dispatcher

@@ -20,10 +20,9 @@ package org.apache.pulsar.utils.auth.tokens;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwsHeader;
-import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import java.io.ByteArrayOutputStream;
@@ -33,7 +32,6 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Date;
-
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import picocli.CommandLine.Option;
@@ -75,12 +73,12 @@ public class TokensCliUtilsTest {
             };
 
             new TokensCliUtils().execute(command);
-            String token = baoStream.toString();
+            String token = baoStream.toString().trim();
 
-            Jwt<?, ?> jwt = Jwts.parserBuilder()
+            Jws<Claims> jwt = Jwts.parser()
                     .setSigningKey(Decoders.BASE64.decode(secretKey))
                     .build()
-                    .parseClaimsJws(token);
+                    .parseSignedClaims(token);
 
             JwsHeader header = (JwsHeader) jwt.getHeader();
             String keyId = header.getKeyId();
@@ -95,7 +93,8 @@ public class TokensCliUtilsTest {
     }
 
     @Test(dataProvider = "desiredExpireTime")
-    public void commandCreateToken_WhenCreatingATokenWithExpiryTime_ShouldHaveTheDesiredExpireTime(String expireTime, int expireAsSec) throws Exception {
+    public void commandCreateToken_WhenCreatingATokenWithExpiryTime_ShouldHaveTheDesiredExpireTime(String expireTime,
+                                                                                int expireAsSec) throws Exception {
         PrintStream oldStream = System.out;
         try {
             //Arrange
@@ -109,13 +108,13 @@ public class TokensCliUtilsTest {
             };
 
             new TokensCliUtils().execute(command);
-            String token = baoStream.toString();
+            String token = baoStream.toString().trim();
 
             Instant start = (new Date().toInstant().plus(expireAsSec - 5, ChronoUnit.SECONDS));
             Instant stop = (new Date().toInstant().plus(expireAsSec + 5, ChronoUnit.SECONDS));
 
             //Act
-            Claims jwt = Jwts.parserBuilder()
+            Claims jwt = Jwts.parser()
                     .setSigningKey(Decoders.BASE64.decode("u+FxaxYWpsTfxeEmMh8fQeS3g2jfXw4+sGIv+PTY+BY="))
                     .build()
                     .parseClaimsJws(token)
@@ -123,7 +122,8 @@ public class TokensCliUtilsTest {
 
             //Assert
             //Checks if the token expires within +-5 sec.
-            assertTrue(( ! jwt.getExpiration().toInstant().isBefore( start ) ) && ( jwt.getExpiration().toInstant().isBefore( stop ) ));
+            assertTrue((!jwt.getExpiration().toInstant().isBefore(start))
+                    && (jwt.getExpiration().toInstant().isBefore(stop)));
 
         } catch (Exception e) {
             throw new RuntimeException(e);

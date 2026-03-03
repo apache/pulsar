@@ -166,7 +166,7 @@ public class ThresholdShedderTest {
     public void testBrokerWithMultipleBundles() {
         int numBundles = 10;
         LoadData loadData = new LoadData();
-        
+
         LocalBrokerData broker1 = new LocalBrokerData();
         broker1.setBandwidthIn(new ResourceUsage(999, 1000));
         broker1.setBandwidthOut(new ResourceUsage(999, 1000));

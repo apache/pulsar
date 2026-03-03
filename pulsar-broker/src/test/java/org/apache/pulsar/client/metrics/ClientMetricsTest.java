@@ -38,8 +38,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.assertj.core.api.Assertions;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -342,5 +344,85 @@ public class ClientMetricsTest extends ProducerConsumerBase {
         metrics = collectMetrics();
         assertCounterValue(metrics, "pulsar.client.consumer.closed", 1, nsAttrs);
         assertCounterValue(metrics, "pulsar.client.connection.closed", 1, Attributes.empty());
+    }
+
+    @Test
+    public void testMemoryBufferMetrics() throws Exception {
+        String topic = newTopicName();
+        long memoryLimit = 1024 * 1024; // 1MB
+
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .openTelemetry(otel)
+                .memoryLimit(memoryLimit, org.apache.pulsar.client.api.SizeUnit.BYTES)
+                .build();
+
+        Producer<byte[]> producer = client.newProducer()
+                .topic(topic)
+                .batchingMaxPublishDelay(1, TimeUnit.DAYS)
+                .batchingMaxBytes(1024 * 1024)
+                .create();
+
+        var metrics = collectMetrics();
+
+        // Verify memory buffer limit is reported correctly
+        assertCounterValue(metrics, "pulsar.client.memory.buffer.limit", memoryLimit, Attributes.empty());
+
+        // Initially, memory usage should be 0 or very low
+        long initialUsage = getCounterValue(metrics, "pulsar.client.memory.buffer.usage", Attributes.empty());
+        Assertions.assertThat(initialUsage).isGreaterThanOrEqualTo(0).isLessThan(memoryLimit / 4);
+
+        producer.sendAsync(new byte[512 * 1024]);
+
+        metrics = collectMetrics();
+
+        // Verify memory usage increased
+        long usageAfterSend = getCounterValue(metrics, "pulsar.client.memory.buffer.usage", Attributes.empty());
+        Assertions.assertThat(usageAfterSend).isGreaterThan(initialUsage);
+
+        // Verify limit is still correct
+        assertCounterValue(metrics, "pulsar.client.memory.buffer.limit", memoryLimit, Attributes.empty());
+
+        // Flush all pending messages
+        producer.flush();
+
+        Awaitility.await().untilAsserted(() -> {
+            var newMetrics = collectMetrics();
+            // Memory usage should be lower after flushing
+            long usageAfterFlush = getCounterValue(newMetrics, "pulsar.client.memory.buffer.usage", Attributes.empty());
+            Assertions.assertThat(usageAfterFlush).isLessThanOrEqualTo(usageAfterSend);
+        });
+
+        producer.close();
+        client.close();
+    }
+
+    @Test
+    public void testMemoryBufferMetricsWithNoLimit() throws Exception {
+        // Create client without memory limit
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .openTelemetry(otel)
+                .memoryLimit(0L, SizeUnit.BYTES)
+                .build();
+
+        String topic = newTopicName();
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.send("test message");
+
+        var metrics = collectMetrics();
+
+        // When memory limiting is disabled, buffer metrics should not be present at all
+        boolean hasUsageMetric = metrics.containsKey("pulsar.client.memory.buffer.usage");
+        boolean hasLimitMetric = metrics.containsKey("pulsar.client.memory.buffer.limit");
+
+        // Since memory limiting is disabled, these metrics should not exist
+        Assertions.assertThat(hasUsageMetric).isFalse();
+        Assertions.assertThat(hasLimitMetric).isFalse();
+        producer.close();
+        client.close();
     }
 }

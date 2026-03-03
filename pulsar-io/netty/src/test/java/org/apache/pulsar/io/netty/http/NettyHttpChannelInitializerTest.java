@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.io.netty.http;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import org.apache.pulsar.io.netty.NettySource;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-
 /**
- * Tests for Netty Channel Initializer
+ * Tests for Netty Channel Initializer.
  */
 public class NettyHttpChannelInitializerTest {
 

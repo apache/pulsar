@@ -45,7 +45,7 @@ public class ProxyTopicStat {
         }
 
         public ProducerStats(ProducerHandler handler) {
-            this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
+            this.remoteConnection = handler.getRemote().getRemoteAddress().toString();
             this.numberOfMsgPublished = handler.getMsgPublishedCounter();
         }
 
@@ -62,14 +62,14 @@ public class ProxyTopicStat {
             this.subscriptionName = handler.getSubscription();
             this.subscriptionType = handler.getSubscriptionType();
             this.subscriptionMode = handler.getSubscriptionMode();
-            this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
+            this.remoteConnection = handler.getRemote().getRemoteAddress().toString();
             this.numberOfMsgDelivered = handler.getMsgDeliveredCounter();
         }
 
         public ConsumerStats(ReaderHandler handler) {
             this.subscriptionName = handler.getSubscription();
             this.subscriptionType = handler.getSubscriptionType();
-            this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
+            this.remoteConnection = handler.getRemote().getRemoteAddress().toString();
             this.numberOfMsgDelivered = handler.getMsgDeliveredCounter();
         }
 

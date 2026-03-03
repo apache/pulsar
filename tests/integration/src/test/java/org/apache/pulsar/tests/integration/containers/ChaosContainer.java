@@ -44,14 +44,13 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     @Override
     protected void configure() {
         super.configure();
-        addEnv("MALLOC_ARENA_MAX", "1");
     }
 
     protected void appendToEnv(String key, String value) {
         String existingValue = getEnvMap().get(key);
         if (existingValue == null) {
             addEnv(key, value);
-        } else {
+        } else if (!existingValue.contains(value)) {
             addEnv(key, existingValue + " " + value);
         }
     }
@@ -120,7 +119,8 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         return DockerUtils.runCommandAsUser(userId, client, dockerId, commands);
     }
 
-    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands) throws Exception {
+    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands)
+            throws Exception {
         DockerClient client = this.getDockerClient();
         String dockerId = this.getContainerId();
         return DockerUtils.runCommandAsyncAsUser(userId, client, dockerId, commands);

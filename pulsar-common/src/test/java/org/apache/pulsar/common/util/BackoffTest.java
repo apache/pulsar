@@ -21,7 +21,6 @@ package org.apache.pulsar.common.util;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -57,7 +56,7 @@ public class BackoffTest {
         backoff.next(); // 800
         assertFalse(withinTenPercentAndDecrementTimer(backoff, 400));
     }
-    
+
     @Test
     public void firstBackoffTimerTest() {
         Clock mockClock = Mockito.mock(Clock.class);
@@ -80,7 +79,7 @@ public class BackoffTest {
         long diffBackOffTime = backoff.getFirstBackoffTimeInMillis() - firstBackOffTime;
         assertEquals(diffBackOffTime, 300);
     }
-    
+
     @Test
     public void basicTest() {
         Clock mockClock = Clock.fixed(Instant.EPOCH, ZoneId.systemDefault());

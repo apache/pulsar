@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.tests.integration.io;
 
+import static org.apache.pulsar.tests.integration.io.RabbitMQSinkTester.createConnectionFactory;
 import com.rabbitmq.client.BuiltinExchangeType;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import org.apache.pulsar.tests.integration.containers.RabbitMQContainer;
-import org.apache.pulsar.tests.integration.io.sources.SourceTester;
-
-import static org.apache.pulsar.tests.integration.io.RabbitMQSinkTester.createConnectionFactory;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.apache.pulsar.tests.integration.containers.RabbitMQContainer;
+import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 
 public class RabbitMQSourceTester extends SourceTester<RabbitMQContainer> {
     private RabbitMQContainer serviceContainer;

@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.DecryptFailListener;
 import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageListener;
@@ -96,6 +97,9 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private transient MessageListenerExecutor messageListenerExecutor;
     @JsonIgnore
     private MessageListener<T> messageListener;
+
+    @JsonIgnore
+    private DecryptFailListener<T> decryptFailListener;
 
     @JsonIgnore
     private ConsumerEventListener consumerEventListener;
@@ -284,7 +288,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
                     + "Delivered encrypted message contains {@link EncryptionContext} which contains encryption and "
                     + "compression information in it using which application can decrypt consumed message payload."
     )
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+    private ConsumerCryptoFailureAction cryptoFailureAction;
 
     @ApiModelProperty(
             name = "properties",

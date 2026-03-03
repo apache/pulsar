@@ -40,6 +40,8 @@ Configuration:
         value: "info"
       - name: "pulsar.routing.appender.default"
         value: "Console"
+      - name: "pulsar.log.console.json.template"
+        value: "classpath:EcsLayout.json"
 
   # Example: logger-filter script
 #  Scripts:
@@ -53,10 +55,14 @@ Configuration:
 
     # Console
     Console:
-      name: Console
-      target: SYSTEM_OUT
-      PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+      - name: Console
+        target: SYSTEM_OUT
+        PatternLayout:
+          Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+      - name: ConsoleJson
+        target: SYSTEM_OUT
+        JsonTemplateLayout:
+          eventTemplateUri: ${sys:pulsar.log.console.json.template}
 
     # Rolling file appender configuration
     RollingFile:

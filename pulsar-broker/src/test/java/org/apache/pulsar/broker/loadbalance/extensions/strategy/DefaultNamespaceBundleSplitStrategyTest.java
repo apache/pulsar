@@ -133,10 +133,10 @@ public class DefaultNamespaceBundleSplitStrategyTest {
                 LoadManagerShared.getBundleRangeFromBundleName(bundle2));
         doReturn(CompletableFuture.completedFuture(
                 List.of(splitBoundary1))).when(namespaceService).getSplitBoundary(
-                        eq(namespaceBundle1), eq((List<Long>)null), any());
+                        eq(namespaceBundle1), eq((List<Long>) null), any());
         doReturn(CompletableFuture.completedFuture(
                 List.of(splitBoundary2))).when(namespaceService).getSplitBoundary(
-                        eq(namespaceBundle2), eq((List<Long>)null), any());
+                        eq(namespaceBundle2), eq((List<Long>) null), any());
 
         bundleStats = new LinkedHashMap<>();
         NamespaceBundleStats stats1 = new NamespaceBundleStats();

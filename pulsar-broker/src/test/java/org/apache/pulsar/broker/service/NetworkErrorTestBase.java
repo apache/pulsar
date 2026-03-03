@@ -23,17 +23,20 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -52,11 +55,11 @@ import org.awaitility.reflect.WhiteboxImpl;
 @Slf4j
 public abstract class NetworkErrorTestBase extends TestRetrySupport {
 
-    protected final static String CA_CERT_FILE_PATH =
+    protected static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    protected final static String BROKER_CERT_FILE_PATH =
+    protected static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    protected final static String BROKER_KEY_FILE_PATH =
+    protected static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
@@ -79,7 +82,7 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
     protected PulsarClient client1;
     protected PulsarClient client2;
 
-    private final static AtomicReference<String> preferBroker = new AtomicReference<>();
+    private static final AtomicReference<String> preferBroker = new AtomicReference<>();
 
     protected void startZKAndBK() throws Exception {
         // Start ZK & BK.
@@ -296,6 +299,23 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
         } else if (loadManager instanceof ExtensibleLoadManagerImpl) {
             return new HashSet<>(((ExtensibleLoadManagerImpl) loadManager).getBrokerRegistry()
                     .getAvailableBrokersAsync().join());
+        } else {
+            throw new RuntimeException("Not support for the load manager: " + loadManager.getClass().getName());
+        }
+    }
+
+    public static Collection<String> getOwnedBundles(PulsarService pulsar) {
+        Object loadManagerWrapper = pulsar.getLoadManager().get();
+        Object loadManager = WhiteboxImpl.getInternalState(loadManagerWrapper, "loadManager");
+        if (loadManager instanceof ModularLoadManagerImpl) {
+            return pulsar.getNamespaceService().getOwnershipCache().getOwnedBundles()
+                .keySet().stream().map(k -> k.getNamespaceObject().toString() + "/" + k.getBundleRange())
+                .collect(Collectors.toList());
+        } else if (loadManager instanceof ExtensibleLoadManagerImpl extensibleLoadManager) {
+            ServiceUnitStateChannel serviceUnitStateChannel = extensibleLoadManager.getServiceUnitStateChannel();
+            return serviceUnitStateChannel.getOwnedServiceUnits().stream()
+                .map(k -> k.getNamespaceObject().toString() + "/" + k.getBundleRange())
+                .collect(Collectors.toList());
         } else {
             throw new RuntimeException("Not support for the load manager: " + loadManager.getClass().getName());
         }

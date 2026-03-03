@@ -66,7 +66,8 @@ public class BrokerInterceptorWithClassLoaderTest {
         NarClassLoader narLoader = mock(NarClassLoader.class);
         BrokerInterceptor interceptor = new BrokerInterceptor() {
             @Override
-            public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
+            public void beforeSendMessage(Subscription subscription, Entry entry,
+                                          long[] ackSet, MessageMetadata msgMetadata) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
 

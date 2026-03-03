@@ -30,7 +30,6 @@ import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
 
 @Slf4j
@@ -56,7 +55,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     }
 
     @Override
-    public void sendMessages(List<Entry> entries) {
+    public synchronized void sendMessages(List<Entry> entries) {
         Consumer currentConsumer = getActiveConsumer();
         if (currentConsumer != null && currentConsumer.getAvailablePermits() > 0 && currentConsumer.isWritable()) {
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
@@ -66,7 +65,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), getRedeliveryTracker());
         } else {
             entries.forEach(entry -> {
-                int totalMsgs = Commands.getNumberOfMessagesInBatch(entry.getDataBuffer(), subscription.toString(), -1);
+                int totalMsgs = getNumberOfMessagesInBatch(entry);
                 if (totalMsgs > 0) {
                     msgDrop.recordEvent(totalMsgs);
                 }

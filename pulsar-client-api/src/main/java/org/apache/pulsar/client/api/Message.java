@@ -102,11 +102,11 @@ public interface Message<T> {
 
     /**
      * Get the event time associated with this message. It is typically set by the applications via
-     * {@link MessageBuilder#setEventTime(long)}.
+     * {@link TypedMessageBuilder#eventTime(long)}.
      *
      * <p>If there isn't any event time associated with this event, it will return 0.
      *
-     * @see MessageBuilder#setEventTime(long)
+     * @see TypedMessageBuilder#eventTime(long)
      * @since 1.20.0
      * @return the message event time or 0 if event time wasn't set
      */
@@ -114,10 +114,10 @@ public interface Message<T> {
 
     /**
      * Get the sequence id associated with this message. It is typically set by the applications via
-     * {@link MessageBuilder#setSequenceId(long)}.
+     * {@link TypedMessageBuilder#sequenceId(long)}.
      *
      * @return sequence id associated with this message.
-     * @see MessageBuilder#setEventTime(long)
+     * @see TypedMessageBuilder#sequenceId(long)
      * @since 1.22.0
      */
     long getSequenceId();
@@ -207,6 +207,15 @@ public interface Message<T> {
      * @return Schema version of the message if the message is produced with schema otherwise null.
      */
     byte[] getSchemaVersion();
+
+    /**
+     * Get schema ID of the message.
+     * PIP-420 provides a way to produce messages with external schema,
+     * and the schema ID will be set to the message metadata.
+     *
+     * @return the schema ID if the message is produced with external schema and schema ID is set, otherwise empty.
+     */
+    Optional<byte[]> getSchemaId();
 
     /**
      * Get the schema associated to the message.

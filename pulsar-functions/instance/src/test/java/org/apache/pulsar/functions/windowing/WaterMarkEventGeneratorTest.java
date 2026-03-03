@@ -34,7 +34,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests for {@link WaterMarkEventGenerator}
+ * Unit tests for {@link WaterMarkEventGenerator}.
  */
 public class WaterMarkEventGeneratorTest {
     private WaterMarkEventGenerator<Integer> waterMarkEventGenerator;

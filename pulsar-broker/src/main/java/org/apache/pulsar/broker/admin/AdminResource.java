@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
@@ -498,14 +499,12 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
-   protected void validateClusterExists(String cluster) {
-        try {
-            if (!clusterResources().getCluster(cluster).isPresent()) {
+    protected CompletableFuture<Void> validateClusterExistsAsync(String cluster) {
+        return clusterResources().clusterExistsAsync(cluster).thenAccept(clusterExist -> {
+            if (!clusterExist) {
                 throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
             }
-        } catch (Exception e) {
-            throw new RestException(e);
-        }
+        });
     }
 
     protected Policies getNamespacePolicies(String tenant, String cluster, String namespace) {
@@ -514,6 +513,9 @@ public abstract class AdminResource extends PulsarWebResource {
         return getNamespacePolicies(ns);
     }
 
+    /**
+     * Directly get the replication clusters for a namespace, without checking allowed clusters.
+     */
     protected CompletableFuture<Set<String>> getNamespaceReplicatedClustersAsync(NamespaceName namespaceName) {
         return namespaceResources().getPoliciesAsync(namespaceName)
                 .thenApply(policies -> {
@@ -871,6 +873,12 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void checkNotBlank(String str, String errorMessage) {
+        if (isBlank(str)) {
+            throw new RestException(Status.PRECONDITION_FAILED, errorMessage);
+        }
+    }
+
     protected boolean isManagedLedgerNotFoundException(Throwable cause) {
         return cause instanceof ManagedLedgerException.MetadataNotFoundException
                 || cause instanceof MetadataStoreException.NotFoundException;
@@ -962,6 +970,12 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.NOT_FOUND.getStatusCode();
     }
 
+    protected static boolean is4xxRestException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && (((WebApplicationException) realCause).getResponse().getStatus() % 100 == 4);
+    }
+
     protected static boolean isConflictException(Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
         return realCause instanceof WebApplicationException
@@ -982,6 +996,10 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected static boolean isNot307And404And400Exception(Throwable ex) {
         return !isRedirectException(ex) && !isNotFoundException(ex) && !isBadRequest(ex);
+    }
+
+    protected static boolean isNot307And4xxException(Throwable ex) {
+        return !isRedirectException(ex) && !is4xxRestException(ex);
     }
 
     protected static String getTopicNotFoundErrorMessage(String topic) {

@@ -29,6 +29,8 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 
@@ -39,10 +41,12 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
 
     private ClassLoader clientBuilderClassLoader = null;
     private boolean acceptGzipCompression = true;
+    private transient PulsarClientSharedResourcesImpl sharedResources;
 
     @Override
     public PulsarAdmin build() throws PulsarClientException {
-        return new PulsarAdminImpl(conf.getServiceUrl(), conf, clientBuilderClassLoader, acceptGzipCompression);
+        return new PulsarAdminImpl(conf.getServiceUrl(), conf,
+                clientBuilderClassLoader, acceptGzipCompression, sharedResources);
     }
 
     public PulsarAdminBuilderImpl() {
@@ -281,6 +285,21 @@ public class PulsarAdminBuilderImpl implements PulsarAdminBuilder {
     @Override
     public PulsarAdminBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
         this.conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder description(String description) {
+        if (description != null && description.length() > 64) {
+            throw new IllegalArgumentException("description should be at most 64 characters");
+        }
+        this.conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public PulsarAdminBuilder sharedResources(PulsarClientSharedResources sharedResources) {
+        this.sharedResources = (PulsarClientSharedResourcesImpl) sharedResources;
         return this;
     }
 }

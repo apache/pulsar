@@ -79,7 +79,8 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         pulsar.getConfig().setTopicLoadTimeoutSeconds(2);
 
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName).getPersistenceNamingEncoding();
+        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" + TopicName.get(tpName)
+                .getPersistenceNamingEncoding();
 
         // Make topic load timeout 5 times.
         AtomicInteger timeoutCounter = new AtomicInteger();
@@ -130,8 +131,8 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp2");
 
         // Mock message deduplication recovery speed topicLoadTimeoutSeconds
-        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/" +
-                TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
+        String mlPath = BrokerService.MANAGED_LEDGER_PATH_ZNODE + "/"
+                + TopicName.get(tpName).getPersistenceNamingEncoding() + "/" + DEDUPLICATION_CURSOR_NAME;
         mockZooKeeper.delay(topicLoadTimeoutSeconds * 1000, (op, path) -> {
             if (mlPath.equals(path)) {
                 log.info("Topic load timeout: " + path);
@@ -244,7 +245,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
         admin.topics().createNonPartitionedTopic(tpName);
         admin.namespaces().unload(ns);
 
-        // Inject an error when calling "NamespaceService.isServiceUnitActiveAsync".
+        // Inject an error when loading the topic
         AtomicInteger failedTimes = new AtomicInteger();
         NamespaceService namespaceService = pulsar.getNamespaceService();
         doAnswer(invocation -> {
@@ -257,7 +258,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
                 return CompletableFuture.failedFuture(new RuntimeException("mocked error"));
             }
             return invocation.callRealMethod();
-        }).when(namespaceService).isServiceUnitActiveAsync(any(TopicName.class));
+        }).when(namespaceService).checkBundleOwnership(any(TopicName.class), any());
 
         // Verify: the consumer can create successfully eventually.
         Consumer consumer = pulsarClient.newConsumer().topic(tpName).subscriptionName("s1").subscribe();
@@ -294,7 +295,7 @@ public class OrphanPersistentTopicTest extends ProducerConsumerBase {
                 pulsar.getDefaultManagedLedgerFactory().delete(TopicName.get(tpName).getPersistenceNamingEncoding());
             }
             return invocation.callRealMethod();
-        }).when(namespaceService).isServiceUnitActiveAsync(any(TopicName.class));
+        }).when(namespaceService).checkBundleOwnership(any(TopicName.class), any());
 
         // Verify: the consumer create failed due to pulsar does not allow to create topic automatically.
         try {

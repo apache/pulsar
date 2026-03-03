@@ -20,10 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -78,14 +76,17 @@ public class AdvertisedAddressTest {
 
     @Test
     public void testAdvertisedAddress() throws Exception {
-        Assert.assertEquals( pulsar.getAdvertisedAddress(), advertisedAddress );
-        Assert.assertEquals( pulsar.getBrokerServiceUrl(), String.format("pulsar://%s:%d", advertisedAddress, pulsar.getBrokerListenPort().get()) );
-        Assert.assertEquals( pulsar.getSafeWebServiceAddress(), String.format("http://%s:%d", advertisedAddress, pulsar.getListenPortHTTP().get()) );
+        Assert.assertEquals(pulsar.getAdvertisedAddress(), advertisedAddress);
+        Assert.assertEquals(pulsar.getBrokerServiceUrl(),
+                String.format("pulsar://%s:%d", advertisedAddress, pulsar.getBrokerListenPort().get()));
+        Assert.assertEquals(pulsar.getSafeWebServiceAddress(),
+                String.format("http://%s:%d", advertisedAddress, pulsar.getListenPortHTTP().get()));
         String brokerZkPath = String.format("/loadbalance/brokers/%s", pulsar.getBrokerId());
-        String bkBrokerData = new String(bkEnsemble.getZkClient().getData(brokerZkPath, false, new Stat()), StandardCharsets.UTF_8);
+        String bkBrokerData = new String(bkEnsemble.getZkClient().getData(brokerZkPath,
+                false, new Stat()), StandardCharsets.UTF_8);
         JsonObject jsonBkBrokerData = new Gson().fromJson(bkBrokerData, JsonObject.class);
-        Assert.assertEquals( jsonBkBrokerData.get("pulsarServiceUrl").getAsString(), pulsar.getBrokerServiceUrl() );
-        Assert.assertEquals( jsonBkBrokerData.get("webServiceUrl").getAsString(), pulsar.getSafeWebServiceAddress() );
+        Assert.assertEquals(jsonBkBrokerData.get("pulsarServiceUrl").getAsString(), pulsar.getBrokerServiceUrl());
+        Assert.assertEquals(jsonBkBrokerData.get("webServiceUrl").getAsString(), pulsar.getSafeWebServiceAddress());
     }
 
 }

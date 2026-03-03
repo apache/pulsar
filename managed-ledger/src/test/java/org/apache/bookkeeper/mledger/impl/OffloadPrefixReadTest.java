@@ -31,17 +31,18 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
@@ -57,6 +58,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.MockClock;
@@ -303,7 +305,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         ConcurrentHashMap<UUID, ReadHandle> offloads = new ConcurrentHashMap<UUID, ReadHandle>();
 
 
-        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl                                                                                                                                                                                                                                                     .create("S3", "", "", "",
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("S3", "", "", "",
                 null, null,
                 null, null,
                 OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
@@ -312,6 +314,10 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS,
                 OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS,
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY);
+
+        Set<Long> offloadedLedgers() {
+            return offloads.values().stream().map(ReadHandle::getId).collect(Collectors.toSet());
+        }
 
 
         @Override
@@ -373,10 +379,11 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
     }
 
-    static class MockOffloadReadHandle implements ReadHandle {
+    static class MockOffloadReadHandle implements ReadHandle, OffloadedLedgerHandle {
         final long id;
         final List<ByteBuf> entries = new ArrayList();
         final LedgerMetadata metadata;
+        long lastAccessTimestamp = System.currentTimeMillis();
 
         MockOffloadReadHandle(ReadHandle toCopy) throws Exception {
             id = toCopy.getId();
@@ -390,7 +397,9 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public long getId() { return id; }
+        public long getId() {
+            return id;
+        }
 
         @Override
         public LedgerMetadata getLedgerMetadata() {
@@ -406,7 +415,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
             List<LedgerEntry> readEntries = new ArrayList();
             for (long eid = firstEntry; eid <= lastEntry; eid++) {
-                ByteBuf buf = entries.get((int)eid).retainedSlice();
+                ByteBuf buf = entries.get((int) eid).retainedSlice();
                 readEntries.add(LedgerEntryImpl.create(id, eid, buf.readableBytes(), buf));
             }
             return CompletableFuture.completedFuture(LedgerEntriesImpl.create(readEntries));
@@ -454,6 +463,15 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             future.completeExceptionally(new UnsupportedOperationException());
             return future;
         }
+
+        @Override
+        public long lastAccessTimestamp() {
+            return lastAccessTimestamp;
+        }
+
+        public void setLastAccessTimestamp(long lastAccessTimestamp) {
+            this.lastAccessTimestamp = lastAccessTimestamp;
+        }
     }
 
     static class MockMetadata implements LedgerMetadata {
@@ -492,13 +510,19 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public boolean hasPassword() { return true; }
+        public boolean hasPassword() {
+            return true;
+        }
 
         @Override
-        public State getState() { return state; }
+        public State getState() {
+            return state;
+        }
 
         @Override
-        public int getMetadataFormatVersion() { return metadataFormatVersion; }
+        public int getMetadataFormatVersion() {
+            return metadataFormatVersion;
+        }
 
         @Override
         public long getCToken() {
@@ -506,34 +530,54 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public int getEnsembleSize() { return ensembleSize; }
+        public int getEnsembleSize() {
+            return ensembleSize;
+        }
 
         @Override
-        public int getWriteQuorumSize() { return writeQuorumSize; }
+        public int getWriteQuorumSize() {
+            return writeQuorumSize;
+        }
 
         @Override
-        public int getAckQuorumSize() { return ackQuorumSize; }
+        public int getAckQuorumSize() {
+            return ackQuorumSize;
+        }
 
         @Override
-        public long getLastEntryId() { return lastEntryId; }
+        public long getLastEntryId() {
+            return lastEntryId;
+        }
 
         @Override
-        public long getLength() { return length; }
+        public long getLength() {
+            return length;
+        }
 
         @Override
-        public DigestType getDigestType() { return digestType; }
+        public DigestType getDigestType() {
+            return digestType;
+        }
 
         @Override
-        public byte[] getPassword() { return password; }
+        public byte[] getPassword() {
+            return password;
+        }
 
         @Override
-        public long getCtime() { return ctime; }
+        public long getCtime() {
+            return ctime;
+        }
 
         @Override
-        public boolean isClosed() { return isClosed; }
+        public boolean isClosed() {
+            return isClosed;
+        }
 
         @Override
-        public Map<String, byte[]> getCustomMetadata() { return customMetadata; }
+        public Map<String, byte[]> getCustomMetadata() {
+            return customMetadata;
+        }
 
         @Override
         public List<BookieId> getEnsembleAt(long entryId) {

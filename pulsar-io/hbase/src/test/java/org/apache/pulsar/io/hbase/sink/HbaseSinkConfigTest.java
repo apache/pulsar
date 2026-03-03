@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.io.hbase.sink;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+import org.testng.annotations.Test;
 
 /**
- * HbaseSinkConfig test
+ * HbaseSinkConfig test.
  */
 public class HbaseSinkConfigTest {
 
@@ -142,7 +140,7 @@ public class HbaseSinkConfigTest {
         List<String> qualifierNames = new ArrayList<>();
         qualifierNames.add("qualifierName");
         map.put("qualifierNames", qualifierNames);
-        map.put("batchTimeMs",-10);
+        map.put("batchTimeMs", -10);
 
         HbaseSinkConfig config = HbaseSinkConfig.load(map);
         config.validate();

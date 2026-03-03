@@ -20,11 +20,9 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
-
+import java.util.LinkedHashSet;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.testng.annotations.Test;
-
-import java.util.LinkedHashSet;
 
 public class ClusterDataImplTest {
 

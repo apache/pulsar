@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
 import com.google.common.collect.Sets;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -31,8 +32,6 @@ import org.apache.pulsar.tests.integration.containers.DebeziumOracleDbContainer;
 import org.apache.pulsar.tests.integration.io.PulsarIOTestBase;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.testng.annotations.Test;
-
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 public class PulsarDebeziumOracleSourceTest extends PulsarIOTestBase {
@@ -75,10 +74,12 @@ public class PulsarDebeziumOracleSourceTest extends PulsarIOTestBase {
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
 
         // setup debezium oracle server
-        DebeziumOracleDbContainer debeziumOracleDbContainer = new DebeziumOracleDbContainer(pulsarCluster.getClusterName());
+        DebeziumOracleDbContainer debeziumOracleDbContainer =
+                new DebeziumOracleDbContainer(pulsarCluster.getClusterName());
         sourceTester.setServiceContainer(debeziumOracleDbContainer);
 
-        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+        PulsarIODebeziumSourceRunner runner =
+                new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
                 converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
                 consumeTopicName, client);
 

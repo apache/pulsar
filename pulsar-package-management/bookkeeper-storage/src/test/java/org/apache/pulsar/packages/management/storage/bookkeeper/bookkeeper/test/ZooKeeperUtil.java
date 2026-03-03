@@ -91,19 +91,22 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
             this.connectString = this.zkaddr.getAddress().getHostAddress() + ":" + this.zooKeeperPort;
         }
 
-        boolean b = ClientBase.waitForServerUp(this.getZooKeeperConnectString(), (long)ClientBase.CONNECTION_TIMEOUT);
+        boolean b = ClientBase.waitForServerUp(this.getZooKeeperConnectString(),
+                (long) ClientBase.CONNECTION_TIMEOUT);
         LOG.debug("Server up: " + b);
         LOG.debug("Instantiate ZK Client");
-        this.zkc = ZooKeeperClient.newBuilder().connectString(this.getZooKeeperConnectString()).sessionTimeoutMs(10000).build();
+        this.zkc = ZooKeeperClient.newBuilder().connectString(this.getZooKeeperConnectString())
+                .sessionTimeoutMs(10000).build();
     }
 
-    public void sleepCluster(final int time, final TimeUnit timeUnit, final CountDownLatch l) throws InterruptedException, IOException {
+    public void sleepCluster(final int time, final TimeUnit timeUnit, final CountDownLatch l)
+            throws InterruptedException, IOException {
         Thread[] allthreads = new Thread[Thread.activeCount()];
         Thread.enumerate(allthreads);
         Thread[] var5 = allthreads;
         int var6 = allthreads.length;
 
-        for(int var7 = 0; var7 < var6; ++var7) {
+        for (int var7 = 0; var7 < var6; ++var7) {
             final Thread t = var5[var7];
             if (t.getName().contains("SyncThread:0")) {
                 Thread sleeper = new Thread() {
@@ -111,7 +114,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
                         try {
                             t.suspend();
                             l.countDown();
-                            timeUnit.sleep((long)time);
+                            timeUnit.sleep((long) time);
                             t.resume();
                         } catch (Exception var2) {
                             ZooKeeperUtil.LOG.error("Error suspending thread", var2);
@@ -134,7 +137,8 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
 
         if (this.serverFactory != null) {
             this.serverFactory.shutdown();
-            assertTrue(ClientBase.waitForServerDown(this.getZooKeeperConnectString(), (long)ClientBase.CONNECTION_TIMEOUT),"waiting for server down");
+            assertTrue(ClientBase.waitForServerDown(this.getZooKeeperConnectString(),
+                    (long) ClientBase.CONNECTION_TIMEOUT), "waiting for server down");
         }
 
         if (this.zks != null) {

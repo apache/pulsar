@@ -19,12 +19,17 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.github.benmanes.caffeine.cache.RemovalCause;
+import com.github.benmanes.caffeine.cache.RemovalListener;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.MoreExecutors;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import java.time.Instant;
@@ -37,23 +42,27 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.DummyMetadataNodeSizeStats;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
+import org.apache.pulsar.metadata.api.MetadataNodeSizeStats;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -72,7 +81,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
     protected final String metadataStoreName;
-    protected final ScheduledExecutorService executor;
+    private final OrderedExecutor serDesExecutor;
+    private final ExecutorService eventExecutor;
+    private final ScheduledExecutorService schedulerExecutor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;
     private final AsyncLoadingCache<String, Boolean> existsCache;
     private final CopyOnWriteArrayList<MetadataCacheImpl<?>> metadataCaches = new CopyOnWriteArrayList<>();
@@ -85,19 +96,56 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected final AtomicBoolean isClosed = new AtomicBoolean(false);
 
-    protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
-
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
 
-    protected AbstractMetadataStore(String metadataStoreName, OpenTelemetry openTelemetry) {
-        this.executor = new ScheduledThreadPoolExecutor(1,
-                new DefaultThreadFactory(
-                        StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName()));
+    protected MetadataNodeSizeStats nodeSizeStats;
+
+    protected AbstractMetadataStore(
+            String metadataStoreName, OpenTelemetry openTelemetry, MetadataNodeSizeStats nodeSizeStats,
+            int numSerDesThreads) {
+        this.nodeSizeStats = nodeSizeStats == null ? new DummyMetadataNodeSizeStats()
+                : nodeSizeStats;
+        final var namePrefix = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName
+                : getClass().getSimpleName();
+        this.eventExecutor = Executors.newSingleThreadExecutor(
+                new DefaultThreadFactory(namePrefix + "-event"));
+        this.schedulerExecutor = Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory(namePrefix + "-scheduler"));
+        this.serDesExecutor = OrderedExecutor.newBuilder()
+                .numThreads(numSerDesThreads)
+                .name(namePrefix + "-worker")
+                .build();
         registerListener(this);
 
-        this.childrenCache = Caffeine.newBuilder()
+        long childrenCacheMaxSizeBytes = getChildrenCacheMaxSizeBytes();
+
+        Caffeine<Object, Object> childrenCacheBuilder = Caffeine.newBuilder()
+                .recordStats()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
-                .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
+                .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS);
+        if (childrenCacheMaxSizeBytes > 0) {
+            childrenCacheBuilder.maximumWeight(childrenCacheMaxSizeBytes)
+                    .weigher((String key, List<String> children) -> {
+                        // calculate the total byte size of the key and entries in the children list
+                        // to get some estimation of the required heap memory required for the entry.
+                        // add 16 bytes overhead for Java object header and 16 bytes for java.lang.String fields.
+                        int totalSize = ByteBufUtil.utf8Bytes(key) + 32;
+                        for (String child : children) {
+                            totalSize += ByteBufUtil.utf8Bytes(child) + 32;
+                        }
+                        return totalSize;
+                    });
+        }
+        this.childrenCache = childrenCacheBuilder
+                .evictionListener(new RemovalListener<String, List<String>>() {
+                    @Override
+                    public void onRemoval(String key, List<String> value, RemovalCause cause) {
+                        if (cause == RemovalCause.SIZE) {
+                            log.warn("[{}] Evicting path {} from children cache because the size of the cache is too "
+                                    + "large. Consider increasing the maximum heap size.", metadataStoreName, key);
+                        }
+                    }
+                })
                 .buildAsync(new AsyncCacheLoader<String, List<String>>() {
                     @Override
                     public CompletableFuture<List<String>> asyncLoad(String key, Executor executor) {
@@ -115,8 +163,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     }
                 });
+        CacheMetricsCollector.CAFFEINE.addCache(metadataStoreName + "-children", childrenCache);
 
         this.existsCache = Caffeine.newBuilder()
+                .recordStats()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
                 .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, Boolean>() {
@@ -136,9 +186,24 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     }
                 });
+        CacheMetricsCollector.CAFFEINE.addCache(metadataStoreName + "-exists", existsCache);
 
         this.metadataStoreName = metadataStoreName;
         this.metadataStoreStats = new MetadataStoreStats(metadataStoreName, openTelemetry);
+    }
+
+    /**
+     * Return the maximum size of the children cache in bytes.
+     * @return maximum size of the children cache in bytes.
+     */
+    protected long getChildrenCacheMaxSizeBytes() {
+        long heapMaxSizeBytes = Runtime.getRuntime().maxMemory();
+        // default 20% of max heap size, this should be sufficient to prevent OOME in the use case
+        // when a lot of namespaces with lots of topics are listed in the metadata store.
+        long defaultSizeBytes = heapMaxSizeBytes / 5;
+        // min size 20MB
+        int minSizeBytes = 1024 * 1024 * 20;
+        return Math.max(defaultSizeBytes, minSizeBytes);
     }
 
     @Override
@@ -235,22 +300,31 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
-        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this,
-                TypeFactory.defaultInstance().constructSimpleType(clazz, null), cacheConfig, this.executor);
+        JavaType typeRef = TypeFactory.defaultInstance().constructSimpleType(clazz, null);
+        String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
+        MetadataCacheImpl<T> metadataCache =
+                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.serDesExecutor,
+                        this.schedulerExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
-        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<T>(this, typeRef, cacheConfig, this.executor);
+        String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
+        MetadataCacheImpl<T> metadataCache =
+                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.serDesExecutor,
+                        this.schedulerExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
-        MetadataCacheImpl<T> metadataCache = new MetadataCacheImpl<>(this, serde, cacheConfig, this.executor);
+    public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
+                                                 MetadataCacheConfig cacheConfig) {
+        MetadataCacheImpl<T> metadataCache =
+                new MetadataCacheImpl<>(cacheName, this, serde, cacheConfig,
+                        this.serDesExecutor, this.schedulerExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
@@ -269,6 +343,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return storeGet(path)
                 .whenComplete((v, t) -> {
                     if (t != null) {
+                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
                     } else {
                         metadataStoreStats.recordGetOpsSucceeded(System.currentTimeMillis() - start);
@@ -291,7 +366,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
-        return childrenCache.get(path);
+        CompletableFuture<List<String>> listFuture = childrenCache.get(path);
+        listFuture.thenAccept((list) -> {
+            nodeSizeStats.recordGetChildrenRes(path, list);
+        });
+        return listFuture;
     }
 
     @Override
@@ -325,7 +404,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 });
 
                 return null;
-            }, executor);
+            }, eventExecutor);
         } catch (RejectedExecutionException e) {
             return FutureUtil.failedFuture(e);
         }
@@ -477,6 +556,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     NotificationType type = stat.isFirstVersion() ? NotificationType.Created
                             : NotificationType.Modified;
                     if (type == NotificationType.Created) {
+                        nodeSizeStats.recordPut(path, data);
                         existsCache.synchronous().invalidate(path);
                         String parent = parent(path);
                         if (parent != null) {
@@ -507,7 +587,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
         // Notice listeners.
         try {
-            executor.execute(() -> {
+            eventExecutor.execute(() -> {
                 sessionListeners.forEach(l -> {
                     try {
                         l.accept(event);
@@ -532,8 +612,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void close() throws Exception {
-        executor.shutdownNow();
-        executor.awaitTermination(10, TimeUnit.SECONDS);
+        MoreExecutors.shutdownAndAwaitTermination(serDesExecutor, 10, TimeUnit.SECONDS);
+        MoreExecutors.shutdownAndAwaitTermination(schedulerExecutor, 10, TimeUnit.SECONDS);
+        MoreExecutors.shutdownAndAwaitTermination(eventExecutor, 10, TimeUnit.SECONDS);
         this.metadataStoreStats.close();
     }
 
@@ -550,28 +631,28 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
-    /**
-     * Run the task in the executor thread and fail the future if the executor is shutting down.
-     */
-    @VisibleForTesting
-    public void execute(Runnable task, CompletableFuture<?> future) {
+    protected final <T> void processEvent(Consumer<T> eventProcessor, T event) {
         try {
-            executor.execute(task);
-        } catch (Throwable t) {
-            future.completeExceptionally(t);
+            eventExecutor.execute(() -> eventProcessor.accept(event));
+        } catch (RejectedExecutionException e) {
+            log.warn("Rejected processing event {}", event);
         }
     }
 
-    /**
-     * Run the task in the executor thread and fail the future if the executor is shutting down.
-     */
-    @VisibleForTesting
-    public void execute(Runnable task, Supplier<List<CompletableFuture<?>>> futures) {
+    protected final void scheduleDelayedTask(long delay, TimeUnit unit, Runnable task) {
+        schedulerExecutor.schedule(task, delay, unit);
+    }
+
+    protected final void safeExecuteCallback(Runnable task, Consumer<Throwable> exceptionHandler) {
         try {
-            executor.execute(task);
-        } catch (final Throwable t) {
-            futures.get().forEach(f -> f.completeExceptionally(t));
+            eventExecutor.execute(task);
+        } catch (Throwable t) {
+            exceptionHandler.accept(t);
         }
+    }
+
+    protected final void safeExecuteCallback(Runnable task, CompletableFuture<?> future) {
+        safeExecuteCallback(task, future::completeExceptionally);
     }
 
     protected static String parent(String path) {

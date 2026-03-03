@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -152,8 +153,14 @@ public interface LoadManager {
     static LoadManager create(final PulsarService pulsar) {
         try {
             final ServiceConfiguration conf = pulsar.getConfiguration();
+
+            String loadManagerClassName = conf.getLoadManagerClassName();
+            if (StringUtils.isBlank(loadManagerClassName)) {
+                loadManagerClassName = SimpleLoadManagerImpl.class.getName();
+            }
+
             // Assume there is a constructor with one argument of PulsarService.
-            final Object loadManagerInstance = Reflections.createInstance(conf.getLoadManagerClassName(),
+            final Object loadManagerInstance = Reflections.createInstance(loadManagerClassName,
                     Thread.currentThread().getContextClassLoader());
             if (loadManagerInstance instanceof LoadManager casted) {
                 casted.initialize(pulsar);

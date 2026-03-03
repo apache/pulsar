@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.util.HashedWheelTimer;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -27,9 +29,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for not exists topic.
@@ -40,6 +39,8 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
+        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
+        isTcpLookup = true;
         conf.setAllowAutoTopicCreation(false);
         super.internalSetup();
         super.producerBaseSetup();
@@ -62,7 +63,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
                     .create();
             Assert.fail("Create producer should failed while topic does not exists.");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e instanceof PulsarClientException.NotFoundException);
+            Assert.assertTrue(e instanceof PulsarClientException.TopicDoesNotExistException);
         }
         Thread.sleep(2000);
         HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();

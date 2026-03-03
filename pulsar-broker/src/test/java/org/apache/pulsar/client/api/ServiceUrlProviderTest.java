@@ -20,10 +20,8 @@ package org.apache.pulsar.client.api;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -59,7 +57,8 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
                 .serviceUrlProvider(new TestServiceUrlProvider(pulsar.getBrokerServiceUrl()))
                 .statsInterval(1, TimeUnit.SECONDS)
                 .build();
-        Assert.assertTrue(((PulsarClientImpl) client).getConfiguration().getServiceUrlProvider() instanceof TestServiceUrlProvider);
+        Assert.assertTrue(((PulsarClientImpl) client).getConfiguration().getServiceUrlProvider()
+                instanceof TestServiceUrlProvider);
         Producer<String> producer = client.newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
                 .create();
@@ -88,14 +87,16 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
     @Test
     public void testCreateClientWithAutoChangedServiceUrlProvider() throws Exception {
 
-        AutoChangedServiceUrlProvider serviceUrlProvider = new AutoChangedServiceUrlProvider(pulsar.getBrokerServiceUrl());
+        AutoChangedServiceUrlProvider serviceUrlProvider =
+                new AutoChangedServiceUrlProvider(pulsar.getBrokerServiceUrl());
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrlProvider(serviceUrlProvider)
                 .statsInterval(1, TimeUnit.SECONDS)
                 .build();
-        Assert.assertTrue(((PulsarClientImpl) client).getConfiguration().getServiceUrlProvider() instanceof AutoChangedServiceUrlProvider);
+        Assert.assertTrue(((PulsarClientImpl) client).getConfiguration().getServiceUrlProvider()
+                instanceof AutoChangedServiceUrlProvider);
 
         ProducerImpl<String> producer = (ProducerImpl<String>) client.newProducer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic")
@@ -113,7 +114,8 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         restartBroker();
         PulsarService pulsarService2 = pulsar;
 
-        log.info("Pulsar1 = {}, Pulsar2 = {}", pulsarService1.getBrokerServiceUrl(), pulsarService2.getBrokerServiceUrl());
+        log.info("Pulsar1 = {}, Pulsar2 = {}", pulsarService1.getBrokerServiceUrl(),
+                pulsarService2.getBrokerServiceUrl());
         Assert.assertNotEquals(pulsarService1.getBrokerServiceUrl(), pulsarService2.getBrokerServiceUrl());
 
         log.info("Service url : producer = {}, consumer = {}",

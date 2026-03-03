@@ -23,7 +23,6 @@ import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retrySt
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.Data;
@@ -50,7 +49,7 @@ import org.testng.annotations.Test;
 
 /**
  * This tests demonstrates how a Source can create messages using GenericRecord API
- * and the consumer is able to consume it as AVRO messages, with GenericRecord and with Java Model
+ * and the consumer is able to consume it as AVRO messages, with GenericRecord and with Java Model.
  */
 @Slf4j
 public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
@@ -132,7 +131,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         assertTrue(result.getStdout().contains("\"name\": \"" + sourceName + "\""));
     }
 
-    private static void getSourceStatus(StandaloneContainer container,String sourceName) throws Exception {
+    private static void getSourceStatus(StandaloneContainer container, String sourceName) throws Exception {
         retryStrategically((test) -> {
                     try {
                         ContainerExecResult result = container.execCmd(
@@ -184,11 +183,11 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         for (int i = 0; i < numMessages; i++) {
             Message<GenericRecord> msg = consumer.receive(10, TimeUnit.SECONDS);
             if (msg == null) {
-                fail("message "+i+" not received in time");
+                fail("message " + i + " not received in time");
                 return;
             }
             log.info("received {}", msg.getValue());
-            msg.getValue().getFields().forEach( f -> {
+            msg.getValue().getFields().forEach(f -> {
                 log.info("field {} {}", f, msg.getValue().getField(f));
             });
             String text = (String) msg.getValue().getField("text");
@@ -209,7 +208,7 @@ public class GenericRecordSourceTest extends PulsarStandaloneTestSuite {
         for (int i = 0; i < numMessages; i++) {
             Message<MyBean> msg = typedConsumer.receive(10, TimeUnit.SECONDS);
             if (msg == null) {
-                fail("message "+i+" not received in time");
+                fail("message " + i + " not received in time");
                 return;
             }
             log.info("received {}", msg.getValue());

@@ -36,8 +36,8 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PulsarClientBasedHandlerTest {
 
-    private final static String clusterName = "cluster";
-    private final static int shutdownTimeoutMs = 100;
+    private static final String clusterName = "cluster";
+    private static final int shutdownTimeoutMs = 100;
     private final int zkPort = PortManager.nextFreePort();
     private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextFreePort);
     private File tempDirectory;
@@ -72,8 +72,8 @@ public class PulsarClientBasedHandlerTest {
         pulsar.close();
         final var elapsedMs = System.currentTimeMillis() - beforeStop;
         log.info("It spends {} ms to stop the broker ({} for protocol handler)", elapsedMs, handler.closeTimeMs);
-        Assert.assertTrue(elapsedMs <
-                + handler.closeTimeMs + shutdownTimeoutMs + 1000); // tolerate 1 more second for other processes
+        Assert.assertTrue(elapsedMs
+               < +handler.closeTimeMs + shutdownTimeoutMs + 1000); // tolerate 1 more second for other processes
     }
 
     @AfterClass(alwaysRun = true)

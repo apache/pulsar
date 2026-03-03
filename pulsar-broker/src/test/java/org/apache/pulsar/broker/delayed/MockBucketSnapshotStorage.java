@@ -137,7 +137,7 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
         return CompletableFuture.supplyAsync(() -> {
             List<SnapshotSegment> snapshotSegments = new ArrayList<>();
             long lastEntryId = Math.min(lastSegmentEntryId, this.bucketSnapshots.get(bucketId).size());
-            for (int i = (int) firstSegmentEntryId; i <= lastEntryId ; i++) {
+            for (int i = (int) firstSegmentEntryId; i <= lastEntryId; i++) {
                 ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(i);
                 SnapshotSegment snapshotSegment = new SnapshotSegment();
                 snapshotSegment.parseFrom(byteBuf, byteBuf.readableBytes());

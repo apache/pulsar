@@ -128,6 +128,11 @@ public interface TransactionBuffer {
     CompletableFuture<Void> clearSnapshot();
 
     /**
+     * Clear up the snapshot of the TransactionBuffer and close it.
+     */
+    CompletableFuture<Void> clearSnapshotAndClose();
+
+    /**
      * Close the buffer asynchronously.
      *
      * @return

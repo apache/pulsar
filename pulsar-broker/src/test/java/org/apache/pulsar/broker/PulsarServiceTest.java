@@ -23,17 +23,30 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertSame;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
+import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.Stat;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -189,10 +202,14 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(conf, pulsar.getConfiguration());
         assertEquals(conf.getBrokerServicePortTls(), pulsar.getBrokerListenPortTls());
         assertEquals(conf.getBrokerServicePort(), pulsar.getBrokerListenPort());
-        assertEquals(pulsar.getBrokerServiceUrlTls(), "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
-        assertEquals(pulsar.getBrokerServiceUrl(), "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
-        assertEquals(pulsar.getWebServiceAddress(), "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
-        assertEquals(pulsar.getWebServiceAddressTls(), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
+        assertEquals(pulsar.getBrokerServiceUrlTls(),
+                "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
+        assertEquals(pulsar.getBrokerServiceUrl(),
+                "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
+        assertEquals(pulsar.getWebServiceAddress(),
+                "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
+        assertEquals(pulsar.getWebServiceAddressTls(),
+                "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
     }
 
     @Test
@@ -306,6 +323,85 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             assertFalse(e.getCause() instanceof IllegalArgumentException);
         } finally {
             pulsarService.close();
+        }
+    }
+
+    @Test
+    public void testShutdownViaAdminApi() throws Exception {
+        super.internalSetup();
+        super.setupDefaultTenantAndNamespace();
+        String topic = "persistent://public/default/testShutdownViaAdminApi";
+        admin.topics().createNonPartitionedTopic(topic);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        producer.send("message 1".getBytes());
+        admin.brokers()
+                .shutDownBrokerGracefully(0, false)
+                .get(30, TimeUnit.SECONDS);
+        try {
+            producer.send("message 2".getBytes());
+            fail("sending msg should timeout, because broker is down and there is only one broker");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.TimeoutException);
+        }
+    }
+
+    @Test
+    public void testMetadataSerDesThreads() throws Exception {
+        final var numSerDesThreads = 5;
+        final var config = new ServiceConfiguration();
+        config.setMetadataStoreSerDesThreads(numSerDesThreads);
+        config.setClusterName("test");
+        config.setMetadataStoreUrl("memory:local");
+        config.setConfigurationMetadataStoreUrl("memory:local");
+
+        @Cleanup final var pulsar = new PulsarService(config);
+        pulsar.start();
+
+        BiConsumer<MetadataStore, String> verifier = (store, prefix) -> {
+            final var serDes = new CustomMetadataSerDes();
+            final var cache = store.getMetadataCache(prefix, serDes, MetadataCacheConfig.builder().build());
+            for (int i = 0; i < 100 && serDes.threadNameToSerializedPaths.size() < numSerDesThreads; i++) {
+                cache.create(prefix + i, "value-" + i).join();
+                final var value = cache.get(prefix + i).join();
+                assertEquals(value.orElseThrow(), "value-" + i);
+                final var newValue = cache.readModifyUpdate(prefix + i, s -> s + "-updated").join();
+                assertEquals(newValue, "value-" + i + "-updated");
+                // Verify the serialization and deserialization are handled by the same thread
+                assertEquals(serDes.threadNameToSerializedPaths, serDes.threadNameToDeserializedPaths);
+            }
+            log.info("SerDes thread mapping: {}", serDes.threadNameToSerializedPaths);
+            assertEquals(serDes.threadNameToSerializedPaths.keySet().size(), numSerDesThreads);
+            // Verify a path cannot be handled by multiple threads
+            final var paths = serDes.threadNameToSerializedPaths.values().stream()
+                .flatMap(Set::stream).sorted().toList();
+            assertEquals(paths.stream().distinct().toList(), paths);
+        };
+
+        verifier.accept(pulsar.getLocalMetadataStore(), "/test-local/");
+        verifier.accept(pulsar.getConfigurationMetadataStore(), "/test-config/");
+    }
+
+    private static class CustomMetadataSerDes implements MetadataSerde<String> {
+
+        final Map<String, Set<String>> threadNameToSerializedPaths = new ConcurrentHashMap<>();
+        final Map<String, Set<String>> threadNameToDeserializedPaths = new ConcurrentHashMap<>();
+
+        @Override
+        public byte[] serialize(String path, String value) throws IOException{
+            threadNameToSerializedPaths.computeIfAbsent(Thread.currentThread().getName(),
+                    __ -> ConcurrentHashMap.newKeySet()).add(path);
+            return value.getBytes();
+        }
+
+        @Override
+        public String deserialize(String path, byte[] data, Stat stat) throws IOException {
+            threadNameToDeserializedPaths.computeIfAbsent(Thread.currentThread().getName(),
+                    __ -> ConcurrentHashMap.newKeySet()).add(path);
+            return new String(data);
         }
     }
 }

@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -175,6 +176,70 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
         TopicName topicName = TopicName.get(topicNameStr);
         List<String> topicList = admin1.topics().getList("public/default");
         assertFalse(topicList.contains(topicName.getPartitionedTopicName()));
+    }
+
+    @DataProvider
+    public Object[][] allowAutoAutoCreations() {
+        return new Object[][]{
+                {true, TopicDomain.persistent},
+                {false, TopicDomain.persistent},
+                {true, TopicDomain.non_persistent},
+                {false, TopicDomain.non_persistent}
+        };
+    }
+
+    @Test(dataProvider = "allowAutoAutoCreations")
+    public void testGetMetadataIfNonPartitionedTopicExistsWithAdmin(boolean allowAutoCreation, TopicDomain topicDomain)
+            throws Exception {
+        modifyTopicAutoCreation(allowAutoCreation, TopicType.PARTITIONED, 3);
+
+        // Create topic.
+        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp_");
+        admin1.topics().createNonPartitionedTopic(topicNameStr);
+
+        // Verify: the result of get partitioned topic metadata.
+        PartitionedTopicMetadata metadata = admin1.topics().getPartitionedTopicMetadata(topicNameStr);
+        assertEquals(metadata.partitions, 0);
+        List<String> partitionedTopics = admin1.topics().getPartitionedTopicList("public/default");
+        assertFalse(partitionedTopics.contains(topicNameStr));
+        verifyPartitionsNeverCreated(topicNameStr);
+
+        // Cleanup.
+        admin1.topics().delete(topicNameStr, false);
+    }
+
+    @Test(dataProvider = "allowAutoAutoCreations")
+    public void testGetMetadataIfPartitionedTopicExistsWithAdmin(boolean allowAutoCreation, TopicDomain topicDomain)
+            throws Exception {
+        modifyTopicAutoCreation(allowAutoCreation, TopicType.PARTITIONED, 3);
+
+        // Create topic.
+        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
+        admin1.topics().createPartitionedTopic(topicNameStr, 3);
+
+        // Verify: the result of get partitioned topic metadata.
+        PartitionedTopicMetadata metadata = admin1.topics().getPartitionedTopicMetadata(topicNameStr);
+        assertEquals(metadata.partitions, 3);
+        verifyNonPartitionedTopicNeverCreated(topicNameStr);
+
+        // Cleanup.
+        admin1.topics().deletePartitionedTopic(topicNameStr, false);
+    }
+
+    @Test(dataProvider = "allowAutoAutoCreations")
+    public void testGetMetadataIfNotExistWithPulsarAdmin(boolean allowAutoCreation, TopicDomain topicDomain)
+            throws Exception {
+        modifyTopicAutoCreation(allowAutoCreation, TopicType.PARTITIONED, 3);
+        // Define topic.
+        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.value() + "://" + DEFAULT_NS + "/tp");
+        // Verify: the result of get partitioned topic metadata.
+        try {
+            admin1.topics().getPartitionedTopicMetadata(topicNameStr);
+            fail("Expect a not found exception");
+        } catch (Exception e) {
+            Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
+            assertTrue(unwrapEx instanceof PulsarAdminException.NotFoundException);
+        }
     }
 
     @DataProvider(name = "topicDomains")
@@ -588,7 +653,8 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
     public void testNamespaceNotExist(TopicDomain topicDomain) throws Exception {
         int lookupPermitsBefore = getLookupRequestPermits();
         final String namespaceNotExist = BrokerTestUtil.newUniqueName("public/ns");
-        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString() + "://" + namespaceNotExist + "/tp");
+        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString()
+                + "://" + namespaceNotExist + "/tp");
         PulsarClientImpl[] clientArray = getClientsToTest(false);
         for (PulsarClientImpl client : clientArray) {
             try {
@@ -613,7 +679,8 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
         int lookupPermitsBefore = getLookupRequestPermits();
         final String tenantNotExist = BrokerTestUtil.newUniqueName("tenant");
         final String namespaceNotExist = BrokerTestUtil.newUniqueName(tenantNotExist + "/default");
-        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString() + "://" + namespaceNotExist + "/tp");
+        final String topicNameStr = BrokerTestUtil.newUniqueName(topicDomain.toString()
+                + "://" + namespaceNotExist + "/tp");
         PulsarClientImpl[] clientArray = getClientsToTest(false);
         for (PulsarClientImpl client : clientArray) {
             try {
@@ -624,8 +691,8 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
                 fail("Expected a not found ex");
             } catch (Exception ex) {
                 Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
-                assertTrue(unwrapEx instanceof PulsarClientException.BrokerMetadataException ||
-                        unwrapEx instanceof PulsarClientException.TopicDoesNotExistException);
+                assertTrue(unwrapEx instanceof PulsarClientException.BrokerMetadataException
+                        || unwrapEx instanceof PulsarClientException.TopicDoesNotExistException);
             }
         }
         // Verify: lookup semaphore has been releases.

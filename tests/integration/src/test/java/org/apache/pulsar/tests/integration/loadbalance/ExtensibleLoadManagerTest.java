@@ -107,7 +107,6 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 serviceUnitStateTableViewClassName);
         brokerEnvs.put("forceDeleteNamespaceAllowed", "true");
         brokerEnvs.put("loadBalancerDebugModeEnabled", "true");
-        brokerEnvs.put("PULSAR_MEM", "-Xmx512M");
         spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
@@ -180,7 +179,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         CountDownLatch latch = new CountDownLatch(admins.size());
         List<Map<String, String>> result = new CopyOnWriteArrayList<>();
-        for(var admin : admins) {
+        for (var admin : admins) {
             executor.execute(() -> {
                 try {
                     result.add(admin.lookups().lookupPartitionedTopic(topicName));
@@ -304,7 +303,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     }
 
     @Test(timeOut = 80 * 1000)
-    public void testAntiaffinityPolicy() throws PulsarAdminException {
+    public void testAntiAffinityPolicy() throws PulsarAdminException {
         final String namespaceAntiAffinityGroup = "my-anti-affinity-filter";
         final String antiAffinityEnabledNameSpace = DEFAULT_TENANT + "/my-ns-filter" + nsSuffix;
         final int numPartition = 20;
@@ -313,17 +312,28 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         assertEquals(activeBrokers.size(), NUM_BROKERS);
 
+        Set<String> antiAffinityEnabledNameSpacesReq = new HashSet<>();
         for (int i = 0; i < activeBrokers.size(); i++) {
             String namespace = antiAffinityEnabledNameSpace + "-" + i;
-            admin.namespaces().createNamespace(namespace, 10);
+            antiAffinityEnabledNameSpacesReq.add(namespace);
+            admin.namespaces().createNamespace(namespace, 1);
             admin.namespaces().setNamespaceAntiAffinityGroup(namespace, namespaceAntiAffinityGroup);
             admin.clusters().createFailureDomain(clusterName, namespaceAntiAffinityGroup, FailureDomain.builder()
                     .brokers(Set.of(activeBrokers.get(i))).build());
+            String namespaceAntiAffinityGroupResp = admin.namespaces().getNamespaceAntiAffinityGroup(namespace);
+            assertEquals(namespaceAntiAffinityGroupResp, namespaceAntiAffinityGroup);
+            FailureDomain failureDomainResp =
+                    admin.clusters().getFailureDomain(clusterName, namespaceAntiAffinityGroup);
+            assertEquals(failureDomainResp.getBrokers(), Set.of(activeBrokers.get(i)));
         }
+
+        List<String> antiAffinityNamespacesResp =
+                admin.namespaces().getAntiAffinityNamespaces(DEFAULT_TENANT, clusterName, namespaceAntiAffinityGroup);
+        assertEquals(new HashSet<>(antiAffinityNamespacesResp), antiAffinityEnabledNameSpacesReq);
 
         Set<String> result = new HashSet<>();
         for (int i = 0; i < activeBrokers.size(); i++) {
-            final String topic = "persistent://" + antiAffinityEnabledNameSpace + "-" + i +"/topic";
+            final String topic = "persistent://" + antiAffinityEnabledNameSpace + "-" + i + "/topic";
             admin.topics().createPartitionedTopic(topic, numPartition);
 
             Map<String, String> topicToBroker = admin.lookups().lookupPartitionedTopic(topic);

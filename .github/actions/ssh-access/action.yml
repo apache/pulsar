@@ -52,14 +52,14 @@ runs:
             echo "::group::Installing upterm & tmux"
             if [[ "$OSTYPE" == "linux-gnu"* ]]; then
                 # install upterm
-                curl -sL https://github.com/owenthereal/upterm/releases/download/v0.7.6/upterm_linux_amd64.tar.gz | tar zxvf - -C /tmp upterm && sudo install /tmp/upterm /usr/local/bin/ && rm -rf /tmp/upterm
-            
+                curl -sL https://github.com/owenthereal/upterm/releases/download/v0.20.0/upterm_linux_amd64.tar.gz | tar zxvf - -C /tmp upterm && sudo install /tmp/upterm /usr/local/bin/ && rm -rf /tmp/upterm
+
                 # install tmux if it's not present
                 if ! command -v tmux &>/dev/null; then
                     sudo apt-get -y install tmux
                 fi
             elif [[ "$OSTYPE" == "darwin"* ]]; then
-                brew install owenthereal/upterm/upterm
+                brew install --cask owenthereal/upterm/upterm
                 # install tmux if it's not present
                 if ! command -v tmux &>/dev/null; then
                     brew install tmux
@@ -68,7 +68,7 @@ runs:
                 echo "Unsupported $OSTYPE"
                 exit 0
             fi
-            echo '::endgroup::'  
+            echo '::endgroup::'
             echo "::group::Configuring ssh and ssh keys"
             # generate ssh key
             mkdir -p ~/.ssh
@@ -80,11 +80,7 @@ runs:
                 ssh-keygen -q -t ed25519 -N "" -f ~/.ssh/id_ed25519
             fi
             # configure ssh
-            echo -e "Host *\nStrictHostKeyChecking no\nCheckHostIP no\nTCPKeepAlive yes\nServerAliveInterval 30\nServerAliveCountMax 180\nVerifyHostKeyDNS yes\nUpdateHostKeys yes\n" > ~/.ssh/config
-            # Auto-generate ~/.ssh/known_hosts by attempting connection to uptermd.upterm.dev  
-            ssh -i ~/.ssh/id_ed25519 uptermd.upterm.dev || true
-            # @cert-authority entry is a mandatory entry when connecting to upterm. generate the entry based on the known_hosts entry key
-            cat <(cat ~/.ssh/known_hosts | awk '{ print "@cert-authority * " $2 " " $3 }') >> ~/.ssh/known_hosts
+            echo -e "Host *\nStrictHostKeyChecking no\nCheckHostIP no\nTCPKeepAlive yes\nServerAliveInterval 30\nServerAliveCountMax 180\nVerifyHostKeyDNS yes\nUpdateHostKeys yes\nAddressFamily inet\n" > ~/.ssh/config
             authorizedKeysParameter=""
             authorizedKeysFile=${HOME}/.ssh/authorized_keys
             if [[ "${{ inputs.secure-access }}" != "false" ]]; then
@@ -106,35 +102,35 @@ runs:
             done
             if [ -f $authorizedKeysFile ]; then
                 chmod 0600 $authorizedKeysFile
-                authorizedKeysParameter="-a $authorizedKeysFile"
+                authorizedKeysParameter="--authorized-keys $authorizedKeysFile"
                 echo -e "Using $authorizedKeysFile\nContent:\n---------------------------"
                 cat $authorizedKeysFile
                 echo "---------------------------"
             fi
-            echo '::endgroup::'  
+            echo '::endgroup::'
             echo "::group::Starting terminal session and connecting to server"
-            tmux new -d -s upterm-wrapper -x 132 -y 43 "upterm host ${authorizedKeysParameter} --force-command 'tmux attach -t upterm' -- tmux new -s upterm -x 132 -y 43"
-            sleep 2
-            tmux send-keys -t upterm-wrapper q C-m
+            echo 'set-option -ga update-environment " UPTERM_ADMIN_SOCKET"' >> ~/.tmux.conf
+            tmux new -d -s upterm-wrapper -x 132 -y 43 "upterm host --skip-host-key-check --accept ${authorizedKeysParameter} --force-command 'tmux attach -t upterm' -- tmux new -s upterm -x 132 -y 43"
             sleep 1
             tmux set -t upterm-wrapper window-size largest
             tmux set -t upterm window-size largest
-            echo '::endgroup::'  
+            echo '::endgroup::'
             echo -e "\nSSH connection information"
             # wait up to 10 seconds for upterm admin socket to appear
             for i in {1..10}; do
-              ADMIN_SOCKET=$(find $HOME/.upterm -name "*.sock")
-              if [ ! -S "$ADMIN_SOCKET" ]; then
-                echo "Waiting for upterm admin socket to appear in ~/.upterm/*.sock ..."
+              export UPTERM_ADMIN_SOCKET=$(find $HOME/.upterm $XDG_RUNTIME_DIR/upterm /run/user/$(id -u)/upterm -name "*.sock" | head -n 1)
+              if [ ! -S "$UPTERM_ADMIN_SOCKET" ]; then
+                echo "Waiting for upterm admin socket ..."
                 sleep 1
               else
-                echo "upterm admin socket available in $ADMIN_SOCKET"
+                echo "upterm admin socket available in $UPTERM_ADMIN_SOCKET"
                 break
               fi
             done
             shopt -s nullglob
-            upterm session current --admin-socket ~/.upterm/*.sock || {
+            upterm session current || {
               echo "Starting upterm failed."
+              cat $HOME/.upterm/upterm.log
               exit 0
             }
         elif [[ "${{ inputs.action }}" == "wait" ]]; then

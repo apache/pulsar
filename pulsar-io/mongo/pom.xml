@@ -26,14 +26,14 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-io</artifactId>
-      <version>4.1.0-SNAPSHOT</version>
+      <version>4.2.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-mongo</artifactId>
   <name>Pulsar IO :: MongoDB</name>
 
   <properties>
-    <mongo-reactivestreams.version>4.1.2</mongo-reactivestreams.version>
+    <mongo-reactivestreams.version>5.2.0</mongo-reactivestreams.version>
   </properties>
 
   <dependencies>

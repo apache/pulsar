@@ -24,6 +24,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.oxia.client.ClientConfig;
+import io.oxia.client.api.AsyncOxiaClient;
+import io.oxia.client.session.SessionFactory;
+import io.oxia.client.session.SessionManager;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,11 +45,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-
-import io.streamnative.oxia.client.ClientConfig;
-import io.streamnative.oxia.client.api.AsyncOxiaClient;
-import io.streamnative.oxia.client.session.SessionFactory;
-import io.streamnative.oxia.client.session.SessionManager;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -637,8 +636,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         CompletableFuture<Void> f2 =
                 CompletableFuture.runAsync(() -> store.put(k, new byte[0], Optional.of(-1L)).join());
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
-        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
-                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally()
+                || !f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
     }
 
     @Test(dataProvider = "impl")
@@ -654,8 +653,8 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         CompletableFuture<Void> f2 =
                 CompletableFuture.runAsync(() -> store.delete(k, Optional.empty()).join());
         Awaitility.await().until(() -> f1.isDone() && f2.isDone());
-        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
-                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally()
+                || !f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
     }
 
     @Test(dataProvider = "impl")
@@ -668,27 +667,15 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         store.put("/a/a-2", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
         store.put("/b/c/b/1", "value1".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
 
-        List<String> subPaths = store.getChildren("/").get();
-        Set<String> ignoredRootPaths = Set.of("zookeeper");
-        Set<String> expectedSet = Set.of("a", "b");
-        for (String subPath : subPaths) {
-            if (ignoredRootPaths.contains(subPath)) {
-                continue;
-            }
-            assertThat(expectedSet).contains(subPath);
-        }
+        List<String> subPaths = new ArrayList<>(store.getChildren("/").get());
+        subPaths.remove("zookeeper"); // ignored
+        assertThat(subPaths).containsExactlyInAnyOrderElementsOf(Set.of("a", "b"));
 
         List<String> subPaths2 = store.getChildren("/a").get();
-        Set<String> expectedSet2 = Set.of("a-1", "a-2");
-        for (String subPath : subPaths2) {
-            assertThat(expectedSet2).contains(subPath);
-        }
+        assertThat(subPaths2).containsExactlyInAnyOrderElementsOf(Set.of("a-1", "a-2"));
 
         List<String> subPaths3 = store.getChildren("/b").get();
-        Set<String> expectedSet3 = Set.of("c");
-        for (String subPath : subPaths3) {
-            assertThat(expectedSet3).contains(subPath);
-        }
+        assertThat(subPaths3).containsExactlyInAnyOrderElementsOf(Set.of("c"));
     }
 
     @Test(dataProvider = "impl")

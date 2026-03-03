@@ -86,14 +86,14 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         final RangeEntryCacheManagerImpl rangeEntryCacheManager =
                 (RangeEntryCacheManagerImpl) factory.getEntryCacheManager();
         final InflightReadsLimiter limiter = rangeEntryCacheManager.getInflightReadsLimiter();
-        final long totalCapacity =limiter.getRemainingBytes();
+        final long totalCapacity = limiter.getRemainingBytes();
         // final ManagedCursorImpl c1 = (ManagedCursorImpl) ml.openCursor("c1");
         for (byte i = 1; i < 127; i++) {
             log.info("add entry: " + i);
             ml.addEntry(new byte[]{i});
         }
         // Evict cached entries.
-        entryCache.evictEntries(ml.currentLedgerSize);
+        entryCache.clear();
         Assert.assertEquals(entryCache.getSize(), 0);
 
         CountDownLatch readCompleteSignal1 = new CountDownLatch(1);
@@ -111,7 +111,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
                 readCompleteSignal1.await();
                 Object res = invocation.callRealMethod();
                 return res;
-            } else if(secondReadEntries.contains(firstEntry)) {
+            } else if (secondReadEntries.contains(firstEntry)) {
                 final CompletableFuture res = new CompletableFuture<>();
                 threadFactory.newThread(() -> {
                     try {
@@ -139,7 +139,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         // Initialize "entryCache.estimatedEntrySize" to the correct value.
         Object ctx = new Object();
         SimpleReadEntriesCallback cb0 = new SimpleReadEntriesCallback();
-        entryCache.asyncReadEntry(spyCurrentLedger, 125, 125, true, cb0, ctx);
+        entryCache.asyncReadEntry(spyCurrentLedger, 125, 125, () -> 1, cb0, ctx);
         cb0.entries.join();
         int sizePerEntry = Long.valueOf(entryCache.getEstimatedEntrySize(ml.currentLedger)).intValue();
         Awaitility.await().untilAsserted(() -> {
@@ -153,7 +153,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         SimpleReadEntriesCallback cb1 = new SimpleReadEntriesCallback();
         SimpleReadEntriesCallback cb2 = new SimpleReadEntriesCallback();
         threadFactory.newThread(() -> {
-            entryCache.asyncReadEntry(spyCurrentLedger, start1, end1, true, cb1, ctx);
+            entryCache.asyncReadEntry(spyCurrentLedger, start1, end1, () -> 1, cb1, ctx);
         }).start();
         threadFactory.newThread(() -> {
             try {
@@ -161,7 +161,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            entryCache.asyncReadEntry(spyCurrentLedger, start2, end2, true, cb2, ctx);
+            entryCache.asyncReadEntry(spyCurrentLedger, start2, end2, () -> 1, cb2, ctx);
         }).start();
 
         long bytesAcquired1 = calculateBytesSizeBeforeFirstReading(readCount1 + readCount2, sizePerEntry);

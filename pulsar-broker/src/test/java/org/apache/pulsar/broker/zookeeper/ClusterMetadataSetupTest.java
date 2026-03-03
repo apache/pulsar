@@ -146,7 +146,7 @@ public class ClusterMetadataSetupTest {
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
                 "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651",
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651",
                 "--default-namespace-bundle-number", String.valueOf(bundleNumber)
         };
         PulsarClusterMetadataSetup.main(args);
@@ -194,7 +194,7 @@ public class ClusterMetadataSetupTest {
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
                 "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
 
@@ -230,7 +230,7 @@ public class ClusterMetadataSetupTest {
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
                 "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
 
@@ -268,7 +268,7 @@ public class ClusterMetadataSetupTest {
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
                 "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
 
@@ -302,7 +302,7 @@ public class ClusterMetadataSetupTest {
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
                 "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
         PulsarClusterMetadataSetup.main(args);
 
@@ -325,7 +325,7 @@ public class ClusterMetadataSetupTest {
                 "--web-service-url", "http://127.0.0.1:8080",
                 "--web-service-url-tls", "https://127.0.0.1:8443",
                 "--broker-service-url", "pulsar://127.0.0.1:6650",
-                "--broker-service-url-tls","pulsar+ssl://127.0.0.1:6651"
+                "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651"
         };
 
         PulsarClusterMetadataSetup.main(args);

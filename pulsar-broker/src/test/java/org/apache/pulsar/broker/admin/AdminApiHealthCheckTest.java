@@ -106,7 +106,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
                     }
                 }
                 future.complete(null);
-            }catch (PulsarAdminException e) {
+            } catch (PulsarAdminException e) {
                 future.completeExceptionally(e);
             }
         });
@@ -122,7 +122,8 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
                 ? NamespaceService.getHeartbeatNamespaceV2(brokerId, pulsar.getConfiguration())
                 : NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
-        final String testHealthCheckTopic = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+        final String testHealthCheckTopic = String.format("persistent://%s/%s",
+                namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         Awaitility.await().untilAsserted(() -> {
             assertFalse(future.isCompletedExceptionally());
         });
@@ -136,7 +137,8 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         );
     }
 
-    @Test(expectedExceptions= PulsarAdminException.class, expectedExceptionsMessageRegExp = ".*Deadlocked threads detected.*")
+    @Test(expectedExceptions = PulsarAdminException.class, expectedExceptionsMessageRegExp =
+            ".*Deadlocked threads detected.*")
     public void testHealthCheckupDetectsDeadlock() throws Exception {
         // simulate a deadlock in the Test JVM
         // the broker used in unit tests runs in the test JVM and the
@@ -144,7 +146,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         Lock lock1 = new ReentrantReadWriteLock().writeLock();
         Lock lock2 = new ReentrantReadWriteLock().writeLock();
         final Phaser phaser = new Phaser(3);
-        Thread thread1=new Thread(() -> {
+        Thread thread1 = new Thread(() -> {
             phaser.arriveAndAwaitAdvance();
             try {
                 deadlock(lock1, lock2, 1000L);
@@ -152,7 +154,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
                 phaser.arriveAndDeregister();
             }
         }, "deadlockthread-1");
-        Thread thread2=new Thread(() -> {
+        Thread thread2 = new Thread(() -> {
             phaser.arriveAndAwaitAdvance();
             try {
                 deadlock(lock2, lock1, 2000L);
@@ -198,7 +200,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 5000L)
     public void testDeadlockDetectionOverhead() {
-        for (int i=0; i < 1000; i++) {
+        for (int i = 0; i < 1000; i++) {
             long[] threadIds = threadBean.findDeadlockedThreads();
             // assert that there's no deadlock
             assertNull(threadIds);

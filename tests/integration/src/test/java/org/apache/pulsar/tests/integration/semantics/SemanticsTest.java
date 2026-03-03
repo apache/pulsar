@@ -20,10 +20,9 @@ package org.apache.pulsar.tests.integration.semantics;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.HashMap;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,7 +46,7 @@ import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
 /**
- * Test pulsar produce/consume semantics
+ * Test pulsar produce/consume semantics.
  */
 @Slf4j
 public class SemanticsTest extends PulsarTestSuite {

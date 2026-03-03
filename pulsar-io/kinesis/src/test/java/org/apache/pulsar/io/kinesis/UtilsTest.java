@@ -23,22 +23,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.CompressionType;
@@ -56,6 +52,8 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.io.kinesis.fbs.KeyValue;
 import org.apache.pulsar.io.kinesis.fbs.Message;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
@@ -514,15 +512,21 @@ public class UtilsTest {
         ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
         String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
-                + "\"payload\":{},"
-                + "\"eventTime\":1648502845803}");
+        JSONAssert.assertEquals(
+                json,
+                "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
+                + "\"payload\":{},\"eventTime\":1648502845803}",
+                JSONCompareMode.STRICT
+        );
 
         json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, true);
 
-        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
-                + "\"payload\":{},"
-                + "\"eventTime\":1648502845803}");
+        JSONAssert.assertEquals(
+                json,
+                "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
+                + "\"payload\":{},\"eventTime\":1648502845803}",
+                JSONCompareMode.STRICT
+        );
     }
 
     @Test

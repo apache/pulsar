@@ -473,6 +473,12 @@ public class NonPersistentSubscription extends AbstractSubscription {
     }
 
     @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        return CompletableFuture.failedFuture(new UnsupportedOperationException("Expire message by timestamp is not"
+                + " supported for non-persistent topic."));
+    }
+
+    @Override
     public boolean expireMessages(Position position) {
         throw new UnsupportedOperationException("Expire message by position is not supported for"
                 + " non-persistent topic.");

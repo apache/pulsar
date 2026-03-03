@@ -26,7 +26,7 @@
       <username>${env.APACHE_USER}</username>
       <password>${env.APACHE_PASSWORD}</password>
     </server>
-    
+
     <!-- To stage a release of some part of Maven -->
     <server>
       <id>apache.releases.https</id>
@@ -34,17 +34,4 @@
       <password>${env.APACHE_PASSWORD}</password>
     </server>
   </servers>
-
-  <profiles>
-    <profile>
-      <id>apache</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <properties>
-        <gpg.executable>${env.GPG_EXECUTABLE}</gpg.executable>
-        <gpg.passphrase>${env.GPG_PASSPHRASE}</gpg.passphrase>
-      </properties>
-    </profile>
-  </profiles>
 </settings>

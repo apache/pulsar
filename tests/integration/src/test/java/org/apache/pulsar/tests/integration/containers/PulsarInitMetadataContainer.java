@@ -25,7 +25,7 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 
 /**
- * Initialize the Pulsar metadata
+ * Initialize the Pulsar metadata.
  */
 @Slf4j
 public class PulsarInitMetadataContainer extends GenericContainer<PulsarInitMetadataContainer> {

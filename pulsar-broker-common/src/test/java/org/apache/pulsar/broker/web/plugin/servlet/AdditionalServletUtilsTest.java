@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.broker.web.plugin.servlet;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.AssertJUnit.assertSame;
+import static org.testng.AssertJUnit.assertTrue;
 import java.io.IOException;
 import java.nio.file.Paths;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -26,13 +32,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
-
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.RETURNS_SELF;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.assertSame;
-import static org.testng.AssertJUnit.assertTrue;
 
 public class AdditionalServletUtilsTest {
 

@@ -19,13 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -36,10 +30,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -61,7 +52,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
 
     /**
-     * verifies: message-rate change gets reflected immediately into topic at runtime
+     * verifies: message-rate change gets reflected immediately into topic at runtime.
      *
      * @throws Exception
      */
@@ -175,7 +166,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * verify: consumer should not receive all messages due to message-rate throttling
+     * verify: consumer should not receive all messages due to message-rate throttling.
      *
      * @param subscription
      * @throws Exception
@@ -245,7 +236,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * It verifies that dispatch-rate throttling with cluster-configuration
+     * It verifies that dispatch-rate throttling with cluster-configuration.
      *
      * @throws Exception
      */
@@ -256,7 +247,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         final String namespace = BrokerTestUtil.newUniqueName("my-property/throttling_ns");
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
         final int messageRate = 5;
-        final long byteRate = 1024 * 1024;// 1MB rate enough to let all msg to be delivered
+        final long byteRate = 1024 * 1024; // 1MB rate enough to let all msg to be delivered
 
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
@@ -441,7 +432,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * verify message-rate on multiple consumers with shared-subscription
+     * verify message-rate on multiple consumers with shared-subscription.
      *
      * @throws Exception
      */
@@ -478,7 +469,8 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
                 .receiverQueueSize(1)
-                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared)
+                .messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
                     log.debug("Received message [{}] in the listener", receivedMessage);
@@ -647,7 +639,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * It verifies that that dispatch-throttling considers both msg/byte rate if both of them are configured together
+     * It verifies that that dispatch-throttling considers both msg/byte rate if both of them are configured together.
      *
      * @param subscription
      * @throws Exception
@@ -783,7 +775,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * It verifies that broker throttles already caught-up consumer which doesn't have backlog if the flag is enabled
+     * It verifies that broker throttles already caught-up consumer which doesn't have backlog if the flag is enabled.
      *
      * @param subscription
      * @throws Exception
@@ -1099,7 +1091,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         long maxTimeNanos = TimeUnit.MILLISECONDS.toNanos(1100);
         long startNanos = System.nanoTime();
         for (int i = 0; i < numProducedMessages; i++) {
-            Message<byte[]> msg = consumer.receive((int)maxTimeNanos, TimeUnit.NANOSECONDS);
+            Message<byte[]> msg = consumer.receive((int) maxTimeNanos, TimeUnit.NANOSECONDS);
             totalReceived++;
             assertNotNull(msg);
             long elapsedNanos = System.nanoTime() - startNanos;
@@ -1117,93 +1109,5 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
         consumer.close();
         producer.close();
         log.info("-- Exiting {} test --", methodName);
-    }
-
-    /**
-     * Validates that backlog consumers cache the reads and reused by other backlog consumers while draining the
-     * backlog.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testBacklogConsumerCacheReads() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        conf.setManagedLedgerMinimumBacklogCursorsForCaching(2);
-        conf.setManagedLedgerMinimumBacklogEntriesForCaching(10);
-        conf.setManagedLedgerCacheEvictionTimeThresholdMillis(60 * 1000);
-        restartBroker();
-        final long totalMessages = 200;
-        final int receiverSize = 10;
-        final String topicName = "cache-read";
-        final String sub1 = "sub";
-        int totalSub = 10;
-        Consumer<byte[]>[] consumers = new Consumer[totalSub];
-
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i] = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/" + topicName)
-                    .subscriptionName(sub1 + "-" + i).subscriptionType(SubscriptionType.Shared)
-                    .receiverQueueSize(receiverSize).subscribe();
-        }
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i].close();
-        }
-
-        final String topic = "persistent://my-property/my-ns/" + topicName;
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic);
-
-        producerBuilder.enableBatching(false);
-        @Cleanup
-        Producer<byte[]> producer = producerBuilder.create();
-
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        RangeEntryCacheImpl entryCache = spy((RangeEntryCacheImpl) cacheField.get(ledger));
-        cacheField.set(ledger, entryCache);
-
-        Field pendingReadsManagerField = RangeEntryCacheImpl.class.getDeclaredField("pendingReadsManager");
-        pendingReadsManagerField.setAccessible(true);
-        PendingReadsManager pendingReadsManager = (PendingReadsManager) pendingReadsManagerField.get(entryCache);
-        Field cacheFieldInManager = PendingReadsManager.class.getDeclaredField("rangeEntryCache");
-        cacheFieldInManager.setAccessible(true);
-        cacheFieldInManager.set(pendingReadsManager, entryCache);
-
-        // 2. Produce messages
-        for (int i = 0; i < totalMessages; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-        ledger.checkCursorsToCacheEntries();
-
-        ledger.getCursors().forEach(cursor -> {
-            assertTrue(((ManagedCursorImpl) cursor).isCacheReadEntry());
-        });
-
-        // 3. Consume messages
-        CountDownLatch latch = new CountDownLatch((int) (totalSub * totalMessages));
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i] = (Consumer<byte[]>) pulsarClient.newConsumer()
-                    .topic("persistent://my-property/my-ns/" + topicName).subscriptionName(sub1 + "-" + i)
-                    .subscriptionType(SubscriptionType.Shared).receiverQueueSize(receiverSize)
-                    .messageListener((c, m) -> {
-                        latch.countDown();
-                        try {
-                            c.acknowledge(m);
-                        } catch (PulsarClientException e) {
-                            fail("failed to ack message");
-                        }
-                    }).subscribe();
-        }
-
-        latch.await();
-
-        // Verify: EntryCache has been invalidated
-        verify(entryCache, atLeastOnce()).insert(any());
-
-        for (int i = 0; i < totalSub; i++) {
-            consumers[i].close();
-        }
     }
 }

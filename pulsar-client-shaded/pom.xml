@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>4.1.0-SNAPSHOT</version>
+    <version>4.2.0-SNAPSHOT</version>
   </parent>
   <artifactId>pulsar-client</artifactId>
   <name>Pulsar Client Java</name>
@@ -145,7 +145,6 @@
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>commons-*:*</include>
                   <include>commons-codec:commons-codec</include>
-                  <include>commons-collections:commons-collections</include>
                   <include>io.airlift:*</include>
                   <include>io.netty.incubator:*</include>
                   <include>io.netty:*</include>
@@ -158,7 +157,7 @@
                   <include>jakarta.ws.rs:jakarta.ws.rs-api</include>
                   <include>jakarta.xml.bind:jakarta.xml.bind-api</include>
                   <include>javax.ws.rs:*</include>
-                  <include>net.jcip:jcip-annotations</include>
+                  <include>com.google.code.findbugs:jsr305</include>
                   <include>org.apache.avro:*</include>
                   <include>org.apache.bookkeeper:*</include>
                   <include>org.apache.commons:commons-compress</include>
@@ -177,6 +176,8 @@
                   <include>org.yaml:snakeyaml</include>
                   <include>org.apache.pulsar:pulsar-client-dependencies-minimized</include>
                   <include>org.roaringbitmap:RoaringBitmap</include>
+                  <include>io.prometheus:*</include>
+                  <include>com.github.ben-manes.caffeine:*</include>
                 </includes>
                 <excludes>
                   <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
@@ -309,10 +310,6 @@
                   <rawString>true</rawString>
                 </relocation>
                 <relocation>
-                  <pattern>net.jcip</pattern>
-                  <shadedPattern>org.apache.pulsar.shade.net.jcip</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>org.apache.avro</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.avro</shadedPattern>
                   <excludes>
@@ -383,6 +380,14 @@
                 <relocation>
                   <pattern>org.yaml</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.github.benmanes</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.github.benmanes</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.prometheus.client</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.prometheus.client</shadedPattern>
                 </relocation>
               </relocations>
               <transformers>

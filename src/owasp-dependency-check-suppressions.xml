@@ -364,49 +364,6 @@
         <cpe>cpe:/a:apache:solr</cpe>
     </suppress>
 
-    <!-- debezium-related misdetections -->
-    <suppress>
-        <notes><![CDATA[
-       file name: debezium-connector-mysql-1.9.7.Final.jar
-       ]]></notes>
-        <sha1>74c623b4a9b231e2f0e8f6053b38abd3bc487ce2</sha1>
-        <cve>CVE-2017-15945</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: mysql-binlog-connector-java-0.27.2.jar
-       ]]></notes>
-        <sha1>23294cd730e29c00b8ddfbde517dfc955aba090f</sha1>
-        <cve>CVE-2017-15945</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: debezium-connector-postgres-1.9.7.Final.jar
-       ]]></notes>
-        <sha1>300ff0bbf795643e914b7c8a6d6ba812a8354d62</sha1>
-        <cve>CVE-2015-0241</cve>
-        <cve>CVE-2015-0242</cve>
-        <cve>CVE-2015-0243</cve>
-        <cve>CVE-2015-0244</cve>
-        <cve>CVE-2015-3166</cve>
-        <cve>CVE-2015-3167</cve>
-        <cve>CVE-2016-0766</cve>
-        <cve>CVE-2016-0768</cve>
-        <cve>CVE-2016-0773</cve>
-        <cve>CVE-2016-5423</cve>
-        <cve>CVE-2016-5424</cve>
-        <cve>CVE-2016-7048</cve>
-        <cve>CVE-2017-14798</cve>
-        <cve>CVE-2017-7484</cve>
-        <cve>CVE-2018-1115</cve>
-        <cve>CVE-2019-10127</cve>
-        <cve>CVE-2019-10128</cve>
-        <cve>CVE-2019-10210</cve>
-        <cve>CVE-2019-10211</cve>
-        <cve>CVE-2020-25694</cve>
-        <cve>CVE-2020-25695</cve>
-        <cve>CVE-2021-23214</cve>
-    </suppress>
     <suppress>
         <notes><![CDATA[
        file name: protostream-types-4.4.1.Final.jar

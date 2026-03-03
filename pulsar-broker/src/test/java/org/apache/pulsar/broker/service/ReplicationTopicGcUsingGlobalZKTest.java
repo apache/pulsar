@@ -25,7 +25,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class ReplicationTopicGcUsingGlobalZKTest extends ReplicationTopicGcTest {
 
     @Override
@@ -43,11 +43,6 @@ public class ReplicationTopicGcUsingGlobalZKTest extends ReplicationTopicGcTest 
 
     @Test(dataProvider = "topicTypes")
     public void testTopicGC(TopicType topicType) throws Exception {
-        if (topicType.equals(TopicType.PARTITIONED)) {
-            // Pulsar does not support the feature "brokerDeleteInactivePartitionedTopicMetadataEnabled" when enabling
-            // Geo-Replication with Global ZK.
-            return;
-        }
         super.testTopicGC(topicType);
     }
 

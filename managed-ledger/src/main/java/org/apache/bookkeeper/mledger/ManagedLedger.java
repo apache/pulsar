@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A ManagedLedger it's a superset of a BookKeeper ledger concept.
@@ -421,6 +422,23 @@ public interface ManagedLedger {
     long getOffloadedSize();
 
     /**
+     * Resets the exception thrown by the PayloadProcessor during an add entry operation to null.
+     * <p>
+     * **Context:** When an add entry operation fails due to an interceptor, all subsequent incoming add entry
+     * operations will also fail. This behavior ensures message ordering and consistency.
+     * <p>
+     * **Important:** This method MUST only be called after all pending add operations are fully completed
+     * (e.g., after a Topic is unfenced). Calling it prematurely will prevent the Managed Ledger (ML)
+     * from being able to write indefinitely.
+     * <p>
+     * **Implementation Note:** Downstream projects that support the ML PayloadProcessor should implement
+     * this method. Otherwise, do not implement it.
+     */
+    default void unfenceForInterceptorException() {
+        // Default implementation does nothing
+    }
+
+    /**
      * Get last offloaded ledgerId. If no offloaded yet, it returns 0.
      *
      * @return last offloaded ledgerId
@@ -562,8 +580,9 @@ public interface ManagedLedger {
     /**
      * Get the slowest consumer.
      *
-     * @return the slowest consumer
+     * @return the slowest consumer or null if there is no consumer
      */
+    @Nullable
     ManagedCursor getSlowestConsumer();
 
     /**
@@ -768,4 +787,22 @@ public interface ManagedLedger {
     }
 
     Position getFirstPosition();
+
+    /**
+     * Get the timestamp in milliseconds of the last successful add entry operation.
+     *
+     * @return the last add entry time in milliseconds
+     */
+    default long getLastAddEntryTime() {
+        return 0;
+    }
+
+    /**
+     * Get the creation timestamp of the managed ledger metadata, or 0 if not available.
+     *
+     * @return the creation timestamp in milliseconds, or 0 if not available
+     */
+    default long getMetadataCreationTimestamp() {
+        return 0;
+    }
 }

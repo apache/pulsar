@@ -42,7 +42,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
@@ -79,8 +79,8 @@ public class PersistentSubscriptionTest {
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
     final String subName = "subscriptionName";
 
-    final TxnID txnID1 = new TxnID(1,1);
-    final TxnID txnID2 = new TxnID(1,2);
+    final TxnID txnID1 = new TxnID(1, 1);
+    final TxnID txnID2 = new TxnID(1, 2);
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -102,7 +102,7 @@ public class PersistentSubscriptionTest {
         ledgerMock = mock(ManagedLedgerImpl.class);
         cursorMock = mock(ManagedCursorImpl.class);
         managedLedgerConfigMock = mock(ManagedLedgerConfig.class);
-        doReturn(new ManagedCursorContainer()).when(ledgerMock).getCursors();
+        doReturn(new ManagedCursorContainerImpl()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
         doReturn(PositionFactory.create(1, 50)).when(cursorMock).getMarkDeletedPosition();
         doReturn(ledgerMock).when(cursorMock).getManagedLedger();
@@ -164,8 +164,8 @@ public class PersistentSubscriptionTest {
             persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair).get();
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic][subscriptionName] " +
-                    "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/use/ns-abc/successTopic][subscriptionName] "
+                    + "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
         positions.clear();
@@ -177,9 +177,9 @@ public class PersistentSubscriptionTest {
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof TransactionConflictException);
-            assertEquals(e.getCause().getMessage(),"[persistent://prop/use/ns-abc/successTopic]" +
-                    "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: " +
-                    "2:50 within range of current currentPosition: 1:100");
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/use/ns-abc/successTopic]"
+                    + "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: "
+                    + "2:50 within range of current currentPosition: 1:100");
         }
 
         List<Position> positionList = new ArrayList<>();

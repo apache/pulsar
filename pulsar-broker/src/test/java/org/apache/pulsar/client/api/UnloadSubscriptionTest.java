@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.apache.pulsar.client.api.SubscriptionType.Shared;
-import static org.apache.pulsar.client.api.SubscriptionType.Key_Shared;
-import static org.apache.pulsar.client.api.SubscriptionType.Failover;
 import static org.apache.pulsar.client.api.SubscriptionType.Exclusive;
+import static org.apache.pulsar.client.api.SubscriptionType.Failover;
+import static org.apache.pulsar.client.api.SubscriptionType.Key_Shared;
+import static org.apache.pulsar.client.api.SubscriptionType.Shared;
 import static org.testng.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.Collections;

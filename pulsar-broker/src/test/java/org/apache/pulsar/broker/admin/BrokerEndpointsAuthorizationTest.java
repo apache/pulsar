@@ -74,7 +74,8 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
     @AfterMethod(alwaysRun = true)
     public void after() throws IllegalAccessException {
         if (orignalAuthorizationService != null) {
-            FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService", orignalAuthorizationService, true);
+            FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
+                    orignalAuthorizationService, true);
         }
     }
 
@@ -97,12 +98,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         final String clusterName = getPulsarService().getConfiguration().getClusterName();
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getActiveBrokers());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().getActiveBrokers());
     }
 
     @Test
@@ -112,12 +115,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         final String brokerId = getPulsarService().getBrokerId();
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.LIST_BROKERS), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getActiveBrokers(clusterName));
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().getActiveBrokers(clusterName));
     }
 
     @Test
@@ -127,12 +132,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         final String brokerId = getPulsarService().getBrokerId();
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.GET_LEADER_BROKER), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.GET_LEADER_BROKER), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getLeaderBroker());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().getLeaderBroker());
     }
 
     @Test
@@ -142,12 +149,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         superUserAdmin.brokers().getOwnedNamespaces(clusterName, brokerId);
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_OWNED_NAMESPACES), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.LIST_OWNED_NAMESPACES), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getOwnedNamespaces(clusterName, brokerId));
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().getOwnedNamespaces(clusterName, brokerId));
     }
 
     @Test
@@ -157,12 +166,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         superUserAdmin.brokers().updateDynamicConfiguration("maxTenants", "10");
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.UPDATE_DYNAMIC_CONFIGURATION), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.UPDATE_DYNAMIC_CONFIGURATION), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().updateDynamicConfiguration("maxTenants", "10"));
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().updateDynamicConfiguration("maxTenants", "10"));
     }
 
     @Test
@@ -172,12 +183,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         superUserAdmin.brokers().deleteDynamicConfiguration("maxTenants");
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.DELETE_DYNAMIC_CONFIGURATION), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.DELETE_DYNAMIC_CONFIGURATION), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().deleteDynamicConfiguration("maxTenants"));
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().deleteDynamicConfiguration("maxTenants"));
     }
 
 
@@ -188,12 +201,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         superUserAdmin.brokers().getAllDynamicConfigurations();
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getAllDynamicConfigurations());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().getAllDynamicConfigurations());
     }
 
 
@@ -204,12 +219,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         superUserAdmin.brokers().getDynamicConfigurationNames();
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.LIST_DYNAMIC_CONFIGURATIONS), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getDynamicConfigurationNames());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().getDynamicConfigurationNames());
     }
 
 
@@ -220,12 +237,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         superUserAdmin.brokers().getRuntimeConfigurations();
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.LIST_RUNTIME_CONFIGURATIONS), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.LIST_RUNTIME_CONFIGURATIONS), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getRuntimeConfigurations());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().getRuntimeConfigurations());
     }
 
 
@@ -236,12 +255,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         superUserAdmin.brokers().getInternalConfigurationData();
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.GET_INTERNAL_CONFIGURATION_DATA), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.GET_INTERNAL_CONFIGURATION_DATA), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().getInternalConfigurationData());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().getInternalConfigurationData());
     }
 
 
@@ -252,12 +273,14 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         superUserAdmin.brokers().backlogQuotaCheck();
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.CHECK_BACKLOG_QUOTA), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.CHECK_BACKLOG_QUOTA), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () -> nobodyAdmin.brokers().backlogQuotaCheck());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.brokers().backlogQuotaCheck());
     }
 
     @Test
@@ -267,11 +290,13 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         superUserAdmin.brokers().healthcheck(TopicVersion.V2);
         // test allow broker operation
         verify(spyAuthorizationService)
-                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId), eq(BrokerOperation.HEALTH_CHECK), any(), any(), any());
+                .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
+                        eq(BrokerOperation.HEALTH_CHECK), any(), any(), any());
         // fallback to superuser
         verify(spyAuthorizationService).isSuperUser(any(), any());
 
         // ---- test nobody
-        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class, () ->  nobodyAdmin.brokers().healthcheck(TopicVersion.V2));
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () ->  nobodyAdmin.brokers().healthcheck(TopicVersion.V2));
     }
 }

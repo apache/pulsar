@@ -35,7 +35,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
-import org.eclipse.jetty.server.HttpOutput;
+import org.eclipse.jetty.ee8.nested.HttpOutput;
 
 @Slf4j
 public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {

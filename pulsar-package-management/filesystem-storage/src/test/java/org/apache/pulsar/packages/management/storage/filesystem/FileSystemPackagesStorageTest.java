@@ -158,7 +158,7 @@ public class FileSystemPackagesStorageTest {
         storage.deleteAsync(testPath).get();
 
         // list again and not file under the path
-        paths= storage.listAsync("").get();
+        paths = storage.listAsync("").get();
         assertEquals(paths.size(), 0);
 
 

@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.client.api;
 
-import lombok.Cleanup;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 public class ConsumerAckListTest extends ProducerConsumerBase {
@@ -55,10 +54,10 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000, dataProvider = "ackReceiptEnabled")
     public void testBatchListAck(boolean ackReceiptEnabled) throws Exception {
-        ackListMessage(true,true, ackReceiptEnabled);
-        ackListMessage(true,false, ackReceiptEnabled);
-        ackListMessage(false,false, ackReceiptEnabled);
-        ackListMessage(false,true, ackReceiptEnabled);
+        ackListMessage(true, true, ackReceiptEnabled);
+        ackListMessage(true, false, ackReceiptEnabled);
+        ackListMessage(false, false, ackReceiptEnabled);
+        ackListMessage(false, true, ackReceiptEnabled);
     }
 
     private void ackListMessage(boolean isBatch, boolean isPartitioned, boolean ackReceiptEnabled) throws Exception {

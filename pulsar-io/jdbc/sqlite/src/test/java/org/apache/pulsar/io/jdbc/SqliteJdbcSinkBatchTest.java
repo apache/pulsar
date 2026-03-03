@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.io.jdbc;
 
-import lombok.extern.slf4j.Slf4j;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * Jdbc Sink test with JDBC Batches API enabled
+ * Jdbc Sink test with JDBC Batches API enabled.
  */
 @Slf4j
 public class SqliteJdbcSinkBatchTest extends SqliteJdbcSinkTest {

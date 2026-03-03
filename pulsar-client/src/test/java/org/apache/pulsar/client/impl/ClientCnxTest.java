@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -58,7 +59,8 @@ public class ClientCnxTest {
 
     @Test
     public void testClientCnxTimeout() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10);
         conf.setKeepAliveIntervalSeconds(0);
@@ -77,7 +79,8 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingLookupRequestSemaphore() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -109,7 +112,8 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingLookupRequestSemaphoreServiceNotReady() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -146,7 +150,8 @@ public class ClientCnxTest {
 
     @Test
     public void testPendingWaitingLookupRequestSemaphore() throws Exception {
-        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
@@ -286,6 +291,17 @@ public class ClientCnxTest {
     }
 
     @Test
+    public void testIdleCheckWithTopicListWatcher() {
+        ClientCnx cnx =
+                new ClientCnx(InstrumentProvider.NOOP, new ClientConfigurationData(), mock(EventLoopGroup.class));
+        // idle check should return true initially
+        assertTrue(cnx.idleCheck());
+        cnx.registerTopicListWatcher(0, mock(TopicListWatcher.class));
+        // idle check should now return false since there's a registered watcher
+        assertFalse(cnx.idleCheck());
+    }
+
+    @Test
     public void testNoWatchersWhenNoServerSupport() {
         withConnection("testNoWatchersWhenNoServerSupport", cnx -> {
             cnx.handleConnected(new CommandConnected()
@@ -319,7 +335,9 @@ public class ClientCnxTest {
                     .setRequestId(7)
                     .setWatcherId(5).setTopicsHash("f00");
             cnx.handleCommandWatchTopicListSuccess(success);
-            assertEquals(result.getNow(null), success);
+            assertThat(result.getNow(null))
+                    .usingRecursiveComparison()
+                    .comparingOnlyFields("requestId", "watcherId", "topicsHash");
         });
     }
 

@@ -258,7 +258,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void testWindowFunction(String type, String[] expectedResults) throws Exception {
-        int NUM_OF_MESSAGES = 100;
+        int numOfMessages = 100;
         int windowLengthCount = 10;
         int slidingIntervalCount = 5;
         String functionName = "test-" + type + "-window-fn-" + randomName(8);
@@ -337,7 +337,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(3, subStats.getMsgBacklog());
         assertEquals(3, subStats.getUnackedMessages());
 
-        for (int i = 3; i < NUM_OF_MESSAGES; i++) {
+        for (int i = 3; i < numOfMessages; i++) {
             producer.send(String.format("%d", i).getBytes());
         }
 
@@ -358,7 +358,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             i++;
         }
 
-        getFunctionStatus(functionName, NUM_OF_MESSAGES, true);
+        getFunctionStatus(functionName, numOfMessages, true);
 
         // in case last commit is not updated
         assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
@@ -709,7 +709,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            boolean multipleInput,
                                            boolean withExtraDeps,
                                            ProducerConfig producerConfig) throws Exception {
-        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null, producerConfig, null);
+        testExclamationFunction(runtime, isTopicPattern, pyZip, multipleInput, withExtraDeps, null,
+                producerConfig, null);
     }
 
     protected void testExclamationFunction(Runtime runtime,

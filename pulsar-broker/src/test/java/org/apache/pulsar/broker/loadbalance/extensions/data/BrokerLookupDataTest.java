@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.data;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
-
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
@@ -59,7 +58,7 @@ public class BrokerLookupDataTest {
         BrokerLookupData lookupData = new BrokerLookupData(
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
-                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(),"3.0",
+                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(), "3.0",
                 Collections.emptyMap());
         assertEquals(webServiceUrl, lookupData.webServiceUrl());
         assertEquals(webServiceUrlTls, lookupData.webServiceUrlTls());

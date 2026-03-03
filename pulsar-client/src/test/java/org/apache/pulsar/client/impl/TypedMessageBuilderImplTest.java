@@ -18,6 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.util.Base64;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -26,17 +35,6 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.mockito.Mock;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.nio.ByteBuffer;
-import java.util.Base64;
-
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.fail;
 
 /**
  * Unit test of {@link TypedMessageBuilderImpl}.
@@ -50,10 +48,13 @@ public class TypedMessageBuilderImplTest {
     public void testDefaultValue() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         producerBase = mock(ProducerBase.class);
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
@@ -64,7 +65,8 @@ public class TypedMessageBuilderImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = new KeyValue<>(foo, bar);
 
         // Check kv.encoding.type default, not set value
-        TypedMessageBuilderImpl<KeyValue>  typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.value(keyValue);
+        TypedMessageBuilderImpl<KeyValue>  typedMessageBuilder =
+                (TypedMessageBuilderImpl) typedMessageBuilderImpl.value(keyValue);
         Method method = TypedMessageBuilderImpl.class.getDeclaredMethod("beforeSend");
         method.setAccessible(true);
         method.invoke(typedMessageBuilder);
@@ -81,11 +83,14 @@ public class TypedMessageBuilderImplTest {
     public void testInlineValue() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         producerBase = mock(ProducerBase.class);
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
-        TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
+        TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl (producerBase, keyValueSchema);
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
@@ -95,7 +100,8 @@ public class TypedMessageBuilderImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = new KeyValue<>(foo, bar);
 
         // Check kv.encoding.type INLINE
-        TypedMessageBuilderImpl<KeyValue> typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.value(keyValue);
+        TypedMessageBuilderImpl<KeyValue> typedMessageBuilder =
+                (TypedMessageBuilderImpl) typedMessageBuilderImpl.value(keyValue);
         Method method = TypedMessageBuilderImpl.class.getDeclaredMethod("beforeSend");
         method.setAccessible(true);
         method.invoke(typedMessageBuilder);
@@ -112,11 +118,14 @@ public class TypedMessageBuilderImplTest {
     public void testSeparatedValue() throws Exception {
         producerBase = mock(ProducerBase.class);
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
-        TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl (producerBase, keyValueSchema);
 
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
@@ -126,7 +135,7 @@ public class TypedMessageBuilderImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = new KeyValue<>(foo, bar);
 
         // Check kv.encoding.type SEPARATED
-        TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.value(keyValue);
+        TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl) typedMessageBuilderImpl.value(keyValue);
         Method method = TypedMessageBuilderImpl.class.getDeclaredMethod("beforeSend");
         method.setAccessible(true);
         method.invoke(typedMessageBuilder);
@@ -134,7 +143,8 @@ public class TypedMessageBuilderImplTest {
         byte[] contentByte = new byte[content.remaining()];
         content.get(contentByte);
         assertTrue(typedMessageBuilderImpl.hasKey());
-        assertEquals(typedMessageBuilderImpl.getKey(), Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
+        assertEquals(typedMessageBuilderImpl.getKey(),
+                Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
         assertEquals(barSchema.decode(contentByte), bar);
     }
 
@@ -142,13 +152,17 @@ public class TypedMessageBuilderImplTest {
     public void testSetKeyEncodingTypeDefault() {
         producerBase = mock(ProducerBase.class);
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
-        TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.key("default");
+        TypedMessageBuilderImpl typedMessageBuilder =
+                (TypedMessageBuilderImpl) typedMessageBuilderImpl.key("default");
         assertEquals(typedMessageBuilder.getKey(), "default");
         assertFalse(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
@@ -157,13 +171,17 @@ public class TypedMessageBuilderImplTest {
     public void testSetKeyEncodingTypeInline() {
         producerBase = mock(ProducerBase.class);
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
-        TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.key("inline");
+        TypedMessageBuilderImpl typedMessageBuilder =
+                (TypedMessageBuilderImpl) typedMessageBuilderImpl.key("inline");
         assertEquals(typedMessageBuilder.getKey(), "inline");
         assertFalse(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
@@ -172,18 +190,23 @@ public class TypedMessageBuilderImplTest {
     public void testSetKeyEncodingTypeSeparated() {
         producerBase = mock(ProducerBase.class);
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
 
         try {
-            TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.key("separated");
+            TypedMessageBuilderImpl typedMessageBuilder =
+                    (TypedMessageBuilderImpl) typedMessageBuilderImpl.key("separated");
             fail("This should fail");
         } catch (IllegalArgumentException e) {
-            assertTrue(e.getMessage().contains("This method is not allowed to set keys when in encoding type is SEPARATED"));
+            assertTrue(e.getMessage()
+                    .contains("This method is not allowed to set keys when in encoding type is SEPARATED"));
         }
     }
 
@@ -191,13 +214,17 @@ public class TypedMessageBuilderImplTest {
     public void testSetKeyBytesEncodingTypeDefault() {
         producerBase = mock(ProducerBase.class);
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
-        TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.keyBytes("default".getBytes());
+        TypedMessageBuilderImpl typedMessageBuilder =
+                (TypedMessageBuilderImpl) typedMessageBuilderImpl.keyBytes("default".getBytes());
         assertEquals(typedMessageBuilder.getKey(), Base64.getEncoder().encodeToString("default".getBytes()));
         assertTrue(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
@@ -206,13 +233,17 @@ public class TypedMessageBuilderImplTest {
     public void testSetKeyBytesEncodingTypeInline() {
         producerBase = mock(ProducerBase.class);
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.INLINE);
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
-        TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.keyBytes("inline".getBytes());
+        TypedMessageBuilderImpl typedMessageBuilder =
+                (TypedMessageBuilderImpl) typedMessageBuilderImpl.keyBytes("inline".getBytes());
         assertEquals(typedMessageBuilder.getKey(), Base64.getEncoder().encodeToString("inline".getBytes()));
         assertTrue(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
@@ -221,19 +252,33 @@ public class TypedMessageBuilderImplTest {
     public void testSetKeyBytesEncodingTypeSeparated() {
         producerBase = mock(ProducerBase.class);
 
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
-        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema, KeyValueEncodingType.SEPARATED);
         TypedMessageBuilderImpl typedMessageBuilderImpl = new TypedMessageBuilderImpl(producerBase, keyValueSchema);
 
 
         try {
-            TypedMessageBuilderImpl typedMessageBuilder = (TypedMessageBuilderImpl)typedMessageBuilderImpl.keyBytes("separated".getBytes());
+            TypedMessageBuilderImpl typedMessageBuilder =
+                    (TypedMessageBuilderImpl) typedMessageBuilderImpl.keyBytes("separated".getBytes());
             fail("This should fail");
         } catch (IllegalArgumentException e) {
-            assertTrue(e.getMessage().contains("This method is not allowed to set keys when in encoding type is SEPARATED"));
+            assertTrue(e.getMessage()
+                    .contains("This method is not allowed to set keys when in encoding type is SEPARATED"));
         }
+    }
+
+    @Test
+    public void testGetMessageWithNullProducer() {
+        TypedMessageBuilderImpl<byte[]> builder = new TypedMessageBuilderImpl<>(null, Schema.BYTES);
+        var data = "test".getBytes();
+        builder.value(data);
+        var message = builder.getMessage();
+        assertEquals(message.getValue(), data);
     }
 
 }

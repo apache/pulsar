@@ -58,7 +58,6 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -170,16 +169,25 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private synchronized void registerDrainingHashes(Consumer skipConsumer,
                                                      ImpactedConsumersResult impactedConsumers) {
-        impactedConsumers.processRemovedHashRanges((c, removedHashRanges) -> {
+        impactedConsumers.processUpdatedHashRanges((c, updatedHashRanges, opType) -> {
             if (c != skipConsumer) {
                 c.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
                         log.warn("[{}] Sticky key hash was missing for {}:{}", getName(), ledgerId, entryId);
                         return;
                     }
-                    if (removedHashRanges.containsStickyKey(stickyKeyHash)) {
-                        // add the pending ack to the draining hashes tracker if the hash is in the range
-                        drainingHashesTracker.addEntry(c, stickyKeyHash);
+                    if (updatedHashRanges.containsStickyKey(stickyKeyHash)) {
+                        switch (opType) {
+                            //reduce ref count in case the stickyKeyHash was re-assigned to the original consumer
+                            case ADD -> {
+                                var entry = drainingHashesTracker.getEntry(stickyKeyHash);
+                                if (entry != null && entry.getConsumer() == c) {
+                                    drainingHashesTracker.reduceRefCount(c, stickyKeyHash, false);
+                                }
+                            }
+                            // add the pending ack to the draining hashes tracker if the hash is in the range
+                            case REMOVE -> drainingHashesTracker.addEntry(c, stickyKeyHash);
+                        }
                     }
                 });
             }
@@ -419,8 +427,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             } else {
                 // replace the input entry with EntryAndMetadata instance. In addition to the entry and metadata,
                 // it will also carry the calculated sticky key hash
-                entry = EntryAndMetadata.create(inputEntry,
-                        Commands.peekAndCopyMessageMetadata(inputEntry.getDataBuffer(), getSubscriptionName(), -1));
+                entry = EntryAndMetadata.create(inputEntry);
             }
             int stickyKeyHash = getStickyKeyHash(entry);
             Consumer consumer = null;
@@ -465,6 +472,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 if (blockedByHash) {
                     // the entry is blocked by hash, add the consumer to the blocked set
                     blockedByHashConsumers.add(consumer);
+                }
+                if (entry.getReadCountHandler() != null) {
+                    // increment the expected read count for the entry, so that it can be cached for a longer time
+                    entry.getReadCountHandler().incrementExpectedReadCount();
                 }
                 // add the message to replay
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
@@ -606,7 +617,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             // use the cached sticky key hash if available, otherwise calculate the sticky key hash and cache it
             return entryAndMetadata.getOrUpdateCachedStickyKeyHash(selector::makeStickyKeyHash);
         }
-        return selector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
+        return selector.makeStickyKeyHash(peekStickyKey(entry));
     }
 
     @Override

@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
@@ -25,12 +30,6 @@ import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvid
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 public class SupportVersioningAvroSchemaTest {
     private MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider;
@@ -60,7 +59,7 @@ public class SupportVersioningAvroSchemaTest {
                 .thenReturn(CompletableFuture.completedFuture(genericAvroSchema.getSchemaInfo()));
         SchemaTestUtils.FooV2 fooV2 = new SchemaTestUtils.FooV2();
         fooV2.setField1(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING);
-        SchemaTestUtils.Foo foo = (SchemaTestUtils.Foo)schema.decode(avroFooV2Schema.encode(fooV2), new byte[10]);
+        SchemaTestUtils.Foo foo = (SchemaTestUtils.Foo) schema.decode(avroFooV2Schema.encode(fooV2), new byte[10]);
         assertTrue(schema.supportSchemaVersioning());
         assertEquals(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING, foo.getField1());
         assertEquals(SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_DEFAULT_STRING, foo.getFieldUnableNull());

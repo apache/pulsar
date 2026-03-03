@@ -32,7 +32,7 @@ This image only needs to be re-created when we want to upgrade to a newer versio
 2. Rebuild the image and push it to Docker Hub:
 ```
 IMAGE=apachepulsar/pulsar-io-kinesis-sink-kinesis_producer
-KINESIS_PRODUCER_VERSION=0.15.12
+KINESIS_PRODUCER_VERSION=1.0.4
 docker buildx build --platform=linux/amd64,linux/arm64 \
  -t "$IMAGE:$KINESIS_PRODUCER_VERSION" -t "$IMAGE:${KINESIS_PRODUCER_VERSION}-$(date -I)" \
  . --push

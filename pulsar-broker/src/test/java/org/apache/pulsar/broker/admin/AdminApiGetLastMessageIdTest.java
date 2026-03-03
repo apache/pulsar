@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.servlet.ServletContext;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.TimeoutHandler;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
@@ -69,7 +70,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop/ns-abc");
         admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of("test"));
         persistentTopics = spy(PersistentTopics.class);
-        persistentTopics.setServletContext(new MockServletContext());
+        persistentTopics.setServletContext(mock(ServletContext.class));
         persistentTopics.setPulsar(pulsar);
 
         doReturn(false).when(persistentTopics).isRequestHttps();
@@ -190,8 +191,8 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
         persistentTopics.getLastMessageId(asyncResponse, "prop", "ns-abc", "my-topic", true);
         Awaitility.await().until(() -> id[0] != null);
-        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() >= 0);
-        Assert.assertEquals(numberOfMessages-1, ((MessageIdImpl)id[0]).getEntryId());
+        Assert.assertTrue(((MessageIdImpl) id[0]).getLedgerId() >= 0);
+        Assert.assertEquals(numberOfMessages - 1, ((MessageIdImpl) id[0]).getEntryId());
         messageId = id[0];
 
 
@@ -204,8 +205,8 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         while (id[0] == messageId) {
             Thread.sleep(1);
         }
-        Assert.assertTrue(((MessageIdImpl)id[0]).getLedgerId() > 0);
-        Assert.assertEquals( 2 * numberOfMessages -1, ((MessageIdImpl)id[0]).getEntryId());
+        Assert.assertTrue(((MessageIdImpl) id[0]).getLedgerId() > 0);
+        Assert.assertEquals(2 * numberOfMessages - 1, ((MessageIdImpl) id[0]).getEntryId());
     }
 
     /**

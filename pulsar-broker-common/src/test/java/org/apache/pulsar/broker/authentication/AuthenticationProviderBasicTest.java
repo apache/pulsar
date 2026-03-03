@@ -34,7 +34,8 @@ import org.testng.annotations.Test;
 
 public class AuthenticationProviderBasicTest {
     private final String basicAuthConf = Resources.getResource("authentication/basic/.htpasswd").getPath();
-    private final String basicAuthConfBase64 = Base64.getEncoder().encodeToString(Files.readAllBytes(Path.of(basicAuthConf)));
+    private final String basicAuthConfBase64 =
+            Base64.getEncoder().encodeToString(Files.readAllBytes(Path.of(basicAuthConf)));
 
     public AuthenticationProviderBasicTest() throws IOException {
     }

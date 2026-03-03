@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ActiveManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -372,8 +373,8 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     private void skipMessages(String tpName, String subscription, SkipType skipType, Consumer c) throws Exception {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
-        Position LAC = persistentTopic.getManagedLedger().getLastConfirmedEntry();
-        MessageIdImpl LACMessageId = new MessageIdImpl(LAC.getLedgerId(), LAC.getEntryId(), -1);
+        Position lac = persistentTopic.getManagedLedger().getLastConfirmedEntry();
+        MessageIdImpl lacMessageId = new MessageIdImpl(lac.getLedgerId(), lac.getEntryId(), -1);
         if (skipType == SkipType.SKIP_ENTRIES) {
             while (true) {
                 GetStatsOptions getStatsOptions = new GetStatsOptions(
@@ -392,9 +393,9 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         } else if (skipType == SkipType.CLEAR_BACKLOG){
             admin.topics().skipAllMessages(tpName, subscription);
         } else if (skipType == SkipType.SEEK) {
-            c.seek(LACMessageId);
+            c.seek(lacMessageId);
         } else if (skipType == SkipType.RESET_CURSOR) {
-            admin.topics().resetCursor(tpName, subscription, LACMessageId, false);
+            admin.topics().resetCursor(tpName, subscription, lacMessageId, false);
         }
     }
 
@@ -573,7 +574,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
             return invocation.callRealMethod();
         }).when(spyCursor).isCursorDataFullyPersistable();
         final ManagedCursorContainer cursors = WhiteboxImpl.getInternalState(ml, "cursors");
-        final ManagedCursorContainer activeCursors = WhiteboxImpl.getInternalState(ml, "activeCursors");
+        final ActiveManagedCursorContainer activeCursors = WhiteboxImpl.getInternalState(ml, "activeCursors");
         cursors.removeCursor(cursor.getName());
         activeCursors.removeCursor(cursor.getName());
         cursors.add(spyCursor, null);

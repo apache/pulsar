@@ -43,7 +43,7 @@ abstract class ServiceUnitStateTableViewBase implements ServiceUnitStateTableVie
     private final Map<NamespaceBundle, Boolean> ownedServiceUnitsMap = new ConcurrentHashMap<>();
     private final Set<NamespaceBundle> ownedServiceUnits = Collections.unmodifiableSet(ownedServiceUnitsMap.keySet());
     private String brokerId;
-    private PulsarService pulsar;
+    protected PulsarService pulsar;
     protected void init(PulsarService pulsar) throws MetadataStoreException {
         this.pulsar = pulsar;
         this.brokerId = pulsar.getBrokerId();
@@ -88,5 +88,10 @@ abstract class ServiceUnitStateTableViewBase implements ServiceUnitStateTableVie
                 return null;
             }
         });
+    }
+
+    protected void invalidateOwnedServiceUnits(String key, ServiceUnitStateData outdatedVal) {
+        NamespaceBundle namespaceBundle = LoadManagerShared.getNamespaceBundle(pulsar, key);
+        ownedServiceUnitsMap.compute(namespaceBundle, (k, v) -> false);
     }
 }

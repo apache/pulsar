@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -52,16 +51,16 @@ import org.testng.annotations.Test;
 /**
  * Test Token authentication with:
  *    client: org.apache.pulsar.client.impl.auth.AuthenticationToken
- *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
+ *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken.
  */
 @Test(groups = "broker-api")
 public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenAuthenticatedProducerConsumerTest.class);
 
-    private final static String ADMIN_ROLE = "admin";
-    private final String ADMIN_TOKEN;
-    private final String USER_TOKEN;
-    private final String TOKEN_PUBLIC_KEY;
+    private static final String ADMIN_ROLE = "admin";
+    private final String adminToken;
+    private final String userToken;
+    private final String tokenPublicKey;
     private final KeyPair kp;
 
     TokenAuthenticatedProducerConsumerTest() throws NoSuchAlgorithmException {
@@ -69,9 +68,9 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         kp = kpg.generateKeyPair();
 
         byte[] encodedPublicKey = kp.getPublic().getEncoded();
-        TOKEN_PUBLIC_KEY = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
-        ADMIN_TOKEN = generateToken(ADMIN_ROLE);
-        USER_TOKEN = generateToken("user");
+        tokenPublicKey = "data:;base64," + Base64.getEncoder().encodeToString(encodedPublicKey);
+        adminToken = generateToken(ADMIN_ROLE);
+        userToken = generateToken("user");
     }
 
     private String generateToken(String subject) {
@@ -100,13 +99,13 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
+        conf.setBrokerClientAuthenticationParameters("token:" + adminToken);
 
         conf.setClusterName("test");
 
         // Set provider domain name
         Properties properties = new Properties();
-        properties.setProperty("tokenPublicKey", TOKEN_PUBLIC_KEY);
+        properties.setProperty("tokenPublicKey", tokenPublicKey);
 
         conf.setProperties(properties);
         super.init();
@@ -116,12 +115,12 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     protected final void clientSetup() throws Exception {
         closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
-                .authentication(AuthenticationFactory.token(ADMIN_TOKEN))
+                .authentication(AuthenticationFactory.token(adminToken))
                 .build());
 
         replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
                 .statsInterval(0, TimeUnit.SECONDS)
-                .authentication(AuthenticationFactory.token(ADMIN_TOKEN)));
+                .authentication(AuthenticationFactory.token(adminToken)));
     }
 
     @AfterClass(alwaysRun = true)
@@ -139,7 +138,8 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/my-topic");
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
@@ -194,7 +194,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     public void testTenantNotExist(boolean useTcpServiceUrl, boolean useCorrectToken) throws Exception {
         final var operationTimeoutMs = 10000;
         final var url = useTcpServiceUrl ? pulsar.getBrokerServiceUrl() : pulsar.getWebServiceAddress();
-        final var token = useCorrectToken ? ADMIN_TOKEN : USER_TOKEN;
+        final var token = useCorrectToken ? adminToken : userToken;
         @Cleanup final var client = PulsarClient.builder().serviceUrl(url)
                 .operationTimeout(operationTimeoutMs, TimeUnit.MILLISECONDS)
                 .authentication(AuthenticationFactory.token(token)).build();

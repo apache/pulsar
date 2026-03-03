@@ -63,15 +63,15 @@ public class CompactedTopicImplTest {
     @DataProvider(name = "argsForFindStartPointLoop")
     public Object[][] argsForFindStartPointLoop() {
         return new Object[][]{
-                {0, 100, 0},// first value.
-                {0, 100, 1},// second value.
-                {0, 100, 1003},// not first value.
-                {0, 100, 1015},// value not exists.
-                {3, 40, 50},// less than first value & find in a range.
-                {3, 40, 1002},// first value & find in a range.
-                {3, 40, 1003},// second value & find in a range.
-                {3, 40, 1010},// not first value & find in a range.
-                {3, 40, 1015}// value not exists & find in a range.
+                {0, 100, 0}, // first value.
+                {0, 100, 1}, // second value.
+                {0, 100, 1003}, // not first value.
+                {0, 100, 1015}, // value not exists.
+                {3, 40, 50}, // less than first value & find in a range.
+                {3, 40, 1002}, // first value & find in a range.
+                {3, 40, 1003}, // second value & find in a range.
+                {3, 40, 1010}, // not first value & find in a range.
+                {3, 40, 1015} // value not exists & find in a range.
         };
     }
 
@@ -118,7 +118,7 @@ public class CompactedTopicImplTest {
     }
 
     /**
-     * Why should we check the recursion number of "findStartPointLoop", see: #17976
+     * Why should we check the recursion number of "findStartPointLoop", see: #17976.
      */
     @Test
     public void testRecursionNumberOfFindStartPointLoop() {

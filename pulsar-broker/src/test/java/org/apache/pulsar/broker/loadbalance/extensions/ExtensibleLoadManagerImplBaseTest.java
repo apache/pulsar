@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.MetadataSessionExpiredPolicy;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -54,10 +55,10 @@ import org.testng.annotations.DataProvider;
 
 public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServiceBaseTest {
 
-    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
-    final static String brokerCertPath =
+    final String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+    final String brokerCertPath =
             Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    final static String brokerKeyPath =
+    final String brokerKeyPath =
             Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     protected PulsarService pulsar1;
@@ -78,6 +79,13 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
 
     protected String serviceUnitStateTableViewClassName;
 
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        conf.setZookeeperSessionExpiredPolicy(MetadataSessionExpiredPolicy.shutdown);
+        return conf;
+    }
+
     protected ArrayList<PulsarClient> clients = new ArrayList<>();
 
     @DataProvider(name = "serviceUnitStateTableViewClassName")
@@ -88,7 +96,8 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         };
     }
 
-    protected ExtensibleLoadManagerImplBaseTest(String defaultTestNamespace, String serviceUnitStateTableViewClassName) {
+    protected ExtensibleLoadManagerImplBaseTest(String defaultTestNamespace,
+                                                String serviceUnitStateTableViewClassName) {
         this.defaultTestNamespace = defaultTestNamespace;
         this.serviceUnitStateTableViewClassName = serviceUnitStateTableViewClassName;
     }
@@ -220,7 +229,7 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
                 TopicName.get(defaultTestNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
         NamespaceBundle changeEventsBundle = getBundleAsync(pulsar1, changeEventsTopicName).get();
         int i = 0;
-        while(true) {
+        while (true) {
             TopicName topicName = TopicName.get(defaultTestNamespace + "/" + topicNamePrefix + "-" + i);
             NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
             if (!bundle.equals(changeEventsBundle)) {

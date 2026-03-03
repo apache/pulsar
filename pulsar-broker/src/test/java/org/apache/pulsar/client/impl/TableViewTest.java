@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -129,7 +128,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         try (Producer<byte[]> producer = builder.create()) {
             CompletableFuture<?> lastFuture = null;
             for (int i = keyStartPosition; i < keyStartPosition + count; i++) {
-                String key = "key"+ i;
+                String key = "key" + i;
                 byte[] data = ("my-message-" + i).getBytes();
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);

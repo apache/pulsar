@@ -25,14 +25,14 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-io</artifactId>
-        <version>4.1.0-SNAPSHOT</version>
+        <version>4.2.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-io-azuredataexplorer</artifactId>
     <name>Pulsar IO :: AzureDataExplorer</name>
 
     <properties>
-        <kusto.sdk.version>5.0.4</kusto.sdk.version>
+        <kusto.sdk.version>5.2.0</kusto.sdk.version>
     </properties>
     <dependencies>
         <dependency>

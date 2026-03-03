@@ -20,7 +20,6 @@ package org.apache.pulsar.tests.integration.topologies;
 
 import static java.util.stream.Collectors.joining;
 import java.util.stream.Stream;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 

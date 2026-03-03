@@ -21,10 +21,11 @@ package org.apache.pulsar.proxy.server;
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -84,8 +85,10 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         proxyClientAuthentication.start();
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)),
+                proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
+                .when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
 
@@ -97,7 +100,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         proxyWebServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null, proxyClientAuthentication);
+        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null,
+                proxyClientAuthentication);
         proxyWebServer.start();
     }
 
@@ -163,7 +167,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Validate proxy topic stats api
+     * Validate proxy topic stats api.
      *
      * @throws Exception
      */
@@ -212,10 +216,66 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         consumer2.close();
+
+        // check that topic stats are cleared after setting proxy log level to 0
+        assertFalse(proxyService.getTopicStats().isEmpty());
+        proxyService.setProxyLogLevel(0);
+        assertTrue(proxyService.getTopicStats().isEmpty());
+    }
+
+    @Test
+    public void testMemoryLeakFixed() throws Exception {
+        proxyService.setProxyLogLevel(2);
+        final String topicName = "persistent://sample/test/local/topic-stats";
+        final String topicName2 = "persistent://sample/test/local/topic-stats-2";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
+        Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic(topicName).enableBatching(false)
+                .producerName("producer1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+
+        Producer<byte[]> producer2 = client.newProducer(Schema.BYTES).topic(topicName2).enableBatching(false)
+                .producerName("producer2").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+
+        Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
+        Consumer<byte[]> consumer2 = client.newConsumer().topic(topicName2).subscriptionName("my-sub")
+                .subscribe();
+
+        int totalMessages = 10;
+        for (int i = 0; i < totalMessages; i++) {
+            producer1.send("test".getBytes());
+            producer2.send("test".getBytes());
+        }
+
+        for (int i = 0; i < totalMessages; i++) {
+            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            requireNonNull(msg);
+            consumer.acknowledge(msg);
+            msg = consumer2.receive(1, TimeUnit.SECONDS);
+        }
+
+        ParserProxyHandler.Context context = proxyService.getClientCnxs().stream().map(proxyConnection -> {
+            ParserProxyHandler parserProxyHandler = proxyConnection.ctx().pipeline().get(ParserProxyHandler.class);
+            return parserProxyHandler != null ? parserProxyHandler.getContext() : null;
+        }).filter(c -> c != null && !c.getConsumerIdToTopicName().isEmpty()).findFirst().get();
+
+        assertEquals(context.getConsumerIdToTopicName().size(), 2);
+        assertEquals(context.getProducerIdToTopicName().size(), 2);
+
+
+        consumer.close();
+        assertEquals(context.getConsumerIdToTopicName().size(), 1);
+        consumer2.close();
+        assertEquals(context.getConsumerIdToTopicName().size(), 0);
+
+        producer1.close();
+        assertEquals(context.getProducerIdToTopicName().size(), 1);
+        producer2.close();
+        assertEquals(context.getProducerIdToTopicName().size(), 0);
     }
 
     /**
-     * Change proxy log level dynamically
+     * Change proxy log level dynamically.
      *
      * @throws Exception
      */

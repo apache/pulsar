@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -34,8 +36,6 @@ import org.apache.pulsar.common.api.proto.CompressionType;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 /**
  * ManagedLedgerInfo metadata test.
@@ -59,7 +59,8 @@ public class ManagedLedgerInfoMetadataTest {
     private MLDataFormats.ManagedLedgerInfo.Builder generateManagedLedgerInfo(long ledgerId, int ledgerInfoNumber) {
         List<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfoList = new ArrayList<>();
         for (int i = 0; i < ledgerInfoNumber; i++) {
-            MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder builder = MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder();
+            MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder builder =
+                    MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder();
             builder.setLedgerId(ledgerId);
             builder.setEntries(RandomUtils.nextInt());
             builder.setSize(RandomUtils.nextLong());
@@ -82,7 +83,7 @@ public class ManagedLedgerInfoMetadataTest {
 
             MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = builder.build();
             ledgerInfoList.add(ledgerInfo);
-            ledgerId ++;
+            ledgerId++;
         }
 
         return MLDataFormats.ManagedLedgerInfo.newBuilder()
@@ -92,7 +93,7 @@ public class ManagedLedgerInfoMetadataTest {
     @Test(dataProvider = "compressionTypeProvider")
     public void testEncodeAndDecode(String compressionType) throws IOException {
         long ledgerId = 10000;
-        MLDataFormats.ManagedLedgerInfo managedLedgerInfo = generateManagedLedgerInfo(ledgerId,100).build();
+        MLDataFormats.ManagedLedgerInfo managedLedgerInfo = generateManagedLedgerInfo(ledgerId, 100).build();
 
         MetaStoreImpl metaStore;
         try {
@@ -145,7 +146,7 @@ public class ManagedLedgerInfoMetadataTest {
         MLDataFormats.ManagedLedgerInfo bigInfo = generateManagedLedgerInfo(ledgerId, 1000).build();
         assertTrue(bigInfo.getSerializedSize() > compressThreshold);
 
-        MLDataFormats.ManagedLedgerInfo managedLedgerInfo = generateManagedLedgerInfo(ledgerId,100).build();
+        MLDataFormats.ManagedLedgerInfo managedLedgerInfo = generateManagedLedgerInfo(ledgerId, 100).build();
 
         MetaStoreImpl metaStore;
         try {
@@ -171,6 +172,6 @@ public class ManagedLedgerInfoMetadataTest {
         assertEquals(compressionBytes.length, smallInfo.getSerializedSize());
 
         byte[] compressionBytesBig = metaStore.compressLedgerInfo(bigInfo);
-        assertTrue(compressionBytesBig.length !=smallInfo.getSerializedSize());
+        assertTrue(compressionBytesBig.length != smallInfo.getSerializedSize());
     }
 }
