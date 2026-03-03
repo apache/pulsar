@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker.rest.api;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -450,8 +451,8 @@ public class FunctionsImplTest {
         doReturn(goodStatus).when(resource)
                 .getFunctionStatus(eq(tenant), eq(namespace), eq("good-fn"), any(), any());
 
-        when(resource.getFunctionStatus(eq(tenant), eq(namespace), eq("bad-fn"), any(), any()))
-                .thenThrow(new RuntimeException("connection refused"));
+        doThrow(new RuntimeException("connection refused")).when(resource)
+                .getFunctionStatus(eq(tenant), eq(namespace), eq("bad-fn"), any(), any());
 
         List<FunctionStatusSummary> result = resource.listFunctionsWithStatus(tenant, namespace, null);
 
@@ -471,8 +472,8 @@ public class FunctionsImplTest {
         List<String> functionNames = List.of("remote-fn");
         doReturn(functionNames).when(resource).listFunctions(eq(tenant), eq(namespace), any());
 
-        when(resource.getFunctionStatus(eq(tenant), eq(namespace), eq("remote-fn"), any(), any()))
-                .thenThrow(new RuntimeException("local path failed"));
+        doThrow(new RuntimeException("local path failed")).when(resource)
+                .getFunctionStatus(eq(tenant), eq(namespace), eq("remote-fn"), any(), any());
 
         FunctionStatus remoteStatus = new FunctionStatus();
         remoteStatus.setNumInstances(2);
