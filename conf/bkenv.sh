@@ -93,7 +93,8 @@ fi
 # Therefore, in addition to defining extra JVM parameters here, it can also be used to override JVM parameters with the same name in OPTS
 # For example, if IPv6 functionality needs to be enabled, configure:
 # BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS} ${PULSAR_EXTRA_OPTS} -Djava.net.preferIPv4Stack=false"
-BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS} ${PULSAR_EXTRA_OPTS}"
+# If you need to obtain more details, you can refer to the generation strategy of `OPTS` in the `bin/bookkeeper` file
+# BOOKIE_EXTRA_OPTS=
 
 # Add extra paths to the bookkeeper classpath
 # BOOKIE_EXTRA_CLASSPATH=
