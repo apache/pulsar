@@ -300,10 +300,6 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     }
 
     protected void initializePulsarExtraOpts() {
-        appendToEnv("PULSAR_EXTRA_OPTS",
-                "-Dpulsar.allocator.exit_on_oom=true "
-                        + "-Dio.netty.recycler.maxCapacityPerThread=4096 "
-                        + "-Dio.netty.allocator.maxOrder=10");
     }
 
     protected boolean isCodeCoverageEnabled() {

@@ -90,6 +90,20 @@ set "OPTS=-Dpulsar.allocator.exit_on_oom=true %OPTS%"
 REM Netty tuning
 REM These settings are primarily used to modify the Netty allocator configuration,
 REM improving memory utilization and reducing the frequency of requesting off-heap memory from the OS
+REM
+REM Based on the netty source code, the allocator's default chunk size is calculated as:
+REM io.netty.allocator.pageSize(default: 8192) shifted left by io.netty.allocator.maxOrder(default: 9 after Netty 4.1.76.Final version).
+REM This equals 8192 * 2^9 = 4 MB：
+REM https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PooledByteBufAllocator.java#L105
+REM
+REM Allocations that are larger than chunk size are considered huge allocations and don't use the pool:
+REM https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PoolArena.java#L141-L142
+REM
+REM Currently, Pulsar defaults to a maximum single message size of 5 MB.
+REM Therefore, when frequently producing messages whose size exceeds the chunk size,
+REM Netty cannot utilize resources from the memory pool and must frequently allocate native memory.
+REM This can lead to increased physical memory fragmentation and higher reclamation costs.
+REM Thus, increasing io.netty.allocator.maxOrder to 10 to ensure that a single message is larger than chunk size(8MB) and can reuse Netty's memory pool.
 set "OPTS=-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 %OPTS%"
 
 set "OPTS=-cp "%PULSAR_CLASSPATH%" %OPTS%"
