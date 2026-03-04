@@ -87,6 +87,7 @@ import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
@@ -1242,7 +1243,8 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
                 (PulsarLedgerManagerFactory) pulsarMetadataClientDriver.getLedgerManagerFactory();
         Field field = pulsarLedgerManagerFactory.getClass().getDeclaredField("store");
         field.setAccessible(true);
-        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) field.get(pulsarLedgerManagerFactory);
+        DualMetadataStore store = (DualMetadataStore) field.get(pulsarLedgerManagerFactory);
+        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) store.getSourceStore();
         return zkMetadataStore.getZkClient();
     }
 }

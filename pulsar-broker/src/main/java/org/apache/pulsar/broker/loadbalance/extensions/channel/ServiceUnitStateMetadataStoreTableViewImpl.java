@@ -36,7 +36,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreTableView;
-import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.tableview.impl.MetadataStoreTableViewImpl;
 
 @Slf4j
@@ -65,7 +65,7 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
         init(pulsar);
         conflictResolver = new ServiceUnitStateDataConflictResolver();
         conflictResolver.setStorageType(MetadataStore);
-        if (!(pulsar.getLocalMetadataStore() instanceof AbstractMetadataStore)
+        if (!(pulsar.getLocalMetadataStore() instanceof MetadataStoreExtended)
             && !MetadataSessionExpiredPolicy.shutdown.equals(pulsar.getConfig().getZookeeperSessionExpiredPolicy())) {
             String errorMsg = String.format("Your current metadata store [%s] does not support the registration of "
                     + "session event listeners. Please set \"zookeeperSessionExpiredPolicy\" to \"shutdown\";"

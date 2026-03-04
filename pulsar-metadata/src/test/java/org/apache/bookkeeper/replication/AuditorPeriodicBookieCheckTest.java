@@ -99,7 +99,7 @@ public class AuditorPeriodicBookieCheckTest extends BookKeeperClusterTestCase {
                                         getBookie(0),
                                         getBookie(1))));
                 long underReplicatedLedger = -1;
-                for (int i = 0; i < 10; i++) {
+                for (int i = 0; i < 20; i++) {
                     underReplicatedLedger = underReplicationManager.pollLedgerToRereplicate();
                     if (underReplicatedLedger != -1) {
                         break;

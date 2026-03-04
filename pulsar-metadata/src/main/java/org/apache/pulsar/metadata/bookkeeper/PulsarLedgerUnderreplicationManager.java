@@ -66,6 +66,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.KeeperException;
 
@@ -177,7 +178,13 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             if (!store.exists(layoutPath).join()) {
                 LedgerRereplicationLayoutFormat.Builder builder = LedgerRereplicationLayoutFormat.newBuilder();
                 builder.setType(LAYOUT).setVersion(LAYOUT_VERSION);
-                store.put(layoutPath, builder.build().toString().getBytes(UTF_8), Optional.of(-1L)).join();
+                try {
+                    store.put(layoutPath, builder.build().toString().getBytes(UTF_8), Optional.of(-1L)).get();
+                } catch (ExecutionException | InterruptedException e) {
+                    if (!(e.getCause() instanceof MetadataStoreException.BadVersionException)) {
+                        throw new RuntimeException(e);
+                    }
+                }
             } else {
                 byte[] layoutData = store.get(layoutPath).join().get().getValue();
 
@@ -424,7 +431,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             if (l != null) {
                 store.delete(getUrLedgerPath(ledgerId), Optional.of(l.getLedgerNodeVersion()))
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
-                if (store instanceof ZKMetadataStore) {
+                if (store instanceof ZKMetadataStore
+                        || store instanceof DualMetadataStore) {
                     try {
                         // clean up the hierarchy
                         String[] parts = getUrLedgerPath(ledgerId).split("/");

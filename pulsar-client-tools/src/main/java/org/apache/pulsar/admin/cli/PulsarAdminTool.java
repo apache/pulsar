@@ -304,6 +304,8 @@ public class PulsarAdminTool implements CommandHook {
         commandMap.put("packages", CmdPackages.class);
         commandMap.put("transactions", CmdTransactions.class);
 
+        commandMap.put("migration", CmdMetadataMigration.class);
+
         setupCommands(properties);
     }
 

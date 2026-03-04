@@ -28,6 +28,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
@@ -55,7 +56,9 @@ public class BrokerServiceChaosTest extends CanReconnectZKClientPulsarServiceBas
     @Test
     public void testFetchPartitionedTopicMetadataWithCacheRefresh() throws Exception {
         final String configMetadataStoreConnectString =
-                WhiteboxImpl.getInternalState(pulsar.getConfigurationMetadataStore(), "zkConnectString");
+                WhiteboxImpl.getInternalState(
+                        ((DualMetadataStore) pulsar.getConfigurationMetadataStore()).getSourceStore(),
+                        "zkConnectString");
         @Cleanup
         final ZooKeeper anotherZKCli = new ZooKeeper(configMetadataStoreConnectString, 5000, null);
         // Set policy of auto create topic to PARTITIONED.

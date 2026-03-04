@@ -95,4 +95,12 @@ public interface MetadataStoreExtended extends MetadataStore {
     default CompletableFuture<Void> handleMetadataEvent(MetadataEvent event) {
         return CompletableFuture.completedFuture(null);
     }
+
+    /**
+     * Force invalidation of cached entries for the specified paths.
+     *
+     * @param paths
+     */
+    default void invalidateCaches(String...paths) {
+    }
 }

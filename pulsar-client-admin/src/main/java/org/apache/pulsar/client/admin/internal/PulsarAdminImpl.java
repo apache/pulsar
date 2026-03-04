@@ -35,6 +35,7 @@ import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Lookup;
+import org.apache.pulsar.client.admin.MetadataMigration;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.Packages;
@@ -105,6 +106,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final Schemas schemas;
     private final Packages packages;
     private final Transactions transactions;
+    private final MetadataMigration metadataMigration;
     protected final WebTarget root;
     protected final Authentication auth;
     @Getter
@@ -189,6 +191,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.bookies = new BookiesImpl(root, auth, requestTimeoutMs);
         this.packages = new PackagesImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
         this.transactions = new TransactionsImpl(root, auth, requestTimeoutMs);
+        this.metadataMigration = new MetadataMigrationImpl(root, auth, requestTimeoutMs);
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
@@ -432,6 +435,11 @@ public class PulsarAdminImpl implements PulsarAdmin {
     @Override
     public Transactions transactions() {
         return transactions;
+    }
+
+    @Override
+    public MetadataMigration metadataMigration() {
+        return metadataMigration;
     }
 
     /**

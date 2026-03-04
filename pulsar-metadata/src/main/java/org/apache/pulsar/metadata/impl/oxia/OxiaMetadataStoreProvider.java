@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.metadata.impl.oxia;
 
+import io.oxia.client.api.AsyncOxiaClient;
+import io.oxia.client.api.OxiaClientBuilder;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import lombok.NonNull;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -29,7 +33,7 @@ public class OxiaMetadataStoreProvider implements MetadataStoreProvider {
     // declare the specific namespace to avoid any changes in the future.
     public static final String DefaultNamespace = "default";
 
-    public static final  String OXIA_SCHEME = "oxia";
+    public static final String OXIA_SCHEME = "oxia";
     public static final String OXIA_SCHEME_IDENTIFIER = OXIA_SCHEME + ":";
 
     @Override
@@ -71,5 +75,17 @@ public class OxiaMetadataStoreProvider implements MetadataStoreProvider {
             return Pair.of(split[0], DefaultNamespace);
         }
         return Pair.of(split[0], split[1]);
+    }
+
+    public AsyncOxiaClient getOxiaClient(String metadataURL) throws MetadataStoreException {
+        var pair = getServiceAddressAndNamespace(metadataURL);
+        try {
+            return OxiaClientBuilder.create(pair.getLeft())
+                    .namespace(pair.getRight())
+                    .batchLinger(Duration.of(100, ChronoUnit.MILLIS))
+                    .asyncClient().get();
+        } catch (Exception e) {
+            throw new MetadataStoreException(e);
+        }
     }
 }
