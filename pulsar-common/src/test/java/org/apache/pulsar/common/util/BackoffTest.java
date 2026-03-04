@@ -81,6 +81,60 @@ public class BackoffTest {
     }
 
     @Test
+    public void mandatoryStopShouldWorkWithConstantBackoff() {
+        Clock mockClock = Mockito.mock(Clock.class);
+        Mockito.when(mockClock.millis())
+                .thenReturn(0L)
+                .thenReturn(400L);
+
+        Backoff backoff = new Backoff(
+                100, TimeUnit.MILLISECONDS,
+                100, TimeUnit.MILLISECONDS,
+                300, TimeUnit.MILLISECONDS,
+                mockClock
+        );
+
+        // first call starts the mandatory-stop timer
+        backoff.next();
+        long firstBackoffTime = backoff.getFirstBackoffTimeInMillis();
+
+        // elapsed wall-clock time should exceed mandatory stop
+        backoff.next();
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), firstBackoffTime,
+                "firstBackoffTimeInMillis should not be updated after the first call to next()");
+        assertTrue(backoff.isMandatoryStopMade(),
+                "mandatory stop should be reached even when initial == max (constant backoff)");
+    }
+
+    @Test
+    public void reduceToHalfShouldNotResetMandatoryStopTimer() {
+        Clock mockClock = Mockito.mock(Clock.class);
+        Mockito.when(mockClock.millis())
+                .thenReturn(0L)
+                .thenReturn(200L);
+
+        Backoff backoff = new Backoff(
+                100, TimeUnit.MILLISECONDS,
+                400, TimeUnit.MILLISECONDS,
+                250, TimeUnit.MILLISECONDS,
+                mockClock
+        );
+
+        // first call starts the mandatory-stop timer (next becomes 200)
+        backoff.next();
+        long firstBackoffTime = backoff.getFirstBackoffTimeInMillis();
+
+        // This can bring the next delay back to initial, but it should not reset firstBackoffTimeInMillis.
+        backoff.reduceToHalf();
+
+        backoff.next();
+        assertEquals(backoff.getFirstBackoffTimeInMillis(), firstBackoffTime,
+                "reduceToHalf should not reset firstBackoffTimeInMillis");
+        assertTrue(backoff.isMandatoryStopMade(),
+                "mandatory stop should be reached based on wall-clock time since the first call to next()");
+    }
+
+    @Test
     public void basicTest() {
         Clock mockClock = Clock.fixed(Instant.EPOCH, ZoneId.systemDefault());
         Backoff backoff = new Backoff(5, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 60, TimeUnit.SECONDS, mockClock);
