@@ -106,7 +106,7 @@ public class Namespaces extends NamespacesBase {
     public void getTenantNamespaces(@Suspended final AsyncResponse response,
                                     @PathParam("tenant") String tenant) {
         internalGetTenantNamespaces(tenant)
-                .thenAccept(response::resume)
+                .thenAcceptAsync(response::resume, pulsar().getWebService().getWebServiceExecutor())
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get namespaces list: {}", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(response, ex);
