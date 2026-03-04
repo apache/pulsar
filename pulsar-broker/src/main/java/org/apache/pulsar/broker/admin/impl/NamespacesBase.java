@@ -81,6 +81,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -1578,7 +1579,7 @@ public abstract class NamespacesBase extends AdminResource {
                         // even if not loaded.
                         validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                                 authoritative, false))
-                .thenCompose(__ -> clearBacklogAsync(namespaceName, bundleRange, null))
+                .thenCompose(bundle -> clearBacklogAsync(bundle, null))
                 .thenRun(() -> log.info("[{}] Successfully cleared backlog on namespace bundle {}/{}", clientAppId(),
                         namespaceName, bundleRange));
     }
@@ -1630,7 +1631,7 @@ public abstract class NamespacesBase extends AdminResource {
                         // even if not loaded.
                         validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                                 authoritative, false))
-                .thenCompose(__ -> clearBacklogAsync(namespaceName, bundleRange, subscription))
+                .thenCompose(bundle -> clearBacklogAsync(bundle, subscription))
                 .thenRun(() -> log.info(
                         "[{}] Successfully cleared backlog for subscription {} on namespace bundle {}/{}",
                         clientAppId(), subscription, namespaceName, bundleRange));
@@ -1854,11 +1855,9 @@ public abstract class NamespacesBase extends AdminResource {
         return checkBacklogQuota(quota, retention);
     }
 
-    private CompletableFuture<Void> clearBacklogAsync(NamespaceName nsName, String bundleRange, String subscription) {
-        final NamespaceBundleFactory bundleFactory = pulsar().getNamespaceService().getNamespaceBundleFactory();
-        final NamespaceBundle targetBundle = bundleFactory.getBundle(nsName.toString(), bundleRange);
-        return pulsar().getNamespaceService().getListOfPersistentTopics(nsName)
-                .thenCompose(topicsInNamespace -> {
+    private CompletableFuture<Void> clearBacklogAsync(NamespaceBundle bundle, String subscription) {
+        return pulsar().getNamespaceService().getOwnedPersistentTopicListForNamespaceBundle(bundle)
+                .thenCompose(topicsInBundle -> {
                     List<CompletableFuture<Void>> futures = new ArrayList<>();
                     String effectiveSubscription = subscription;
                     if (effectiveSubscription != null
@@ -1867,13 +1866,9 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     final String finalSubscription = effectiveSubscription;
 
-                    for (String topic : topicsInNamespace) {
+                    for (String topic : topicsInBundle) {
                         TopicName topicName = TopicName.get(topic);
                         if (pulsar().getBrokerService().isSystemTopic(topicName)) {
-                            continue;
-                        }
-                        NamespaceBundle bundle = bundleFactory.getBundle(topicName);
-                        if (bundle == null || !bundle.equals(targetBundle)) {
                             continue;
                         }
                         futures.add(pulsar().getBrokerService().getTopic(topicName.toString(), false)
