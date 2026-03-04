@@ -40,6 +40,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
@@ -193,6 +194,10 @@ public class RangeEntryCacheImplTest {
         ManagedLedgerFactoryMBeanImpl mlFactoryMBean = mock(ManagedLedgerFactoryMBeanImpl.class);
         when(mockEntryCacheManager.getMlFactoryMBean()).thenReturn(mlFactoryMBean);
         ManagedLedgerImpl mockManagedLedger = mock(ManagedLedgerImpl.class);
+        ManagedLedgerConfig conf = mock(ManagedLedgerConfig.class);
+        when(conf.isBatchReadEnabled()).thenReturn(false);
+        when(conf.getBatchReadMaxSizeBytes()).thenReturn((long) 0);
+        when(mockManagedLedger.getConfig()).thenReturn(conf);
         ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
         when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
         when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
