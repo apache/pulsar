@@ -57,13 +57,6 @@ if [ -n "$PULSAR_MEM" ]; then
 fi
 PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
 
-# Extra options to be passed to the jvm, typically used for passing user-defined JVM OPTS configurations.
-# This PULSAR_EXTRA_OPTS parameter has a higher priority than the predefined JVM OPTS in the Pulsar bin files.
-# Therefore, in addition to defining extra JVM parameters here,
-# it can also be used to override JVM parameters with the same name in OPTS
-# For example, if IPv6 functionality needs to be enabled, configure:
-# PULSAR_EXTRA_OPTS="${PULSAR_MEM} ${PULSAR_GC} ${PULSAR_GC_LOG} ${PULSAR_EXTRA_OPTS} -Djava.net.preferIPv4Stack=false"
-# If you need to obtain more details, you can refer to the generation strategy of `OPTS` in the `bin/pulsar-admin-common.sh` file
 PULSAR_EXTRA_OPTS="${PULSAR_MEM} ${PULSAR_GC} ${PULSAR_GC_LOG} ${PULSAR_EXTRA_OPTS}"
 
 # Add extra paths to the bookkeeper classpath
