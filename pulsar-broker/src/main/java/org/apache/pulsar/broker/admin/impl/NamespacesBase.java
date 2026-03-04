@@ -1709,7 +1709,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(policies ->
                         validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                                 authoritative, false))
-                .thenCompose(__ -> unsubscribeAsync(namespaceName, bundleRange, subscription))
+                .thenCompose(bundle -> unsubscribeAsync(bundle, subscription))
                 .thenRun(() -> log.info("[{}] Successfully unsubscribed {} on namespace bundle {}/{}",
                         clientAppId(), subscription, namespaceName, bundleRange));
     }
@@ -1899,26 +1899,18 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    private CompletableFuture<Void> unsubscribeAsync(NamespaceName nsName, String bundleRange, String subscription) {
+    private CompletableFuture<Void> unsubscribeAsync(NamespaceBundle bundle, String subscription) {
         if (subscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
             return CompletableFuture.failedFuture(
                     new RestException(Status.PRECONDITION_FAILED, "Cannot unsubscribe a replication cursor"));
         }
 
-        return pulsar().getNamespaceService().getFullListOfTopics(nsName)
-                .thenCompose(topicsInNamespace -> {
+        return pulsar().getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle)
+                .thenCompose(topicsInBundle -> {
                     List<CompletableFuture<Void>> futures = new ArrayList<>();
-                    NamespaceBundleFactory bundleFactory =
-                            pulsar().getNamespaceService().getNamespaceBundleFactory();
-                    NamespaceBundle targetBundle = bundleFactory.getBundle(nsName.toString(), bundleRange);
-
-                    for (String topic : topicsInNamespace) {
+                    for (String topic : topicsInBundle) {
                         TopicName topicName = TopicName.get(topic);
                         if (pulsar().getBrokerService().isSystemTopic(topicName)) {
-                            continue;
-                        }
-                        NamespaceBundle bundle = bundleFactory.getBundle(topicName);
-                        if (bundle == null || !bundle.equals(targetBundle)) {
                             continue;
                         }
                         futures.add(pulsar().getBrokerService().getTopic(topicName.toString(), false)
