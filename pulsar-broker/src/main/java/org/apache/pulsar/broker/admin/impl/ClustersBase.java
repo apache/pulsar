@@ -92,13 +92,15 @@ public class ClustersBase extends AdminResource {
     })
     public void getClusters(@Suspended AsyncResponse asyncResponse) {
         clusterResources().listAsync()
-                .thenApply(HashSet::new)
-                .thenAccept(asyncResponse::resume)
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to get clusters {}", clientAppId(), ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                .<Void>handleAsync((clusters, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Failed to get clusters {}", clientAppId(), ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    }
+                    asyncResponse.resume(clusters);
                     return null;
-                });
+                }, webExecutor());
     }
 
     @GET
