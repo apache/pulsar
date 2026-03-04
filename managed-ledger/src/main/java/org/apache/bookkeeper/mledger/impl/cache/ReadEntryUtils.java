@@ -106,8 +106,8 @@ class ReadEntryUtils {
                     if (receivedCount == 0) {
                         // Edge case: no entries returned, use regular read
                         entries.close();
-                        log.warn("Batch read returned 0 entries for ledger {} entries {}-{}, falling back to regular read",
-                                handle.getId(), firstEntry, lastEntry);
+                        log.warn("Batch read returned 0 entries for ledger {} entries {}-{}, falling back to "
+                                + "regular read", handle.getId(), firstEntry, lastEntry);
                         return handle.readUnconfirmedAsync(firstEntry, lastEntry);
                     }
 
