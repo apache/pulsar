@@ -135,6 +135,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessagesImpl;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -1943,8 +1944,9 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testRawReaderWithTransactionMarker() throws Exception {
-        final String namespace = "tnx/ns-read-marker";
-        final String topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
+        var namespace = "tnx/ns-read-marker";
+        var topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
+        var sub = "sub";
         admin.namespaces().createNamespace(namespace);
 
         @Cleanup
@@ -1956,7 +1958,13 @@ public class TransactionTest extends TransactionTestBase {
         producer.newMessage(txn).value("message-1").send();
         txn.commit().get();
 
-        var reader = RawReader.create(pulsarClient, topic, "__supervisor-01").get();
+        ConsumerConfigurationData configurationData = new ConsumerConfigurationData();
+        configurationData.setEnableReadingMarkerMessages(true);
+        configurationData.getTopicNames().add(topic);
+        configurationData.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+        configurationData.setSubscriptionName(sub);
+
+        RawReader reader = (RawReader) RawReader.create(pulsarClient, configurationData, true, true).get();
         var message1 = reader.readNextAsync().get();
         var message2 = reader.readNextAsync().get();
         var metadata = Commands.parseMessageMetadata(message2.getHeadersAndPayload());

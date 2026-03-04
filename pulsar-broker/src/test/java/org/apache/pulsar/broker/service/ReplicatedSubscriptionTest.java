@@ -66,6 +66,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
@@ -93,7 +94,6 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     @Override
     @BeforeClass(timeOut = 300000)
     public void setup() throws Exception {
-        config1.setSubscriptionPrefixToSkipServerMarkerCheck(Set.of("__supervisor"));
         super.setup();
     }
 
@@ -1057,7 +1057,13 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString())
             .statsInterval(0, TimeUnit.SECONDS).build();
 
-        var reader = RawReader.create(client2, topicName, subName).get();
+        ConsumerConfigurationData configurationData = new ConsumerConfigurationData();
+        configurationData.setEnableReadingMarkerMessages(true);
+        configurationData.getTopicNames().add(topicName);
+        configurationData.setSubscriptionName(subName);
+        configurationData.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+
+        RawReader reader = (RawReader) RawReader.create(client2, configurationData, true, true).get();
 
         var message1 = reader.readNextAsync().get();
         var message2 = reader.readNextAsync().get();

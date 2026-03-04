@@ -333,10 +333,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         if (Compactor.COMPACTION_SUBSCRIPTION.equals(name)) {
             return true;
         }
-        for (String prefix : serviceConfig.getSubscriptionPrefixToSkipServerMarkerCheck()) {
-            if (name.startsWith(prefix)) {
-                return true;
-            }
+        if (Boolean.parseBoolean(subscription.getSubscriptionProperties()
+            .getOrDefault("enableReadingMarkerMessages", "false"))) {
+            return true;
         }
         return false;
     }
