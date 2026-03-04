@@ -526,7 +526,9 @@ public class RangeEntryCacheImpl implements EntryCache {
     private CompletableFuture<List<Entry>> readFromStorage(ReadHandle lh, long firstEntry, long lastEntry,
                                                           IntSupplier expectedReadCount, boolean allowRetry) {
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
-        CompletableFuture<List<Entry>> readResult = ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry)
+        ManagedLedgerConfig mlConfig = ml.getConfig();
+        CompletableFuture<List<Entry>> readResult = ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry,
+                        mlConfig.isBatchReadEnabled(), mlConfig.getBatchReadMaxSizeBytes())
                 .thenApply(
                         ledgerEntries -> {
                             requireNonNull(ml.getName());

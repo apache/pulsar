@@ -91,6 +91,36 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean cacheEvictionByExpectedReadCount = true;
+
+    /**
+     * Enable batch read API when reading entries from bookkeeper.
+     * Batch read allows reading multiple entries in a single RPC call, reducing network overhead.
+     * Note: Batch read is only effective when ensembleSize equals writeQuorumSize (non-striped ledgers).
+     */
+    @Setter
+    private boolean batchReadEnabled = false;
+
+    /**
+     * Max size in bytes for batch read requests. If set to 0 or negative,
+     * uses the netty max frame size (default 5MB).
+     * Batch read may return fewer entries if total size exceeds this limit.
+     */
+    @Getter
+    @Setter
+    private long batchReadMaxSizeBytes = 0;
+
+    /**
+     * Returns whether batch read is enabled for this managed ledger.
+     * Batch read is only enabled when both conditions are met:
+     * 1. batchReadEnabled is set to true
+     * 2. ensembleSize equals writeQuorumSize (non-striped ledger)
+     *
+     * @return true if batch read should be used
+     */
+    public boolean isBatchReadEnabled() {
+        return ensembleSize == writeQuorumSize && batchReadEnabled;
+    }
+
     @Getter
     private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
     private int minimumBacklogCursorsForCaching = 0;
