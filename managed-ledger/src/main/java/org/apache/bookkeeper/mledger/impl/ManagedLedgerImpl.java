@@ -4225,7 +4225,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         if (ledgerId > lastConfirmedEntry.getLedgerId()) {
             checkState(ledgers.get(ledgerId).getEntries() == 0);
-            ledgerId = lastConfirmedEntry.getLedgerId();
+            return PositionFactory.create(lastConfirmedEntry.getLedgerId(), lastConfirmedEntry.getEntryId());
         }
         return PositionFactory.create(ledgerId, -1);
     }
