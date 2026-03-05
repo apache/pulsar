@@ -1929,6 +1929,9 @@ public abstract class NamespacesBase extends AdminResource {
                     return FutureUtil.waitForAll(futures);
                 }).exceptionally(ex -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof RestException) {
+                        throw (RestException) cause;
+                    }
                     if (cause instanceof SubscriptionBusyException) {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Subscription has active connected consumers");
