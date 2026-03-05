@@ -663,8 +663,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         TransactionImpl txnImpl = null;
         if (null != txn) {
             if (!(txn instanceof TransactionImpl)) {
-                return FutureUtil.failedFuture(
-                        new IllegalArgumentException("txn should be instance of TransactionImpl"));
+                return FutureUtil.failedFuture(new IllegalArgumentException(
+                        "Expected txn to be an instance of TransactionImpl, but got " + txn.getClass().getName()));
             }
             txnImpl = (TransactionImpl) txn;
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -695,8 +695,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         TransactionImpl txnImpl = null;
         if (null != txn) {
             if (!(txn instanceof TransactionImpl)) {
-                return FutureUtil.failedFuture(
-                        new IllegalArgumentException("txn should be instance of TransactionImpl"));
+                return FutureUtil.failedFuture(new IllegalArgumentException(
+                        "Expected txn to be an instance of TransactionImpl, but got " + txn.getClass().getName()));
             }
             txnImpl = (TransactionImpl) txn;
         }
