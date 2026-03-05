@@ -1060,15 +1060,28 @@ public class CmdFunctions extends CmdBase {
                 description = "Show extended output with state and instance counts")
         private boolean longFormat;
 
+        @Option(names = "--limit",
+                description = "Limit the number of status summaries returned (only with status-summary path)")
+        private Integer limit;
+
+        @Option(names = "--continuation-token",
+                description = "Exclusive continuation token (function name) for status-summary pagination")
+        private String continuationToken;
+
         @Override
         void runCmd() throws Exception {
-            if (state == null && !longFormat) {
+            if (limit != null && limit <= 0) {
+                throw new ParameterException("--limit must be greater than 0");
+            }
+
+            if (state == null && !longFormat && limit == null && continuationToken == null) {
                 print(getAdmin().functions().getFunctions(tenant, namespace));
                 return;
             }
 
-            List<FunctionStatusSummary> summaries =
-                    getAdmin().functions().getFunctionsWithStatus(tenant, namespace);
+            List<FunctionStatusSummary> summaries = limit == null && continuationToken == null
+                    ? getAdmin().functions().getFunctionsWithStatus(tenant, namespace)
+                    : getAdmin().functions().getFunctionsWithStatus(tenant, namespace, limit, continuationToken);
 
             if (state != null) {
                 summaries = summaries.stream()

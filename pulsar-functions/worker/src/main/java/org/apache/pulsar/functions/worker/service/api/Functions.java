@@ -106,4 +106,12 @@ public interface Functions<W extends WorkerService> extends Component<W> {
 
     List<FunctionStatusSummary> listFunctionsWithStatus(String tenant, String namespace,
                                                         AuthenticationParameters authParams);
+
+    default List<FunctionStatusSummary> listFunctionsWithStatus(String tenant,
+                                                                String namespace,
+                                                                Integer limit,
+                                                                String continuationToken,
+                                                                AuthenticationParameters authParams) {
+        return listFunctionsWithStatus(tenant, namespace, authParams);
+    }
 }

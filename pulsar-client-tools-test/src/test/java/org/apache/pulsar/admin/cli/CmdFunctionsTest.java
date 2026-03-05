@@ -633,6 +633,7 @@ public class CmdFunctionsTest {
         assertEquals(NAMESPACE, lister.getNamespace());
 
         verify(functions, times(1)).getFunctions(eq(TENANT), eq(NAMESPACE));
+        verify(functions, times(0)).getFunctionsWithStatus(eq(TENANT), eq(NAMESPACE));
     }
 
     @Test
@@ -646,6 +647,7 @@ public class CmdFunctionsTest {
         assertEquals("default", lister.getNamespace());
 
         verify(functions, times(1)).getFunctions(eq("public"), eq("default"));
+        verify(functions, times(0)).getFunctionsWithStatus(eq("public"), eq("default"));
     }
 
     @Test
@@ -1026,5 +1028,52 @@ public class CmdFunctionsTest {
         assertTrue(stringWriter.toString().contains("INVALID_STATE"));
         verify(functions, times(0)).getFunctionsWithStatus(anyString(), anyString());
         verify(functions, times(0)).getFunctions(anyString(), anyString());
+    }
+
+    @Test
+    public void testListFunctionsWithPaginationParams() throws Exception {
+        List<FunctionStatusSummary> summaries = List.of(
+                FunctionStatusSummary.builder()
+                        .name("fn-b")
+                        .state(FunctionStatusSummary.SummaryState.RUNNING)
+                        .numInstances(1)
+                        .numRunning(1)
+                        .build()
+        );
+        when(functions.getFunctionsWithStatus(eq(TENANT), eq(NAMESPACE), eq(1), eq("fn-a")))
+                .thenReturn(summaries);
+
+        cmd.run(new String[] {
+                "list",
+                "--tenant", TENANT,
+                "--namespace", NAMESPACE,
+                "--limit", "1",
+                "--continuation-token", "fn-a"
+        });
+
+        verify(functions, times(1)).getFunctionsWithStatus(eq(TENANT), eq(NAMESPACE), eq(1), eq("fn-a"));
+        verify(functions, times(0)).getFunctions(eq(TENANT), eq(NAMESPACE));
+        verify(functions, times(0)).getFunctionsWithStatus(eq(TENANT), eq(NAMESPACE));
+    }
+
+    @Test
+    public void testListFunctionsWithInvalidLimitValue() throws Exception {
+        @Cleanup
+        StringWriter stringWriter = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(stringWriter);
+        cmd.getCommander().setErr(printWriter);
+
+        cmd.run(new String[] {
+                "list",
+                "--tenant", TENANT,
+                "--namespace", NAMESPACE,
+                "--limit", "0"
+        });
+
+        assertTrue(stringWriter.toString().contains("--limit"));
+        verify(functions, times(0)).getFunctions(anyString(), anyString());
+        verify(functions, times(0)).getFunctionsWithStatus(anyString(), anyString());
+        verify(functions, times(0)).getFunctionsWithStatus(anyString(), anyString(), any(), anyString());
     }
 }

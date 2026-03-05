@@ -93,13 +93,32 @@ public class FunctionsImpl extends ComponentResource implements Functions {
     @Override
     public List<FunctionStatusSummary> getFunctionsWithStatus(String tenant, String namespace)
             throws PulsarAdminException {
-        return sync(() -> getFunctionsWithStatusAsync(tenant, namespace));
+        return sync(() -> getFunctionsWithStatusAsync(tenant, namespace, null, null));
     }
 
     @Override
     public CompletableFuture<List<FunctionStatusSummary>> getFunctionsWithStatusAsync(
             String tenant, String namespace) {
+        return getFunctionsWithStatusAsync(tenant, namespace, null, null);
+    }
+
+    @Override
+    public List<FunctionStatusSummary> getFunctionsWithStatus(
+            String tenant, String namespace, Integer limit, String continuationToken)
+            throws PulsarAdminException {
+        return sync(() -> getFunctionsWithStatusAsync(tenant, namespace, limit, continuationToken));
+    }
+
+    @Override
+    public CompletableFuture<List<FunctionStatusSummary>> getFunctionsWithStatusAsync(
+            String tenant, String namespace, Integer limit, String continuationToken) {
         WebTarget path = functions.path(tenant).path(namespace).path("status").path("summary");
+        if (limit != null) {
+            path = path.queryParam("limit", limit);
+        }
+        if (continuationToken != null && !continuationToken.isEmpty()) {
+            path = path.queryParam("continuationToken", continuationToken);
+        }
         return asyncGetRequest(path, new GenericType<List<FunctionStatusSummary>>() {});
     }
 

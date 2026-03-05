@@ -133,8 +133,10 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}/status/summary")
     public List<FunctionStatusSummary> listFunctionsWithStatus(
             final @PathParam("tenant") String tenant,
-            final @PathParam("namespace") String namespace) {
-        return functions().listFunctionsWithStatus(tenant, namespace, authParams());
+            final @PathParam("namespace") String namespace,
+            final @QueryParam("limit") Integer limit,
+            final @QueryParam("continuationToken") String continuationToken) {
+        return functions().listFunctionsWithStatus(tenant, namespace, limit, continuationToken, authParams());
     }
 
     @GET

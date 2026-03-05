@@ -43,6 +43,16 @@ public class FunctionStatusSummary {
         UNKNOWN
     }
 
+    /**
+     * Classification of the status retrieval failure.
+     */
+    public enum ErrorType {
+        AUTHENTICATION_FAILED,
+        FUNCTION_NOT_FOUND,
+        NETWORK_ERROR,
+        INTERNAL_ERROR
+    }
+
     private String name;
     private SummaryState state;
     private int numInstances;
@@ -53,4 +63,5 @@ public class FunctionStatusSummary {
      * the function will have {@code state = UNKNOWN} in that case.
      */
     private String error;
+    private ErrorType errorType;
 }

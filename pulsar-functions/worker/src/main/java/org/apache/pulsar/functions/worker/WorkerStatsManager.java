@@ -50,6 +50,7 @@ public class WorkerStatsManager {
   private static final String STOPPING_INSTANCE_PROCESS_TIME = "stop_instance_process_time_ms";
   private static final String STARTING_INSTANCE_PROCESS_TIME = "start_instance_process_time_ms";
   private static final String DRAIN_TOTAL_EXEC_TIME = "drain_execution_time_total_ms";
+  private static final String FUNCTIONS_STATUS_SUMMARY_QUERY_TIME = "functions_status_summary_query_time_ms";
   private static final String IS_LEADER = "is_leader";
 
 
@@ -79,6 +80,7 @@ public class WorkerStatsManager {
   private final Summary stopInstanceProcessTime;
   private final Summary startInstanceProcessTime;
   private final Summary drainTotalExecutionTime;
+  private final Summary functionsStatusSummaryQueryTime;
 
   // As an optimization
   private final Summary.Child statWorkerStartupTimeChild;
@@ -90,6 +92,7 @@ public class WorkerStatsManager {
   private final Summary.Child stopInstanceProcessTimeChild;
   private final Summary.Child startInstanceProcessTimeChild;
   private final Summary.Child drainTotalExecutionTimeChild;
+  private final Summary.Child functionsStatusSummaryQueryTimeChild;
 
   public WorkerStatsManager(WorkerConfig workerConfig, boolean runAsStandalone) {
 
@@ -178,6 +181,16 @@ public class WorkerStatsManager {
             .quantile(1, 0.01)
             .register(collectorRegistry);
     drainTotalExecutionTimeChild = drainTotalExecutionTime.labels(metricsLabels);
+
+    functionsStatusSummaryQueryTime = Summary.build()
+            .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + FUNCTIONS_STATUS_SUMMARY_QUERY_TIME)
+            .help("Execution time of functions status summary batch query in milliseconds.")
+            .labelNames(metricsLabelNames)
+            .quantile(0.5, 0.01)
+            .quantile(0.9, 0.01)
+            .quantile(1, 0.01)
+            .register(collectorRegistry);
+    functionsStatusSummaryQueryTimeChild = functionsStatusSummaryQueryTime.labels(metricsLabels);
 
     if (runAsStandalone) {
       Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Gauge.Child() {
@@ -290,6 +303,10 @@ public class WorkerStatsManager {
       double endTimeMs = ((double) System.nanoTime() - startInstanceProcessTimeStart) / 1.0E6D;
       startInstanceProcessTimeChild.observe(endTimeMs);
     }
+  }
+
+  public void observeFunctionsStatusSummaryQueryTime(double elapsedMs) {
+    functionsStatusSummaryQueryTimeChild.observe(elapsedMs);
   }
 
   public String getStatsAsString() throws IOException {

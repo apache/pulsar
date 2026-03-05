@@ -110,6 +110,48 @@ public interface Functions {
     CompletableFuture<List<FunctionStatusSummary>> getFunctionsWithStatusAsync(String tenant, String namespace);
 
     /**
+     * Get a paginated batch status summary for functions in a namespace.
+     * <p/>
+     * The {@code continuationToken} is an exclusive cursor based on function name
+     * in lexicographical order.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param limit
+     *            Maximum number of functions to return; non-positive means no limit
+     * @param continuationToken
+     *            Exclusive continuation token from previous page; null means from beginning
+     * @return list of status summaries for the requested page
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    default List<FunctionStatusSummary> getFunctionsWithStatus(
+            String tenant, String namespace, Integer limit, String continuationToken)
+            throws PulsarAdminException {
+        return getFunctionsWithStatus(tenant, namespace);
+    }
+
+    /**
+     * Async paginated version of {@link #getFunctionsWithStatus(String, String, Integer, String)}.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param limit
+     *            Maximum number of functions to return; non-positive means no limit
+     * @param continuationToken
+     *            Exclusive continuation token from previous page; null means from beginning
+     * @return a future that completes with the list of status summaries for the requested page
+     */
+    default CompletableFuture<List<FunctionStatusSummary>> getFunctionsWithStatusAsync(
+            String tenant, String namespace, Integer limit, String continuationToken) {
+        return getFunctionsWithStatusAsync(tenant, namespace);
+    }
+
+    /**
      * Get the configuration for the specified function.
      * <p/>
      * Response Example:
