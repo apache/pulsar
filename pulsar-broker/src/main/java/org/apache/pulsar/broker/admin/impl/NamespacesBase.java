@@ -1888,6 +1888,9 @@ public abstract class NamespacesBase extends AdminResource {
                     return FutureUtil.waitForAll(futures);
                 }).exceptionally(ex -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof RestException) {
+                        throw (RestException) cause;
+                    }
                     throw new RestException(cause);
                 });
     }
