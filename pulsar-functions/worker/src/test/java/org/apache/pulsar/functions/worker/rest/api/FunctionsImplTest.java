@@ -34,6 +34,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,6 +52,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -483,8 +485,8 @@ public class FunctionsImplTest {
         FunctionStatus remoteStatus = new FunctionStatus();
         remoteStatus.setNumInstances(2);
         remoteStatus.numRunning = 1;
-        org.apache.pulsar.client.admin.Functions mockedFunctionsAdmin =
-                mock(org.apache.pulsar.client.admin.Functions.class);
+        Functions mockedFunctionsAdmin =
+                mock(Functions.class);
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctionsAdmin);
         when(mockedFunctionsAdmin.getFunctionStatus(eq(tenant), eq(namespace), eq("remote-fn")))
                 .thenReturn(remoteStatus);
@@ -507,8 +509,8 @@ public class FunctionsImplTest {
         doThrow(new RestException(Response.Status.UNAUTHORIZED, "not authorized")).when(resource)
                 .getFunctionStatus(eq(tenant), eq(namespace), eq("auth-fn"), any(), any());
 
-        org.apache.pulsar.client.admin.Functions mockedFunctionsAdmin =
-                mock(org.apache.pulsar.client.admin.Functions.class);
+        Functions mockedFunctionsAdmin =
+                mock(Functions.class);
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctionsAdmin);
 
         List<FunctionStatusSummary> result = resource.listFunctionsWithStatus(tenant, namespace, null);
@@ -532,8 +534,8 @@ public class FunctionsImplTest {
         FunctionStatus remoteStatus = new FunctionStatus();
         remoteStatus.setNumInstances(2);
         remoteStatus.numRunning = 1;
-        org.apache.pulsar.client.admin.Functions mockedFunctionsAdmin =
-                mock(org.apache.pulsar.client.admin.Functions.class);
+        Functions mockedFunctionsAdmin =
+                mock(Functions.class);
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctionsAdmin);
         when(mockedFunctionsAdmin.getFunctionStatus(eq(tenant), eq(namespace), eq("remote-fn")))
                 .thenReturn(remoteStatus);
@@ -565,8 +567,8 @@ public class FunctionsImplTest {
         doThrow(new RestException(Response.Status.NOT_FOUND, "function not found")).when(resource)
                 .getFunctionStatus(eq(tenant), eq(namespace), eq("missing-fn"), any(), any());
 
-        org.apache.pulsar.client.admin.Functions mockedFunctionsAdmin =
-                mock(org.apache.pulsar.client.admin.Functions.class);
+        Functions mockedFunctionsAdmin =
+                mock(Functions.class);
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctionsAdmin);
 
         List<FunctionStatusSummary> result = resource.listFunctionsWithStatus(tenant, namespace, null);
@@ -580,14 +582,14 @@ public class FunctionsImplTest {
     public void testListFunctionsWithStatus_networkErrorType() throws Exception {
         List<String> functionNames = List.of("network-fn");
         doReturn(functionNames).when(resource).listFunctions(eq(tenant), eq(namespace), any());
-        doThrow(new RuntimeException(new java.net.ConnectException("refused"))).when(resource)
+        doThrow(new RuntimeException(new ConnectException("refused"))).when(resource)
                 .getFunctionStatus(eq(tenant), eq(namespace), eq("network-fn"), any(), any());
 
-        org.apache.pulsar.client.admin.Functions mockedFunctionsAdmin =
-                mock(org.apache.pulsar.client.admin.Functions.class);
+        Functions mockedFunctionsAdmin =
+                mock(Functions.class);
         when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctionsAdmin);
         when(mockedFunctionsAdmin.getFunctionStatus(eq(tenant), eq(namespace), eq("network-fn")))
-                .thenThrow(new RuntimeException(new java.net.ConnectException("still refused")));
+                .thenThrow(new RuntimeException(new ConnectException("still refused")));
 
         List<FunctionStatusSummary> result = resource.listFunctionsWithStatus(tenant, namespace, null);
 
@@ -644,3 +646,4 @@ public class FunctionsImplTest {
         return FunctionConfigUtils.convert(functionConfig);
     }
 }
+

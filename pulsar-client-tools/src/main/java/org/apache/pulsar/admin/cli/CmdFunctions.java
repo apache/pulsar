@@ -701,16 +701,16 @@ public class CmdFunctions extends CmdBase {
                 }
             }
             if (StringUtils.isEmpty(functionConfig.getName())) {
-                org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+                Utils.inferMissingFunctionName(functionConfig);
             }
             if (StringUtils.isEmpty(functionConfig.getName())) {
                 throw new IllegalArgumentException("No Function name specified");
             }
             if (StringUtils.isEmpty(functionConfig.getTenant())) {
-                org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
+                Utils.inferMissingTenant(functionConfig);
             }
             if (StringUtils.isEmpty(functionConfig.getNamespace())) {
-                org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+                Utils.inferMissingNamespace(functionConfig);
             }
 
             if (isNotBlank(functionConfig.getJar()) && isNotBlank(functionConfig.getPy())
@@ -1018,16 +1018,16 @@ public class CmdFunctions extends CmdBase {
         @Override
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
             if (StringUtils.isEmpty(functionConfig.getName())) {
-                org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);
+                Utils.inferMissingFunctionName(functionConfig);
             }
             if (StringUtils.isEmpty(functionConfig.getName())) {
                 throw new ParameterException("Function Name not provided");
             }
             if (StringUtils.isEmpty(functionConfig.getTenant())) {
-                org.apache.pulsar.common.functions.Utils.inferMissingTenant(functionConfig);
+                Utils.inferMissingTenant(functionConfig);
             }
             if (StringUtils.isEmpty(functionConfig.getNamespace())) {
-                org.apache.pulsar.common.functions.Utils.inferMissingNamespace(functionConfig);
+                Utils.inferMissingNamespace(functionConfig);
             }
         }
 

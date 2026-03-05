@@ -27,10 +27,13 @@ import com.google.protobuf.ByteString;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
 import java.net.URI;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
@@ -748,7 +751,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         ValidatableFunctionPackage functionPackage = null;
         // check if function is builtin and extract classloader
         if (!StringUtils.isEmpty(archive)) {
-            if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+            if (archive.startsWith(Utils.BUILTIN)) {
                 archive = archive.replaceFirst("^builtin://", "");
 
                 FunctionsManager functionsManager = worker().getFunctionsManager();
@@ -849,7 +852,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             }
         }
         if (startIndex >= sorted.size()) {
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
         }
         if (limit == null) {
             return sorted.subList(startIndex, sorted.size());
@@ -974,8 +977,8 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
         Throwable current = error;
         while (current != null) {
-            if (current instanceof java.net.ConnectException
-                    || current instanceof java.net.SocketTimeoutException
+            if (current instanceof ConnectException
+                    || current instanceof SocketTimeoutException
                     || current instanceof UnknownHostException
                     || current instanceof java.nio.channels.UnresolvedAddressException) {
                 return true;

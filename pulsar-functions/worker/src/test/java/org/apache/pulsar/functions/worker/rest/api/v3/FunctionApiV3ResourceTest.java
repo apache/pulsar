@@ -41,6 +41,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusSummary;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.proto.Function;
@@ -454,14 +455,12 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
         FunctionStatusSummary.SummaryState running = FunctionStatusSummary.SummaryState.RUNNING;
         FunctionStatusSummary.SummaryState stopped = FunctionStatusSummary.SummaryState.STOPPED;
 
-        org.apache.pulsar.common.policies.data.FunctionStatus statusA =
-                new org.apache.pulsar.common.policies.data.FunctionStatus();
+        FunctionStatus statusA = new FunctionStatus();
         statusA.setNumInstances(2);
         statusA.setNumRunning(2);
         when(resource.getFunctionStatus(eq(TENANT), eq(NAMESPACE), eq("fn-a"), any(), any())).thenReturn(statusA);
 
-        org.apache.pulsar.common.policies.data.FunctionStatus statusB =
-                new org.apache.pulsar.common.policies.data.FunctionStatus();
+        FunctionStatus statusB = new FunctionStatus();
         statusB.setNumInstances(1);
         statusB.setNumRunning(0);
         when(resource.getFunctionStatus(eq(TENANT), eq(NAMESPACE), eq("fn-b"), any(), any())).thenReturn(statusB);
