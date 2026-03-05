@@ -48,6 +48,11 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
 
+    /** SystemTopicTxnBufferSnapshotService is created only three, see also
+     *  {@link TransactionBufferSnapshotServiceFactory}. At the same time, each object can only
+     * be fixed threads access, see also {@link PulsarService#transactionSnapshotRecoverExecutorProvider}.
+     * So the un-static ThreadLocal is safe.
+     */
     private final ThreadLocal<TableView<T>> tableViewThreadLocal = new ThreadLocal<>();
 
     // The class ReferenceCountedWriter will maintain the reference count,
