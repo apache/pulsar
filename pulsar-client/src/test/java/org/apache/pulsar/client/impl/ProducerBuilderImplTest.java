@@ -23,9 +23,12 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
@@ -383,6 +386,23 @@ public class ProducerBuilderImplTest {
         producerBuilderImpl.batchingMaxMessages(2);
         producerBuilderImpl.sendTimeout(1, TimeUnit.SECONDS);
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(1000);
+    }
+
+    @Test
+    public void testCreateAsyncFailsWhenBatchingAndChunkingEnabled() {
+        producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
+        CompletableFuture<Producer<byte[]>> future = producerBuilderImpl.topic(TOPIC_NAME)
+                .enableBatching(true)
+                .enableChunking(true)
+                .createAsync();
+
+        assertTrue(future.isCompletedExceptionally());
+        try {
+            future.join();
+            fail("Expected IllegalArgumentException");
+        } catch (CompletionException e) {
+            assertTrue(e.getCause() instanceof IllegalArgumentException);
+        }
     }
 
     private class CustomMessageRouter implements MessageRouter {
