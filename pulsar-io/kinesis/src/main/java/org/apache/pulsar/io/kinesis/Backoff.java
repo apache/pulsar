@@ -39,6 +39,7 @@ public class Backoff {
     private long mandatoryStop;
 
     private long firstBackoffTimeInMillis;
+    private boolean firstBackoffTimeInMillisSet;
     private boolean mandatoryStopMade = false;
 
     private static final Random random = new Random();
@@ -51,6 +52,8 @@ public class Backoff {
         this.next = this.initial;
         this.mandatoryStop = unitMandatoryStop.toMillis(mandatoryStop);
         this.clock = clock;
+        this.firstBackoffTimeInMillis = 0;
+        this.firstBackoffTimeInMillisSet = false;
     }
 
     public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
@@ -68,8 +71,9 @@ public class Backoff {
         if (!mandatoryStopMade) {
             long now = clock.millis();
             long timeElapsedSinceFirstBackoff = 0;
-            if (initial == current) {
+            if (!firstBackoffTimeInMillisSet) {
                 firstBackoffTimeInMillis = now;
+                firstBackoffTimeInMillisSet = true;
             } else {
                 timeElapsedSinceFirstBackoff = now - firstBackoffTimeInMillis;
             }
@@ -96,6 +100,8 @@ public class Backoff {
 
     public void reset() {
         this.next = this.initial;
+        this.firstBackoffTimeInMillis = 0;
+        this.firstBackoffTimeInMillisSet = false;
         this.mandatoryStopMade = false;
     }
 
