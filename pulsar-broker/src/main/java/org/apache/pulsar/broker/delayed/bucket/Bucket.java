@@ -23,7 +23,6 @@ import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTrack
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
@@ -158,7 +157,9 @@ abstract class Bucket {
     }
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
-        Objects.requireNonNull(bucketId);
+        if (bucketId == null) {
+            return FutureUtil.failedFuture(new NullPointerException());
+        }
         return sequencer.sequential(() -> {
             return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
                     ManagedLedgerException.BadVersionException.class, MaxRetryTimes);

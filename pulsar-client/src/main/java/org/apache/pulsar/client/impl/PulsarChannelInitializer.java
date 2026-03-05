@@ -27,7 +27,6 @@ import io.netty.handler.proxy.Socks5ProxyHandler;
 import io.netty.handler.ssl.SslHandler;
 import java.net.InetSocketAddress;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -43,6 +42,7 @@ import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 
 @Slf4j
@@ -106,10 +106,14 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
      * @return a {@link CompletableFuture} that completes when the TLS is set up.
      */
     CompletableFuture<Channel> initTls(Channel ch, InetSocketAddress sniHost) {
-        Objects.requireNonNull(ch, "A channel is required");
-        Objects.requireNonNull(sniHost, "A sniHost is required");
+        if (ch == null) {
+            return FutureUtil.failedFuture(new NullPointerException("A channel is required"));
+        }
+        if (sniHost == null) {
+            return FutureUtil.failedFuture(new NullPointerException("A sniHost is required"));
+        }
         if (!tlsEnabled) {
-            throw new IllegalStateException("TLS is not enabled in client configuration");
+            return FutureUtil.failedFuture(new IllegalStateException("TLS is not enabled in client configuration"));
         }
         CompletableFuture<Channel> initTlsFuture = new CompletableFuture<>();
         ch.eventLoop().execute(() -> {

@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -231,7 +230,9 @@ public class FutureUtil {
          * @throws NullPointerException NPE when param is null
          */
         public synchronized CompletableFuture<T> sequential(Supplier<CompletableFuture<T>> newTask) {
-            Objects.requireNonNull(newTask);
+            if (newTask == null) {
+                return failedFuture(new NullPointerException());
+            }
             if (sequencerFuture.isDone()) {
                 if (sequencerFuture.isCompletedExceptionally() && allowExceptionBreakChain) {
                     return sequencerFuture;
@@ -287,8 +288,9 @@ public class FutureUtil {
      */
     public static <T> @NonNull CompletableFuture<T> composeAsync(Supplier<CompletableFuture<T>> futureSupplier,
                                                                  Executor executor) {
-        Objects.requireNonNull(futureSupplier);
-        Objects.requireNonNull(executor);
+        if (futureSupplier == null || executor == null) {
+            return failedFuture(new NullPointerException());
+        }
         final CompletableFuture<T> future = new CompletableFuture<>();
         try {
             executor.execute(() -> futureSupplier.get().whenComplete((result, error) -> {

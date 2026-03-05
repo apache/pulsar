@@ -60,6 +60,7 @@ import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
@@ -139,7 +140,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
 
         public synchronized CompletableFuture<ByteBuf> getCompressedBuffer(Executor executor) {
             if (released) {
-                throw new IllegalStateException("Already released!");
+                return FutureUtil.failedFuture(new IllegalStateException("Already released!"));
             }
             if (compressedBuffer == null) {
                 compressedBuffer = new CompletableFuture<>();

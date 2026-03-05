@@ -28,6 +28,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Interface for offloading ledgers to long-term storage.
@@ -165,7 +166,7 @@ public interface LedgerOffloader {
     default CompletableFuture<OffloadHandle> streamingOffload(ManagedLedger ml, UUID uid, long beginLedger,
                                                               long beginEntry,
                                                               Map<String, String> driverMetadata) {
-        throw new UnsupportedOperationException();
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     /**
@@ -200,11 +201,11 @@ public interface LedgerOffloader {
 
     default CompletableFuture<ReadHandle> readOffloaded(long ledgerId, MLDataFormats.OffloadContext ledgerContext,
                                                         Map<String, String> offloadDriverMetadata) {
-        throw new UnsupportedOperationException();
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     default CompletableFuture<Void> deleteOffloaded(UUID uid, Map<String, String> offloadDriverMetadata) {
-        throw new UnsupportedOperationException();
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     /**

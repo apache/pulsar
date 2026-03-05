@@ -3777,8 +3777,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetMaxConsumers(Integer maxConsumersToSet, boolean isGlobal) {
         if (maxConsumersToSet != null && maxConsumersToSet < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "maxConsumers must be 0 or more");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "maxConsumers must be 0 or more"));
         }
         return pulsar().getTopicPoliciesService()
                 .updateTopicPoliciesAsync(topicName, isGlobal, maxConsumersToSet == null, policies -> {
