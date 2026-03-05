@@ -662,7 +662,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
         TransactionImpl txnImpl = null;
         if (null != txn) {
-            checkArgument(txn instanceof TransactionImpl);
+            if (!(txn instanceof TransactionImpl)) {
+                return FutureUtil.failedFuture(
+                        new IllegalArgumentException("txn should be instance of TransactionImpl"));
+            }
             txnImpl = (TransactionImpl) txn;
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
            if (!txnImpl.checkIfOpen(completableFuture)) {
@@ -691,7 +694,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         TransactionImpl txnImpl = null;
         if (null != txn) {
-            checkArgument(txn instanceof TransactionImpl);
+            if (!(txn instanceof TransactionImpl)) {
+                return FutureUtil.failedFuture(
+                        new IllegalArgumentException("txn should be instance of TransactionImpl"));
+            }
             txnImpl = (TransactionImpl) txn;
         }
         return doAcknowledgeWithTxn(messageId, AckType.Cumulative, Collections.emptyMap(), txnImpl);
