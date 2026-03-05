@@ -48,7 +48,7 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
 
-    private final ConcurrentHashMap<Thread, TableView<T>> tableView = new ConcurrentHashMap<>();
+    private final ThreadLocal<TableView<T>> tableViewThreadLocal = new ThreadLocal<>();
 
     // The class ReferenceCountedWriter will maintain the reference count,
     // when the reference count decrement to 0, it will be removed from writerFutureMap, the writer will be closed.
@@ -173,9 +173,13 @@ public class SystemTopicTxnBufferSnapshotService<T> {
     }
 
     public TableView<T> getTableView(ScheduledExecutorService scheduledExecutor) {
-        return tableView.computeIfAbsent(Thread.currentThread(),
-            k -> new TableView<>(this::createReader, pulsarClient.getConfiguration().getOperationTimeoutMs(),
-                scheduledExecutor));
+        TableView<T> tableView = tableViewThreadLocal.get();
+        if (tableView == null) {
+            tableView = new TableView<>(this::createReader,
+                    pulsarClient.getConfiguration().getOperationTimeoutMs(), scheduledExecutor);
+            tableViewThreadLocal.set(tableView);
+        }
+        return tableView;
     }
 
 }
