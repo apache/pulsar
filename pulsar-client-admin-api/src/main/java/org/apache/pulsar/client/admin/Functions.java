@@ -75,7 +75,7 @@ public interface Functions {
      * <p/>
      * Returns a lightweight summary (name, state, instance counts) for every function
      * under the given tenant/namespace in a single API call. This is not equivalent to
-     * calling {@link #getFunctionStatus} for each function — it returns only aggregated
+     * calling {@link #getFunctionStatus} for each function - it returns only aggregated
      * counts, not per-instance details.
      * <p/>
      * Individual function failures are isolated: a function whose status cannot be

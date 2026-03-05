@@ -24,7 +24,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -41,6 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.core.Response;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
@@ -492,6 +495,55 @@ public class FunctionsImplTest {
         assertEquals(result.get(0).getNumRunning(), 1);
         assertEquals(result.get(0).getNumInstances(), 2);
         assertEquals(result.get(0).getError(), null);
+    }
+
+    @Test
+    public void testListFunctionsWithStatus_noFallbackForRestException() throws Exception {
+        List<String> functionNames = List.of("auth-fn");
+        doReturn(functionNames).when(resource).listFunctions(eq(tenant), eq(namespace), any());
+
+        doThrow(new RestException(Response.Status.UNAUTHORIZED, "not authorized")).when(resource)
+                .getFunctionStatus(eq(tenant), eq(namespace), eq("auth-fn"), any(), any());
+
+        org.apache.pulsar.client.admin.Functions mockedFunctionsAdmin =
+                mock(org.apache.pulsar.client.admin.Functions.class);
+        when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctionsAdmin);
+
+        List<FunctionStatusSummary> result = resource.listFunctionsWithStatus(tenant, namespace, null);
+
+        assertEquals(result.size(), 1);
+        assertEquals(result.get(0).getName(), "auth-fn");
+        assertEquals(result.get(0).getState(), FunctionStatusSummary.SummaryState.UNKNOWN);
+        assertEquals(result.get(0).getError(), "not authorized");
+        verify(mockedFunctionsAdmin, never()).getFunctionStatus(any(), any(), any());
+    }
+
+    @Test
+    public void testListFunctionsWithStatus_fallbackForServerSideRestException() throws Exception {
+        List<String> functionNames = List.of("remote-fn");
+        doReturn(functionNames).when(resource).listFunctions(eq(tenant), eq(namespace), any());
+
+        doThrow(new RestException(Response.Status.INTERNAL_SERVER_ERROR, "local status failed")).when(resource)
+                .getFunctionStatus(eq(tenant), eq(namespace), eq("remote-fn"), any(), any());
+
+        FunctionStatus remoteStatus = new FunctionStatus();
+        remoteStatus.setNumInstances(2);
+        remoteStatus.numRunning = 1;
+        org.apache.pulsar.client.admin.Functions mockedFunctionsAdmin =
+                mock(org.apache.pulsar.client.admin.Functions.class);
+        when(mockedPulsarAdmin.functions()).thenReturn(mockedFunctionsAdmin);
+        when(mockedFunctionsAdmin.getFunctionStatus(eq(tenant), eq(namespace), eq("remote-fn")))
+                .thenReturn(remoteStatus);
+
+        List<FunctionStatusSummary> result = resource.listFunctionsWithStatus(tenant, namespace, null);
+
+        assertEquals(result.size(), 1);
+        assertEquals(result.get(0).getName(), "remote-fn");
+        assertEquals(result.get(0).getState(), FunctionStatusSummary.SummaryState.PARTIAL);
+        assertEquals(result.get(0).getNumRunning(), 1);
+        assertEquals(result.get(0).getNumInstances(), 2);
+        assertEquals(result.get(0).getError(), null);
+        verify(mockedFunctionsAdmin).getFunctionStatus(eq(tenant), eq(namespace), eq("remote-fn"));
     }
 
     @Test

@@ -27,6 +27,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.io.PrintWriter;
@@ -967,5 +968,63 @@ public class CmdFunctionsTest {
                 .getFunctionsWithStatus(eq(TENANT), eq(NAMESPACE));
         verify(functions, times(0))
                 .getFunctions(eq(TENANT), eq(NAMESPACE));
+    }
+
+    @Test
+    public void testListFunctionsWithUnknownStateFilter() throws Exception {
+        List<FunctionStatusSummary> summaries = List.of(
+                FunctionStatusSummary.builder()
+                        .name("fn-unknown")
+                        .state(FunctionStatusSummary.SummaryState.UNKNOWN)
+                        .error("status unavailable")
+                        .build(),
+                FunctionStatusSummary.builder()
+                        .name("fn-running")
+                        .state(FunctionStatusSummary.SummaryState.RUNNING)
+                        .numInstances(1).numRunning(1).build()
+        );
+        when(functions.getFunctionsWithStatus(eq(TENANT), eq(NAMESPACE)))
+                .thenReturn(summaries);
+
+        @Cleanup
+        StringWriter stringWriter = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(stringWriter);
+        cmd.getCommander().setOut(printWriter);
+
+        cmd.run(new String[] {
+                "list",
+                "--tenant", TENANT,
+                "--namespace", NAMESPACE,
+                "--state", "UNKNOWN"
+        });
+
+        verify(functions, times(1))
+                .getFunctionsWithStatus(eq(TENANT), eq(NAMESPACE));
+        verify(functions, times(0))
+                .getFunctions(eq(TENANT), eq(NAMESPACE));
+        assertTrue(stringWriter.toString().contains("fn-unknown"));
+        assertFalse(stringWriter.toString().contains("fn-running"));
+    }
+
+    @Test
+    public void testListFunctionsWithInvalidStateValue() throws Exception {
+        @Cleanup
+        StringWriter stringWriter = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(stringWriter);
+        cmd.getCommander().setErr(printWriter);
+
+        cmd.run(new String[] {
+                "list",
+                "--tenant", TENANT,
+                "--namespace", NAMESPACE,
+                "--state", "INVALID_STATE"
+        });
+
+        assertTrue(stringWriter.toString().contains("--state"));
+        assertTrue(stringWriter.toString().contains("INVALID_STATE"));
+        verify(functions, times(0)).getFunctionsWithStatus(anyString(), anyString());
+        verify(functions, times(0)).getFunctions(anyString(), anyString());
     }
 }

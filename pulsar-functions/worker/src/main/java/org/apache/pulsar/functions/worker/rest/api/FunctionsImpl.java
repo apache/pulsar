@@ -28,7 +28,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +41,7 @@ import javax.ws.rs.core.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
@@ -802,13 +805,12 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
         // listFunctions already handles auth check and parameter validation
         List<String> functionNames = listFunctions(tenant, namespace, authParams);
-        List<FunctionStatusSummary> summaries = new java.util.ArrayList<>(functionNames.size());
-
+        List<FunctionStatusSummary> summaries = new ArrayList<>(functionNames.size());
         for (String name : functionNames) {
             summaries.add(buildSummary(tenant, namespace, name, authParams));
         }
 
-        summaries.sort(java.util.Comparator.comparing(FunctionStatusSummary::getName));
+        summaries.sort(Comparator.comparing(FunctionStatusSummary::getName));
         return summaries;
     }
 
@@ -834,18 +836,40 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
     private FunctionStatus getFunctionStatusForSummary(String tenant, String namespace, String name,
                                                        AuthenticationParameters authParams)
-            throws PulsarAdminException {
+            throws Exception {
         try {
             // Fast path: local worker service path.
             return getFunctionStatus(tenant, namespace, name, null, authParams);
-        } catch (Exception localError) {
-            // Fallback: query through internal admin client to avoid local redirect/null-uri edge cases.
-            try {
-                return worker().getFunctionAdmin().functions().getFunctionStatus(tenant, namespace, name);
-            } catch (PulsarAdminException remoteError) {
-                remoteError.addSuppressed(localError);
-                throw remoteError;
+        } catch (RestException localRestError) {
+            // Preserve local semantic 4xx errors (authn/authz/not-found/validation).
+            // 5xx errors are treated as recoverable and can still use admin fallback.
+            int status = localRestError.getResponse() != null ? localRestError.getResponse().getStatus() : 0;
+            if (status >= 400 && status < 500) {
+                throw localRestError;
             }
+            return getFunctionStatusFromAdminFallback(tenant, namespace, name, localRestError);
+        } catch (Exception localError) {
+            return getFunctionStatusFromAdminFallback(tenant, namespace, name, localError);
+        }
+    }
+
+    private FunctionStatus getFunctionStatusFromAdminFallback(String tenant, String namespace, String name,
+                                                              Exception localError) throws Exception {
+        // Fallback: query through internal admin client to avoid local redirect/null-uri edge cases.
+        PulsarAdmin functionAdmin = worker().getFunctionAdmin();
+        if (functionAdmin == null || functionAdmin.functions() == null) {
+            throw localError;
+        }
+        try {
+            return functionAdmin.functions().getFunctionStatus(tenant, namespace, name);
+        } catch (PulsarAdminException remoteError) {
+            remoteError.addSuppressed(localError);
+            throw remoteError;
+        } catch (RuntimeException remoteRuntimeError) {
+            if (remoteRuntimeError != localError) {
+                localError.addSuppressed(remoteRuntimeError);
+            }
+            throw localError;
         }
     }
 
