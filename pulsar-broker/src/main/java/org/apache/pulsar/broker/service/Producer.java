@@ -838,7 +838,7 @@ public class Producer {
                     .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, appId, cnx.getAuthenticationData())
                     .handle((ok, ex) -> {
                         if (ex != null) {
-                            log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, topic.getName(),
+                            log.warn("[{}] Get unexpected error while authorizing [{}]  {}", appId, topic.getName(),
                                     ex.getMessage(), ex);
                         }
 
