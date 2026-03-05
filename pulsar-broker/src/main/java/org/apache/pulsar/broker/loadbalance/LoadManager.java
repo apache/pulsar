@@ -70,11 +70,11 @@ public interface LoadManager {
 
     default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             Optional<ServiceUnitId> topic, ServiceUnitId bundle, LookupOptions options) {
-        throw new UnsupportedOperationException();
+        return CompletableFuture.failedFuture(new UnsupportedOperationException());
     }
 
     default CompletableFuture<Boolean> checkOwnershipAsync(Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
-        throw new UnsupportedOperationException();
+        return CompletableFuture.failedFuture(new UnsupportedOperationException());
     }
 
     /**

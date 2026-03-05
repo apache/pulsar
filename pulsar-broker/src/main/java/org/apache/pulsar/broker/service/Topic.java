@@ -291,7 +291,8 @@ public interface Topic {
      * Get the last message position that can be dispatch.
      */
     default CompletableFuture<Position> getLastDispatchablePosition() {
-        throw new UnsupportedOperationException("getLastDispatchablePosition is not supported by default");
+        return CompletableFuture.failedFuture(
+                new UnsupportedOperationException("getLastDispatchablePosition is not supported by default"));
     }
 
     CompletableFuture<MessageId> getLastMessageId();

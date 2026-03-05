@@ -1145,8 +1145,12 @@ public class NamespaceService implements AutoCloseable {
      */
     public CompletableFuture<Void> updateNamespaceBundlesForPolicies(NamespaceName nsname,
                                                                       NamespaceBundles nsBundles) {
-        Objects.requireNonNull(nsname);
-        Objects.requireNonNull(nsBundles);
+        if (nsname == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Excepted NamespaceName should not be null "));
+        }
+        if (nsBundles == null) {
+            return FutureUtil.failedFuture(new NullPointerException("nsBundles"));
+        }
 
         return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(nsname).thenCompose(policies -> {
             if (policies.isPresent()) {
@@ -1172,8 +1176,12 @@ public class NamespaceService implements AutoCloseable {
      * @param nsBundles the new namespace bundles
      */
     public CompletableFuture<Void> updateNamespaceBundles(NamespaceName nsname, NamespaceBundles nsBundles) {
-        Objects.requireNonNull(nsname);
-        Objects.requireNonNull(nsBundles);
+        if (nsname == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Expected NamespaceName should not be null"));
+        }
+        if (nsBundles == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Expected NamespaceBundles should not be null"));
+        }
 
         LocalPolicies localPolicies = nsBundles.toLocalPolicies();
 

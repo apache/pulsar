@@ -123,7 +123,7 @@ public interface SystemTopicClient<T> {
          * @return message id future
          */
         default CompletableFuture<MessageId> deleteAsync(String key, T t) {
-            throw new UnsupportedOperationException("Unsupported operation");
+            return CompletableFuture.failedFuture(new UnsupportedOperationException("Unsupported operation"));
         }
 
         /**

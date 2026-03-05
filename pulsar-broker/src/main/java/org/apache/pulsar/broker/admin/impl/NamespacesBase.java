@@ -748,7 +748,8 @@ public abstract class NamespacesBase extends AdminResource {
     private CompletableFuture<Void> checkNamespace(Stream<String> namespaces) {
         boolean sameNamespace = namespaces.distinct().count() == 1;
         if (!sameNamespace) {
-            throw new RestException(Status.BAD_REQUEST, "The namespace should be the same");
+            return FutureUtil.failedFuture(
+                    new RestException(Status.BAD_REQUEST, "The namespace should be the same"));
         }
         return CompletableFuture.completedFuture(null);
     }
@@ -1977,7 +1978,7 @@ public abstract class NamespacesBase extends AdminResource {
                     + " Repl clusters: %s, allowed clusters: %s",
                     ns.toString(), policies.replication_clusters, policies.allowed_clusters);
             log.info(msg);
-            throw new RestException(Status.BAD_REQUEST, msg);
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, msg));
         }
         pulsar().getBrokerService().setCurrentClusterAllowedIfNoClusterIsAllowed(ns, policies);
 
