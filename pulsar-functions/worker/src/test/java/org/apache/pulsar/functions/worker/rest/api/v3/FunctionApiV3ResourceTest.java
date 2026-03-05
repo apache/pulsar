@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -458,12 +459,14 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
         FunctionStatus statusA = new FunctionStatus();
         statusA.setNumInstances(2);
         statusA.setNumRunning(2);
-        when(resource.getFunctionStatus(eq(TENANT), eq(NAMESPACE), eq("fn-a"), any(), any())).thenReturn(statusA);
+        doReturn(statusA).when(resource)
+                .getFunctionStatus(eq(TENANT), eq(NAMESPACE), eq("fn-a"), any(), any());
 
         FunctionStatus statusB = new FunctionStatus();
         statusB.setNumInstances(1);
         statusB.setNumRunning(0);
-        when(resource.getFunctionStatus(eq(TENANT), eq(NAMESPACE), eq("fn-b"), any(), any())).thenReturn(statusB);
+        doReturn(statusB).when(resource)
+                .getFunctionStatus(eq(TENANT), eq(NAMESPACE), eq("fn-b"), any(), any());
 
         List<FunctionStatusSummary> result = resource.listFunctionsWithStatus(TENANT, NAMESPACE, null);
 
