@@ -136,13 +136,16 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
                     Throwable cause = FutureUtil.unwrapCompletionException(error);
                     if (isUnsupportedStatusSummaryEndpoint(cause)) {
-                        log.debug("Falling back to legacy functions status queries for {}/{}", tenant, namespace, cause);
+                        log.debug(
+                                "Falling back to legacy functions status queries for {}/{}",
+                                tenant, namespace, cause);
                         getFunctionsWithStatusLegacyAsync(tenant, namespace, limit, continuationToken)
                                 .whenComplete((fallbackSummaries, fallbackError) -> {
                                     if (fallbackError == null) {
                                         result.complete(fallbackSummaries);
                                     } else {
-                                        result.completeExceptionally(FutureUtil.unwrapCompletionException(fallbackError));
+                                        result.completeExceptionally(
+                                                FutureUtil.unwrapCompletionException(fallbackError));
                                     }
                                 });
                         return;
@@ -222,8 +225,10 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
     private static boolean isUnsupportedStatusSummaryEndpoint(Throwable cause) {
         return cause instanceof PulsarAdminException
-                && (((PulsarAdminException) cause).getStatusCode() == Response.Status.NOT_FOUND.getStatusCode()
-                || ((PulsarAdminException) cause).getStatusCode() == Response.Status.METHOD_NOT_ALLOWED.getStatusCode());
+                && (((PulsarAdminException) cause).getStatusCode()
+                    == Response.Status.NOT_FOUND.getStatusCode()
+                || ((PulsarAdminException) cause).getStatusCode()
+                    == Response.Status.METHOD_NOT_ALLOWED.getStatusCode());
     }
 
     private static FunctionStatusSummary.ErrorType classifyError(Throwable error) {
