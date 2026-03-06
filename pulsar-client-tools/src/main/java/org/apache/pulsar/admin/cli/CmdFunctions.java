@@ -36,6 +36,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -1086,7 +1087,7 @@ public class CmdFunctions extends CmdBase {
             if (state != null) {
                 summaries = summaries.stream()
                         .filter(s -> s.getState() == state)
-                        .collect(java.util.stream.Collectors.toList());
+                        .collect(Collectors.toList());
             }
 
             if (longFormat) {

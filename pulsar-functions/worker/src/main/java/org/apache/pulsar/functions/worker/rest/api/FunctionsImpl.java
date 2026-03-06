@@ -31,6 +31,7 @@ import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.channels.UnresolvedAddressException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -980,7 +981,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             if (current instanceof ConnectException
                     || current instanceof SocketTimeoutException
                     || current instanceof UnknownHostException
-                    || current instanceof java.nio.channels.UnresolvedAddressException) {
+                    || current instanceof UnresolvedAddressException) {
                 return true;
             }
             current = current.getCause();
