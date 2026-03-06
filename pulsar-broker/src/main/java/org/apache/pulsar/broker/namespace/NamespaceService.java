@@ -1149,7 +1149,7 @@ public class NamespaceService implements AutoCloseable {
             return FutureUtil.failedFuture(new NullPointerException("Expected NamespaceName should not be null"));
         }
         if (nsBundles == null) {
-            return FutureUtil.failedFuture(new NullPointerException("nsBundles"));
+            return FutureUtil.failedFuture(new NullPointerException("Expected NamespaceBundles should not be null"));
         }
 
         return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(nsname).thenCompose(policies -> {

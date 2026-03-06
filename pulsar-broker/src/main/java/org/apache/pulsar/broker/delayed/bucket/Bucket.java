@@ -158,7 +158,7 @@ abstract class Bucket {
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
         if (bucketId == null) {
-            return FutureUtil.failedFuture(new NullPointerException("bucketId"));
+            return FutureUtil.failedFuture(new NullPointerException("Expected bucketId should not be null"));
         }
         return sequencer.sequential(() -> {
             return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
