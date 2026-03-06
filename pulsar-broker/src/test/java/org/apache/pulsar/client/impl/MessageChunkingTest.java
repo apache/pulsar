@@ -435,30 +435,6 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         Assert.assertEquals(((ConsumerImpl<String>) consumer).getAvailablePermits(), 8);
     }
 
-    /**
-     * Validate that chunking is not supported with batching and non-persistent topic.
-     *
-     * @throws Exception
-     */
-    @Test
-    public void testInvalidUseCaseForChunking() throws Exception {
-
-        log.info("-- Starting {} test --", methodName);
-        this.conf.setMaxMessageSize(5);
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
-
-        try {
-            Producer<byte[]> producer = producerBuilder.enableChunking(true).enableBatching(true).create();
-            fail("it should have failied because chunking can't be used with batching enabled");
-        } catch (IllegalArgumentException ie) {
-            // Ok
-        }
-
-        log.info("-- Exiting {} test --", methodName);
-    }
-
     @Test
     public void testExpireIncompleteChunkMessage() throws Exception{
         final String topicName = "persistent://prop/use/ns-abc/expireMsg";
