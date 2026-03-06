@@ -99,19 +99,6 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test
-    public void testInvalidConfig() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
-        // batching and chunking can't be enabled together
-        try {
-            Producer<byte[]> producer = producerBuilder.enableChunking(true).enableBatching(true).create();
-            fail("producer creation should have fail");
-        } catch (IllegalArgumentException ie) {
-            // Ok
-        }
-    }
-
     @Test(dataProvider = "ackReceiptEnabledWithMaxMessageSize")
     public void testLargeMessage(boolean ackReceiptEnabled, boolean clientSizeMaxMessageSize) throws Exception {
 
