@@ -21,8 +21,8 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -41,19 +41,13 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     protected final ConcurrentHashMap<NamespaceName, SystemTopicClient<T>> clients;
     protected final NamespaceEventsSystemTopicFactory namespaceEventsSystemTopicFactory;
-    protected final PulsarClientImpl pulsarClient;
 
     protected final Class<T> schemaType;
     protected final EventType systemTopicType;
 
     private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
-
-    /** SystemTopicTxnBufferSnapshotService is created only three, see also
-     *  {@link TransactionBufferSnapshotServiceFactory}. At the same time, each object can only
-     * be fixed threads access, see also {@link PulsarService#transactionSnapshotRecoverExecutorProvider}.
-     * So the un-static ThreadLocal is safe.
-     */
-    private final ThreadLocal<TableView<T>> tableViewThreadLocal = new ThreadLocal<>();
+    @Getter
+    private final TableView<T> tableView;
 
     // The class ReferenceCountedWriter will maintain the reference count,
     // when the reference count decrement to 0, it will be removed from writerFutureMap, the writer will be closed.
@@ -109,12 +103,14 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     public SystemTopicTxnBufferSnapshotService(PulsarService pulsar, EventType systemTopicType,
                                                Class<T> schemaType) throws PulsarServerException {
-        this.pulsarClient = (PulsarClientImpl) pulsar.getClient();
-        this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
+        final var client = (PulsarClientImpl) pulsar.getClient();
+        this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
         this.systemTopicType = systemTopicType;
         this.schemaType = schemaType;
         this.clients = new ConcurrentHashMap<>();
         this.refCountedWriterMap = new ConcurrentHashMap<>();
+        this.tableView = new TableView<>(this::createReader,
+                client.getConfiguration().getOperationTimeoutMs(), pulsar.getExecutor());
     }
 
     public CompletableFuture<SystemTopicClient.Reader<T>> createReader(TopicName topicName) {
@@ -175,16 +171,6 @@ public class SystemTopicTxnBufferSnapshotService<T> {
             }
         }
         refCountedWriterMap.clear();
-    }
-
-    public TableView<T> getTableView(ScheduledExecutorService scheduledExecutor) {
-        TableView<T> tableView = tableViewThreadLocal.get();
-        if (tableView == null) {
-            tableView = new TableView<>(this::createReader,
-                    pulsarClient.getConfiguration().getOperationTimeoutMs(), scheduledExecutor);
-            tableViewThreadLocal.set(tableView);
-        }
-        return tableView;
     }
 
 }

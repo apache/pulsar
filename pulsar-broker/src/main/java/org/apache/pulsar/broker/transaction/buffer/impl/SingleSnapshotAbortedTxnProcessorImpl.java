@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -92,13 +91,10 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     public CompletableFuture<Position> recoverFromSnapshot() {
         final var future = new CompletableFuture<Position>();
         final var pulsar = topic.getBrokerService().getPulsar();
-        final String namespace = TopicName.get(topic.getName()).getNamespace();
-        final ScheduledExecutorService scheduledExecutor = pulsar.getTransactionSnapshotRecoverExecutorProvider()
-                .chooseThread(namespace);
-        scheduledExecutor.execute(() -> {
+        pulsar.getTransactionSnapshotRecoverExecutorProvider().getExecutor(this).execute(() -> {
             try {
                 final var snapshot = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
-                        .getTableView(scheduledExecutor).readLatest(topic.getName());
+                        .getTableView().readLatest(topic.getName());
                 if (snapshot != null) {
                     handleSnapshot(snapshot);
                     final var startReadCursorPosition = PositionFactory.create(snapshot.getMaxReadPositionLedgerId(),

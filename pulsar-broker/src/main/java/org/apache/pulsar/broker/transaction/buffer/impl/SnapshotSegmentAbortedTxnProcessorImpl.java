@@ -28,7 +28,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -232,14 +231,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public CompletableFuture<Position> recoverFromSnapshot() {
         final var pulsar = topic.getBrokerService().getPulsar();
         final var future = new CompletableFuture<Position>();
-        final String namespace = TopicName.get(topic.getName()).getNamespace();
-        final ScheduledExecutorService scheduledExecutor = pulsar.getTransactionSnapshotRecoverExecutorProvider()
-                .chooseThread(namespace);
-        scheduledExecutor.execute(() -> {
+        pulsar.getTransactionSnapshotRecoverExecutorProvider().getExecutor(this).execute(() -> {
             try {
                 final var indexes = pulsar.getTransactionBufferSnapshotServiceFactory()
-                        .getTxnBufferSnapshotIndexService().getTableView(scheduledExecutor)
-                        .readLatest(topic.getName());
+                        .getTxnBufferSnapshotIndexService().getTableView().readLatest(topic.getName());
                 if (indexes == null) {
                     // Try recovering from the old format snapshot
                     future.complete(recoverOldSnapshot());
@@ -347,10 +342,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     // This method will be deprecated and removed in version 4.x.0
     private Position recoverOldSnapshot() throws Exception {
-        final String namespace = TopicName.get(topic.getName()).getNamespace();
-        final ScheduledExecutorService scheduledExecutor = topic.getBrokerService().getPulsar()
-                .getTransactionSnapshotRecoverExecutorProvider()
-                .chooseThread(namespace);
         final var pulsar = topic.getBrokerService().getPulsar();
         final var topicName = TopicName.get(topic.getName());
         final var topics = wait(pulsar.getPulsarResources().getTopicResources().listPersistentTopicsAsync(
@@ -360,7 +351,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             return null;
         }
         final var snapshot = pulsar.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService()
-                .getTableView(scheduledExecutor).readLatest(topic.getName());
+                .getTableView().readLatest(topic.getName());
         if (snapshot == null) {
             return null;
         }
