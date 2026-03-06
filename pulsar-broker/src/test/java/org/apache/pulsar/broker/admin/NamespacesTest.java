@@ -1977,12 +1977,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testAllowedTopicPropertiesForMetrics() throws PulsarAdminException {
+    public void testAllowedTopicPropertyKeysForMetrics() throws PulsarAdminException {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         admin.namespaces().createNamespace(namespace);
 
         // Initially should be empty
-        Set<String> allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
+        Set<String> allowedKeys = admin.namespaces().getAllowedTopicPropertyKeysForMetrics(namespace);
         assertNull(allowedKeys);
 
         // Set allowed keys
@@ -1990,10 +1990,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         keysToSet.add("sla_tier");
         keysToSet.add("owner");
         keysToSet.add("environment");
-        admin.namespaces().setAllowedTopicPropertiesForMetrics(namespace, keysToSet);
+        admin.namespaces().setAllowedTopicPropertyKeysForMetrics(namespace, keysToSet);
 
         // Verify the keys are set correctly
-        allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
+        allowedKeys = admin.namespaces().getAllowedTopicPropertyKeysForMetrics(namespace);
         assertEquals(3, allowedKeys.size());
         assertTrue(allowedKeys.contains("sla_tier"));
         assertTrue(allowedKeys.contains("owner"));
@@ -2003,22 +2003,22 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         Set<String> newKeys = new HashSet<>();
         newKeys.add("cost_center");
         newKeys.add("app_name");
-        admin.namespaces().setAllowedTopicPropertiesForMetrics(namespace, newKeys);
+        admin.namespaces().setAllowedTopicPropertyKeysForMetrics(namespace, newKeys);
 
-        allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
+        allowedKeys = admin.namespaces().getAllowedTopicPropertyKeysForMetrics(namespace);
         assertEquals(2, allowedKeys.size());
         assertTrue(allowedKeys.contains("cost_center"));
         assertTrue(allowedKeys.contains("app_name"));
         assertFalse(allowedKeys.contains("sla_tier"));
 
         // Remove all keys
-        admin.namespaces().removeAllowedTopicPropertiesForMetrics(namespace);
-        allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
+        admin.namespaces().removeAllowedTopicPropertyKeysForMetrics(namespace);
+        allowedKeys = admin.namespaces().getAllowedTopicPropertyKeysForMetrics(namespace);
         assertNull(allowedKeys);
     }
 
     @Test
-    public void testSetAllowedTopicPropertiesForMetricsWithEmptySet() throws PulsarAdminException {
+    public void testSetAllowedTopicPropertyKeysForMetricsWithEmptySet() throws PulsarAdminException {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         admin.namespaces().createNamespace(namespace);
 
@@ -2026,17 +2026,17 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         Set<String> keysToSet = new HashSet<>();
         keysToSet.add("sla_tier");
         keysToSet.add("owner");
-        admin.namespaces().setAllowedTopicPropertiesForMetrics(namespace, keysToSet);
+        admin.namespaces().setAllowedTopicPropertyKeysForMetrics(namespace, keysToSet);
 
         // Verify keys are set
-        Set<String> allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
+        Set<String> allowedKeys = admin.namespaces().getAllowedTopicPropertyKeysForMetrics(namespace);
         assertEquals(2, allowedKeys.size());
 
         // Set to empty set
-        admin.namespaces().setAllowedTopicPropertiesForMetrics(namespace, new HashSet<>());
+        admin.namespaces().setAllowedTopicPropertyKeysForMetrics(namespace, new HashSet<>());
 
         // Verify keys are cleared
-        allowedKeys = admin.namespaces().getAllowedTopicPropertiesForMetrics(namespace);
+        allowedKeys = admin.namespaces().getAllowedTopicPropertyKeysForMetrics(namespace);
         assertTrue(allowedKeys.isEmpty());
     }
 

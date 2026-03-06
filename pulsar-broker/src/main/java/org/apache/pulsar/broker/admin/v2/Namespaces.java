@@ -2645,7 +2645,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CUSTOM_METRIC_LABELS,
             PolicyOperation.READ)
             .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-            .thenAccept(policies -> asyncResponse.resume(policies.allowed_topic_properties_for_metrics))
+            .thenAccept(policies -> asyncResponse.resume(policies.allowed_topic_property_keys_for_metrics))
             .exceptionally(ex -> {
                 log.error("[{}] Failed to get allowed topic property keys for metrics for namespace {}",
                     clientAppId(), namespaceName, ex);

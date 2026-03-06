@@ -62,7 +62,7 @@ public class PrometheusMetricsLabelsTest extends BrokerTestBase {
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setSystemTopicEnabled(true);
         conf.setExposeCustomTopicMetricLabelsEnabled(true);
-        conf.setAllowedTopicPropertiesForMetrics(ALLOWED_CUSTOM_METRIC_LABEL_KEYS);
+        conf.setAllowedTopicPropertyKeysForMetrics(ALLOWED_CUSTOM_METRIC_LABEL_KEYS);
         // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
         // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
         conf.setBrokerShutdownTimeoutMs(5000L);
@@ -174,7 +174,7 @@ public class PrometheusMetricsLabelsTest extends BrokerTestBase {
 
         // Set allowed topic properties at namespace level
         Set<String> allowedKeys = Set.of("team", "cost_center");
-        admin.namespaces().setAllowedTopicPropertiesForMetrics(namespace, allowedKeys);
+        admin.namespaces().setAllowedTopicPropertyKeysForMetrics(namespace, allowedKeys);
 
         // Create topic
         admin.topics().createPartitionedTopic(topic1, 2);

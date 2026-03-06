@@ -1394,7 +1394,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             return Collections.emptyMap();
         }
         Map<String, String> customMetricLabels = new HashMap<>();
-        Set<String> allowedCustomLabelKeys = getAllowedTopicPropertiesForMetrics(pulsar, topicName);
+        Set<String> allowedCustomLabelKeys = getAllowedTopicPropertyKeysForMetrics(pulsar, topicName);
         for (Map.Entry<String, String> entry : properties.entrySet()) {
             if (allowedCustomLabelKeys.contains(entry.getKey())) {
                 customMetricLabels.put(entry.getKey(), entry.getValue());
@@ -1403,8 +1403,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return customMetricLabels;
     }
 
-    private static Set<String> getAllowedTopicPropertiesForMetrics(PulsarService pulsar, TopicName topicName) {
-        Set<String> allowedKeys = pulsar.getConfiguration().getAllowedTopicPropertiesForMetrics();
+    private static Set<String> getAllowedTopicPropertyKeysForMetrics(PulsarService pulsar, TopicName topicName) {
+        Set<String> allowedKeys = pulsar.getConfiguration().getAllowedTopicPropertyKeysForMetrics();
 
         NamespaceResources namespaceResources = pulsar.getPulsarResources().getNamespaceResources();
         NamespaceName namespaceName = topicName.getNamespaceObject();
