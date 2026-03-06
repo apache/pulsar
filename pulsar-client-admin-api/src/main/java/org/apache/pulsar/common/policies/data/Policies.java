@@ -129,7 +129,7 @@ public class Policies {
 
     @SuppressWarnings("checkstyle:MemberName")
     // Default to null to fallback to broker level configuration
-    public Set<String> allowed_topic_properties_for_metrics = null;
+    public Set<String> allowed_topic_property_keys_for_metrics = null;
 
     public Map<String, String> properties = new HashMap<>();
 
@@ -169,7 +169,7 @@ public class Policies {
                 is_allow_auto_update_schema,
                 offload_policies,
                 subscription_types_enabled,
-                allowed_topic_properties_for_metrics,
+                allowed_topic_property_keys_for_metrics,
                 properties,
                 resource_group_name, entryFilters, migrated,
                 dispatcherPauseOnAckStatePersistentEnabled);
@@ -218,8 +218,8 @@ public class Policies {
                     && is_allow_auto_update_schema == other.is_allow_auto_update_schema
                     && Objects.equals(offload_policies, other.offload_policies)
                     && Objects.equals(subscription_types_enabled, other.subscription_types_enabled)
-                    && Objects.equals(allowed_topic_properties_for_metrics,
-                            other.allowed_topic_properties_for_metrics)
+                    && Objects.equals(allowed_topic_property_keys_for_metrics,
+                            other.allowed_topic_property_keys_for_metrics)
                     && Objects.equals(properties, other.properties)
                     && Objects.equals(migrated, other.migrated)
                     && Objects.equals(resource_group_name, other.resource_group_name)

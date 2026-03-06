@@ -399,8 +399,8 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Command(description = "Set allowed topic properties for metrics for a namespace")
-    private class SetAllowedTopicPropertiesForMetrics extends CliCommand {
+    @Command(description = "Set allowed topic property keys for metrics for a namespace")
+    private class SetAllowedTopicPropertyKeysForMetrics extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
         private String namespaceName;
 
@@ -411,31 +411,31 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
-            getAdmin().namespaces().setAllowedTopicPropertiesForMetrics(namespace, new HashSet<>(keys));
+            getAdmin().namespaces().setAllowedTopicPropertyKeysForMetrics(namespace, new HashSet<>(keys));
         }
     }
 
-    @Command(description = "Get allowed topic properties for metrics for a namespace")
-    private class GetAllowedTopicPropertiesForMetrics extends CliCommand {
+    @Command(description = "Get allowed topic property keys for metrics for a namespace")
+    private class GetAllowedTopicPropertyKeysForMetrics extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
         private String namespaceName;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
-            print(getAdmin().namespaces().getAllowedTopicPropertiesForMetrics(namespace));
+            print(getAdmin().namespaces().getAllowedTopicPropertyKeysForMetrics(namespace));
         }
     }
 
-    @Command(description = "Remove allowed topic properties for metrics for a namespace")
-    private class RemoveAllowedTopicPropertiesForMetrics extends CliCommand {
+    @Command(description = "Remove allowed topic property keys for metrics for a namespace")
+    private class RemoveAllowedTopicPropertyKeysForMetrics extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
         private String namespaceName;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
-            getAdmin().namespaces().removeAllowedTopicPropertiesForMetrics(namespace);
+            getAdmin().namespaces().removeAllowedTopicPropertyKeysForMetrics(namespace);
         }
     }
 
@@ -2733,9 +2733,9 @@ public class CmdNamespaces extends CmdBase {
         addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
         addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
 
-        addCommand("set-allowed-topic-properties-for-metrics", new SetAllowedTopicPropertiesForMetrics());
-        addCommand("get-allowed-topic-properties-for-metrics", new GetAllowedTopicPropertiesForMetrics());
-        addCommand("remove-allowed-topic-properties-for-metrics", new RemoveAllowedTopicPropertiesForMetrics());
+        addCommand("set-allowed-topic-property-keys-for-metrics", new SetAllowedTopicPropertyKeysForMetrics());
+        addCommand("get-allowed-topic-property-keys-for-metrics", new GetAllowedTopicPropertyKeysForMetrics());
+        addCommand("remove-allowed-topic-property-keys-for-metrics", new RemoveAllowedTopicPropertyKeysForMetrics());
 
         addCommand("set-allowed-clusters", new SetAllowedClusters());
         addCommand("get-allowed-clusters", new GetAllowedClusters());

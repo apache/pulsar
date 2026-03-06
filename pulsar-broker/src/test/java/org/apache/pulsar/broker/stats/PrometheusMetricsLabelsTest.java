@@ -239,8 +239,8 @@ public class PrometheusMetricsLabelsTest extends BrokerTestBase {
         assertTrue(foundCostCenterLabel, "Custom label 'cost_center' should appear in metrics");
         assertTrue(notAllowedKeyNotFound, "Not allowed key 'not_allowed_key' should NOT appear in metrics");
 
-        // Now remove allowedTopicPropertiesForMetrics
-        admin.namespaces().removeAllowedTopicPropertiesForMetrics(namespace);
+        // Now remove allowedTopicPropertyKeysForMetrics
+        admin.namespaces().removeAllowedTopicPropertyKeysForMetrics(namespace);
 
         // Generate new metrics and verify labels are gone
         statsOut = new ByteArrayOutputStream();

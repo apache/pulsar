@@ -1409,8 +1409,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         NamespaceResources namespaceResources = pulsar.getPulsarResources().getNamespaceResources();
         NamespaceName namespaceName = topicName.getNamespaceObject();
         Optional<Policies> policies = namespaceResources.getPoliciesIfCachedAndAsyncLoad(namespaceName);
-        if (policies.isPresent() && policies.get().allowed_topic_properties_for_metrics != null) {
-            allowedKeys = policies.get().allowed_topic_properties_for_metrics;
+        if (policies.isPresent() && policies.get().allowed_topic_property_keys_for_metrics != null) {
+            allowedKeys = policies.get().allowed_topic_property_keys_for_metrics;
         }
 
         return allowedKeys;

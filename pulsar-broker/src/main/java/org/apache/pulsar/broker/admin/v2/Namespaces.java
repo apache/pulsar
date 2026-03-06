@@ -2631,13 +2631,13 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
-    @Path("/{tenant}/{namespace}/allowedTopicPropertiesForMetrics")
-    @ApiOperation(value = "Get allowed topic properties for metrics for a namespace.",
+    @Path("/{tenant}/{namespace}/allowedTopicPropertyKeysForMetrics")
+    @ApiOperation(value = "Get allowed topic property keys for metrics for a namespace.",
             response = String.class, responseContainer = "Set")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void getAllowedTopicPropertiesForMetrics(
+    public void getAllowedTopicPropertyKeysForMetrics(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
@@ -2647,7 +2647,7 @@ public class Namespaces extends NamespacesBase {
             .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
             .thenAccept(policies -> asyncResponse.resume(policies.allowed_topic_properties_for_metrics))
             .exceptionally(ex -> {
-                log.error("[{}] Failed to get allowed topic properties for metrics for namespace {}",
+                log.error("[{}] Failed to get allowed topic property keys for metrics for namespace {}",
                     clientAppId(), namespaceName, ex);
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
@@ -2655,24 +2655,24 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{tenant}/{namespace}/allowedTopicPropertiesForMetrics")
-    @ApiOperation(value = "Set allowed topic properties for metrics for a namespace")
+    @Path("/{tenant}/{namespace}/allowedTopicPropertyKeysForMetrics")
+    @ApiOperation(value = "Set allowed topic property keys for metrics for a namespace")
     @ApiResponses(value = {
             @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
-    public void setAllowedTopicPropertiesForMetrics(
+    public void setAllowedTopicPropertyKeysForMetrics(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Set of allowed topic property keys for metrics", required = true)
                     Set<String> allowedKeys) {
         validateNamespaceName(tenant, namespace);
-        internalSetAllowedTopicPropertiesForMetricsAsync(allowedKeys)
+        internalSetAllowedTopicPropertyKeysForMetricsAsync(allowedKeys)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to set allowed topic properties for metrics for namespace {}",
+                    log.error("[{}] Failed to set allowed topic property keys for metrics for namespace {}",
                             clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -2680,21 +2680,21 @@ public class Namespaces extends NamespacesBase {
     }
 
     @DELETE
-    @Path("/{tenant}/{namespace}/allowedTopicPropertiesForMetrics")
-    @ApiOperation(value = "Remove allowed topic properties for metrics on a namespace.")
+    @Path("/{tenant}/{namespace}/allowedTopicPropertyKeysForMetrics")
+    @ApiOperation(value = "Remove allowed topic property keys for metrics on a namespace.")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
-    public void removeAllowedTopicPropertiesForMetrics(
+    public void removeAllowedTopicPropertyKeysForMetrics(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetAllowedTopicPropertiesForMetricsAsync(null)
+        internalSetAllowedTopicPropertyKeysForMetricsAsync(null)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to remove allowed topic properties for metrics for namespace {}",
+                    log.error("[{}] Failed to remove allowed topic property keys for metrics for namespace {}",
                             clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;

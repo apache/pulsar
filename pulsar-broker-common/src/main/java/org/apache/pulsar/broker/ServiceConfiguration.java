@@ -3547,7 +3547,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "A comma-separated list of Topic Property keys that are allowed to be exposed as metrics."
             + "Only keys explicitly listed here will be exposed."
     )
-    private Set<String> allowedTopicPropertiesForMetrics = new HashSet<>();
+    private Set<String> allowedTopicPropertyKeysForMetrics = new HashSet<>();
 
     /**** --- Functions. --- ****/
     @FieldContext(

@@ -641,38 +641,38 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setAllowedTopicPropertiesForMetrics(String namespace, Set<String> allowedKeys)
+    public void setAllowedTopicPropertyKeysForMetrics(String namespace, Set<String> allowedKeys)
             throws PulsarAdminException {
-        sync(() -> setAllowedTopicPropertiesForMetricsAsync(namespace, allowedKeys));
+        sync(() -> setAllowedTopicPropertyKeysForMetricsAsync(namespace, allowedKeys));
     }
 
     @Override
-    public CompletableFuture<Void> setAllowedTopicPropertiesForMetricsAsync(String namespace, Set<String> allowedKeys) {
+    public CompletableFuture<Void> setAllowedTopicPropertyKeysForMetricsAsync(String namespace, Set<String> allowedKeys) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "allowedTopicPropertiesForMetrics");
+        WebTarget path = namespacePath(ns, "allowedTopicPropertyKeysForMetrics");
         return asyncPostRequest(path, Entity.entity(allowedKeys, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public Set<String> getAllowedTopicPropertiesForMetrics(String namespace) throws PulsarAdminException {
-        return sync(() -> getAllowedTopicPropertiesForMetricsAsync(namespace));
+    public Set<String> getAllowedTopicPropertyKeysForMetrics(String namespace) throws PulsarAdminException {
+        return sync(() -> getAllowedTopicPropertyKeysForMetricsAsync(namespace));
     }
 
     @Override
-    public CompletableFuture<Set<String>> getAllowedTopicPropertiesForMetricsAsync(String namespace) {
+    public CompletableFuture<Set<String>> getAllowedTopicPropertyKeysForMetricsAsync(String namespace) {
         return asyncGetNamespaceParts(
-                new FutureCallback<Set<String>>(){}, namespace, "allowedTopicPropertiesForMetrics");
+                new FutureCallback<Set<String>>(){}, namespace, "allowedTopicPropertyKeysForMetrics");
     }
 
     @Override
-    public void removeAllowedTopicPropertiesForMetrics(String namespace) throws PulsarAdminException {
-        sync(() -> removeAllowedTopicPropertiesForMetricsAsync(namespace));
+    public void removeAllowedTopicPropertyKeysForMetrics(String namespace) throws PulsarAdminException {
+        sync(() -> removeAllowedTopicPropertyKeysForMetricsAsync(namespace));
     }
 
     @Override
-    public CompletableFuture<Void> removeAllowedTopicPropertiesForMetricsAsync(String namespace) {
+    public CompletableFuture<Void> removeAllowedTopicPropertyKeysForMetricsAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "allowedTopicPropertiesForMetrics");
+        WebTarget path = namespacePath(ns, "allowedTopicPropertyKeysForMetrics");
         return asyncDeleteRequest(path);
     }
 
