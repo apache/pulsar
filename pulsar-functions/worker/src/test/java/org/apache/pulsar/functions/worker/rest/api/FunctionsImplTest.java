@@ -627,6 +627,31 @@ public class FunctionsImplTest {
         }
     }
 
+    @Test
+    public void testListFunctionsWithStatus_usesConfiguredParallelism() {
+        mockedWorkerService.getWorkerConfig().setFunctionsStatusSummaryMaxParallelism(1);
+        List<String> functionNames = List.of("fn-b", "fn-a");
+        doReturn(functionNames).when(resource).listFunctions(eq(tenant), eq(namespace), any());
+
+        FunctionStatus statusA = new FunctionStatus();
+        statusA.setNumInstances(1);
+        statusA.setNumRunning(1);
+        doReturn(statusA).when(resource).getFunctionStatus(eq(tenant), eq(namespace), eq("fn-a"), any(), any());
+
+        FunctionStatus statusB = new FunctionStatus();
+        statusB.setNumInstances(1);
+        statusB.setNumRunning(0);
+        doReturn(statusB).when(resource).getFunctionStatus(eq(tenant), eq(namespace), eq("fn-b"), any(), any());
+
+        List<FunctionStatusSummary> result = resource.listFunctionsWithStatus(tenant, namespace, null);
+
+        assertEquals(result.size(), 2);
+        assertEquals(result.get(0).getName(), "fn-a");
+        assertEquals(result.get(0).getState(), FunctionStatusSummary.SummaryState.RUNNING);
+        assertEquals(result.get(1).getName(), "fn-b");
+        assertEquals(result.get(1).getState(), FunctionStatusSummary.SummaryState.STOPPED);
+    }
+
     public static FunctionConfig createDefaultFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);

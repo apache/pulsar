@@ -1076,4 +1076,25 @@ public class CmdFunctionsTest {
         verify(functions, times(0)).getFunctionsWithStatus(anyString(), anyString());
         verify(functions, times(0)).getFunctionsWithStatus(anyString(), anyString(), any(), anyString());
     }
+
+    @Test
+    public void testListFunctionsRejectsStateWithPagination() throws Exception {
+        @Cleanup
+        StringWriter stringWriter = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(stringWriter);
+        cmd.getCommander().setErr(printWriter);
+
+        cmd.run(new String[] {
+                "list",
+                "--tenant", TENANT,
+                "--namespace", NAMESPACE,
+                "--state", "RUNNING",
+                "--limit", "1"
+        });
+
+        verify(functions, times(0)).getFunctions(anyString(), anyString());
+        verify(functions, times(0)).getFunctionsWithStatus(anyString(), anyString());
+        verify(functions, times(0)).getFunctionsWithStatus(anyString(), anyString(), any(), anyString());
+    }
 }

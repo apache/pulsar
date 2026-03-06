@@ -35,11 +35,15 @@ import java.nio.channels.UnresolvedAddressException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriBuilder;
@@ -821,17 +825,38 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
 
         long startNs = System.nanoTime();
+        ExecutorService summaryExecutor = null;
         try {
             // listFunctions already handles auth check and parameter validation
             List<String> functionNames = listFunctions(tenant, namespace, authParams);
             List<String> pagedNames = pageFunctionNames(functionNames, limit, continuationToken);
-            List<FunctionStatusSummary> summaries = new ArrayList<>(pagedNames.size());
-            for (String name : pagedNames) {
-                summaries.add(buildSummary(tenant, namespace, name, authParams));
+            if (pagedNames.isEmpty()) {
+                return Collections.emptyList();
             }
-            summaries.sort(Comparator.comparing(FunctionStatusSummary::getName));
-            return summaries;
+
+            int configuredParallelism = worker().getWorkerConfig() != null
+                    ? worker().getWorkerConfig().getFunctionsStatusSummaryMaxParallelism() : 4;
+            int maxConcurrency = Math.max(1, Math.min(configuredParallelism, pagedNames.size()));
+            summaryExecutor = Executors.newFixedThreadPool(maxConcurrency);
+            List<CompletableFuture<FunctionStatusSummary>> futures = new ArrayList<>(pagedNames.size());
+            for (String name : pagedNames) {
+                futures.add(CompletableFuture.supplyAsync(
+                        () -> buildSummary(tenant, namespace, name, authParams), summaryExecutor));
+            }
+
+            return futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
         } finally {
+            if (summaryExecutor != null) {
+                summaryExecutor.shutdown();
+                try {
+                    if (!summaryExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                        summaryExecutor.shutdownNow();
+                    }
+                } catch (InterruptedException e) {
+                    summaryExecutor.shutdownNow();
+                    Thread.currentThread().interrupt();
+                }
+            }
             if (worker().getWorkerStatsManager() != null) {
                 worker().getWorkerStatsManager()
                         .observeFunctionsStatusSummaryQueryTime(((double) System.nanoTime() - startNs) / 1.0E6D);

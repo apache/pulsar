@@ -130,6 +130,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private int numHttpServerThreads = 8;
 
     @FieldContext(
+        category = CATEGORY_WORKER,
+        doc = "Maximum parallelism for function status-summary batch queries"
+    )
+    private int functionsStatusSummaryMaxParallelism = 4;
+
+    @FieldContext(
             category = CATEGORY_WORKER,
             doc = "Enable the enforcement of limits on the incoming HTTP requests"
         )

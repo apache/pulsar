@@ -1054,7 +1054,8 @@ public class CmdFunctions extends CmdBase {
     class ListFunctions extends NamespaceCommand {
 
         @Option(names = "--state",
-                description = "Filter by runtime state: RUNNING, STOPPED, PARTIAL, UNKNOWN")
+                description = "Filter by runtime state: RUNNING, STOPPED, PARTIAL, UNKNOWN; cannot be combined"
+                        + " with --limit or --continuation-token")
         private FunctionStatusSummary.SummaryState state;
 
         @Option(names = {"-l", "--long"},
@@ -1073,6 +1074,11 @@ public class CmdFunctions extends CmdBase {
         void runCmd() throws Exception {
             if (limit != null && limit <= 0) {
                 throw new ParameterException("--limit must be greater than 0");
+            }
+
+            // Prevent ambiguity in semantics
+            if (state != null && (limit != null || continuationToken != null)) {
+                throw new ParameterException("--state cannot be combined with --limit or --continuation-token");
             }
 
             if (state == null && !longFormat && limit == null && continuationToken == null) {

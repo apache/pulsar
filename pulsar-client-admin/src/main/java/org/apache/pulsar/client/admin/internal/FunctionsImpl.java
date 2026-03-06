@@ -25,7 +25,13 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.nio.channels.FileChannel;
+import java.nio.channels.UnresolvedAddressException;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -55,6 +61,7 @@ import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusSummary;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.RequestBuilder;
@@ -119,7 +126,129 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         if (continuationToken != null && !continuationToken.isEmpty()) {
             path = path.queryParam("continuationToken", continuationToken);
         }
-        return asyncGetRequest(path, new GenericType<List<FunctionStatusSummary>>() {});
+        CompletableFuture<List<FunctionStatusSummary>> result = new CompletableFuture<>();
+        asyncGetRequest(path, new GenericType<List<FunctionStatusSummary>>() {})
+                .whenComplete((summaries, error) -> {
+                    if (error == null) {
+                        result.complete(summaries);
+                        return;
+                    }
+
+                    Throwable cause = FutureUtil.unwrapCompletionException(error);
+                    if (isUnsupportedStatusSummaryEndpoint(cause)) {
+                        log.debug("Falling back to legacy functions status queries for {}/{}", tenant, namespace, cause);
+                        getFunctionsWithStatusLegacyAsync(tenant, namespace, limit, continuationToken)
+                                .whenComplete((fallbackSummaries, fallbackError) -> {
+                                    if (fallbackError == null) {
+                                        result.complete(fallbackSummaries);
+                                    } else {
+                                        result.completeExceptionally(FutureUtil.unwrapCompletionException(fallbackError));
+                                    }
+                                });
+                        return;
+                    }
+
+                    result.completeExceptionally(cause);
+                });
+        return result;
+    }
+
+    private CompletableFuture<List<FunctionStatusSummary>> getFunctionsWithStatusLegacyAsync(
+            String tenant, String namespace, Integer limit, String continuationToken) {
+        return getFunctionsAsync(tenant, namespace).thenCompose(functionNames -> {
+            List<String> pagedNames = pageFunctionNames(functionNames, limit, continuationToken);
+            List<CompletableFuture<FunctionStatusSummary>> summaryFutures = pagedNames.stream()
+                    .map(functionName -> getFunctionStatusAsync(tenant, namespace, functionName)
+                            .handle((status, error) -> buildStatusSummary(functionName, status, error)))
+                    .collect(Collectors.toList());
+            return FutureUtil.waitForAll(new ArrayList<>(summaryFutures))
+                    .thenApply(__ -> summaryFutures.stream()
+                            .map(CompletableFuture::join)
+                            .sorted(Comparator.comparing(FunctionStatusSummary::getName))
+                            .collect(Collectors.toList()));
+        });
+    }
+
+    private static FunctionStatusSummary buildStatusSummary(String functionName,
+                                                            FunctionStatus status,
+                                                            Throwable error) {
+        if (error == null) {
+            return FunctionStatusSummary.builder()
+                    .name(functionName)
+                    .state(deriveState(status.getNumInstances(), status.getNumRunning()))
+                    .numInstances(status.getNumInstances())
+                    .numRunning(status.getNumRunning())
+                    .build();
+        }
+
+        Throwable cause = FutureUtil.unwrapCompletionException(error);
+        return FunctionStatusSummary.builder()
+                .name(functionName)
+                .state(FunctionStatusSummary.SummaryState.UNKNOWN)
+                .error(cause.getMessage())
+                .errorType(classifyError(cause))
+                .build();
+    }
+
+    private static List<String> pageFunctionNames(List<String> functionNames, Integer limit, String continuationToken) {
+        if (limit != null && limit <= 0) {
+            throw new IllegalArgumentException("limit must be greater than 0");
+        }
+
+        List<String> sorted = new ArrayList<>(functionNames);
+        sorted.sort(String::compareTo);
+        int startIndex = 0;
+        if (continuationToken != null && !continuationToken.isEmpty()) {
+            while (startIndex < sorted.size() && sorted.get(startIndex).compareTo(continuationToken) <= 0) {
+                startIndex++;
+            }
+        }
+        int endIndex = limit == null ? sorted.size() : Math.min(sorted.size(), startIndex + limit);
+        return startIndex >= sorted.size() ? List.of() : sorted.subList(startIndex, endIndex);
+    }
+
+    private static FunctionStatusSummary.SummaryState deriveState(int numInstances, int numRunning) {
+        if (numInstances <= 0) {
+            return FunctionStatusSummary.SummaryState.UNKNOWN;
+        }
+        if (numRunning == numInstances) {
+            return FunctionStatusSummary.SummaryState.RUNNING;
+        }
+        if (numRunning == 0) {
+            return FunctionStatusSummary.SummaryState.STOPPED;
+        }
+        return FunctionStatusSummary.SummaryState.PARTIAL;
+    }
+
+    private static boolean isUnsupportedStatusSummaryEndpoint(Throwable cause) {
+        return cause instanceof PulsarAdminException
+                && (((PulsarAdminException) cause).getStatusCode() == Response.Status.NOT_FOUND.getStatusCode()
+                || ((PulsarAdminException) cause).getStatusCode() == Response.Status.METHOD_NOT_ALLOWED.getStatusCode());
+    }
+
+    private static FunctionStatusSummary.ErrorType classifyError(Throwable error) {
+        if (error instanceof PulsarAdminException) {
+            int statusCode = ((PulsarAdminException) error).getStatusCode();
+            if (statusCode == Response.Status.UNAUTHORIZED.getStatusCode()
+                    || statusCode == Response.Status.FORBIDDEN.getStatusCode()) {
+                return FunctionStatusSummary.ErrorType.AUTHENTICATION_FAILED;
+            }
+            if (statusCode == Response.Status.NOT_FOUND.getStatusCode()) {
+                return FunctionStatusSummary.ErrorType.FUNCTION_NOT_FOUND;
+            }
+        }
+
+        Throwable current = error;
+        while (current != null) {
+            if (current instanceof ConnectException
+                    || current instanceof SocketTimeoutException
+                    || current instanceof UnknownHostException
+                    || current instanceof UnresolvedAddressException) {
+                return FunctionStatusSummary.ErrorType.NETWORK_ERROR;
+            }
+            current = current.getCause();
+        }
+        return FunctionStatusSummary.ErrorType.INTERNAL_ERROR;
     }
 
     @Override

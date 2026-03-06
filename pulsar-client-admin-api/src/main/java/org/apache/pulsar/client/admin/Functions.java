@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -93,7 +95,10 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<FunctionStatusSummary> getFunctionsWithStatus(String tenant, String namespace) throws PulsarAdminException;
+    default List<FunctionStatusSummary> getFunctionsWithStatus(String tenant, String namespace)
+            throws PulsarAdminException {
+        return getFunctionsWithStatus(tenant, namespace, null, null);
+    }
 
     /**
      * Get a batch status summary for all functions in a namespace asynchronously.
@@ -107,7 +112,10 @@ public interface Functions {
      *
      * @return a future that completes with the list of status summaries
      */
-    CompletableFuture<List<FunctionStatusSummary>> getFunctionsWithStatusAsync(String tenant, String namespace);
+    default CompletableFuture<List<FunctionStatusSummary>> getFunctionsWithStatusAsync(String tenant,
+                                                                                       String namespace) {
+        return getFunctionsWithStatusAsync(tenant, namespace, null, null);
+    }
 
     /**
      * Get a paginated batch status summary for functions in a namespace.
@@ -120,7 +128,7 @@ public interface Functions {
      * @param namespace
      *            Namespace name
      * @param limit
-     *            Maximum number of functions to return; non-positive means no limit
+     *            Maximum number of functions to return; must be greater than 0 when provided
      * @param continuationToken
      *            Exclusive continuation token from previous page; null means from beginning
      * @return list of status summaries for the requested page
@@ -130,7 +138,50 @@ public interface Functions {
     default List<FunctionStatusSummary> getFunctionsWithStatus(
             String tenant, String namespace, Integer limit, String continuationToken)
             throws PulsarAdminException {
-        return getFunctionsWithStatus(tenant, namespace);
+        if (limit != null && limit <= 0) {
+            throw new IllegalArgumentException("limit must be greater than 0");
+        }
+
+        List<String> functionNames = getFunctions(tenant, namespace);
+        List<String> pagedNames = new ArrayList<>(functionNames);
+        pagedNames.sort(String::compareTo);
+
+        int startIndex = 0;
+        if (continuationToken != null && !continuationToken.isEmpty()) {
+            while (startIndex < pagedNames.size() && pagedNames.get(startIndex).compareTo(continuationToken) <= 0) {
+                startIndex++;
+            }
+        }
+
+        int endIndex = limit == null ? pagedNames.size() : Math.min(pagedNames.size(), startIndex + limit);
+        List<FunctionStatusSummary> summaries = new ArrayList<>(Math.max(0, endIndex - startIndex));
+        for (int index = startIndex; index < endIndex; index++) {
+            String functionName = pagedNames.get(index);
+            try {
+                FunctionStatus status = getFunctionStatus(tenant, namespace, functionName);
+                FunctionStatusSummary.SummaryState state = status.getNumInstances() <= 0
+                        ? FunctionStatusSummary.SummaryState.UNKNOWN
+                        : status.getNumRunning() == status.getNumInstances()
+                                ? FunctionStatusSummary.SummaryState.RUNNING
+                                : status.getNumRunning() == 0
+                                        ? FunctionStatusSummary.SummaryState.STOPPED
+                                        : FunctionStatusSummary.SummaryState.PARTIAL;
+                summaries.add(FunctionStatusSummary.builder()
+                        .name(functionName)
+                        .state(state)
+                        .numInstances(status.getNumInstances())
+                        .numRunning(status.getNumRunning())
+                        .build());
+            } catch (PulsarAdminException e) {
+                summaries.add(FunctionStatusSummary.builder()
+                        .name(functionName)
+                        .state(FunctionStatusSummary.SummaryState.UNKNOWN)
+                        .error(e.getMessage())
+                        .build());
+            }
+        }
+        summaries.sort(Comparator.comparing(FunctionStatusSummary::getName));
+        return summaries;
     }
 
     /**
@@ -141,14 +192,21 @@ public interface Functions {
      * @param namespace
      *            Namespace name
      * @param limit
-     *            Maximum number of functions to return; non-positive means no limit
+     *            Maximum number of functions to return; must be greater than 0 when provided
      * @param continuationToken
      *            Exclusive continuation token from previous page; null means from beginning
      * @return a future that completes with the list of status summaries for the requested page
      */
     default CompletableFuture<List<FunctionStatusSummary>> getFunctionsWithStatusAsync(
             String tenant, String namespace, Integer limit, String continuationToken) {
-        return getFunctionsWithStatusAsync(tenant, namespace);
+        try {
+            return CompletableFuture.completedFuture(
+                    getFunctionsWithStatus(tenant, namespace, limit, continuationToken));
+        } catch (Exception e) {
+            CompletableFuture<List<FunctionStatusSummary>> future = new CompletableFuture<>();
+            future.completeExceptionally(e);
+            return future;
+        }
     }
 
     /**
