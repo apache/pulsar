@@ -76,7 +76,7 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
     }
 
     public CompletableFuture<Long> compact(String topic) {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
 

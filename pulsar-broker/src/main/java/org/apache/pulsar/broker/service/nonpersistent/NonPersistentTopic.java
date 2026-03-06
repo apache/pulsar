@@ -1218,7 +1218,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<MessageId> getLastMessageId() {
-        return CompletableFuture.failedFuture(
+        return FutureUtil.failedFuture(
                 new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic"));
     }
 
