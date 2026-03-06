@@ -35,9 +35,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import io.prometheus.client.Counter;
 import org.apache.commons.lang3.concurrent.ConcurrentInitializer;
 import org.apache.commons.lang3.concurrent.LazyInitializer;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -47,6 +52,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.api.Message;
@@ -77,6 +83,18 @@ import org.slf4j.LoggerFactory;
  * While reader cache for the namespace was removed, the topic policies will remove automatically.
  */
 public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesService {
+
+    private static final Counter TOPIC_POLICIES_CACHE_INIT_FAILURES = Counter.build(
+            "pulsar_topic_policies_cache_init_failures_total",
+            "Total number of topic policies cache initialization failures after all retries exhausted")
+            .labelNames("namespace")
+            .register();
+
+    private static final Counter TOPIC_POLICIES_CACHE_INIT_TIMEOUTS = Counter.build(
+            "pulsar_topic_policies_cache_init_timeouts_total",
+            "Total number of topic policies cache initialization timeouts (including retried attempts)")
+            .labelNames("namespace")
+            .register();
 
     private final PulsarService pulsarService;
     private final HashSet<String> localCluster;
@@ -581,29 +599,18 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     CompletableFuture<Void> existingFuture =
                             policyCacheInitMap.putIfAbsent(namespace, initNamespacePolicyFuture);
                     if (existingFuture == null) {
-                        final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerCompletableFuture =
-                                newReader(namespace);
-                        readerCompletableFuture
-                                .thenCompose(reader -> {
-                                    final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
-                                    initPolicesCache(reader, stageFuture);
-                                    return stageFuture
-                                            // Read policies in background
-                                            .thenAccept(__ -> readMorePoliciesAsync(reader));
-                                }).thenApply(__ -> {
+                        int maxRetries = pulsarService.getConfiguration()
+                                .getTopicPoliciesCacheInitMaxRetries();
+                        initPoliciesCacheWithTimeoutAndRetry(namespace, maxRetries)
+                                .thenApply(__ -> {
                                     initNamespacePolicyFuture.complete(null);
                                     return null;
                                 }).exceptionally(ex -> {
                                     try {
-                                        if (readerCompletableFuture.isCompletedExceptionally()) {
-                                            log.error("[{}] Failed to create reader on __change_events topic",
-                                                    namespace, ex);
-                                            initNamespacePolicyFuture.completeExceptionally(ex);
-                                            cleanPoliciesCacheInitMap(namespace, true);
-                                        } else {
-                                            initNamespacePolicyFuture.completeExceptionally(ex);
-                                            cleanPoliciesCacheInitMap(namespace, isAlreadyClosedException(ex));
-                                        }
+                                        log.error("[{}] Failed to initialize topic policies cache",
+                                                namespace, ex);
+                                        initNamespacePolicyFuture.completeExceptionally(ex);
+                                        cleanPoliciesCacheInitMap(namespace, true);
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
                                         log.error("[{}] Failed to cleanup reader on __change_events topic",
@@ -617,6 +624,123 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         return existingFuture.thenApply(__ -> true);
                     }
                 });
+    }
+
+    /**
+     * Initializes the topic policies cache with timeout and retry support.
+     * On each attempt, a new reader is created, and {@link #initPolicesCache} is called with a timeout.
+     * If the initialization times out, the reader is closed and a new attempt is made.
+     * After all retries are exhausted, namespace bundles are unloaded from this broker so they can be
+     * reassigned to a different broker.
+     *
+     * @param namespace the namespace to initialize policies for
+     * @param retriesLeft number of retries remaining
+     * @return a future that completes when initialization succeeds or fails after all retries
+     */
+    private CompletableFuture<Void> initPoliciesCacheWithTimeoutAndRetry(NamespaceName namespace, int retriesLeft) {
+        if (closed.get()) {
+            return CompletableFuture.failedFuture(
+                    new BrokerServiceException(getClass().getName() + " is closed."));
+        }
+
+        long timeoutSeconds = pulsarService.getConfiguration().getTopicPoliciesCacheInitTimeoutSeconds();
+        final CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = newReader(namespace);
+
+        CompletableFuture<Void> attempt = readerFuture.thenCompose(reader -> {
+            final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
+            initPolicesCache(reader, stageFuture);
+
+            CompletableFuture<Void> timedFuture = timeoutSeconds > 0
+                    ? stageFuture.orTimeout(timeoutSeconds, TimeUnit.SECONDS)
+                    : stageFuture;
+
+            return timedFuture.thenAccept(__ -> readMorePoliciesAsync(reader));
+        });
+
+        return attempt
+                .thenApply(v -> CompletableFuture.completedFuture(v))
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof TimeoutException) {
+                        TOPIC_POLICIES_CACHE_INIT_TIMEOUTS.labels(namespace.toString()).inc();
+                        // Close the stuck reader and remove from cache so a new one can be created
+                        closeAndRemoveReaderForNamespace(namespace);
+
+                        if (retriesLeft > 0) {
+                            log.warn("[{}] Topic policies cache initialization timed out after {}s. "
+                                            + "Retrying... ({} retries left)",
+                                    namespace, timeoutSeconds, retriesLeft);
+                            return initPoliciesCacheWithTimeoutAndRetry(namespace, retriesLeft - 1);
+                        } else {
+                            log.error("[{}] Topic policies cache initialization failed after all retries "
+                                            + "(timed out after {}s per attempt). Unloading namespace bundles "
+                                            + "from this broker.",
+                                    namespace, timeoutSeconds);
+                            TOPIC_POLICIES_CACHE_INIT_FAILURES.labels(namespace.toString()).inc();
+                            unloadNamespaceBundlesAsync(namespace);
+                            return CompletableFuture.<Void>failedFuture(
+                                    new BrokerServiceException(
+                                            "Topic policies cache initialization failed after all retries "
+                                                    + "for namespace " + namespace));
+                        }
+                    }
+                    // For non-timeout exceptions (e.g. reader creation failure), propagate directly
+                    return CompletableFuture.<Void>failedFuture(cause);
+                })
+                .thenCompose(Function.identity());
+    }
+
+    /**
+     * Closes and removes the reader for the given namespace from the reader cache.
+     * This is used during retry to ensure a fresh reader is created on the next attempt.
+     */
+    private void closeAndRemoveReaderForNamespace(NamespaceName namespace) {
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
+        if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
+            readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
+                    .exceptionally(closeEx -> {
+                        log.warn("[{}] Failed to close reader during retry cleanup", namespace, closeEx);
+                        return null;
+                    });
+        }
+    }
+
+    /**
+     * Unloads all namespace bundles belonging to the given namespace from this broker.
+     * This is called as a last resort when topic policies cache initialization fails after all retries,
+     * allowing the bundles to be reassigned to a different broker.
+     */
+    private void unloadNamespaceBundlesAsync(NamespaceName namespace) {
+        try {
+            NamespaceService namespaceService = pulsarService.getNamespaceService();
+            if (namespaceService == null) {
+                log.warn("[{}] Cannot unload namespace bundles: NamespaceService is not available", namespace);
+                return;
+            }
+            Set<NamespaceBundle> ownedBundles = namespaceService.getOwnedServiceUnits();
+            List<NamespaceBundle> bundlesForNamespace = ownedBundles.stream()
+                    .filter(bundle -> namespace.equals(bundle.getNamespaceObject()))
+                    .collect(Collectors.toList());
+
+            if (bundlesForNamespace.isEmpty()) {
+                log.info("[{}] No owned bundles found to unload for namespace", namespace);
+                return;
+            }
+
+            log.warn("[{}] Unloading {} namespace bundles due to topic policies cache init failure",
+                    namespace, bundlesForNamespace.size());
+            for (NamespaceBundle bundle : bundlesForNamespace) {
+                namespaceService.unloadNamespaceBundle(bundle)
+                        .exceptionally(ex -> {
+                            log.error("[{}] Failed to unload bundle {} after topic policies cache init failure",
+                                    namespace, bundle, ex);
+                            return null;
+                        });
+            }
+        } catch (Exception e) {
+            log.error("[{}] Error while attempting to unload namespace bundles after topic policies "
+                    + "cache init failure", namespace, e);
+        }
     }
 
     private CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> newReader(NamespaceName ns) {
