@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -48,7 +49,20 @@ public class TableView<T> {
     protected final Function<TopicName, CompletableFuture<Reader<T>>> readerCreator;
     private final Map<String, T> snapshots = new ConcurrentHashMap<>();
     private final long clientOperationTimeoutMs;
-    private final SimpleCache<NamespaceName, Reader<T>> readers;
+    private final SimpleCache<NamespaceName, CompletableFuture<Reader<T>>> readers;
+    private final Consumer<CompletableFuture<Reader<T>>> expiration = readerFuture -> {
+        if (!readerFuture.isDone()) {
+            readerFuture.handle((reader, t) -> {
+                if (reader != null) {
+                    closeReader(reader);
+                }
+                return null;
+            });
+        } else if (!readerFuture.isCompletedExceptionally()) {
+            // Since the future has done, it will not wait anymore.
+            closeReader(readerFuture.join());
+        }
+    };
 
     public TableView(Function<TopicName, CompletableFuture<Reader<T>>> readerCreator, long clientOperationTimeoutMs,
                      ScheduledExecutorService executor) {
@@ -89,16 +103,13 @@ public class TableView<T> {
     @VisibleForTesting
     protected Reader<T> getReader(String topic) {
         final var topicName = TopicName.get(topic);
-        return readers.get(topicName.getNamespaceObject(), () -> {
-            try {
-                return wait(readerCreator.apply(topicName), "create reader");
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }, __ -> __.closeAsync().exceptionally(e -> {
-            log.warn("Failed to close reader {}", e.getMessage());
-            return null;
-        }));
+        NamespaceName ns = topicName.getNamespaceObject();
+        CompletableFuture<Reader<T>> readerFuture = readers.get(ns, () -> readerCreator.apply(topicName), expiration);
+        try {
+            return wait(readerFuture, "create reader");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private <R> R wait(CompletableFuture<R> future, String msg) throws Exception {
@@ -107,5 +118,12 @@ public class TableView<T> {
         } catch (ExecutionException e) {
             throw new CompletionException("Failed to " + msg, e.getCause());
         }
+    }
+
+    private void closeReader(Reader<T> reader) {
+        reader.closeAsync().exceptionally(ex -> {
+            log.warn("Failed to close reader {}", ex.getMessage());
+            return null;
+        });
     }
 }
