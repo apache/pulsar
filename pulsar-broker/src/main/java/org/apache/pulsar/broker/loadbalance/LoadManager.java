@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
@@ -70,11 +71,11 @@ public interface LoadManager {
 
     default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             Optional<ServiceUnitId> topic, ServiceUnitId bundle, LookupOptions options) {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     default CompletableFuture<Boolean> checkOwnershipAsync(Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
-        return CompletableFuture.failedFuture(new UnsupportedOperationException());
+        return FutureUtil.failedFuture(new UnsupportedOperationException());
     }
 
     /**

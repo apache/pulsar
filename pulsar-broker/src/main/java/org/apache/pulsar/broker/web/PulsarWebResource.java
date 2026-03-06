@@ -186,14 +186,12 @@ public abstract class PulsarWebResource {
         return appId != null;
     }
 
-    private CompletableFuture<Void> validateOriginalPrincipalAsync(String authenticatedPrincipal,
-                                                                   String originalPrincipal) {
+    private void validateOriginalPrincipal(String authenticatedPrincipal, String originalPrincipal) {
         if (!pulsar.getBrokerService().getAuthorizationService()
                 .isValidOriginalPrincipal(authenticatedPrincipal, originalPrincipal, clientAuthData())) {
-            return FutureUtil.failedFuture(new RestException(Status.UNAUTHORIZED,
-                    "Invalid combination of Original principal cannot be empty if the request is via proxy."));
+            throw new RestException(Status.UNAUTHORIZED,
+                    "Invalid combination of Original principal cannot be empty if the request is via proxy.");
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     protected boolean hasSuperUserAccess() {
@@ -215,44 +213,46 @@ public abstract class PulsarWebResource {
                     isClientAuthenticated(appId), appId);
         }
         String originalPrincipal = originalPrincipal();
-        return validateOriginalPrincipalAsync(appId, originalPrincipal)
-                .thenCompose(__ -> {
-                    if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
-                        BrokerService brokerService = pulsar.getBrokerService();
-                        return brokerService.getAuthorizationService().isSuperUser(appId, clientAuthData())
-                                .thenCompose(proxyAuthorizationSuccess -> {
-                                    if (!proxyAuthorizationSuccess) {
-                                        throw new RestException(Status.UNAUTHORIZED,
-                                                String.format("Proxy not authorized for super-user "
-                                                        + "operation (proxy:%s)", appId));
-                                    }
-                                    return pulsar.getBrokerService()
-                                            .getAuthorizationService()
-                                            .isSuperUser(originalPrincipal, clientAuthData());
-                                }).thenAccept(originalPrincipalAuthorizationSuccess -> {
-                                    if (!originalPrincipalAuthorizationSuccess) {
-                                        throw new RestException(Status.UNAUTHORIZED,
-                                                String.format(
-                                                        "Original principal not authorized for super-user operation "
-                                                                + "(original:%s)", originalPrincipal));
-                                    }
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Successfully authorized {} (proxied by {}) as super-user",
-                                                originalPrincipal, appId);
-                                    }
-                                });
-                    } else {
+        try {
+            validateOriginalPrincipal(appId, originalPrincipal);
+        } catch (RestException e) {
+            return FutureUtil.failedFuture(e);
+        }
+
+        if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
+            BrokerService brokerService = pulsar.getBrokerService();
+            return brokerService.getAuthorizationService().isSuperUser(appId, clientAuthData())
+                    .thenCompose(proxyAuthorizationSuccess -> {
+                        if (!proxyAuthorizationSuccess){
+                            throw new RestException(Status.UNAUTHORIZED,
+                                    String.format("Proxy not authorized for super-user "
+                                            + "operation (proxy:%s)", appId));
+                        }
                         return pulsar.getBrokerService()
                                 .getAuthorizationService()
-                                .isSuperUser(appId, clientAuthData())
-                                .thenAccept(proxyAuthorizationSuccess -> {
-                                    if (!proxyAuthorizationSuccess) {
-                                        throw new RestException(Status.UNAUTHORIZED,
-                                                "This operation requires super-user access");
-                                    }
-                                });
-                    }
-                });
+                                .isSuperUser(originalPrincipal, clientAuthData());
+                    }).thenAccept(originalPrincipalAuthorizationSuccess -> {
+                        if (!originalPrincipalAuthorizationSuccess){
+                            throw new RestException(Status.UNAUTHORIZED,
+                                    String.format("Original principal not authorized for super-user operation "
+                                                    + "(original:%s)", originalPrincipal));
+                        }
+                        if (log.isDebugEnabled()) {
+                            log.debug("Successfully authorized {} (proxied by {}) as super-user",
+                                    originalPrincipal, appId);
+                        }
+                    });
+        } else {
+            return pulsar.getBrokerService()
+                    .getAuthorizationService()
+                    .isSuperUser(appId, clientAuthData())
+                    .thenAccept(proxyAuthorizationSuccess -> {
+                        if (!proxyAuthorizationSuccess) {
+                            throw new RestException(Status.UNAUTHORIZED,
+                                    "This operation requires super-user access");
+                        }
+                    });
+        }
     }
 
     /**
@@ -331,77 +331,59 @@ public abstract class PulsarWebResource {
                         if (!isClientAuthenticated(clientAppId)) {
                             throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
                         }
-                        return validateOriginalPrincipalAsync(clientAppId, originalPrincipal)
-                                .thenCompose(__ -> {
-                                    if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
-                                        AuthorizationService authorizationService =
-                                                pulsar.getBrokerService().getAuthorizationService();
-                                        return authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo,
-                                                        authenticationData)
-                                                .thenCompose(isTenantAdmin -> {
-                                                    String debugMsg =
-                                                            "Successfully authorized {} (proxied by {}) on tenant {}";
-                                                    if (!isTenantAdmin) {
-                                                        return authorizationService.isSuperUser(clientAppId,
-                                                                        authenticationData)
-                                                                .thenCombine(authorizationService.isSuperUser(
-                                                                                originalPrincipal,
-                                                                                authenticationData),
-                                                                        (proxyAuthorized,
-                                                                         originalPrincipalAuthorized) -> {
-                                                                            if (!proxyAuthorized
-                                                                                    || !originalPrincipalAuthorized) {
-                                                                                throw new RestException(
-                                                                                        Status.UNAUTHORIZED,
-                                                                                        String.format(
-                                                                                                "Proxy not authorized"
-                                                                                                        + " to access "
-                                                                                                        + "resource "
-                                                                                                        + "(proxy:%s,"
-                                                                                                        + "original:%s)"
-                                                                                                , clientAppId,
-                                                                                                originalPrincipal));
-                                                                            } else {
-                                                                                if (log.isDebugEnabled()) {
-                                                                                    log.debug(debugMsg,
-                                                                                            originalPrincipal,
-                                                                                            clientAppId,
-                                                                                            tenant);
-                                                                                }
-                                                                                return null;
-                                                                            }
-                                                                        });
-                                                    } else {
-                                                        if (log.isDebugEnabled()) {
-                                                            log.debug(debugMsg, originalPrincipal, clientAppId, tenant);
-                                                        }
-                                                        return CompletableFuture.completedFuture(null);
-                                                    }
-                                                });
+                        validateOriginalPrincipal(clientAppId, originalPrincipal);
+                        if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
+                            AuthorizationService authorizationService =
+                                    pulsar.getBrokerService().getAuthorizationService();
+                            return authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo,
+                                            authenticationData)
+                                .thenCompose(isTenantAdmin -> {
+                                    String debugMsg = "Successfully authorized {} (proxied by {}) on tenant {}";
+                                    if (!isTenantAdmin) {
+                                            return authorizationService.isSuperUser(clientAppId, authenticationData)
+                                                .thenCombine(authorizationService.isSuperUser(originalPrincipal,
+                                                             authenticationData),
+                                                     (proxyAuthorized, originalPrincipalAuthorized) -> {
+                                                         if (!proxyAuthorized || !originalPrincipalAuthorized) {
+                                                             throw new RestException(Status.UNAUTHORIZED,
+                                                                     String.format("Proxy not authorized to access "
+                                                                                     + "resource (proxy:%s,original:%s)"
+                                                                             , clientAppId, originalPrincipal));
+                                                         } else {
+                                                             if (log.isDebugEnabled()) {
+                                                                 log.debug(debugMsg, originalPrincipal, clientAppId,
+                                                                         tenant);
+                                                             }
+                                                             return null;
+                                                         }
+                                                     });
                                     } else {
-                                        return pulsar.getBrokerService()
-                                                .getAuthorizationService()
-                                                .isSuperUser(clientAppId, authenticationData)
-                                                .thenCompose(isSuperUser -> {
-                                                    if (!isSuperUser) {
-                                                        return pulsar.getBrokerService().getAuthorizationService()
-                                                                .isTenantAdmin(tenant, clientAppId, tenantInfo,
-                                                                        authenticationData);
-                                                    } else {
-                                                        return CompletableFuture.completedFuture(true);
-                                                    }
-                                                }).thenAccept(authorized -> {
-                                                    if (!authorized) {
-                                                        throw new RestException(Status.UNAUTHORIZED,
-                                                                "Don't have permission to administrate resources on "
-                                                                        + "this tenant");
-                                                    } else {
-                                                        log.debug("Successfully authorized {} on tenant {}",
-                                                                clientAppId, tenant);
-                                                    }
-                                                });
+                                        if (log.isDebugEnabled()) {
+                                            log.debug(debugMsg, originalPrincipal, clientAppId, tenant);
+                                        }
+                                        return CompletableFuture.completedFuture(null);
                                     }
                                 });
+                        } else {
+                            return pulsar.getBrokerService()
+                                    .getAuthorizationService()
+                                    .isSuperUser(clientAppId, authenticationData)
+                                    .thenCompose(isSuperUser -> {
+                                        if (!isSuperUser) {
+                                            return pulsar.getBrokerService().getAuthorizationService()
+                                                    .isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData);
+                                        } else {
+                                            return CompletableFuture.completedFuture(true);
+                                        }
+                                    }).thenAccept(authorized -> {
+                                        if (!authorized) {
+                                            throw new RestException(Status.UNAUTHORIZED,
+                                                    "Don't have permission to administrate resources on this tenant");
+                                        } else {
+                                            log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);
+                                        }
+                                    });
+                        }
                     } else {
                         return CompletableFuture.completedFuture(null);
                     }

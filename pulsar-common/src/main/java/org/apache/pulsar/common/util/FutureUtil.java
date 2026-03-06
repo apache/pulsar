@@ -227,7 +227,8 @@ public class FutureUtil {
         }
 
         /**
-         * @throws NullPointerException NPE when param is null
+         * @return a {@link CompletableFuture} representing the newly scheduled task,
+         * or a completed exceptionally with {@link NullPointerException} if param is null,
          */
         public synchronized CompletableFuture<T> sequential(Supplier<CompletableFuture<T>> newTask) {
             if (newTask == null) {
@@ -283,13 +284,17 @@ public class FutureUtil {
     }
 
     /**
-     * @throws RejectedExecutionException if this task cannot be accepted for execution
-     * @throws NullPointerException if one of params is null
+     * @return a {@link CompletableFuture} representing the asynchronous composition.
+     * The returned future is completed exceptionally with {@link NullPointerException} if one of params is null,
+     * or with {@link RejectedExecutionException} if the task cannot be accepted for execution.
      */
     public static <T> @NonNull CompletableFuture<T> composeAsync(Supplier<CompletableFuture<T>> futureSupplier,
                                                                  Executor executor) {
-        if (futureSupplier == null || executor == null) {
-            return failedFuture(new NullPointerException());
+        if (futureSupplier == null) {
+            return failedFuture(new NullPointerException("Expected Supplier should not be null"));
+        }
+        if (executor == null) {
+            return failedFuture(new NullPointerException("Expected Executor should not be null"));
         }
         final CompletableFuture<T> future = new CompletableFuture<>();
         try {

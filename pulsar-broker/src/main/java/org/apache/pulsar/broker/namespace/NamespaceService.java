@@ -1146,7 +1146,7 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<Void> updateNamespaceBundlesForPolicies(NamespaceName nsname,
                                                                       NamespaceBundles nsBundles) {
         if (nsname == null) {
-            return FutureUtil.failedFuture(new NullPointerException("Excepted NamespaceName should not be null "));
+            return FutureUtil.failedFuture(new NullPointerException("Expected NamespaceName should not be null"));
         }
         if (nsBundles == null) {
             return FutureUtil.failedFuture(new NullPointerException("nsBundles"));
