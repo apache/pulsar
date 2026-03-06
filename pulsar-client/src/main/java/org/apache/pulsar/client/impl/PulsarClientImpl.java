@@ -673,7 +673,7 @@ public class PulsarClientImpl implements PulsarClient {
         TopicsPattern pattern = TopicsPatternFactory.create(conf.getTopicsPattern());
 
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
-        lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode, regex, null)
+        lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode, regex, null, conf.getProperties())
             .thenAccept(getTopicsResult -> {
                 if (log.isDebugEnabled()) {
                     log.debug("Pattern consumer [{}] get topics under namespace {}, topics.size: {},"

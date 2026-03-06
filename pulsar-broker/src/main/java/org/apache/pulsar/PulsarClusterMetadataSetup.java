@@ -53,6 +53,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.slf4j.Logger;
@@ -315,7 +316,7 @@ public class PulsarClusterMetadataSetup {
             }
         }
 
-        if (localStore instanceof ZKMetadataStore && configStore instanceof ZKMetadataStore) {
+        if (localStore instanceof DualMetadataStore && configStore instanceof DualMetadataStore) {
             String uriStr;
             if (arguments.existingBkMetadataServiceUri != null) {
                 uriStr = arguments.existingBkMetadataServiceUri;

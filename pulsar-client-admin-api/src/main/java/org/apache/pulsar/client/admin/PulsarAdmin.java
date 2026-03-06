@@ -174,6 +174,8 @@ public interface PulsarAdmin extends Closeable {
      */
     Transactions transactions();
 
+    MetadataMigration metadataMigration();
+
     /**
      * Close the PulsarAdminClient and release all the resources.
      *

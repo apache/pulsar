@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema.writer;
 
+import com.google.protobuf.Message;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
 
-public class ProtobufWriter<T extends com.google.protobuf.GeneratedMessageV3> implements SchemaWriter<T> {
+public class ProtobufWriter<T extends Message> implements SchemaWriter<T> {
 
     @Override
     public byte[] write(T message) {

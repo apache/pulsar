@@ -94,10 +94,14 @@ abstract class FlowBase implements Flow {
     private int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
         Duration duration;
         if (value == null) {
-            log.info("Configuration for [{}] is using the default value: [{}]", name, defaultValue);
+            if (log.isDebugEnabled()) {
+                log.debug("Configuration for [{}] is using the default value: [{}]", name, defaultValue);
+            }
             duration = defaultValue;
         } else {
-            log.info("Configuration for [{}] is: [{}]", name, value);
+            if (log.isDebugEnabled()) {
+                log.debug("Configuration for [{}] is: [{}]", name, value);
+            }
             duration = value;
         }
 

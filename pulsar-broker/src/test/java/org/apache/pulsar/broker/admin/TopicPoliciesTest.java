@@ -2045,6 +2045,118 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetSetRemoveSubscriptionExpirationTime() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        int expirationTimeInMinutes = 10;
+
+        admin.topicPolicies().setSubscriptionExpirationTime(topic, expirationTimeInMinutes);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
+                admin.topicPolicies().getSubscriptionExpirationTime(topic).intValue(),
+                expirationTimeInMinutes));
+
+        admin.topicPolicies().removeSubscriptionExpirationTime(topic);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertNull(admin.topicPolicies().getSubscriptionExpirationTime(topic)));
+
+        try {
+            admin.topicPolicies().setSubscriptionExpirationTime(topic, -1);
+            fail("Setting negative subscription expiration time should fail");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 412);
+        }
+
+        admin.topics().delete(topic, true);
+    }
+
+    @Test
+    public void testSubscriptionExpirationTimeAppliedAndHierarchy() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+
+        int brokerDefault = conf.getSubscriptionExpirationTimeMinutes();
+        Assert.assertNull(admin.topicPolicies().getSubscriptionExpirationTime(topic));
+        Assert.assertNull(admin.namespaces().getSubscriptionExpirationTime(myNamespace));
+        Assert.assertEquals(admin.topicPolicies().getSubscriptionExpirationTime(topic, true).intValue(), brokerDefault);
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> assertEquals(
+                hierarchyTopicPolicies.getSubscriptionExpirationTimeInMinutes().get(), Integer.valueOf(brokerDefault)));
+
+        admin.namespaces().setSubscriptionExpirationTime(myNamespace, 11);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.namespaces().getSubscriptionExpirationTime(myNamespace).intValue(), 11));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topicPolicies().getSubscriptionExpirationTime(topic, true).intValue(), 11));
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> assertEquals(
+                hierarchyTopicPolicies.getSubscriptionExpirationTimeInMinutes().get(), Integer.valueOf(11)));
+
+        admin.topicPolicies().setSubscriptionExpirationTime(topic, 22);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topicPolicies().getSubscriptionExpirationTime(topic).intValue(), 22));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topicPolicies().getSubscriptionExpirationTime(topic, true).intValue(), 22));
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> assertEquals(
+                hierarchyTopicPolicies.getSubscriptionExpirationTimeInMinutes().get(), Integer.valueOf(22)));
+
+        admin.topicPolicies().removeSubscriptionExpirationTime(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin.topicPolicies().getSubscriptionExpirationTime(topic)));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topicPolicies().getSubscriptionExpirationTime(topic, true).intValue(), 11));
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> assertEquals(
+                hierarchyTopicPolicies.getSubscriptionExpirationTimeInMinutes().get(), Integer.valueOf(11)));
+
+        admin.namespaces().removeSubscriptionExpirationTime(myNamespace);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin.namespaces().getSubscriptionExpirationTime(myNamespace)));
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topicPolicies().getSubscriptionExpirationTime(topic, true).intValue(), brokerDefault));
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> assertEquals(
+                hierarchyTopicPolicies.getSubscriptionExpirationTimeInMinutes().get(), Integer.valueOf(brokerDefault)));
+
+        admin.topics().delete(topic, true);
+    }
+
+    @Test
+    public void testSubscriptionExpirationTimeRuntimePrecedence() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        final String subName = "subscription-expiration-sub";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, subName, MessageId.latest);
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicIfExists(topic).get().get();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) persistentTopic.getSubscription(subName).getCursor();
+        Field cursorLastActiveField = ManagedCursorImpl.class.getDeclaredField("lastActive");
+        cursorLastActiveField.setAccessible(true);
+
+        admin.namespaces().setSubscriptionExpirationTime(myNamespace, 1);
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> assertEquals(
+                hierarchyTopicPolicies.getSubscriptionExpirationTimeInMinutes().get(), Integer.valueOf(1)));
+
+        cursorLastActiveField.set(cursor, 0L);
+        persistentTopic.checkInactiveSubscriptions();
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getSubscriptions(topic).size(), 0));
+
+        admin.topics().createSubscription(topic, subName, MessageId.latest);
+        admin.topicPolicies().setSubscriptionExpirationTime(topic, 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topicPolicies().getSubscriptionExpirationTime(topic).intValue(), 0));
+        waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> assertEquals(
+                hierarchyTopicPolicies.getSubscriptionExpirationTimeInMinutes().get(), Integer.valueOf(0)));
+
+        persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        cursor = (ManagedCursorImpl) persistentTopic.getSubscription(subName).getCursor();
+        cursorLastActiveField.set(cursor, 0L);
+        persistentTopic.checkInactiveSubscriptions();
+        Awaitility.await().during(2, TimeUnit.SECONDS).atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(admin.topics().getSubscriptions(topic).size(), 1));
+
+        admin.topicPolicies().removeSubscriptionExpirationTime(topic);
+        admin.namespaces().removeSubscriptionExpirationTime(myNamespace);
+        admin.topics().delete(topic, true);
+    }
+
+    @Test
     public void testGetSetPublishRate() throws Exception {
         PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
         log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);

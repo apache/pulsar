@@ -116,7 +116,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                             String key,
                             Optional<CacheGetResult<T>> oldValue,
                             Executor executor) {
-                        if (store instanceof AbstractMetadataStore && ((AbstractMetadataStore) store).isConnected()) {
+                        if (!(store instanceof AbstractMetadataStore)
+                                || ((AbstractMetadataStore) store).isConnected()) {
                             if (log.isDebugEnabled()) {
                                 log.debug("Reloading key {} into metadata cache {}", key, cacheName);
                             }
@@ -153,13 +154,6 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 return FutureUtils.value(Optional.<CacheGetResult<T>>empty());
             }
             final var res = optRes.get();
-            final var cachedFuture = objCache.getIfPresent(path);
-            if (cachedFuture != null && cachedFuture != future) {
-                if (log.isDebugEnabled()) {
-                    log.debug("A new read on key {} is in progress or completed, ignore this one", path);
-                }
-                return cachedFuture;
-            }
             try {
                 T obj = serde.deserialize(path, res.getValue(), res.getStat());
                 if (log.isDebugEnabled()) {

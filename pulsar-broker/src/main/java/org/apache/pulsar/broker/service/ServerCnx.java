@@ -210,6 +210,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private final boolean enableSubscriptionPatternEvaluation;
+    private final boolean enableTopicListWatcher;
     private final int maxSubscriptionPatternLength;
     private final TopicListService topicListService;
     private final BrokerInterceptor brokerInterceptor;
@@ -376,6 +377,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 conf.getBrokerMaxConnectionsPerIp());
         this.maxTopicListInFlightLimiter = pulsar.getBrokerService().getMaxTopicListInFlightLimiter();
         this.enableSubscriptionPatternEvaluation = conf.isEnableBrokerSideSubscriptionPatternEvaluation();
+        this.enableTopicListWatcher = conf.isEnableBrokerTopicListWatcher();
         this.maxSubscriptionPatternLength = conf.getSubscriptionPatternMaxLength();
         this.topicListService = new TopicListService(pulsar, this,
                 enableSubscriptionPatternEvaluation, maxSubscriptionPatternLength);
@@ -899,7 +901,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             maybeScheduleAuthenticationCredentialsRefresh();
         }
-        writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableSubscriptionPatternEvaluation));
+        writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableTopicListWatcher));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
         if (log.isDebugEnabled()) {
@@ -2556,13 +2558,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final Optional<String> topicsHash = Optional.ofNullable(commandGetTopicsOfNamespace.hasTopicsHash()
                 ? commandGetTopicsOfNamespace.getTopicsHash() : null);
         final NamespaceName namespaceName = NamespaceName.get(namespace);
+        final Map<String, String> properties = new HashMap<>();
+        for (KeyValue keyValue : commandGetTopicsOfNamespace.getPropertiesList()) {
+            properties.put(keyValue.getKey(), keyValue.getValue());
+        }
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
                     internalHandleGetTopicsOfNamespace(namespace, namespaceName, requestId, mode, topicsPattern,
-                            topicsHash, lookupSemaphore);
+                            topicsHash, properties, lookupSemaphore);
                 } else {
                     final String msg = "Client is not authorized to GetTopicsOfNamespace";
                     log.warn("[{}] {} with role {} on namespace {}", remoteAddress, msg, getPrincipal(), namespaceName);
@@ -2591,6 +2597,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void internalHandleGetTopicsOfNamespace(String namespace, NamespaceName namespaceName, long requestId,
                                                     CommandGetTopicsOfNamespace.Mode mode,
                                                     Optional<String> topicsPattern, Optional<String> topicsHash,
+                                                    Map<String, String> properties,
                                                     Semaphore lookupSemaphore) {
         BooleanSupplier isPermitRequestCancelled = () -> !ctx().channel().isActive();
         TopicListSizeResultCache.ResultHolder
@@ -2599,7 +2606,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
                     AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
                         return getBrokerService().pulsar().getNamespaceService()
-                                .getListOfUserTopics(namespaceName, mode)
+                                .getListOfUserTopicsByProperties(namespaceName, mode, properties)
                                 .thenCompose(topics -> {
                                     long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topics);
                                     listSizeHolder.updateSize(actualSize);

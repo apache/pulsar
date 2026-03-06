@@ -33,6 +33,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -68,7 +69,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
-import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
+import org.apache.pulsar.metadata.impl.DualMetadataCache;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
@@ -186,9 +188,9 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         @Cleanup
         MetadataStore store2 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
-        MetadataCacheImpl<MyClass> objCache1 = (MetadataCacheImpl<MyClass>) store1.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> objCache1 = store1.getMetadataCache(MyClass.class);
 
-        MetadataCacheImpl<MyClass> objCache2 = (MetadataCacheImpl<MyClass>) store2.getMetadataCache(MyClass.class);
+        MetadataCache<MyClass> objCache2 = store2.getMetadataCache(MyClass.class);
         AtomicReference<MyClass> storeObj = new AtomicReference<MyClass>();
         store2.registerListener(n -> {
             if (n.getType() == NotificationType.Modified) {
@@ -527,13 +529,18 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
                         .setMax(1, TimeUnit.SECONDS)
                         .setMandatoryStop(3, TimeUnit.SECONDS)).build());
 
-        Field metadataCacheField = cache.getClass().getDeclaredField("objCache");
+        MetadataCache<MyClass> cacheRef = cache;
+        if (cache instanceof DualMetadataCache dc) {
+            cacheRef = (MetadataCache<MyClass>) dc.getMetadataCache().get();
+        }
+
+        Field metadataCacheField = cacheRef.getClass().getDeclaredField("objCache");
         metadataCacheField.setAccessible(true);
-        var objCache = metadataCacheField.get(cache);
+        var objCache = metadataCacheField.get(cacheRef);
         var spyObjCache = (AsyncLoadingCache<?, ?>) spy(objCache);
         doAnswer((Answer<CompletableFuture<MyClass>>) invocation -> CompletableFuture.failedFuture(
                 new MetadataStoreException.BadVersionException(""))).when(spyObjCache).get(any());
-        metadataCacheField.set(cache, spyObjCache);
+        metadataCacheField.set(cacheRef, spyObjCache);
 
         // Test three times to ensure that the retry works each time.
         for (int i = 0; i < 3; i++) {
@@ -738,5 +745,19 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(backoff.next(), 0);
         assertTrue(backoff.isMandatoryStopMade());
         assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+    }
+
+    @Test
+    public void testRefreshRace() throws Exception {
+        @Cleanup final var store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build());
+        final var cache = store.getMetadataCache(String.class);
+        for (int i = 0; i < 500; i++) {
+            final var key = "/key" + i;
+            assertTrue(cache.get(key).get().isEmpty());
+
+            store.put(key, "\"value\"".getBytes(StandardCharsets.UTF_8), Optional.empty()).get();
+            Awaitility.await().pollInterval(Duration.ofMillis(1)).atMost(Duration.ofSeconds(3)).untilAsserted(() ->
+                assertTrue(cache.get(key).get().isPresent(), "Failed at key " + key));
+        }
     }
 }

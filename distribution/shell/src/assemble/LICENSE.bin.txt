@@ -313,17 +313,17 @@ The Apache Software License, Version 2.0
      - picocli-4.7.5.jar
      - picocli-shell-jline3-4.7.5.jar
  * Jackson
-     - jackson-annotations-2.17.2.jar
-     - jackson-core-2.17.2.jar
-     - jackson-databind-2.17.2.jar
-     - jackson-dataformat-yaml-2.17.2.jar
-     - jackson-jaxrs-base-2.17.2.jar
-     - jackson-jaxrs-json-provider-2.17.2.jar
-     - jackson-module-jaxb-annotations-2.17.2.jar
-     - jackson-module-jsonSchema-2.17.2.jar
-     - jackson-datatype-jdk8-2.17.2.jar
-     - jackson-datatype-jsr310-2.17.2.jar
-     - jackson-module-parameter-names-2.17.2.jar
+     - jackson-annotations-2.18.6.jar
+     - jackson-core-2.18.6.jar
+     - jackson-databind-2.18.6.jar
+     - jackson-dataformat-yaml-2.18.6.jar
+     - jackson-jaxrs-base-2.18.6.jar
+     - jackson-jaxrs-json-provider-2.18.6.jar
+     - jackson-module-jaxb-annotations-2.18.6.jar
+     - jackson-module-jsonSchema-2.18.6.jar
+     - jackson-datatype-jdk8-2.18.6.jar
+     - jackson-datatype-jsr310-2.18.6.jar
+     - jackson-module-parameter-names-2.18.6.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.5.2.jar
  * Gson
     - gson-2.13.2.jar
@@ -344,35 +344,35 @@ The Apache Software License, Version 2.0
     - commons-text-1.14.0.jar
     - commons-compress-1.28.0.jar
  * Netty
-    - netty-buffer-4.1.130.Final.jar
-    - netty-codec-4.1.130.Final.jar
-    - netty-codec-dns-4.1.130.Final.jar
-    - netty-codec-http-4.1.130.Final.jar
-    - netty-codec-socks-4.1.130.Final.jar
-    - netty-codec-haproxy-4.1.130.Final.jar
-    - netty-common-4.1.130.Final.jar
-    - netty-handler-4.1.130.Final.jar
-    - netty-handler-proxy-4.1.130.Final.jar
-    - netty-resolver-4.1.130.Final.jar
-    - netty-resolver-dns-4.1.130.Final.jar
-    - netty-transport-4.1.130.Final.jar
-    - netty-transport-classes-epoll-4.1.130.Final.jar
-    - netty-transport-native-epoll-4.1.130.Final-linux-aarch_64.jar
-    - netty-transport-native-epoll-4.1.130.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.130.Final.jar
-    - netty-tcnative-boringssl-static-2.0.74.Final.jar
-    - netty-tcnative-boringssl-static-2.0.74.Final-linux-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.74.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.74.Final-osx-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.74.Final-osx-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.74.Final-windows-x86_64.jar
-    - netty-tcnative-classes-2.0.74.Final.jar
+    - netty-buffer-4.1.131.Final.jar
+    - netty-codec-4.1.131.Final.jar
+    - netty-codec-dns-4.1.131.Final.jar
+    - netty-codec-http-4.1.131.Final.jar
+    - netty-codec-socks-4.1.131.Final.jar
+    - netty-codec-haproxy-4.1.131.Final.jar
+    - netty-common-4.1.131.Final.jar
+    - netty-handler-4.1.131.Final.jar
+    - netty-handler-proxy-4.1.131.Final.jar
+    - netty-resolver-4.1.131.Final.jar
+    - netty-resolver-dns-4.1.131.Final.jar
+    - netty-transport-4.1.131.Final.jar
+    - netty-transport-classes-epoll-4.1.131.Final.jar
+    - netty-transport-native-epoll-4.1.131.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.1.131.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.131.Final.jar
+    - netty-tcnative-boringssl-static-2.0.75.Final.jar
+    - netty-tcnative-boringssl-static-2.0.75.Final-linux-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.75.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.75.Final-osx-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.75.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.75.Final-windows-x86_64.jar
+    - netty-tcnative-classes-2.0.75.Final.jar
     - netty-incubator-transport-classes-io_uring-0.0.26.Final.jar
     - netty-incubator-transport-native-io_uring-0.0.26.Final-linux-aarch_64.jar
     - netty-incubator-transport-native-io_uring-0.0.26.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.1.130.Final.jar
-    - netty-resolver-dns-native-macos-4.1.130.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.130.Final-osx-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.1.131.Final.jar
+    - netty-resolver-dns-native-macos-4.1.131.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.1.131.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
@@ -395,7 +395,7 @@ The Apache Software License, Version 2.0
     - cpu-affinity-4.17.3.jar
     - circe-checksum-4.17.3.jar
   * AirCompressor
-     - aircompressor-0.27.jar
+     - aircompressor-2.0.3.jar
  * AsyncHttpClient
     - async-http-client-2.12.4.jar
     - async-http-client-netty-utils-2.12.4.jar
@@ -420,12 +420,13 @@ The Apache Software License, Version 2.0
     - avro-protobuf-1.12.0.jar
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
- * RoaringBitmap -- RoaringBitmap-1.2.0.jar
+ * RoaringBitmap -- RoaringBitmap-1.6.9.jar
  * Fastutil -- fastutil-8.5.16.jar
  * JSpecify -- jspecify-1.0.0.jar
 
 BSD 3-clause "New" or "Revised" License
  * JLine3 -- jline-3.21.0.jar -- ../licenses/LICENSE-JLine.txt
+ * JSR305 -- jsr305-3.0.2.jar -- ../licenses/LICENSE-JSR305.txt
 
 MIT License
  * SLF4J -- ../licenses/LICENSE-SLF4J.txt
@@ -463,9 +464,7 @@ Eclipse Public License - v2.0 -- ../licenses/LICENSE-EPL-2.0.txt
 Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
  * Reactive Streams -- reactive-streams-1.0.3.jar
 
-Creative Commons Attribution License
- * Jcip -- ../licenses/LICENSE-jcip.txt
-    - jcip-annotations-1.0.jar
+
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt

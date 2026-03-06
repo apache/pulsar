@@ -1233,6 +1233,12 @@ public class PulsarAdminToolTest {
         verify(mockTopicsPolicies).setMessageTTL("persistent://myprop/clust/ns1/ds1", 10);
         cmdTopics.run(split("remove-message-ttl persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).removeMessageTTL("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("get-subscription-expiration-time persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).getSubscriptionExpirationTime("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("set-subscription-expiration-time persistent://myprop/clust/ns1/ds1 -t 10"));
+        verify(mockTopicsPolicies).setSubscriptionExpirationTime("persistent://myprop/clust/ns1/ds1", 10);
+        cmdTopics.run(split("remove-subscription-expiration-time persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopicsPolicies).removeSubscriptionExpirationTime("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-max-consumers-per-subscription persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).getMaxConsumersPerSubscription("persistent://myprop/clust/ns1/ds1");
@@ -1377,6 +1383,12 @@ public class PulsarAdminToolTest {
         verify(mockGlobalTopicsPolicies).setMessageTTL("persistent://myprop/clust/ns1/ds1", 10);
         cmdTopics.run(split("remove-message-ttl persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).removeMessageTTL("persistent://myprop/clust/ns1/ds1");
+        cmdTopics.run(split("get-subscription-expiration-time persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).getSubscriptionExpirationTime("persistent://myprop/clust/ns1/ds1", false);
+        cmdTopics.run(split("set-subscription-expiration-time persistent://myprop/clust/ns1/ds1 -t 10 -g"));
+        verify(mockGlobalTopicsPolicies).setSubscriptionExpirationTime("persistent://myprop/clust/ns1/ds1", 10);
+        cmdTopics.run(split("remove-subscription-expiration-time persistent://myprop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeSubscriptionExpirationTime("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("get-persistence persistent://myprop/clust/ns1/ds1 -g"));
         verify(mockGlobalTopicsPolicies).getPersistence("persistent://myprop/clust/ns1/ds1");

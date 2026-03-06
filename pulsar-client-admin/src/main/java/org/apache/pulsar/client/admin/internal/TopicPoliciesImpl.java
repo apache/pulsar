@@ -405,6 +405,63 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
+    public void setSubscriptionExpirationTime(String topic, int subscriptionExpirationTimeInMinutes)
+            throws PulsarAdminException {
+        try {
+            TopicName topicName = validateTopic(topic);
+            WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+            request(path.queryParam("subscriptionExpirationTime", subscriptionExpirationTimeInMinutes))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionExpirationTimeAsync(String topic,
+                                                                      int subscriptionExpirationTimeInMinutes) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+        path = path.queryParam("subscriptionExpirationTime", subscriptionExpirationTimeInMinutes);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Integer getSubscriptionExpirationTime(String topic) throws PulsarAdminException {
+        return getSubscriptionExpirationTime(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String topic) {
+        return getSubscriptionExpirationTimeAsync(topic, false);
+    }
+
+    @Override
+    public Integer getSubscriptionExpirationTime(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getSubscriptionExpirationTimeAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String topic, boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
+    }
+
+    @Override
+    public void removeSubscriptionExpirationTime(String topic) throws PulsarAdminException {
+        sync(() -> removeSubscriptionExpirationTimeAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionExpirationTimeAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public void setMessageTTL(String topic, int messageTTLInSecond) throws PulsarAdminException {
         try {
             TopicName topicName = validateTopic(topic);

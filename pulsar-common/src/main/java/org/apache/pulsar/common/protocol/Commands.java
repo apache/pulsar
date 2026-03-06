@@ -1219,7 +1219,8 @@ public class Commands {
     }
 
     public static ByteBuf newGetTopicsOfNamespaceRequest(String namespace, long requestId, Mode mode,
-                                                         String topicsPattern, String topicsHash) {
+                                                         String topicsPattern, String topicsHash,
+                                                         Map<String, String> properties) {
         BaseCommand cmd = localCmd(Type.GET_TOPICS_OF_NAMESPACE);
         CommandGetTopicsOfNamespace topics = cmd.setGetTopicsOfNamespace();
         topics.setNamespace(namespace);
@@ -1230,6 +1231,9 @@ public class Commands {
         }
         if (topicsHash != null) {
             topics.setTopicsHash(topicsHash);
+        }
+        if (properties != null) {
+            properties.forEach((key, value) -> topics.addProperty().setKey(key).setValue(value));
         }
         return serializeWithSize(cmd);
     }

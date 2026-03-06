@@ -52,8 +52,8 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreTableView;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.jspecify.annotations.Nullable;
 
 @Slf4j
@@ -161,8 +161,8 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                         .asyncReloadConsumer(this::consumeAsyncReload)
                         .build());
         store.registerListener(this::handleNotification);
-        if (store instanceof AbstractMetadataStore abstractMetadataStore) {
-            abstractMetadataStore.registerSessionListener(this::handleSessionEvent);
+        if (store instanceof MetadataStoreExtended metadataStoreExtended) {
+            metadataStoreExtended.registerSessionListener(this::handleSessionEvent);
         } else {
             // Since ServiceUnitStateMetadataStoreTableViewImpl has checked the configuration that named
             // "zookeeperSessionExpiredPolicy", skip to print the duplicated log here.

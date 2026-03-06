@@ -18,10 +18,16 @@
  */
 package org.apache.pulsar.functions.source;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import com.google.protobuf.Any;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
@@ -51,6 +57,16 @@ public class TopicSchemaTest {
         schema = topicSchema
                 .getSchema(topic + "4", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF_NATIVE));
         assertEquals(schema.getClass(), ProtobufNativeSchema.class);
+    }
+
+    @Test
+    public void testDefaultSchemaTypeInfersProtobufForMessageBaseClass() {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        when(client.getSchema(anyString())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+        TopicSchema topicSchema = new TopicSchema(client, Thread.currentThread().getContextClassLoader());
+        Schema<?> schema = topicSchema.getSchema("public/default/test-protobuf-default", Any.class, Optional.empty());
+        assertEquals(schema.getClass(), ProtobufSchema.class);
     }
 
     private static class DummyClass {

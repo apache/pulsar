@@ -31,6 +31,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 @Slf4j
@@ -291,12 +292,14 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
     //If the config rootPath when use zk metadata store, it will append rootPath as the prefix of the path.
     //So when we get the path from the stat, we should truncate the rootPath.
     private String handleTheDeletePath(String path) {
-        if (store instanceof ZKMetadataStore) {
-            String rootPath = ((ZKMetadataStore) store).getRootPath();
-            if (rootPath == null) {
-                return path;
+        if (store instanceof DualMetadataStore dms) {
+            if (dms.getSourceStore() instanceof ZKMetadataStore zkStore) {
+                String rootPath = zkStore.getRootPath();
+                if (rootPath == null) {
+                    return path;
+                }
+                return path.replaceFirst(rootPath, "");
             }
-            return path.replaceFirst(rootPath, "");
         }
         return path;
     }
