@@ -1050,8 +1050,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             .handle((result, ex) -> {
                                 if (ex != null) {
                                     int rc = BKException.getExceptionCode(ex);
-                                    if (rc == BKException.Code.NoSuchLedgerExistsOnMetadataServerException
-                                        || rc == BKException.Code.NoSuchLedgerExistsException) {
+                                    if (Errors.isNoSuchLedgerExistsException(rc)) {
                                         log.info("Ledger {} does not exist, ignoring", li.ledgerId);
                                         return null;
                                     }
@@ -1092,8 +1091,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     .handle((result, ex) -> {
                         if (ex != null) {
                             int rc = BKException.getExceptionCode(ex);
-                            if (rc == BKException.Code.NoSuchLedgerExistsOnMetadataServerException
-                                    || rc == BKException.Code.NoSuchLedgerExistsException) {
+                            if (Errors.isNoSuchLedgerExistsException(rc)) {
                                 log.info("Ledger {} does not exist, ignoring", cursor.cursorsLedgerId);
                                 return null;
                             }
