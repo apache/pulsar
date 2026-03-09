@@ -25,14 +25,12 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.util.Backoff;
-import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.awaitility.core.ConditionTimeoutException;
@@ -45,9 +43,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class ConnectionHandlerTest extends ProducerConsumerBase {
 
-    private static final Backoff BACKOFF = new BackoffBuilder().setInitialTime(1, TimeUnit.MILLISECONDS)
-            .setMandatoryStop(1, TimeUnit.SECONDS)
-            .setMax(3, TimeUnit.SECONDS).create();
+    private static final Backoff BACKOFF = Backoff.builder().initialDelay(Duration.ofMillis(1))
+            .mandatoryStop(Duration.ofSeconds(1))
+            .maxBackoff(Duration.ofSeconds(3)).build();
     private ExecutorService executor;
 
     @BeforeClass(alwaysRun = true)
@@ -115,7 +113,7 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
 
         // 2. connectionFailed is called
         final ConnectionHandler handler2 = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, null), new MockedBackoff(),
+                new MockedHandlerState((PulsarClientImpl) pulsarClient, null), createMockedBackoff(),
                 cnx -> CompletableFuture.completedFuture(null));
         FieldUtils.writeField(handler2, "duringConnect", duringConnect, true);
         handler2.grabCnx();
@@ -125,7 +123,7 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
 
         // 3. connectionOpened completes exceptionally
         final ConnectionHandler handler3 = new ConnectionHandler(
-                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), new MockedBackoff(),
+                new MockedHandlerState((PulsarClientImpl) pulsarClient, "my-topic"), createMockedBackoff(),
                 cnx -> FutureUtil.failedFuture(new RuntimeException("fail")));
         FieldUtils.writeField(handler3, "duringConnect", duringConnect, true);
         handler3.grabCnx();
@@ -146,11 +144,12 @@ public class ConnectionHandlerTest extends ProducerConsumerBase {
         }
     }
 
-    private static class MockedBackoff extends Backoff {
-
-        // Set a large backoff so that reconnection won't happen in tests
-        public MockedBackoff() {
-            super(1, TimeUnit.HOURS, 2, TimeUnit.HOURS, 1, TimeUnit.HOURS);
-        }
+    // Set a large backoff so that reconnection won't happen in tests
+    private static Backoff createMockedBackoff() {
+        return Backoff.builder()
+                .initialDelay(Duration.ofHours(1))
+                .maxBackoff(Duration.ofHours(2))
+                .mandatoryStop(Duration.ofHours(1))
+                .build();
     }
 }

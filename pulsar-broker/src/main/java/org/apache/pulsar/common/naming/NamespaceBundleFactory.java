@@ -138,14 +138,16 @@ public class NamespaceBundleFactory {
             future.completeExceptionally(e);
         } else {
             LOG.warn("Error loading bundle for {}. Retrying exception", namespace, e);
-            long retryDelay = backoff.next();
+            long retryDelay = backoff.next().toMillis();
             pulsar.getExecutor().schedule(() ->
                     doLoadBundles(namespace, future, backoff, retryDeadline), retryDelay, TimeUnit.MILLISECONDS);
         }
     }
 
     private static Backoff createBackoff() {
-        return new Backoff(100, TimeUnit.MILLISECONDS, 5, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
+        return Backoff.builder()
+                .maxBackoff(Duration.ofSeconds(5))
+                .build();
     }
 
     private NamespaceBundles readBundles(NamespaceName namespace, LocalPolicies localPolicies, long version)

@@ -108,9 +108,9 @@ public class ConsumerImplTest {
     public void testCorrectBackoffConfiguration() {
         final Backoff backoff = consumer.getConnectionHandler().backoff;
         ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
-        Assert.assertEquals(backoff.getMax(),
+        Assert.assertEquals(backoff.getMax().toMillis(),
                 TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
-        Assert.assertEquals(backoff.next(),
+        Assert.assertEquals(backoff.next().toMillis(),
                 TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 

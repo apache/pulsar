@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -320,10 +321,9 @@ public class TopicListService {
                 .concurrencyLevel(1)
                 .build();
         this.topicResources = pulsar.getPulsarResources().getTopicResources();
-        this.retryBackoff = new Backoff(
-                100, TimeUnit.MILLISECONDS,
-                25, TimeUnit.SECONDS,
-                0, TimeUnit.MILLISECONDS);
+        this.retryBackoff = Backoff.builder()
+                .maxBackoff(Duration.ofSeconds(25))
+                .build();
     }
 
     public void inactivate() {
@@ -471,7 +471,7 @@ public class TopicListService {
                 if (connection.isActive() && (unwrappedException instanceof AsyncSemaphore.PermitAcquireTimeoutException
                         || unwrappedException instanceof AsyncSemaphore.PermitAcquireQueueFullException)) {
                     // retry with backoff if permit acquisition fails due to timeout or queue full
-                    long retryAfterMillis = this.retryBackoff.next();
+                    long retryAfterMillis = this.retryBackoff.next().toMillis();
                     log.info("[{}] {} when initializing topic list watcher watcherId={} for namespace {}. "
                                     + "Retrying in {} " + "ms.", connection, unwrappedException.getMessage(), watcherId,
                             namespace, retryAfterMillis);
@@ -568,7 +568,7 @@ public class TopicListService {
                         && (unwrappedException instanceof AsyncSemaphore.PermitAcquireTimeoutException
                         || unwrappedException instanceof AsyncSemaphore.PermitAcquireQueueFullException)) {
                     // retry with backoff if permit acquisition fails due to timeout or queue full
-                    long retryAfterMillis = this.retryBackoff.next();
+                    long retryAfterMillis = this.retryBackoff.next().toMillis();
                     log.info("[{}] {} when updating topic list watcher watcherId={} for namespace {}. Retrying in {} "
                                     + "ms.", connection, unwrappedException.getMessage(), watcherId, namespace,
                             retryAfterMillis);
@@ -687,7 +687,7 @@ public class TopicListService {
                 // stop retrying and complete successfully
                 return CompletableFuture.completedFuture(null);
             }
-            long retryDelay = retryBackoff.next();
+            long retryDelay = retryBackoff.next().toMillis();
             retryCount.incrementAndGet();
             log.info("[{}] Cannot acquire direct memory tokens for sending {}. Retry {} in {} ms. {}", connection,
                     operationName, retryCount.get(), retryDelay, t.getMessage());

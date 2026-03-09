@@ -25,6 +25,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -47,7 +48,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.Backoff;
-import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -358,11 +358,9 @@ public class BinaryProtoLookupService implements LookupService {
                                                                       @Nullable Map<String, String> properties) {
         CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
-        Backoff backoff = new BackoffBuilder()
-                .setInitialTime(100, TimeUnit.MILLISECONDS)
-                .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                .setMax(1, TimeUnit.MINUTES)
-                .create();
+        Backoff backoff = Backoff.builder()
+                .mandatoryStop(Duration.ofMillis(opTimeoutMs.get() * 2))
+                .build();
         getTopicsUnderNamespace(namespace, backoff, opTimeoutMs, topicsFuture, mode,
                 topicsPattern, topicsHash, properties);
         return topicsFuture;
@@ -404,7 +402,7 @@ public class BinaryProtoLookupService implements LookupService {
                 client.getCnxPool().releaseConnection(clientCnx);
             });
         }, lookupPinnedExecutor).exceptionally((e) -> {
-            long nextDelay = Math.min(backoff.next(), remainingTime.get());
+            long nextDelay = Math.min(backoff.next().toMillis(), remainingTime.get());
             if (nextDelay <= 0) {
                 getTopicsResultFuture.completeExceptionally(
                     new PulsarClientException.TimeoutException(

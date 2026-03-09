@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.readEntriesW
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
+import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -87,10 +88,11 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         this.name = topic.getName() + " / " + (cursor.getName() != null ? Codec.decode(cursor.getName())
                 : ""/* NonDurableCursor doesn't have name */);
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
-        this.readFailureBackoff = new Backoff(serviceConfig.getDispatcherReadFailureBackoffInitialTimeInMs(),
-            TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMaxTimeInMs(),
-            TimeUnit.MILLISECONDS, serviceConfig.getDispatcherReadFailureBackoffMandatoryStopTimeInMs(),
-            TimeUnit.MILLISECONDS);
+        this.readFailureBackoff = Backoff.builder()
+            .initialDelay(Duration.ofMillis(serviceConfig.getDispatcherReadFailureBackoffInitialTimeInMs()))
+            .maxBackoff(Duration.ofMillis(serviceConfig.getDispatcherReadFailureBackoffMaxTimeInMs()))
+            .mandatoryStop(Duration.ofMillis(serviceConfig.getDispatcherReadFailureBackoffMandatoryStopTimeInMs()))
+            .build();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.initializeDispatchRateLimiterIfNeeded();
     }
@@ -475,7 +477,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             return;
         }
 
-        long waitTimeMillis = readFailureBackoff.next();
+        long waitTimeMillis = readFailureBackoff.next().toMillis();
 
         if (exception instanceof NoMoreEntriesToReadException) {
             if (cursor.getNumberOfEntriesInBacklog(false) == 0) {

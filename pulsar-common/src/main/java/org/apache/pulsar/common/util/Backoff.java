@@ -19,108 +19,204 @@
 package org.apache.pulsar.common.util;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
-import lombok.Data;
+import lombok.Getter;
 
-// All variables are in TimeUnit millis by default
-@Data
+/**
+ * Exponential backoff with mandatory stop.
+ *
+ * <p>Delays start at {@code initialDelay} and double on every call to {@link #next()}, up to
+ * {@code maxBackoff}. A random jitter of up to 10% is subtracted from each value to avoid
+ * thundering-herd retries.
+ *
+ * <p>If a {@code mandatoryStop} duration is configured, the backoff tracks wall-clock time from the
+ * first {@link #next()} call. Once the elapsed time plus the next delay would exceed the mandatory
+ * stop, the delay is truncated so that the total does not exceed it, and {@link #isMandatoryStopMade()}
+ * returns {@code true}. After the mandatory stop, backoff continues to grow normally.
+ *
+ * <p>Use {@link #reset()} to restart the sequence from the initial delay.
+ *
+ * <pre>{@code
+ * Backoff backoff = Backoff.builder()
+ *         .initialDelay(Duration.ofMillis(100))
+ *         .maxBackoff(Duration.ofMinutes(1))
+ *         .mandatoryStop(Duration.ofSeconds(30))
+ *         .build();
+ *
+ * Duration delay = backoff.next();
+ * }</pre>
+ */
 public class Backoff {
-    public static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
-    public static final long MAX_BACKOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
-    private final long initial;
-    private final long max;
-    private final Clock clock;
-    private long next;
-    private long mandatoryStop;
-
-    private long firstBackoffTimeInMillis;
-    private boolean mandatoryStopMade = false;
-
+    private static final Duration DEFAULT_INITIAL_DELAY = Duration.ofMillis(100);
+    private static final Duration DEFAULT_MAX_BACKOFF_INTERVAL = Duration.ofMinutes(1);
     private static final Random random = new Random();
 
-    Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-            TimeUnit unitMandatoryStop, Clock clock) {
-        this.initial = unitInitial.toMillis(initial);
-        this.max = unitMax.toMillis(max);
-        if (initial == 0 && max == 0 && mandatoryStop == 0) {
+    @Getter
+    private final Duration initial;
+    @Getter
+    private final Duration max;
+    @Getter
+    private final Duration mandatoryStop;
+    private final Clock clock;
+
+    private Duration next;
+    @Getter
+    private Instant firstBackoffTime;
+    @Getter
+    private boolean mandatoryStopMade;
+
+    private Backoff(Duration initial, Duration max, Duration mandatoryStop, Clock clock) {
+        this.initial = initial;
+        this.max = max;
+        this.mandatoryStop = mandatoryStop;
+        this.next = initial;
+        this.clock = clock;
+        this.firstBackoffTime = Instant.EPOCH;
+        if (initial.isZero() && max.isZero() && mandatoryStop.isZero()) {
             this.mandatoryStopMade = true;
         }
-        this.next = this.initial;
-        this.mandatoryStop = unitMandatoryStop.toMillis(mandatoryStop);
-        this.clock = clock;
-        this.firstBackoffTimeInMillis = 0;
     }
 
-    public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
-                   TimeUnit unitMandatoryStop) {
-        this(initial, unitInitial, max, unitMax, mandatoryStop, unitMandatoryStop, Clock.systemDefaultZone());
+    /**
+     * Creates a {@link Backoff} with the default configuration (initial delay 100 ms, max 1 min,
+     * no mandatory stop).
+     *
+     * @return a new Backoff with default settings
+     */
+    public static Backoff create() {
+        return new Builder().build();
     }
 
-    public long next() {
-        long current = this.next;
-        if (current < max) {
-            this.next = Math.min(this.next * 2, this.max);
+    /**
+     * Creates a new {@link Builder} with default settings.
+     *
+     * @return a new builder instance
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Returns the next backoff delay, advancing the internal state.
+     *
+     * <p>The returned duration is never less than the initial delay and never more than the max
+     * backoff. A random jitter of up to 10% is subtracted to spread out concurrent retries.
+     *
+     * @return the delay to wait before the next retry attempt
+     */
+    public Duration next() {
+        Duration current = this.next;
+        if (current.compareTo(max) < 0) {
+            Duration doubled = this.next.multipliedBy(2);
+            this.next = doubled.compareTo(this.max) < 0 ? doubled : this.max;
         }
 
         // Check for mandatory stop
         if (!mandatoryStopMade) {
-            long now = clock.millis();
-            long timeElapsedSinceFirstBackoff = 0;
-            if (initial == current) {
-                firstBackoffTimeInMillis = now;
+            Instant now = clock.instant();
+            Duration timeElapsedSinceFirstBackoff = Duration.ZERO;
+            if (initial.equals(current)) {
+                firstBackoffTime = now;
             } else {
-                timeElapsedSinceFirstBackoff = now - firstBackoffTimeInMillis;
+                timeElapsedSinceFirstBackoff = Duration.between(firstBackoffTime, now);
             }
 
-            if (timeElapsedSinceFirstBackoff + current > mandatoryStop) {
-                current = Math.max(initial, mandatoryStop - timeElapsedSinceFirstBackoff);
+            if (timeElapsedSinceFirstBackoff.plus(current).compareTo(mandatoryStop) > 0) {
+                Duration remaining = mandatoryStop.minus(timeElapsedSinceFirstBackoff);
+                current = remaining.compareTo(initial) > 0 ? remaining : initial;
                 mandatoryStopMade = true;
             }
         }
 
         // Randomly decrease the timeout up to 10% to avoid simultaneous retries
-        // If current < 10 then current/10 < 1 and we get an exception from Random saying "Bound must be positive"
-        if (current > 10) {
-            current -= random.nextInt((int) current / 10);
+        long currentMillis = current.toMillis();
+        if (currentMillis > 10) {
+            currentMillis -= random.nextInt((int) currentMillis / 10);
         }
-        return Math.max(initial, current);
+        long initialMillis = initial.toMillis();
+        return Duration.ofMillis(Math.max(initialMillis, currentMillis));
     }
 
+    /**
+     * Halves the next delay (but never below the initial delay).
+     * Useful after a partially successful operation to converge faster.
+     */
     public void reduceToHalf() {
-        if (next > initial) {
-            this.next = Math.max(this.next / 2, this.initial);
+        if (next.compareTo(initial) > 0) {
+            Duration half = next.dividedBy(2);
+            this.next = half.compareTo(initial) > 0 ? half : initial;
         }
     }
 
+    /**
+     * Resets the backoff to its initial state so the next call to {@link #next()} returns the
+     * initial delay again. Also resets the mandatory-stop tracking.
+     */
     public void reset() {
         this.next = this.initial;
-        if (initial == 0 && max == 0 && mandatoryStop == 0) {
-            this.mandatoryStopMade = true;
-        } else {
-            this.mandatoryStopMade = false;
-        }
+        this.mandatoryStopMade = initial.isZero() && max.isZero() && mandatoryStop.isZero();
     }
 
-    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts,
-                                        long defaultInterval, long maxBackoffInterval) {
-        long initialTimestampInNano = unitInitial.toNanos(initialTimestamp);
-        long currentTime = System.nanoTime();
-        long interval = defaultInterval;
-        for (int i = 1; i < failedAttempts; i++) {
-            interval = interval * 2;
-            if (interval > maxBackoffInterval) {
-                interval = maxBackoffInterval;
-                break;
-            }
+    /**
+     * Builder for {@link Backoff}.
+     *
+     * <p>Defaults: initial delay 100 ms, max backoff 1 min, no mandatory stop.
+     */
+    public static class Builder {
+        private Duration initialDelay = DEFAULT_INITIAL_DELAY;
+        private Duration maxBackoff = DEFAULT_MAX_BACKOFF_INTERVAL;
+        private Duration mandatoryStop = Duration.ZERO;
+        private Clock clock = Clock.systemDefaultZone();
+
+        /**
+         * Sets the initial (smallest) backoff delay. Defaults to 100 ms.
+         *
+         * @param initialDelay the initial delay
+         * @return this builder
+         */
+        public Builder initialDelay(Duration initialDelay) {
+            this.initialDelay = initialDelay;
+            return this;
         }
 
-        // if the current time is less than the time at which next retry should occur, we should backoff
-        return currentTime < (initialTimestampInNano + interval);
-    }
+        /**
+         * Sets the upper bound for the backoff delay. Defaults to 1 min.
+         *
+         * @param maxBackoff the maximum delay
+         * @return this builder
+         */
+        public Builder maxBackoff(Duration maxBackoff) {
+            this.maxBackoff = maxBackoff;
+            return this;
+        }
 
-    public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {
-        return Backoff.shouldBackoff(initialTimestamp, unitInitial, failedAttempts,
-                                     DEFAULT_INTERVAL_IN_NANOSECONDS, MAX_BACKOFF_INTERVAL_NANOSECONDS);
+        /**
+         * Sets the mandatory-stop deadline measured from the first {@link Backoff#next()} call.
+         * Once wall-clock time exceeds this duration the current delay is truncated and
+         * {@link Backoff#isMandatoryStopMade()} returns {@code true}. Defaults to zero (disabled).
+         *
+         * @param mandatoryStop the mandatory stop duration
+         * @return this builder
+         */
+        public Builder mandatoryStop(Duration mandatoryStop) {
+            this.mandatoryStop = mandatoryStop;
+            return this;
+        }
+
+        Builder clock(Clock clock) {
+            this.clock = clock;
+            return this;
+        }
+
+        /**
+         * Builds a new {@link Backoff} instance with the configured parameters.
+         *
+         * @return a new Backoff
+         */
+        public Backoff build() {
+            return new Backoff(initialDelay, maxBackoff, mandatoryStop, clock);
+        }
     }
 }

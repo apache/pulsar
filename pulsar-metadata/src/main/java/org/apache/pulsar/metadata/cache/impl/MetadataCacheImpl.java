@@ -25,6 +25,8 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -373,9 +375,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.
                 objCache.synchronous().invalidate(key);
-                long elapsed = System.currentTimeMillis() - backoff.getFirstBackoffTimeInMillis();
+                long elapsed = Duration.between(backoff.getFirstBackoffTime(), Instant.now()).toMillis();
                 if (backoff.isMandatoryStopMade()) {
-                    if (backoff.getFirstBackoffTimeInMillis() == 0) {
+                    if (Instant.EPOCH.equals(backoff.getFirstBackoffTime())) {
                         result.completeExceptionally(ex.getCause());
                     } else {
                         result.completeExceptionally(new TimeoutException(
@@ -383,10 +385,10 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     }
                     return null;
                 }
-                final var next = backoff.next();
+                final long nextMs = backoff.next().toMillis();
                 log.info("Update key {} conflicts. Retrying in {} ms. Mandatory stop: {}. Elapsed time: {} ms", key,
-                        next, backoff.isMandatoryStopMade(), elapsed);
-                schedulerExecutor.schedule(() -> execute(op, key, result, backoff), next, TimeUnit.MILLISECONDS);
+                        nextMs, backoff.isMandatoryStopMade(), elapsed);
+                schedulerExecutor.schedule(() -> execute(op, key, result, backoff), nextMs, TimeUnit.MILLISECONDS);
                 return null;
             }
             result.completeExceptionally(ex.getCause());
@@ -395,7 +397,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     private CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op, String key) {
-        final var backoff = cacheConfig.getRetryBackoff().create();
+        final var backoff = cacheConfig.getRetryBackoff().build();
         CompletableFuture<T> result = new CompletableFuture<>();
         execute(op, key, result, backoff);
         return result;

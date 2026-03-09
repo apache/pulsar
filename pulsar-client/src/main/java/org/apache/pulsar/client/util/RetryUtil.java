@@ -32,10 +32,10 @@ public class RetryUtil {
     public static <T> void retryAsynchronously(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                                ScheduledExecutorService scheduledExecutorService,
                                                CompletableFuture<T> callback) {
-        if (backoff.getMax() <= 0) {
+        if (backoff.getMax().isZero() || backoff.getMax().isNegative()) {
             throw new IllegalArgumentException("Illegal max retry time");
         }
-        if (backoff.getInitial() <= 0) {
+        if (backoff.getInitial().isZero() || backoff.getInitial().isNegative()) {
             throw new IllegalArgumentException("Illegal initial time");
         }
         scheduledExecutorService.execute(() ->
@@ -47,7 +47,7 @@ public class RetryUtil {
                                              CompletableFuture<T> callback) {
         supplier.get().whenComplete((result, e) -> {
             if (e != null) {
-                long next = backoff.next();
+                long next = backoff.next().toMillis();
                 boolean isMandatoryStop = backoff.isMandatoryStopMade();
                 if (isMandatoryStop) {
                     callback.completeExceptionally(e);

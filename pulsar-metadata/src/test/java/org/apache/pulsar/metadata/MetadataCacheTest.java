@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -52,7 +53,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.util.BackoffBuilder;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.CacheGetResult;
@@ -524,10 +525,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         MetadataCache<MyClass> cache = store.getMetadataCache(MyClass.class, MetadataCacheConfig.builder()
-                .retryBackoff(new BackoffBuilder()
-                        .setInitialTime(5, TimeUnit.MILLISECONDS)
-                        .setMax(1, TimeUnit.SECONDS)
-                        .setMandatoryStop(3, TimeUnit.SECONDS)).build());
+                .retryBackoff(Backoff.builder()
+                        .initialDelay(Duration.ofMillis(5))
+                        .maxBackoff(Duration.ofSeconds(1))
+                        .mandatoryStop(Duration.ofSeconds(3))).build());
 
         MetadataCache<MyClass> cacheRef = cache;
         if (cache instanceof DualMetadataCache dc) {
@@ -704,10 +705,10 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         final var config = MetadataCacheConfig.builder().build();
         assertEquals(config.getRefreshAfterWriteMillis(), TimeUnit.MINUTES.toMillis(5));
         assertEquals(config.getExpireAfterWriteMillis(), TimeUnit.MINUTES.toMillis(10));
-        final var backoff = config.getRetryBackoff().create();
-        assertEquals(backoff.getInitial(), 5);
-        assertEquals(backoff.getMax(), 3000);
-        assertEquals(backoff.getMandatoryStop(), 30_000);
+        final var backoff = config.getRetryBackoff().build();
+        assertEquals(backoff.getInitial(), Duration.ofMillis(5));
+        assertEquals(backoff.getMax(), Duration.ofSeconds(3));
+        assertEquals(backoff.getMandatoryStop(), Duration.ofSeconds(30));
     }
 
     @Test
@@ -715,36 +716,36 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         final var config = MetadataCacheConfig.builder().retryBackoff(
                 MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER).build();
 
-        final var backoff = config.getRetryBackoff().create();
+        final var backoff = config.getRetryBackoff().build();
 
-        assertEquals(backoff.getInitial(), 0);
-        assertEquals(backoff.getMax(), 0);
-        assertEquals(backoff.getMandatoryStop(), 0);
+        assertEquals(backoff.getInitial(), Duration.ZERO);
+        assertEquals(backoff.getMax(), Duration.ZERO);
+        assertEquals(backoff.getMandatoryStop(), Duration.ZERO);
         assertTrue(backoff.isMandatoryStopMade());
-        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
-        assertEquals(backoff.next(), 0);
-        assertEquals(backoff.next(), 0);
-        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.getFirstBackoffTime(), Instant.EPOCH);
+        assertEquals(backoff.next(), Duration.ZERO);
+        assertEquals(backoff.next(), Duration.ZERO);
+        assertEquals(backoff.next(), Duration.ZERO);
         assertTrue(backoff.isMandatoryStopMade());
-        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+        assertEquals(backoff.getFirstBackoffTime(), Instant.EPOCH);
 
         backoff.reduceToHalf();
         assertTrue(backoff.isMandatoryStopMade());
-        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
-        assertEquals(backoff.next(), 0);
-        assertEquals(backoff.next(), 0);
-        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.getFirstBackoffTime(), Instant.EPOCH);
+        assertEquals(backoff.next(), Duration.ZERO);
+        assertEquals(backoff.next(), Duration.ZERO);
+        assertEquals(backoff.next(), Duration.ZERO);
         assertTrue(backoff.isMandatoryStopMade());
-        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+        assertEquals(backoff.getFirstBackoffTime(), Instant.EPOCH);
 
         backoff.reset();
         assertTrue(backoff.isMandatoryStopMade());
-        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
-        assertEquals(backoff.next(), 0);
-        assertEquals(backoff.next(), 0);
-        assertEquals(backoff.next(), 0);
+        assertEquals(backoff.getFirstBackoffTime(), Instant.EPOCH);
+        assertEquals(backoff.next(), Duration.ZERO);
+        assertEquals(backoff.next(), Duration.ZERO);
+        assertEquals(backoff.next(), Duration.ZERO);
         assertTrue(backoff.isMandatoryStopMade());
-        assertEquals(backoff.getFirstBackoffTimeInMillis(), 0);
+        assertEquals(backoff.getFirstBackoffTime(), Instant.EPOCH);
     }
 
     @Test

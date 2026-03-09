@@ -96,7 +96,6 @@ import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.Backoff;
-import org.apache.pulsar.common.util.BackoffBuilder;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.jspecify.annotations.Nullable;
@@ -1249,11 +1248,11 @@ public class PulsarClientImpl implements PulsarClient {
         try {
             TopicName topicName = TopicName.get(topic);
             AtomicLong opTimeoutMs = new AtomicLong(conf.getLookupTimeoutMs());
-            Backoff backoff = new BackoffBuilder()
-                    .setInitialTime(conf.getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                    .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
-                    .setMax(conf.getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                    .create();
+            Backoff backoff = Backoff.builder()
+                    .initialDelay(Duration.ofNanos(conf.getInitialBackoffIntervalNanos()))
+                    .mandatoryStop(Duration.ofMillis(opTimeoutMs.get() * 2))
+                    .maxBackoff(Duration.ofNanos(conf.getMaxBackoffIntervalNanos()))
+                    .build();
             getPartitionedTopicMetadata(topicName, backoff, opTimeoutMs, metadataFuture,
                     new AtomicInteger(0),
                     metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
@@ -1275,7 +1274,7 @@ public class PulsarClientImpl implements PulsarClient {
                 metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
         queryFuture.thenAccept(future::complete).exceptionally(e -> {
             remainingTime.addAndGet(-1 * TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime));
-            long nextDelay = Math.min(backoff.next(), remainingTime.get());
+            long nextDelay = Math.min(backoff.next().toMillis(), remainingTime.get());
             // skip retry scheduler when set lookup throttle in client or server side which will lead to
             // `TooManyRequestsException`
             boolean isLookupThrottling = !PulsarClientException.isRetriableError(e.getCause())

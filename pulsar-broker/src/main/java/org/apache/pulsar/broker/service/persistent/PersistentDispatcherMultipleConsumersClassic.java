@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAG
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -158,10 +159,10 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded();
         this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addMessageToReplay, subscription);
-        this.readFailureBackoff = new Backoff(
-                topic.getBrokerService().pulsar().getConfiguration().getDispatcherReadFailureBackoffInitialTimeInMs(),
-                TimeUnit.MILLISECONDS,
-                1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+        this.readFailureBackoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(topic.getBrokerService().pulsar().getConfiguration()
+                        .getDispatcherReadFailureBackoffInitialTimeInMs()))
+                .build();
     }
 
     @Override
@@ -858,7 +859,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
 
         ReadType readType = (ReadType) ctx;
-        long waitTimeMillis = readFailureBackoff.next();
+        long waitTimeMillis = readFailureBackoff.next().toMillis();
 
         // Do not keep reading more entries if the cursor is already closed.
         if (exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {

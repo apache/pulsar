@@ -20,8 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelHandlerContext;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.topics.TopicsPattern;
-import org.apache.pulsar.common.util.BackoffBuilder;
+import org.apache.pulsar.common.util.Backoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,12 +77,11 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         this.patternConsumerUpdateQueue = patternConsumerUpdateQueue;
         this.name = "Watcher(" + topicsPattern + ")";
         this.connectionHandler = new ConnectionHandler(this,
-                new BackoffBuilder()
-                        .setInitialTime(client.getConfiguration().getInitialBackoffIntervalNanos(),
-                                TimeUnit.NANOSECONDS)
-                        .setMax(client.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                        .setMandatoryStop(0, TimeUnit.MILLISECONDS)
-                        .create(),
+                Backoff.builder()
+                        .initialDelay(Duration.ofNanos(client.getConfiguration()
+                                .getInitialBackoffIntervalNanos()))
+                        .maxBackoff(Duration.ofNanos(client.getConfiguration().getMaxBackoffIntervalNanos()))
+                        .build(),
                 this);
         this.topicsPattern = topicsPattern;
         this.watcherId = watcherId;

@@ -27,6 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -97,8 +98,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     protected int messageTTLInSeconds = 0;
 
-    private final Backoff readFailureBackoff = new Backoff(1, TimeUnit.SECONDS,
-            1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
+    private final Backoff readFailureBackoff = Backoff.builder()
+            .initialDelay(Duration.ofSeconds(1))
+            .maxBackoff(Duration.ofMinutes(1))
+            .build();
 
     private final PersistentMessageExpiryMonitor expiryMonitor;
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
@@ -508,7 +511,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         // Reduce read batch size to avoid flooding bookies with retries
         readBatchSize = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMinReadBatchSize();
 
-        long waitTimeMillis = readFailureBackoff.next();
+        long waitTimeMillis = readFailureBackoff.next().toMillis();
 
         if (exception instanceof CursorAlreadyClosedException) {
             log.warn("[{}] Error reading entries because replicator is"

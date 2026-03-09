@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Joiner;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -60,8 +62,10 @@ public class BaseResources<T> {
     public BaseResources(MetadataStore store, Class<T> clazz, int operationTimeoutSec) {
         this.store = store;
         this.cache = store.getMetadataCache(clazz, MetadataCacheConfig.builder()
-                .retryBackoff(MetadataCacheConfig.DEFAULT_RETRY_BACKOFF_BUILDER.setMandatoryStop(operationTimeoutSec,
-                        TimeUnit.SECONDS))
+                .retryBackoff(Backoff.builder()
+                        .initialDelay(Duration.ofMillis(5))
+                        .maxBackoff(Duration.ofSeconds(3))
+                        .mandatoryStop(Duration.ofSeconds(operationTimeoutSec)))
                 .build());
         this.operationTimeoutSec = operationTimeoutSec;
     }
@@ -69,8 +73,10 @@ public class BaseResources<T> {
     public BaseResources(MetadataStore store, TypeReference<T> typeRef, int operationTimeoutSec) {
         this.store = store;
         this.cache = store.getMetadataCache(typeRef, MetadataCacheConfig.builder()
-                .retryBackoff(MetadataCacheConfig.DEFAULT_RETRY_BACKOFF_BUILDER.setMandatoryStop(operationTimeoutSec,
-                        TimeUnit.SECONDS))
+                .retryBackoff(Backoff.builder()
+                        .initialDelay(Duration.ofMillis(5))
+                        .maxBackoff(Duration.ofSeconds(3))
+                        .mandatoryStop(Duration.ofSeconds(operationTimeoutSec)))
                 .build());
         this.operationTimeoutSec = operationTimeoutSec;
     }
