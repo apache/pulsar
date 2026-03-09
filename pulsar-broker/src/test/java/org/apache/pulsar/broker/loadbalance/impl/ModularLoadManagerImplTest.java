@@ -469,7 +469,7 @@ public class ModularLoadManagerImplTest {
         // create and configure bundle-data
         final int totalBundles = 5;
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(
-                nsFactory, "test", "test", "test", totalBundles);
+                nsFactory, "test", "test", totalBundles);
         LoadData loadData = (LoadData) getField(loadManager, "loadData");
         for (int i = 0; i < totalBundles; i++) {
             final BundleData bundleData = new BundleData(10, 1000);

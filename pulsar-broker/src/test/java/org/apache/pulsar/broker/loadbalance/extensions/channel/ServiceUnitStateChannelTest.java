@@ -221,7 +221,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         brokers = mock(Brokers.class);
         doReturn(CompletableFuture.failedFuture(new RuntimeException("failed"))).when(brokers)
-                .healthcheckAsync(any(), any());
+                .healthcheckAsync(any());
     }
 
     @BeforeMethod

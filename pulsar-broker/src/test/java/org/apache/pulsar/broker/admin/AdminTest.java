@@ -460,10 +460,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void properties() throws Throwable {
+    public void tenants() throws Throwable {
         Object response = asyncRequests(ctx -> tenants.getTenants(ctx));
         assertEquals(response, new ArrayList<>());
-        verify(properties, times(1)).validateSuperUserAccessAsync();
+        verify(tenants, times(1)).validateSuperUserAccessAsync();
 
         // create local cluster
         asyncRequests(ctx -> clusters.createCluster(ctx, configClusterName, ClusterDataImpl.builder().build()));
@@ -475,22 +475,22 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .allowedClusters(allowedClusters)
                 .build();
         response = asyncRequests(ctx -> tenants.createTenant(ctx, "test-property", tenantInfo));
-        verify(properties, times(2)).validateSuperUserAccessAsync();
+        verify(tenants, times(2)).validateSuperUserAccessAsync();
 
         response = asyncRequests(ctx -> tenants.getTenants(ctx));
         assertEquals(response, List.of("test-property"));
-        verify(properties, times(3)).validateSuperUserAccessAsync();
+        verify(tenants, times(3)).validateSuperUserAccessAsync();
 
         response = asyncRequests(ctx -> tenants.getTenantAdmin(ctx, "test-property"));
         assertEquals(response, tenantInfo);
-        verify(properties, times(4)).validateSuperUserAccessAsync();
+        verify(tenants, times(4)).validateSuperUserAccessAsync();
 
         final TenantInfoImpl newPropertyAdmin = TenantInfoImpl.builder()
                 .adminRoles(Set.of("role1", "other-role"))
                 .allowedClusters(allowedClusters)
                 .build();
         response = asyncRequests(ctx -> tenants.updateTenant(ctx, "test-property", newPropertyAdmin));
-        verify(properties, times(5)).validateSuperUserAccessAsync();
+        verify(tenants, times(5)).validateSuperUserAccessAsync();
 
         // Wait for updateTenant to take effect
         Thread.sleep(100);
@@ -499,7 +499,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(response, newPropertyAdmin);
         response = asyncRequests(ctx -> tenants.getTenantAdmin(ctx, "test-property"));
         assertNotSame(response, tenantInfo);
-        verify(properties, times(7)).validateSuperUserAccessAsync();
+        verify(tenants, times(7)).validateSuperUserAccessAsync();
 
         // Check creating existing property
         try {
