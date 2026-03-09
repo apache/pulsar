@@ -89,9 +89,6 @@ if [[ -z "$PULSAR_GC_LOG" ]]; then
   fi
 fi
 
-# Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096"}"
-
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=
 

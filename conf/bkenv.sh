@@ -88,8 +88,7 @@ if [[ -z "$BOOKIE_GC_LOG" ]]; then
   fi
 fi
 
-# Extra options to be passed to the jvm
-BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS:-"-Dio.netty.leakDetection.level=disabled ${PULSAR_EXTRA_OPTS:-"-Dio.netty.recycler.maxCapacityPerThread=4096"}"}"
+BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS} ${PULSAR_EXTRA_OPTS}"
 
 # Add extra paths to the bookkeeper classpath
 # BOOKIE_EXTRA_CLASSPATH=
