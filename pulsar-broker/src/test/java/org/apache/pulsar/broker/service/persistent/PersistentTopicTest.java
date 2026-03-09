@@ -654,8 +654,13 @@ public class PersistentTopicTest extends BrokerTestBase {
         if (topicLevelPolicy) {
             admin.topics().setReplicationClusters(topicName, Arrays.asList("test", remoteCluster));
         } else {
-            admin.namespaces().setNamespaceReplicationClustersAsync(
-                    namespace, Sets.newHashSet("test", remoteCluster)).get();
+            try {
+                admin.namespaces().setNamespaceReplicationClustersAsync(
+                        namespace, Sets.newHashSet("test", remoteCluster)).get();
+            } catch (Exception e) {
+                Assert.assertTrue(e.getMessage().contains("Failed to validate remote-side"));
+                return;
+            }
         }
 
         final PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false)

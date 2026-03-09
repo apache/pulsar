@@ -1046,7 +1046,10 @@ public abstract class NamespacesBase extends AdminResource {
                             || ex instanceof PulsarAdminException.NotFoundException) {
                         return null;
                     }
-                    throw new CompletionException(ex);
+                    log.error("Failed to validate remote-side non-partitioned topic metadata for topic '{}'", topic,
+                        ex);
+                    throw new CompletionException(new RestException(Status.INTERNAL_SERVER_ERROR,
+                        "Failed to validate remote-side non-partitioned topic metadata for topic " + topic));
                 });
     }
 
