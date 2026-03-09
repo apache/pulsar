@@ -2640,6 +2640,77 @@ public class Namespaces extends NamespacesBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/allowedTopicPropertyKeysForMetrics")
+    @ApiOperation(value = "Get allowed topic property keys for metrics for a namespace.",
+            response = String.class, responseContainer = "Set")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification") })
+    public void getAllowedTopicPropertyKeysForMetrics(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CUSTOM_METRIC_LABELS,
+            PolicyOperation.READ)
+            .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+            .thenAccept(policies -> asyncResponse.resume(policies.allowed_topic_property_keys_for_metrics))
+            .exceptionally(ex -> {
+                log.error("[{}] Failed to get allowed topic property keys for metrics for namespace {}",
+                    clientAppId(), namespaceName, ex);
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/allowedTopicPropertyKeysForMetrics")
+    @ApiOperation(value = "Set allowed topic property keys for metrics for a namespace")
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Operation successful"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setAllowedTopicPropertyKeysForMetrics(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Set of allowed topic property keys for metrics", required = true)
+                    Set<String> allowedKeys) {
+        validateNamespaceName(tenant, namespace);
+        internalSetAllowedTopicPropertyKeysForMetricsAsync(allowedKeys)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set allowed topic property keys for metrics for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/allowedTopicPropertyKeysForMetrics")
+    @ApiOperation(value = "Remove allowed topic property keys for metrics on a namespace.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeAllowedTopicPropertyKeysForMetrics(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetAllowedTopicPropertyKeysForMetricsAsync(null)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to remove allowed topic property keys for metrics for namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/schemaValidationEnforced")
     @ApiOperation(value = "Get schema validation enforced flag for namespace.",
                   notes = "If the flag is set to true, when a producer without a schema attempts to produce to a topic"

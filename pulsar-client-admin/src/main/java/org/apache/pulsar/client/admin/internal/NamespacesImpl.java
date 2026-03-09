@@ -80,7 +80,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<List<String>> getNamespacesAsync(String tenant) {
         WebTarget path = adminV2Namespaces.path(tenant);
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {
+        });
     }
 
     @Override
@@ -90,7 +91,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     public CompletableFuture<List<String>> getNamespacesAsync(String tenant, String cluster) {
         WebTarget path = adminNamespaces.path(tenant).path(cluster);
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {
+        });
     }
 
     @Override
@@ -104,19 +106,21 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public  CompletableFuture<BundlesData> getBundlesAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<BundlesData>(){}, namespace, "bundles");
+    public CompletableFuture<BundlesData> getBundlesAsync(String namespace) {
+        return asyncGetNamespaceParts(new FutureCallback<BundlesData>() {
+        }, namespace, "bundles");
     }
 
     @Override
     public CompletableFuture<List<String>> getTopicsAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<List<String>>(){}, namespace,
+        return asyncGetNamespaceParts(new FutureCallback<List<String>>() {
+        }, namespace,
                 NamespaceName.get(namespace).isV2() ? "topics" : "destinations");
     }
 
     @Override
     public List<String> getTopics(String namespace, ListNamespaceTopicsOptions options)
-            throws PulsarAdminException{
+            throws PulsarAdminException {
         return sync(() -> getTopicsAsync(namespace, options));
     }
 
@@ -128,7 +132,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         path = path
                 .queryParam("mode", options.getMode())
                 .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {
+        });
     }
 
     @Override
@@ -138,7 +143,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Policies> getPoliciesAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Policies>(){}, namespace);
+        return asyncGetNamespaceParts(new FutureCallback<Policies>() {
+        }, namespace);
     }
 
     @Override
@@ -273,7 +279,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Map<String, Set<AuthAction>>>(){}, namespace, "permissions");
+        return asyncGetNamespaceParts(new FutureCallback<Map<String, Set<AuthAction>>>() {
+        }, namespace, "permissions");
     }
 
     @Override
@@ -334,7 +341,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Map<String, Set<String>>> getPermissionOnSubscriptionAsync(String namespace) {
         return asyncGetNamespaceParts(
-                new FutureCallback<Map<String, Set<String>>>(){}, namespace, "permissions", "subscription");
+                new FutureCallback<Map<String, Set<String>>>() {
+                }, namespace, "permissions", "subscription");
     }
 
     @Override
@@ -372,7 +380,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<List<String>> getNamespaceReplicationClustersAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<List<String>>(){}, namespace, "replication");
+        return asyncGetNamespaceParts(new FutureCallback<List<String>>() {
+        }, namespace, "replication");
     }
 
     @Override
@@ -394,7 +403,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getNamespaceMessageTTLAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "messageTTL");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "messageTTL");
     }
 
     @Override
@@ -428,7 +438,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "subscriptionExpirationTime");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "subscriptionExpirationTime");
     }
 
     @Override
@@ -477,7 +488,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<String> getNamespaceAntiAffinityGroupAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<String>(){}, namespace, "antiAffinity");
+        return asyncGetNamespaceParts(new FutureCallback<String>() {
+        }, namespace, "antiAffinity");
     }
 
     @Override
@@ -491,7 +503,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             String tenant, String cluster, String namespaceAntiAffinityGroup) {
         WebTarget path = adminNamespaces.path(cluster)
                 .path("antiAffinity").path(namespaceAntiAffinityGroup).queryParam("property", tenant);
-        return asyncGetRequest(path, new FutureCallback<List<String>>(){});
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {
+        });
     }
 
     @Override
@@ -525,7 +538,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Boolean> getDeduplicationStatusAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Boolean>(){}, namespace, "deduplication");
+        return asyncGetNamespaceParts(new FutureCallback<Boolean>() {
+        }, namespace, "deduplication");
     }
 
     @Override
@@ -542,7 +556,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setAutoTopicCreation(String namespace,
-                                     AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException {
+            AutoTopicCreationOverride autoTopicCreationOverride) throws PulsarAdminException {
         sync(() -> setAutoTopicCreationAsync(namespace, autoTopicCreationOverride));
     }
 
@@ -561,7 +575,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<AutoTopicCreationOverride> getAutoTopicCreationAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<AutoTopicCreationOverride>(){}, namespace,
+        return asyncGetNamespaceParts(new FutureCallback<AutoTopicCreationOverride>() {
+        }, namespace,
                 "autoTopicCreation");
     }
 
@@ -599,9 +614,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String namespace) {
         return asyncGetNamespaceParts(
-                new FutureCallback<AutoSubscriptionCreationOverride>(){}, namespace, "autoSubscriptionCreation");
+                new FutureCallback<AutoSubscriptionCreationOverride>() {
+                }, namespace, "autoSubscriptionCreation");
     }
-
 
     @Override
     public void setSubscriptionTypesEnabled(
@@ -611,7 +626,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Void> setSubscriptionTypesEnabledAsync(String namespace,
-                                                                    Set<SubscriptionType> subscriptionTypes) {
+            Set<SubscriptionType> subscriptionTypes) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscriptionTypesEnabled");
         return asyncPostRequest(path, Entity.entity(subscriptionTypes, MediaType.APPLICATION_JSON));
@@ -625,7 +640,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Set<SubscriptionType>> getSubscriptionTypesEnabledAsync(String namespace) {
         return asyncGetNamespaceParts(
-                new FutureCallback<Set<SubscriptionType>>(){}, namespace, "subscriptionTypesEnabled");
+                new FutureCallback<Set<SubscriptionType>>() {
+                }, namespace, "subscriptionTypesEnabled");
     }
 
     @Override
@@ -637,6 +653,44 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Void> removeSubscriptionTypesEnabledAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "subscriptionTypesEnabled");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void setAllowedTopicPropertyKeysForMetrics(String namespace, Set<String> allowedKeys)
+            throws PulsarAdminException {
+        sync(() -> setAllowedTopicPropertyKeysForMetricsAsync(namespace, allowedKeys));
+    }
+
+    @Override
+    public CompletableFuture<Void> setAllowedTopicPropertyKeysForMetricsAsync(String namespace,
+            Set<String> allowedKeys) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "allowedTopicPropertyKeysForMetrics");
+        return asyncPostRequest(path, Entity.entity(allowedKeys, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Set<String> getAllowedTopicPropertyKeysForMetrics(String namespace) throws PulsarAdminException {
+        return sync(() -> getAllowedTopicPropertyKeysForMetricsAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAllowedTopicPropertyKeysForMetricsAsync(String namespace) {
+        return asyncGetNamespaceParts(
+                new FutureCallback<Set<String>>() {
+                }, namespace, "allowedTopicPropertyKeysForMetrics");
+    }
+
+    @Override
+    public void removeAllowedTopicPropertyKeysForMetrics(String namespace) throws PulsarAdminException {
+        sync(() -> removeAllowedTopicPropertyKeysForMetricsAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeAllowedTopicPropertyKeysForMetricsAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "allowedTopicPropertyKeysForMetrics");
         return asyncDeleteRequest(path);
     }
 
@@ -660,18 +714,19 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<Map<BacklogQuotaType, BacklogQuota>> getBacklogQuotaMapAsync(String namespace) {
         return asyncGetNamespaceParts(
-                new FutureCallback<Map<BacklogQuotaType, BacklogQuota>>(){}, namespace, "backlogQuotaMap");
+                new FutureCallback<Map<BacklogQuotaType, BacklogQuota>>() {
+                }, namespace, "backlogQuotaMap");
     }
 
     @Override
     public void setBacklogQuota(String namespace, BacklogQuota backlogQuota,
-                                BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
+            BacklogQuota.BacklogQuotaType backlogQuotaType) throws PulsarAdminException {
         sync(() -> setBacklogQuotaAsync(namespace, backlogQuota, backlogQuotaType));
     }
 
     @Override
     public CompletableFuture<Void> setBacklogQuotaAsync(String namespace, BacklogQuota backlogQuota,
-                                                        BacklogQuota.BacklogQuotaType backlogQuotaType) {
+            BacklogQuota.BacklogQuotaType backlogQuotaType) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "backlogQuota");
         return asyncPostRequest(path.queryParam("backlogQuotaType", backlogQuotaType.toString()),
@@ -698,7 +753,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Void> removeBacklogQuotaAsync(String namespace,
-                                                           BacklogQuota.BacklogQuotaType backlogQuotaType) {
+            BacklogQuota.BacklogQuotaType backlogQuotaType) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "backlogQuota")
                 .queryParam("backlogQuotaType", backlogQuotaType.toString());
@@ -763,7 +818,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<BookieAffinityGroupData> getBookieAffinityGroupAsync(String namespace) {
         return asyncGetNamespaceParts(
-                new FutureCallback<BookieAffinityGroupData>(){}, namespace, "persistence", "bookieAffinity");
+                new FutureCallback<BookieAffinityGroupData>() {
+                }, namespace, "persistence", "bookieAffinity");
     }
 
     @Override
@@ -773,7 +829,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<PersistencePolicies> getPersistenceAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<PersistencePolicies>(){}, namespace, "persistence");
+        return asyncGetNamespaceParts(new FutureCallback<PersistencePolicies>() {
+        }, namespace, "persistence");
     }
 
     @Override
@@ -807,7 +864,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<RetentionPolicies> getRetentionAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<RetentionPolicies>(){}, namespace, "retention");
+        return asyncGetNamespaceParts(new FutureCallback<RetentionPolicies>() {
+        }, namespace, "retention");
     }
 
     @Override
@@ -829,7 +887,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<String> getReplicationConfigVersionAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<String>(){}, namespace, "configversion");
+        return asyncGetNamespaceParts(new FutureCallback<String>() {
+        }, namespace, "configversion");
     }
 
     @Override
@@ -839,7 +898,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void unloadNamespaceBundle(String namespace,
-           String bundle, String destinationBroker) throws PulsarAdminException {
+            String bundle, String destinationBroker) throws PulsarAdminException {
         sync(() -> unloadNamespaceBundleAsync(namespace, bundle, destinationBroker));
     }
 
@@ -852,7 +911,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Void> unloadNamespaceBundleAsync(String namespace,
-                                   String bundle, String destinationBroker) {
+            String bundle, String destinationBroker) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundle, "unload").queryParam("destinationBroker", destinationBroker);
         return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
@@ -860,13 +919,13 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles,
-                                     String splitAlgorithmName) throws PulsarAdminException {
+            String splitAlgorithmName) throws PulsarAdminException {
         splitNamespaceBundle(namespace, bundle, unloadSplitBundles, splitAlgorithmName, null);
     }
 
     @Override
     public CompletableFuture<Void> splitNamespaceBundleAsync(String namespace, String bundle,
-                                                             boolean unloadSplitBundles, String splitAlgorithmName) {
+            boolean unloadSplitBundles, String splitAlgorithmName) {
         return splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName, null);
     }
 
@@ -874,14 +933,14 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles,
             String splitAlgorithmName, List<Long> splitBoundaries)
             throws PulsarAdminException {
-        sync(() ->
-                splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName, splitBoundaries));
+        sync(() -> splitNamespaceBundleAsync(namespace, bundle, unloadSplitBundles, splitAlgorithmName,
+                splitBoundaries));
     }
 
     @Override
     public CompletableFuture<Void> splitNamespaceBundleAsync(String namespace, String bundle,
-                                                             boolean unloadSplitBundles, String splitAlgorithmName,
-                                                             List<Long> splitBoundaries) {
+            boolean unloadSplitBundles, String splitAlgorithmName,
+            List<Long> splitBoundaries) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundle, "split")
                 .queryParam("unload", Boolean.toString(unloadSplitBundles))
@@ -899,14 +958,15 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public CompletableFuture<TopicHashPositions>
-    getTopicHashPositionsAsync(String namespace, String bundle, List<String> topics) {
+    public CompletableFuture<TopicHashPositions> getTopicHashPositionsAsync(String namespace, String bundle,
+            List<String> topics) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, bundle, "topicHashPositions");
         if (topics != null && topics.size() > 0) {
             path = path.queryParam("topics", topics.stream().map(Codec::encode).toArray());
         }
-        return asyncGetRequest(path, new FutureCallback<TopicHashPositions>(){});
+        return asyncGetRequest(path, new FutureCallback<TopicHashPositions>() {
+        });
     }
 
     @Override
@@ -940,7 +1000,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<PublishRate> getPublishRateAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<PublishRate>(){}, namespace, "publishRate");
+        return asyncGetNamespaceParts(new FutureCallback<PublishRate>() {
+        }, namespace, "publishRate");
     }
 
     @Override
@@ -974,7 +1035,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<DispatchRate> getDispatchRateAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<DispatchRate>(){}, namespace, "dispatchRate");
+        return asyncGetNamespaceParts(new FutureCallback<DispatchRate>() {
+        }, namespace, "dispatchRate");
     }
 
     @Override
@@ -1008,7 +1070,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<SubscribeRate> getSubscribeRateAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<SubscribeRate>(){}, namespace, "subscribeRate");
+        return asyncGetNamespaceParts(new FutureCallback<SubscribeRate>() {
+        }, namespace, "subscribeRate");
     }
 
     @Override
@@ -1022,7 +1085,6 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         WebTarget path = namespacePath(ns, "subscriptionDispatchRate");
         return asyncDeleteRequest(path);
     }
-
 
     @Override
     public void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
@@ -1043,7 +1105,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<DispatchRate>(){}, namespace, "subscriptionDispatchRate");
+        return asyncGetNamespaceParts(new FutureCallback<DispatchRate>() {
+        }, namespace, "subscriptionDispatchRate");
     }
 
     @Override
@@ -1077,7 +1140,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<DispatchRate> getReplicatorDispatchRateAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<DispatchRate>(){}, namespace, "replicatorDispatchRate");
+        return asyncGetNamespaceParts(new FutureCallback<DispatchRate>() {
+        }, namespace, "replicatorDispatchRate");
     }
 
     @Override
@@ -1178,7 +1242,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<SubscriptionAuthMode> getSubscriptionAuthModeAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<SubscriptionAuthMode>(){}, namespace, "subscriptionAuthMode");
+        return asyncGetNamespaceParts(new FutureCallback<SubscriptionAuthMode>() {
+        }, namespace, "subscriptionAuthMode");
     }
 
     @Override
@@ -1200,7 +1265,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Boolean> getEncryptionRequiredStatusAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Boolean>(){}, namespace, "encryptionRequired");
+        return asyncGetNamespaceParts(new FutureCallback<Boolean>() {
+        }, namespace, "encryptionRequired");
     }
 
     @Override
@@ -1210,7 +1276,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<DelayedDeliveryPolicies> getDelayedDeliveryAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<DelayedDeliveryPolicies>(){}, namespace, "delayedDelivery");
+        return asyncGetNamespaceParts(new FutureCallback<DelayedDeliveryPolicies>() {
+        }, namespace, "delayedDelivery");
     }
 
     @Override
@@ -1246,7 +1313,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<InactiveTopicPolicies>(){}, namespace,
+        return asyncGetNamespaceParts(new FutureCallback<InactiveTopicPolicies>() {
+        }, namespace,
                 "inactiveTopicPolicies");
     }
 
@@ -1271,7 +1339,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getDeduplicationSnapshotIntervalAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "deduplicationSnapshotInterval");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "deduplicationSnapshotInterval");
     }
 
     @Override
@@ -1303,7 +1372,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getMaxSubscriptionsPerTopicAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "maxSubscriptionsPerTopic");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "maxSubscriptionsPerTopic");
     }
 
     @Override
@@ -1338,7 +1408,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getMaxProducersPerTopicAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "maxProducersPerTopic");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "maxProducersPerTopic");
     }
 
     @Override
@@ -1372,7 +1443,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getMaxConsumersPerTopicAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "maxConsumersPerTopic");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "maxConsumersPerTopic");
     }
 
     @Override
@@ -1406,7 +1478,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getMaxConsumersPerSubscriptionAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "maxConsumersPerSubscription");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "maxConsumersPerSubscription");
     }
 
     @Override
@@ -1444,7 +1517,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getMaxUnackedMessagesPerConsumerAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "maxUnackedMessagesPerConsumer");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "maxUnackedMessagesPerConsumer");
     }
 
     @Override
@@ -1480,7 +1554,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getMaxUnackedMessagesPerSubscriptionAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "maxUnackedMessagesPerSubscription");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "maxUnackedMessagesPerSubscription");
     }
 
     @Override
@@ -1518,7 +1593,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Long> getCompactionThresholdAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Long>(){}, namespace, "compactionThreshold");
+        return asyncGetNamespaceParts(new FutureCallback<Long>() {
+        }, namespace, "compactionThreshold");
     }
 
     @Override
@@ -1552,7 +1628,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Long> getOffloadThresholdAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Long>(){}, namespace, "offloadThreshold");
+        return asyncGetNamespaceParts(new FutureCallback<Long>() {
+        }, namespace, "offloadThreshold");
     }
 
     @Override
@@ -1562,7 +1639,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Long> getOffloadThresholdInSecondsAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Long>(){}, namespace, "offloadThresholdInSeconds");
+        return asyncGetNamespaceParts(new FutureCallback<Long>() {
+        }, namespace, "offloadThresholdInSeconds");
     }
 
     @Override
@@ -1597,7 +1675,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Long> getOffloadDeleteLagMsAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Long>(){}, namespace, "offloadDeletionLagMs");
+        return asyncGetNamespaceParts(new FutureCallback<Long>() {
+        }, namespace, "offloadDeletionLagMs");
     }
 
     @Override
@@ -1639,13 +1718,13 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public void setSchemaAutoUpdateCompatibilityStrategy(String namespace,
-                                                         SchemaAutoUpdateCompatibilityStrategy strategy)
+            SchemaAutoUpdateCompatibilityStrategy strategy)
             throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "schemaAutoUpdateCompatibilityStrategy");
             request(path).put(Entity.entity(strategy, MediaType.APPLICATION_JSON),
-                              ErrorData.class);
+                    ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -1672,7 +1751,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "schemaValidationEnforced");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<Boolean>() {});
+        return asyncGetRequest(path, new FutureCallback<Boolean>() {
+        });
     }
 
     @Override
@@ -1697,7 +1777,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     @Override
     public CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsync(String namespace) {
         return asyncGetNamespaceParts(
-                new FutureCallback<SchemaCompatibilityStrategy>(){}, namespace, "schemaCompatibilityStrategy");
+                new FutureCallback<SchemaCompatibilityStrategy>() {
+                }, namespace, "schemaCompatibilityStrategy");
     }
 
     @Override
@@ -1721,7 +1802,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Boolean> getIsAllowAutoUpdateSchemaAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Boolean>(){}, namespace, "isAllowAutoUpdateSchema");
+        return asyncGetNamespaceParts(new FutureCallback<Boolean>() {
+        }, namespace, "isAllowAutoUpdateSchema");
     }
 
     @Override
@@ -1769,7 +1851,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<OffloadPolicies> getOffloadPoliciesAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<OffloadPoliciesImpl>(){}, namespace, "offloadPolicies")
+        return asyncGetNamespaceParts(new FutureCallback<OffloadPoliciesImpl>() {
+        }, namespace, "offloadPolicies")
                 .thenApply(policies -> policies);
     }
 
@@ -1780,7 +1863,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Integer> getMaxTopicsPerNamespaceAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Integer>(){}, namespace, "maxTopicsPerNamespace");
+        return asyncGetNamespaceParts(new FutureCallback<Integer>() {
+        }, namespace, "maxTopicsPerNamespace");
     }
 
     @Override
@@ -1838,7 +1922,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<String> getPropertyAsync(String namespace, String key) {
-        return asyncGetNamespaceParts(new FutureCallback<String>(){}, namespace, "property", key)
+        return asyncGetNamespaceParts(new FutureCallback<String>() {
+        }, namespace, "property", key)
                 .thenApply(value -> StringUtils.isEmpty(value) ? null : value);
     }
 
@@ -1849,12 +1934,14 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<Map<String, String>> getPropertiesAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<Map<String, String>>(){}, namespace, "properties");
+        return asyncGetNamespaceParts(new FutureCallback<Map<String, String>>() {
+        }, namespace, "properties");
     }
 
     @Override
     public CompletableFuture<String> getNamespaceResourceGroupAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<String>(){}, namespace, "resourcegroup");
+        return asyncGetNamespaceParts(new FutureCallback<String>() {
+        }, namespace, "resourcegroup");
     }
 
     @Override
@@ -1941,7 +2028,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     private <T> CompletableFuture<T> asyncGetNamespaceParts(FutureCallback<T> callback,
-                                                            String namespace, String... parts) {
+            String namespace, String... parts) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, parts);
         return asyncGetRequest(path, callback);
@@ -1956,7 +2043,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<EntryFilters> getNamespaceEntryFiltersAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "entryFilters");
-        return asyncGetRequest(path, new FutureCallback<EntryFilters>(){});
+        return asyncGetRequest(path, new FutureCallback<EntryFilters>() {
+        });
     }
 
     @Override
@@ -2012,7 +2100,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistentAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "dispatcherPauseOnAckStatePersistent");
-        return asyncGetRequest(path, new FutureCallback<Boolean>(){});
+        return asyncGetRequest(path, new FutureCallback<Boolean>() {
+        });
     }
 
     @Override
@@ -2027,7 +2116,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
 
     @Override
     public CompletableFuture<List<String>> getNamespaceAllowedClustersAsync(String namespace) {
-        return asyncGetNamespaceParts(new FutureCallback<List<String>>(){}, namespace, "allowedClusters");
+        return asyncGetNamespaceParts(new FutureCallback<List<String>>() {
+        }, namespace, "allowedClusters");
     }
 
     @Override
@@ -2041,6 +2131,5 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         WebTarget path = namespacePath(ns, "allowedClusters");
         return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
     }
-
 
 }

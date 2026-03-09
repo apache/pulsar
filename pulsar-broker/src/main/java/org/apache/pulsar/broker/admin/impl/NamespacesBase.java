@@ -2325,6 +2325,18 @@ public abstract class NamespacesBase extends AdminResource {
                 "subscriptionTypesEnabled");
     }
 
+    protected CompletableFuture<Void> internalSetAllowedTopicPropertyKeysForMetricsAsync(Set<String> allowedKeys) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ALLOW_CUSTOM_METRIC_LABELS,
+            PolicyOperation.WRITE)
+            .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+            .thenAccept(__ -> pulsar().validateCustomMetricLabelKeys(allowedKeys))
+            .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                policies.allowed_topic_property_keys_for_metrics = allowedKeys != null
+                    ? new HashSet<>(allowedKeys) : null;
+                return policies;
+            }));
+    }
+
 
     private <T> void mutatePolicy(Function<Policies, Policies> policyTransformation,
                                   Function<Policies, T> getter,
