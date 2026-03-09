@@ -671,7 +671,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private CompletableFuture<Void> publishOverrideEventAsync(String serviceUnit,
                                                               ServiceUnitStateData override) {
         if (!validateChannelState(Started, true)) {
-            throw new IllegalStateException("Invalid channel state:" + channelState.name());
+            return FutureUtil.failedFuture(new IllegalStateException("Invalid channel state:" + channelState.name()));
         }
         EventType eventType = EventType.Override;
         eventCounters.get(eventType).getTotal().incrementAndGet();

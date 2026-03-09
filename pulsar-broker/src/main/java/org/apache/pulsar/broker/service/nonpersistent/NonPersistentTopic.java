@@ -1218,7 +1218,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<MessageId> getLastMessageId() {
-        throw new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic");
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic"));
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);

@@ -420,7 +420,8 @@ public class BrokersBase extends AdminResource {
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
         if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't delete non-dynamic configuration");
+            return FutureUtil.failedFuture(
+                    new RestException(Status.PRECONDITION_FAILED, "Can't delete non-dynamic configuration"));
         } else {
             return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {
                 if (old != null) {
@@ -536,4 +537,3 @@ public class BrokersBase extends AdminResource {
         return CompletableFuture.completedFuture(null);
     }
 }
-
