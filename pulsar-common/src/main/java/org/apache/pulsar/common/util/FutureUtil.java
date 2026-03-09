@@ -228,7 +228,7 @@ public class FutureUtil {
 
         /**
          * @return a {@link CompletableFuture} representing the newly scheduled task,
-         * or a completed exceptionally with {@link NullPointerException} if param is null.
+         * or one completed exceptionally with {@link NullPointerException} if param is null.
          */
         public synchronized CompletableFuture<T> sequential(Supplier<CompletableFuture<T>> newTask) {
             if (newTask == null) {
