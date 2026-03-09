@@ -213,7 +213,11 @@ public abstract class PulsarWebResource {
                     isClientAuthenticated(appId), appId);
         }
         String originalPrincipal = originalPrincipal();
-        validateOriginalPrincipal(appId, originalPrincipal);
+        try {
+            validateOriginalPrincipal(appId, originalPrincipal);
+        } catch (RestException e) {
+            return FutureUtil.failedFuture(e);
+        }
 
         if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
             BrokerService brokerService = pulsar.getBrokerService();

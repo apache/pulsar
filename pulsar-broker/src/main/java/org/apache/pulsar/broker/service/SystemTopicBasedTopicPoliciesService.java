@@ -565,7 +565,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     @VisibleForTesting
     @NonNull CompletableFuture<Boolean> prepareInitPoliciesCacheAsync(@NonNull NamespaceName namespace) {
-        requireNonNull(namespace);
+        if (namespace == null) {
+            return FutureUtil.failedFuture(new NullPointerException("Expected NamespaceName should not be null"));
+        }
         if (closed.get()) {
             return CompletableFuture.completedFuture(false);
         }

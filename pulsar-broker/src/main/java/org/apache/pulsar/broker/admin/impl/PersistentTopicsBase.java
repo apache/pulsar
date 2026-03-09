@@ -1070,8 +1070,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnSubscription(Integer maxUnackedNumToSet,
                                                                                   boolean isGlobal) {
         if (maxUnackedNumToSet != null && maxUnackedNumToSet < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "maxUnackedNum must be 0 or more");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedNum must be 0 or more"));
         }
 
         return pulsar().getTopicPoliciesService()
@@ -1095,8 +1095,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalSetMaxUnackedMessagesOnConsumer(Integer maxUnackedNumToSet,
                                                                               boolean isGlobal) {
         if (maxUnackedNumToSet != null && maxUnackedNumToSet < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "maxUnackedNum must be 0 or more");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "maxUnackedNum must be 0 or more"));
         }
 
         return pulsar().getTopicPoliciesService()
@@ -1108,7 +1108,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalSetDeduplicationSnapshotInterval(Integer intervalToSet,
                                                                                boolean isGlobal) {
         if (intervalToSet != null && intervalToSet < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED, "interval must be 0 or more");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "interval must be 0 or more"));
         }
         return pulsar().getTopicPoliciesService()
                 .updateTopicPoliciesAsync(topicName, isGlobal, intervalToSet == null, policies -> {
@@ -3616,9 +3617,9 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalSetMaxMessageSize(Integer maxMessageSizeToSet, boolean isGlobal) {
         if (maxMessageSizeToSet != null && (maxMessageSizeToSet < 0
                 || maxMessageSizeToSet > config().getMaxMessageSize())) {
-            throw new RestException(Status.PRECONDITION_FAILED
-                    , "topic-level maxMessageSize must be greater than or equal to 0 "
-                    + "and must be smaller than that in the broker-level");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "topic-level maxMessageSize must be greater than or equal to 0 "
+                            + "and must be smaller than that in the broker-level"));
         }
 
         return pulsar().getTopicPoliciesService()
@@ -3646,8 +3647,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetMaxProducers(Integer maxProducersToSet, boolean isGlobal) {
         if (maxProducersToSet != null && maxProducersToSet < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "maxProducers must be 0 or more");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "maxProducers must be 0 or more"));
         }
         return pulsar().getTopicPoliciesService()
                 .updateTopicPoliciesAsync(topicName, isGlobal, maxProducersToSet == null, policies -> {
@@ -3663,8 +3664,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalSetMaxSubscriptionsPerTopic(Integer maxSubscriptionsToSet,
                                                                           boolean isGlobal) {
         if (maxSubscriptionsToSet != null && maxSubscriptionsToSet < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "maxSubscriptionsPerTopic must be 0 or more");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "maxSubscriptionsPerTopic must be 0 or more"));
         }
 
         return pulsar().getTopicPoliciesService()
@@ -3748,8 +3749,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetMaxConsumers(Integer maxConsumersToSet, boolean isGlobal) {
         if (maxConsumersToSet != null && maxConsumersToSet < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "maxConsumers must be 0 or more");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "maxConsumers must be 0 or more"));
         }
         return pulsar().getTopicPoliciesService()
                 .updateTopicPoliciesAsync(topicName, isGlobal, maxConsumersToSet == null, policies -> {
@@ -4650,7 +4651,7 @@ public class PersistentTopicsBase extends AdminResource {
                 futures.add(pulsar().getAdminClient().topics().trimTopicAsync(topicNamePartition.toString()));
             } catch (Exception e) {
                 log.error("[{}] Failed to trim topic {}", clientAppId(), topicNamePartition, e);
-                throw new RestException(e);
+                return FutureUtil.failedFuture(new RestException(e));
             }
         }
         return FutureUtil.waitForAll(futures).thenAccept(asyncResponse::resume);
@@ -4764,7 +4765,8 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalSetMaxConsumersPerSubscription(
             Integer maxConsumersPerSubscriptionToSet, boolean isGlobal) {
         if (maxConsumersPerSubscriptionToSet != null && maxConsumersPerSubscriptionToSet < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for maxConsumersPerSubscription");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Invalid value for maxConsumersPerSubscription"));
         }
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
             policies.setMaxConsumersPerSubscription(maxConsumersPerSubscriptionToSet);
@@ -4793,7 +4795,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetCompactionThreshold(Long compactionThresholdToSet, boolean isGlobal) {
         if (compactionThresholdToSet != null && compactionThresholdToSet < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for compactionThreshold");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Invalid value for compactionThreshold"));
         }
 
         return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal, false, policies -> {
