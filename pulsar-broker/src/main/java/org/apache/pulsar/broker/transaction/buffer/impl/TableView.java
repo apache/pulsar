@@ -68,7 +68,9 @@ public class TableView<T> {
                      ScheduledExecutorService executor) {
         this.readerCreator = readerCreator;
         this.clientOperationTimeoutMs = clientOperationTimeoutMs;
-        this.readers = new SimpleCache<>(executor, CACHE_EXPIRE_TIMEOUT_MS, CACHE_EXPIRE_CHECK_FREQUENCY_MS);
+        this.readers = new SimpleCache<>(executor,
+                Math.max(clientOperationTimeoutMs + 30 * 1000, CACHE_EXPIRE_TIMEOUT_MS),
+                CACHE_EXPIRE_CHECK_FREQUENCY_MS);
     }
 
     public T readLatest(String topic) throws Exception {
@@ -104,11 +106,14 @@ public class TableView<T> {
     protected Reader<T> getReader(String topic) {
         final var topicName = TopicName.get(topic);
         NamespaceName ns = topicName.getNamespaceObject();
-        CompletableFuture<Reader<T>> readerFuture = readers.get(ns, () -> readerCreator.apply(topicName), expiration);
+        SimpleCache<NamespaceName, CompletableFuture<Reader<T>>>.ExpirableValue<CompletableFuture<Reader<T>>>
+                cachedReaderFuture = readers.getWithCacheInfo(ns, () -> readerCreator.apply(topicName), expiration);
         try {
-            return wait(readerFuture, "create reader");
+            return wait(cachedReaderFuture.value, "create reader");
         } catch (Exception e) {
             throw new RuntimeException(e);
+        } finally {
+            cachedReaderFuture.updateDeadline();
         }
     }
 
