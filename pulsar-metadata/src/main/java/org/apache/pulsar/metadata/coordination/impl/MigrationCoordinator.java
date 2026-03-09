@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.coordination.impl;
 import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.options.defs.OptionOverrideModificationsCount;
 import io.oxia.client.api.options.defs.OptionOverrideVersionId;
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -123,8 +124,10 @@ public class MigrationCoordinator {
         log.info("Waiting for all participants to prepare...");
 
         long startTime = System.currentTimeMillis();
-        Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 60,
-                TimeUnit.SECONDS);
+        Backoff backoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(100))
+                .mandatoryStop(Duration.ofSeconds(60))
+                .maxBackoff(Duration.ofSeconds(60)).build();
         while (System.currentTimeMillis() - startTime < 60_000) {
             List<String> pending = sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).get();
             if (pending.isEmpty()) {
@@ -133,7 +136,7 @@ public class MigrationCoordinator {
             }
 
             log.info("Waiting for participants to prepare. pending: {}", pending);
-            Thread.sleep(backoff.next());
+            Thread.sleep(backoff.next().toMillis());
         }
 
         log.error("Failed to wait for all participants to prepare. pending participants: {}",
