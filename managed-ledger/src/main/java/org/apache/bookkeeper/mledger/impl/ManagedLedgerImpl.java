@@ -48,7 +48,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -4515,22 +4514,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private static boolean isLedgerNotExistException(int rc) {
-        switch (rc) {
-            case Code.NoSuchLedgerExistsException:
-            case Code.NoSuchLedgerExistsOnMetadataServerException:
-                return true;
-
-            default:
-                return false;
-        }
-    }
-
     public static ManagedLedgerException createManagedLedgerException(int bkErrorCode) {
         if (bkErrorCode == BKException.Code.TooManyRequestsException) {
             return new TooManyRequestsException("Too many request error from bookies");
         } else if (isBkErrorNotRecoverable(bkErrorCode)) {
-            if (isLedgerNotExistException(bkErrorCode)) {
+            if (isNoSuchLedgerExistsException(bkErrorCode)) {
                 return new LedgerNotExistException(BKException.getMessage(bkErrorCode));
             } else {
                 return new NonRecoverableLedgerException(BKException.getMessage(bkErrorCode));
@@ -4541,16 +4529,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public static ManagedLedgerException createManagedLedgerException(Throwable t) {
-        if (t instanceof org.apache.bookkeeper.client.api.BKException) {
-            return createManagedLedgerException(((org.apache.bookkeeper.client.api.BKException) t).getCode());
-        } else if (t instanceof ManagedLedgerException) {
-            return (ManagedLedgerException) t;
-        } else if (t instanceof CompletionException
-                && !(t.getCause() instanceof CompletionException) /* check to avoid stackoverlflow */) {
-            return createManagedLedgerException(t.getCause());
+        if (t == null) {
+            return new ManagedLedgerException("Unknown exception");
+        }
+        Throwable cause = FutureUtil.unwrapCompletionException(t);
+        if (cause == null) {
+            log.error("Exception with null cause for ManagedLedgerException.", t);
+            return new ManagedLedgerException("Unknown exception", t);
+        }
+        if (cause instanceof org.apache.bookkeeper.client.api.BKException) {
+            return createManagedLedgerException(((org.apache.bookkeeper.client.api.BKException) cause).getCode());
+        } else if (cause instanceof ManagedLedgerException) {
+            return (ManagedLedgerException) cause;
         } else {
-            log.error("Unknown exception for ManagedLedgerException.", t);
-            return new ManagedLedgerException("Other exception", t);
+            log.error("Unknown exception for ManagedLedgerException.", cause);
+            return new ManagedLedgerException("Other exception", cause);
         }
     }
 

@@ -288,16 +288,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             }
         } else {
             updateLatency();
-            AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
-            if (cb != null) {
-                cb.addComplete(lastEntry, data.asReadOnly(), ctx);
-                ml.notifyCursors();
-                ml.notifyWaitingEntryCallBacks();
-                ReferenceCountUtil.release(data);
-                this.recycle();
-            } else {
-                ReferenceCountUtil.release(data);
-            }
+            completeAdd(lastEntry, ctx);
         }
     }
 
@@ -314,10 +305,13 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
 
         ml.ledgerClosed(lh);
         updateLatency();
+        completeAdd(PositionFactory.create(lh.getId(), entryId), ctx);
+    }
 
+    private void completeAdd(Position pos, Object ctx) {
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
         if (cb != null) {
-            cb.addComplete(PositionFactory.create(lh.getId(), entryId), data.asReadOnly(), ctx);
+            cb.addComplete(pos, data.asReadOnly(), ctx);
             ml.notifyCursors();
             ml.notifyWaitingEntryCallBacks();
             ReferenceCountUtil.release(data);

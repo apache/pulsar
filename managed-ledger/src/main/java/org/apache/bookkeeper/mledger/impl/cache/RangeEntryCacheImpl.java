@@ -203,15 +203,7 @@ public class RangeEntryCacheImpl implements EntryCache {
             return;
         }
 
-        Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
-        int entriesRemoved = removed.getLeft();
-        long sizeRemoved = removed.getRight();
-        if (log.isTraceEnabled()) {
-            log.trace("[{}] Invalidated entries up to {} - Entries removed: {} - Size removed: {}", ml.getName(),
-                    lastPosition, entriesRemoved, sizeRemoved);
-        }
-
-        manager.entriesRemoved(sizeRemoved, entriesRemoved);
+        removeRangeAndNotify(firstPosition, lastPosition);
     }
 
     @Override
@@ -219,16 +211,22 @@ public class RangeEntryCacheImpl implements EntryCache {
         final Position firstPosition = PositionFactory.create(ledgerId, 0);
         final Position lastPosition = PositionFactory.create(ledgerId + 1, 0);
 
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Invalidating all entries on ledger {}", ml.getName(), ledgerId);
+        }
+        removeRangeAndNotify(firstPosition, lastPosition);
+        pendingReadsManager.invalidateLedger(ledgerId);
+    }
+
+    private void removeRangeAndNotify(Position firstPosition, Position lastPosition) {
         Pair<Integer, Long> removed = entries.removeRange(firstPosition, lastPosition, false);
         int entriesRemoved = removed.getLeft();
         long sizeRemoved = removed.getRight();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Invalidated all entries on ledger {} - Entries removed: {} - Size removed: {}",
-                    ml.getName(), ledgerId, entriesRemoved, sizeRemoved);
+        if (log.isTraceEnabled()) {
+            log.trace("[{}] Invalidated entries in range [{}, {}] - Entries removed: {} - Size removed: {}",
+                    ml.getName(), firstPosition, lastPosition, entriesRemoved, sizeRemoved);
         }
-
         manager.entriesRemoved(sizeRemoved, entriesRemoved);
-        pendingReadsManager.invalidateLedger(ledgerId);
     }
 
     @Override
