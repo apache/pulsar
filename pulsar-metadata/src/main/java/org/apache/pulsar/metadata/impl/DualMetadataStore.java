@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -166,15 +167,17 @@ public class DualMetadataStore implements MetadataStoreExtended {
             log.info("Target metadata store URL: {}", migrationState.getTargetUrl());
 
             long startTime = System.currentTimeMillis();
-            Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 60,
-                    TimeUnit.SECONDS);
+            Backoff backoff = Backoff.builder()
+                    .initialDelay(Duration.ofMillis(100))
+                    .mandatoryStop(Duration.ofSeconds(60))
+                    .maxBackoff(Duration.ofSeconds(60)).build();
             while (System.currentTimeMillis() - startTime < 60_000) {
                 int pending = pendingSourceWrites.get();
                 if (pending == 0) {
                     break;
                 } else {
                     log.info("Waiting for {} pending source writes to complete", pendingSourceWrites.get());
-                    Thread.sleep(backoff.next());
+                    Thread.sleep(backoff.next().toMillis());
                 }
             }
 
