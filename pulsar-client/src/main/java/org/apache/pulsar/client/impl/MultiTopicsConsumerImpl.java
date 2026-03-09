@@ -1247,7 +1247,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // un-subscribe a given topic
     public CompletableFuture<Void> unsubscribeAsync(String topicName) {
-        checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
+        if (!TopicName.isValid(topicName)) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("Invalid topic name:" + topicName));
+        }
 
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(

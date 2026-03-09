@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
@@ -662,7 +661,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
         TransactionImpl txnImpl = null;
         if (null != txn) {
-            checkArgument(txn instanceof TransactionImpl);
+            if (!(txn instanceof TransactionImpl)) {
+                return FutureUtil.failedFuture(new IllegalArgumentException(
+                        "Expected txn to be an instance of TransactionImpl, but got " + txn.getClass().getName()));
+            }
             txnImpl = (TransactionImpl) txn;
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
            if (!txnImpl.checkIfOpen(completableFuture)) {
@@ -691,7 +693,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
         TransactionImpl txnImpl = null;
         if (null != txn) {
-            checkArgument(txn instanceof TransactionImpl);
+            if (!(txn instanceof TransactionImpl)) {
+                return FutureUtil.failedFuture(new IllegalArgumentException(
+                        "Expected txn to be an instance of TransactionImpl, but got " + txn.getClass().getName()));
+            }
             txnImpl = (TransactionImpl) txn;
         }
         return doAcknowledgeWithTxn(messageId, AckType.Cumulative, Collections.emptyMap(), txnImpl);

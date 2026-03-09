@@ -39,6 +39,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -221,6 +222,16 @@ public class MultiTopicsConsumerImplTest {
         assertEquals(impl.getConsumers().size(), 0);
         assertEquals(impl.getState(), HandlerState.State.Closed);
         verify(clientMock, times(1)).cleanupConsumer(any());
+    }
+
+    @Test
+    public void testUnsubscribeAsyncInvalidTopicNameReturnsFailedFuture() {
+        MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
+        CompletableFuture<Void> future = consumer.unsubscribeAsync("persistent://public/invalid-topic");
+
+        assertTrue(future.isCompletedExceptionally());
+        CompletionException ex = expectThrows(CompletionException.class, future::join);
+        assertTrue(ex.getCause() instanceof IllegalArgumentException);
     }
 
     @Test
