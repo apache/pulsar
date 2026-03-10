@@ -336,12 +336,12 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
-            boolean compareTopicPartitions = true;
+            boolean skipCompareTopicPartitions = false;
             if (this.skipCompareTopicPartitions != null) {
-                compareTopicPartitions = !this.skipCompareTopicPartitions;
+                skipCompareTopicPartitions = this.skipCompareTopicPartitions;
             }
             getAdmin().namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusters),
-                    compareTopicPartitions);
+                    !skipCompareTopicPartitions);
         }
     }
 
