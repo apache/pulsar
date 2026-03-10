@@ -958,21 +958,32 @@ public abstract class NamespacesBase extends AdminResource {
 
                     // If the local cluster and the target cluster are sharing ZK, the target cluster cannot create any
                     // topic before enabling replication, so verification can be skipped.
-                    return remoteAdmin.namespaces().getNamespaceReplicationClustersAsync(namespaceName.toString())
-                        .thenCompose(clusters -> {
-                            if (!clusters.contains(remoteCluster)) {
+                    CompletableFuture<Policies> remoteNsPoliciesFuture =
+                            remoteAdmin.namespaces().getPoliciesAsync(namespaceName.toString())
+                                    .exceptionally(ex -> {
+                                        // If namespace doesn't have override, return null.
+                                        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                                        if (actEx instanceof PulsarAdminException.NotFoundException) {
+                                            throw new RestException(Status.CONFLICT,
+                                                String.format("Failed to check auto-topic creation policy for"
+                                                + " namespace '%s' between local cluster and remote cluster"
+                                                + " '%s' -> '%s'. Please ensure the namespace exists on the remote"
+                                                + " side.",
+                                                namespaceName.toString(), pulsar().getConfig().getClusterName(),
+                                                remoteCluster));
+                                        }
+                                        throw new CompletionException(ex);
+                                    });
+                    return remoteNsPoliciesFuture
+                        .thenCompose(remoteNsPolicies -> {
+                            if (!remoteNsPolicies.replication_clusters.contains(remoteCluster)
+                                    && remoteNsPolicies.allowed_clusters.contains(remoteCluster)) {
                                 return CompletableFuture.completedFuture(null);
                             }
-                            return remoteAdmin.namespaces().getNamespaceAllowedClustersAsync(namespaceName.toString())
-                                .thenCompose(allowedClusters -> {
-                                    if (!allowedClusters.contains(remoteCluster)) {
-                                        return CompletableFuture.completedFuture(null);
-                                    }
-                                    // Validate both partition compatibility and auto-creation policy compatibility
-                                    return validatePartitionCompatibility(remoteAdmin, remoteCluster)
-                                        .thenCompose(__ -> validateAutoTopicCreationCompatibility(remoteAdmin,
-                                                remoteCluster));
-                            });
+                            // Validate both partition compatibility and auto-creation policy compatibility
+                            return validatePartitionCompatibility(remoteAdmin, remoteCluster)
+                                    .thenCompose(__ -> validateAutoTopicCreationCompatibility(remoteAdmin,
+                                        remoteCluster, remoteNsPolicies));
                     });
                 });
     }
@@ -1047,29 +1058,34 @@ public abstract class NamespacesBase extends AdminResource {
      */
     private CompletableFuture<Void> validateNonPartitionedTopicCompatibility(String topic, PulsarAdmin remoteAdmin,
                                                                               String remoteCluster) {
-        return remoteAdmin.topics().getPartitionedTopicMetadataAsync(topic)
-                .thenAccept(remoteMetadata -> {
-                    // If remote has partitions > 0, it's a partitioned topic, which is incompatible
-                    if (remoteMetadata.partitions > 0) {
-                        throw new RestException(Status.CONFLICT,
-                                String.format("Topic type mismatch for topic '%s': local cluster has a "
-                                                + "non-partitioned topic, but remote cluster '%s' has a partitioned "
-                                                + "topic with %d partitions. "
-                                                + "Please ensure topic types are the same before enabling replication.",
-                                        topic, remoteCluster, remoteMetadata.partitions));
-                    }
-                })
-                .exceptionally(ex -> {
-                    // If topic doesn't exist on remote, that's fine
-                    if (ex.getCause() instanceof PulsarAdminException.NotFoundException
-                            || ex instanceof PulsarAdminException.NotFoundException) {
-                        return null;
-                    }
-                    log.error("Failed to validate remote-side non-partitioned topic metadata for topic '{}'", topic,
-                        ex);
-                    throw new CompletionException(new RestException(Status.INTERNAL_SERVER_ERROR,
-                        "Failed to validate remote-side non-partitioned topic metadata for topic " + topic));
-                });
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        remoteAdmin.topics().getPartitionedTopicMetadataAsync(topic)
+            .thenAccept(remoteMetadata -> {
+                // If remote has partitions > 0, it's a partitioned topic, which is incompatible
+                if (remoteMetadata.partitions > 0) {
+                    future.completeExceptionally(new RestException(Status.CONFLICT,
+                            String.format("Topic type mismatch for topic '%s': local cluster has a "
+                                            + "non-partitioned topic, but remote cluster '%s' has a partitioned "
+                                            + "topic with %d partitions. "
+                                            + "Please ensure topic types are the same before enabling replication.",
+                                    topic, remoteCluster, remoteMetadata.partitions)));
+                }
+                future.complete(null);
+            })
+            .exceptionally(ex -> {
+                // If topic doesn't exist on remote, that's fine
+                if (ex.getCause() instanceof PulsarAdminException.NotFoundException
+                        || ex instanceof PulsarAdminException.NotFoundException) {
+                    future.complete(null);
+                    return null;
+                }
+                log.error("Failed to validate remote-side non-partitioned topic metadata for topic '{}'", topic,
+                    ex);
+                future.completeExceptionally(new RestException(Status.CONFLICT,
+                    "Failed to validate remote-side non-partitioned topic metadata for topic  " + topic));
+                return null;
+            });
+        return future;
     }
 
     /**
@@ -1126,7 +1142,7 @@ public abstract class NamespacesBase extends AdminResource {
      * The effective policy is computed by: namespace-level policy overrides broker-level if it exists.
      */
     private CompletableFuture<Void> validateAutoTopicCreationCompatibility(PulsarAdmin remoteAdmin,
-                                                                            String remoteCluster) {
+                                                                    String remoteCluster, Policies remoteNsPolicies) {
         String namespaceStr = namespaceName.toString();
 
         // Get local broker config
@@ -1143,27 +1159,11 @@ public abstract class NamespacesBase extends AdminResource {
         CompletableFuture<Map<String, String>> remoteBrokerConfigFuture =
                 remoteAdmin.brokers().getRuntimeConfigurationsAsync();
 
-        // Get remote namespace policy
-        CompletableFuture<AutoTopicCreationOverride> remoteNsPolicyFuture =
-                remoteAdmin.namespaces().getAutoTopicCreationAsync(namespaceStr)
-                        .exceptionally(ex -> {
-                            // If namespace doesn't have override, return null.
-                            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
-                            if (actEx instanceof PulsarAdminException.NotFoundException) {
-                                throw new RestException(Status.CONFLICT,
-                                    String.format("Effective auto-topic creation policy mismatch for namespace '%s' "
-                                                    + "between local cluster and remote cluster '%s' -> '%s'. "
-                                                    + "Please ensure the namespace exists on the remote side.",
-                                            namespaceStr, localConfig.getClusterName(), remoteCluster));
-                            }
-                            throw new CompletionException(ex);
-                        });
-
-        return CompletableFuture.allOf(localNsPolicyFuture, remoteBrokerConfigFuture, remoteNsPolicyFuture)
+        return CompletableFuture.allOf(localNsPolicyFuture, remoteBrokerConfigFuture)
                 .thenAccept(__ -> {
                     AutoTopicCreationOverride localNsPolicy = localNsPolicyFuture.join();
                     Map<String, String> remoteBrokerConfig = remoteBrokerConfigFuture.join();
-                    AutoTopicCreationOverride remoteNsPolicy = remoteNsPolicyFuture.join();
+                    AutoTopicCreationOverride remoteNsPolicy = remoteNsPolicies.autoTopicCreationOverride;
 
                     // Parse remote broker config
                     String remoteAutoCreationTypeStr = remoteBrokerConfig.getOrDefault(

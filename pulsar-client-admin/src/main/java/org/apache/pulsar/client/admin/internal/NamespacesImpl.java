@@ -394,8 +394,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
                                                                         boolean compareTopicPartitions) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "replication");
-        path.queryParam("compareTopicPartitions", compareTopicPartitions);
-        return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path.queryParam("compareTopicPartitions", compareTopicPartitions),
+                Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
     }
 
     @Override
