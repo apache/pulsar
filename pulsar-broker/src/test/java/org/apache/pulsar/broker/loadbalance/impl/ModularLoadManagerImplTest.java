@@ -773,13 +773,13 @@ public class ModularLoadManagerImplTest {
                 .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
-        admin1.namespaces().createNamespace(tenant + "/" + cluster + "/" + namespace);
+        admin1.namespaces().createNamespace(tenant + "/" + namespace);
 
         // set a new policy
-        String newPolicyJsonTemplate = "{\"namespaces\":[\"%s/%s/%s.*\"],\"primary\":[\"%s\"],"
+        String newPolicyJsonTemplate = "{\"namespaces\":[\"%s/%s.*\"],\"primary\":[\"%s\"],"
                 + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\","
                 + "\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
-        String newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Host,
+        String newPolicyJson = String.format(newPolicyJsonTemplate, tenant, namespace, broker1Host,
                 broker2Host, 1);
         String newPolicyName = "my-ns-isolation-policies";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();

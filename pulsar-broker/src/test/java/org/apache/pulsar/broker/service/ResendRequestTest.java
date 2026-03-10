@@ -37,7 +37,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBase;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -425,10 +424,7 @@ public class ResendRequestTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         final int numberOfPartitions = 4;
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
-        // Special step to create partitioned topic
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -481,11 +477,8 @@ public class ResendRequestTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         Random rn = new Random();
-        // Special step to create partitioned topic
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -582,11 +575,8 @@ public class ResendRequestTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         Random rn = new Random();
-        // Special step to create partitioned topic
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)

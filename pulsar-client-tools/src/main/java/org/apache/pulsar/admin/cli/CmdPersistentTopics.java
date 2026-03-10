@@ -594,7 +594,7 @@ public class CmdPersistentTopics extends CmdBase {
 
     @Command(description = "Get message by its ledgerId and entryId")
     private class GetMessageById extends CliCommand {
-        @Parameters(description = "persistent://property/cluster/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Option(names = { "-l", "--ledgerId" },
@@ -621,7 +621,7 @@ public class CmdPersistentTopics extends CmdBase {
 
     @Command(description = "Get last message Id of the topic")
     private class GetLastMessageId extends CliCommand {
-        @Parameters(description = "persistent://property/cluster/namespace/topic", arity = "1")
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
         @Override

@@ -177,7 +177,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
-        String namespaceName = "my-property/proxy-authorization/my-ns";
+        String namespaceName = "my-property/my-ns";
 
         admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
                 .serviceUrl(brokerUrl.toString()).build());
@@ -189,7 +189,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer;
         try {
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
             Assert.fail("should have failed with authorization error");
         } catch (Exception ex) {
@@ -198,14 +198,14 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                     Sets.newHashSet(AuthAction.consume));
             log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
         }
 
         Producer<byte[]> producer;
         try {
             producer = proxyClient.newProducer(Schema.BYTES)
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1").create();
+                    .topic("persistent://my-property/my-ns/my-topic1").create();
             Assert.fail("should have failed with authorization error");
         } catch (Exception ex) {
             // excepted
@@ -213,7 +213,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                     Sets.newHashSet(AuthAction.produce, AuthAction.consume));
             log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
             producer = proxyClient.newProducer(Schema.BYTES)
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1").create();
+                    .topic("persistent://my-property/my-ns/my-topic1").create();
         }
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
@@ -375,7 +375,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
-        String namespaceName = "my-property/proxy-authorization/my-ns";
+        String namespaceName = "my-property/my-ns";
 
         admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
                 .serviceUrl(brokerUrl.toString()).build());
@@ -390,18 +390,18 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer;
         try {
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
             Assert.fail("should have failed with authorization error");
         } catch (Exception ex) {
             // excepted
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName(CLIENT_ROLE + "-sub1").subscribe();
         }
 
         Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES)
-                .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1").create();
+                .topic("persistent://my-property/my-ns/my-topic1").create();
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
             String message = "my-message-" + i;

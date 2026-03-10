@@ -426,7 +426,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
                         .build());
         admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(newCluster)));
-        admin.namespaces().createNamespace(tenant + "/" + newCluster + "/my-ns");
+        admin.namespaces().createNamespace(tenant + "/my-ns");
 
         @Cleanup
         PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
@@ -450,10 +450,10 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         /**** started broker-2 ****/
 
         // load namespace-bundle by calling Broker2
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property2/use2/my-ns/my-topic1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property2/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
         Producer<byte[]> producer = pulsarClient2.newProducer(Schema.BYTES)
-            .topic("persistent://my-property2/use2/my-ns/my-topic1")
+            .topic("persistent://my-property2/my-ns/my-topic1")
             .create();
 
         for (int i = 0; i < 10; i++) {
