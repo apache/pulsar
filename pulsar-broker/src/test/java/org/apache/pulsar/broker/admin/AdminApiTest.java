@@ -1492,7 +1492,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getTopics("prop-xyz/ns1-bundles"), new ArrayList<>());
 
         deleteNamespaceWithRetry("prop-xyz/ns1-bundles", false);
-        assertEquals(admin.namespaces().getNamespaces("prop-xyz", "test"), new ArrayList<>());
+        assertEquals(admin.namespaces().getNamespaces("prop-xyz"), new ArrayList<>());
     }
 
     @Test
