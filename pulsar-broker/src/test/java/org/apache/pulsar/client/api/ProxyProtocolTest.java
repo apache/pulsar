@@ -33,6 +33,12 @@ import org.testng.annotations.Test;
 public class ProxyProtocolTest extends TlsProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyProtocolTest.class);
 
+    @Override
+    protected void setup() throws Exception {
+        super.setup();
+        internalSetUpForNamespace();
+    }
+
     @Test
     public void testSniProxyProtocol() throws Exception {
 

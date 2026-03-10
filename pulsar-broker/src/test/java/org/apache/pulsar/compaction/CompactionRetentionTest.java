@@ -224,8 +224,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         for (String eventTopic : SystemTopicNames.EVENTS_TOPIC_NAMES) {
             checkSystemTopicRetentionPolicy(topicPrefix + eventTopic);
         }
-        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN);
-        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_LOG);
+        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getLocalName());
+        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_LOG.getLocalName());
         checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
 
         // Check common topics.
