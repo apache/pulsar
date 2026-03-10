@@ -882,7 +882,8 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds, boolean compareTopicPartitions) throws PulsarAdminException;
+    void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds, boolean compareTopicPartitions)
+            throws PulsarAdminException;
 
     /**
      * Set the replication clusters for a namespace asynchronously.
