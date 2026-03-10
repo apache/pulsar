@@ -60,7 +60,14 @@ Prefer existing dependencies instead of introducing new libraries.
 
 The Pulsar codebase commonly uses:
 
-* **Guava** for utilities
+* **Apache Commons libraries or Guava** for utilities
+* **FastUtil** for optimized type specific collections
+* **JCTools** for high performance concurrent data structures
+* **RoaringBitmap** for compressed bitmaps (bitsets)
+* **Caffeine** for caching
+* **Jackson** for JSON handling
+* **Prometheus Java simpleclient** (or newer **Prometheus Java Metrics Library**) for metrics
+* **OpenTelemetry API** for metrics
 * **Netty** for networking and buffers
 
 When introducing a new dependency:
@@ -232,6 +239,15 @@ Servers must be compatible with both older and newer clients.
 Flag any change that may break compatibility.
 
 ---
+
+# Testing Guidelines
+
+## Unit testing
+
+* TestNG is used as the testing framework
+* Mocking uses Mockito
+* Assertions should prefer using AssertJ library with descriptions over using TestNG assertions
+* Awaitility should be used to handle assertions with asynchronous conditions together with AssertJ
 
 # Testing Expectations
 
