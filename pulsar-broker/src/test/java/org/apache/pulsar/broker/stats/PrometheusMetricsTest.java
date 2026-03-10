@@ -794,7 +794,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             assertEquals(mlMetric.get(0).value, 2.0);
         }
         assertEquals(mlMetric.get(0).tags.get("cluster"), "test");
-        assertEquals(mlMetric.get(0).tags.get("namespace"), ns + "/persistent");
+        assertEquals(mlMetric.get(0).tags.get("namespace"), ns);
     }
 
     @Test
