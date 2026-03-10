@@ -958,26 +958,31 @@ public abstract class NamespacesBase extends AdminResource {
 
                     // If the local cluster and the target cluster are sharing ZK, the target cluster cannot create any
                     // topic before enabling replication, so verification can be skipped.
-                    CompletableFuture<Policies> remoteNsPoliciesFuture =
-                            remoteAdmin.namespaces().getPoliciesAsync(namespaceName.toString())
-                                    .exceptionally(ex -> {
-                                        // If namespace doesn't have override, return null.
-                                        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
-                                        if (actEx instanceof PulsarAdminException.NotFoundException) {
-                                            throw new RestException(Status.CONFLICT,
-                                                String.format("Failed to check auto-topic creation policy for"
-                                                + " namespace '%s' between local cluster and remote cluster"
-                                                + " '%s' -> '%s'. Please ensure the namespace exists on the remote"
-                                                + " side.",
-                                                namespaceName.toString(), pulsar().getConfig().getClusterName(),
-                                                remoteCluster));
-                                        }
-                                        throw new CompletionException(ex);
-                                    });
+                    CompletableFuture<Policies> remoteNsPoliciesFuture = new CompletableFuture<>();
+                    remoteAdmin.namespaces().getPoliciesAsync(namespaceName.toString())
+                        .handle((v, ex) -> {
+                            if (ex == null) {
+                                remoteNsPoliciesFuture.complete(v);
+                                return null;
+                            }
+                            // If namespace doesn't have override, return null.
+                            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                            if (actEx instanceof PulsarAdminException.NotFoundException) {
+                                remoteNsPoliciesFuture.completeExceptionally(new RestException(Status.CONFLICT,
+                                    String.format("Failed to check auto-topic creation policy for"
+                                    + " namespace '%s' between local cluster and remote cluster"
+                                    + " '%s' -> '%s'. Please ensure the namespace exists on the remote"
+                                    + " side.",
+                                    namespaceName.toString(), pulsar().getConfig().getClusterName(),
+                                    remoteCluster)));
+                            }
+                            remoteNsPoliciesFuture.completeExceptionally(actEx);
+                            return null;
+                        });
                     return remoteNsPoliciesFuture
                         .thenCompose(remoteNsPolicies -> {
                             if (!remoteNsPolicies.replication_clusters.contains(remoteCluster)
-                                    && remoteNsPolicies.allowed_clusters.contains(remoteCluster)) {
+                                    && !remoteNsPolicies.allowed_clusters.contains(remoteCluster)) {
                                 return CompletableFuture.completedFuture(null);
                             }
                             // Validate both partition compatibility and auto-creation policy compatibility
