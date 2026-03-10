@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -306,12 +307,39 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         if (!usingGlobalZK) {
             admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2));
         }
-        admin1.namespaces().deleteNamespace(replicatedNamespace, true);
-        admin1.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+        
+        // Wait for all replicators to stop
+        waitAllReplicatorsStopped(replicatedNamespace);
+        
+        // Unload namespace to ensure topic state is refreshed
+        admin1.namespaces().unload(replicatedNamespace);
         if (!usingGlobalZK) {
-            admin2.namespaces().deleteNamespace(replicatedNamespace, true);
-            admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+            admin2.namespaces().unload(replicatedNamespace);
         }
+        
+        // Use retry mechanism to delete namespace
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(replicatedNamespace, true, admin1);
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(nonReplicatedNamespace, true, admin1);
+        if (!usingGlobalZK) {
+            MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(replicatedNamespace, true, admin2);
+            MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(nonReplicatedNamespace, true, admin2);
+        }
+    }
+
+    // Helper method: Wait for all replicators to stop
+    protected void waitAllReplicatorsStopped(String namespace) throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            List<String> topics = admin1.topics().getList(namespace);
+            for (String topic : topics) {
+                Optional<Topic> topicOptional = pulsar1.getBrokerService().getTopic(topic, false).get();
+                if (topicOptional.isPresent() && topicOptional.get() instanceof PersistentTopic) {
+                    PersistentTopic persistentTopic = (PersistentTopic) topicOptional.get();
+                    assertTrue(persistentTopic.getReplicators().isEmpty() 
+                        || persistentTopic.getReplicators().values().stream()
+                            .noneMatch(Replicator::isConnected));
+                }
+            }
+        });
     }
 
     @Override
