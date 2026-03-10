@@ -66,7 +66,7 @@ public class OpenTelemetryCustomLabelsTest extends BrokerTestBase {
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setSystemTopicEnabled(true);
         conf.setExposeCustomTopicMetricLabelsEnabled(true);
-        conf.setAllowedTopicPropertiesForMetrics(ALLOWED_CUSTOM_METRIC_LABEL_KEYS);
+        conf.setAllowedTopicPropertyKeysForMetrics(ALLOWED_CUSTOM_METRIC_LABEL_KEYS);
         conf.setBrokerShutdownTimeoutMs(5000L);
         return conf;
     }
