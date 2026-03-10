@@ -69,6 +69,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         useBrokerSocatProxy = true;
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         int brokerPort = pulsar.getBrokerService().getListenPort().get();
         Testcontainers.exposeHostPorts(brokerPort);
@@ -143,7 +144,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
                 // such as hash range conflicts
                 .keepAliveInterval(2, TimeUnit.SECONDS)
                 .build();
-        String topicName = BrokerTestUtil.newUniqueName("persistent://sample/local/test-topic");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/test-topic");
 
         @Cleanup
         Consumer<byte[]> consumer = client.newConsumer()

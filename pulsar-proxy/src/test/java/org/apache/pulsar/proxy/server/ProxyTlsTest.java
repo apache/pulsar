@@ -34,7 +34,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
@@ -51,6 +50,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -97,7 +97,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
                 .allowTlsInsecureConnection(false)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/local/topic").create();
+                .topic("persistent://public/default/topic").create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -110,16 +110,14 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrlTls())
                 .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("sample", tenantInfo);
-        admin.topics().createPartitionedTopic("persistent://sample/local/partitioned-topic", 2);
+        admin.topics().createPartitionedTopic("persistent://public/default/partitioned-topic", 2);
 
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/local/partitioned-topic")
+                .topic("persistent://public/default/partitioned-topic")
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/local/partitioned-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://public/default/partitioned-topic")
                 .subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {

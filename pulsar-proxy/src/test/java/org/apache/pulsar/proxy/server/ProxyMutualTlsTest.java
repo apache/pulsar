@@ -56,6 +56,7 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -109,7 +110,7 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .build();
         @Cleanup
         Producer<byte[]> producer =
-                client.newProducer(Schema.BYTES).topic("persistent://sample/local/" + UUID.randomUUID()).create();
+                client.newProducer(Schema.BYTES).topic("persistent://public/default/" + UUID.randomUUID()).create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -128,7 +129,7 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
                 .build();
         @Cleanup
         Producer<byte[]> producer =
-                client.newProducer(Schema.BYTES).topic("persistent://sample/local/" + UUID.randomUUID()).create();
+                client.newProducer(Schema.BYTES).topic("persistent://public/default/" + UUID.randomUUID()).create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -147,6 +148,6 @@ public class ProxyMutualTlsTest extends MockedPulsarServiceBaseTest {
 
         assertThrows(PulsarClientException.class,
                 () -> client.newProducer(Schema.BYTES)
-                        .topic("persistent://sample/local/" + UUID.randomUUID()).create());
+                        .topic("persistent://public/default/" + UUID.randomUUID()).create());
     }
 }

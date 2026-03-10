@@ -55,6 +55,7 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
     protected void setup() throws Exception {
         conf.setHaProxyProtocolEnabled(true);
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.ofNullable(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -93,7 +94,7 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
 
-        final String topicName = "persistent://sample/local/testSimpleProduceAndConsume";
+        final String topicName = "persistent://public/default/testSimpleProduceAndConsume";
         final String subName = "my-subscriber-name";
         final int messages = 100;
 
