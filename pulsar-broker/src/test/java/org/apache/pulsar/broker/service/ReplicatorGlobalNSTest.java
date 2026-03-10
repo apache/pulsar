@@ -94,7 +94,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
     public void testRemoveLocalClusterOnGlobalNamespace() throws Exception {
         log.info("--- Starting ReplicatorTest::testRemoveLocalClusterOnGlobalNamespace ---");
 
-        final String namespace = "pulsar/global/removeClusterTest";
+        final String namespace = "pulsar/removeClusterTest";
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
 

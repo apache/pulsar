@@ -561,9 +561,9 @@ public class WebServiceTest {
         }
 
         brokerLookUpUrl = brokerUrlBase
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+                + "/lookup/v2/topic/persistent/my-property/my-namespace/my-topic";
         brokerLookUpUrlTls = brokerUrlBaseTls
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+                + "/lookup/v2/topic/persistent/my-property/my-namespace/my-topic";
         @Cleanup
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 
@@ -571,6 +571,13 @@ public class WebServiceTest {
             pulsarAdmin.clusters().createCluster(config.getClusterName(),
                     ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         } catch (ConflictException ce) {
+            // This is OK.
+        }
+        try {
+            pulsarAdmin.tenants().createTenant("my-property",
+                    TenantInfo.builder().allowedClusters(Sets.newHashSet(config.getClusterName())).build());
+            pulsarAdmin.namespaces().createNamespace("my-property/my-namespace");
+        } catch (Exception e) {
             // This is OK.
         }
     }

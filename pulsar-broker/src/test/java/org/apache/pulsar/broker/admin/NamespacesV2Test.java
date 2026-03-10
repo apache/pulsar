@@ -113,11 +113,11 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         createTestNamespaces(this.testLocalNamespaces);
 
         doThrow(new RestException(Response.Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
-                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
+                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/test-namespace-1"),
                         PolicyName.PERSISTENCE, PolicyOperation.WRITE);
 
         doThrow(new RestException(Response.Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
-                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
+                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/test-namespace-1"),
                         PolicyName.RETENTION, PolicyOperation.WRITE);
 
         nsSvc = pulsar.getNamespaceService();

@@ -847,8 +847,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .allowedClusters(Collections.singleton(cluster))
                 .build();
         pulsar.getPulsarResources().getTenantResources().createTenant(tenant, admin);
+        Policies nsPolicies = new Policies();
+        nsPolicies.replication_clusters = Sets.newHashSet(cluster);
         pulsar.getPulsarResources().getNamespaceResources()
-                .createPolicies(NamespaceName.get(tenant, namespace), new Policies());
+                .createPolicies(NamespaceName.get(tenant, namespace), nsPolicies);
 
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.getList(response, tenant, namespace, null, false, null);
@@ -916,12 +918,21 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     public void testUpdatePartitionedTopicCoontainedInOldTopic() throws Exception {
 
         final String tenant = "prop-xyz";
+        final String cluster = "use";
         final String namespace = "ns";
         final String partitionedTopicName = "old-special-topic";
         final String partitionedTopicName2 = "special-topic";
 
+        if (!pulsar.getPulsarResources().getTenantResources().tenantExists(tenant)) {
+            TenantInfo tenantInfo = TenantInfo.builder()
+                    .allowedClusters(Collections.singleton(cluster))
+                    .build();
+            pulsar.getPulsarResources().getTenantResources().createTenant(tenant, tenantInfo);
+        }
+        Policies nsPolicies = new Policies();
+        nsPolicies.replication_clusters = Sets.newHashSet(cluster);
         pulsar.getPulsarResources().getNamespaceResources()
-                .createPolicies(NamespaceName.get(tenant, namespace), new Policies());
+                .createPolicies(NamespaceName.get(tenant, namespace), nsPolicies);
 
         AsyncResponse response1 = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
@@ -947,8 +958,24 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @Test
     public void test500Error() throws Exception {
         final String tenant = "prop-xyz";
+        final String cluster = "use";
         final String namespace = "ns";
         final String partitionedTopicName = "error-500-topic";
+
+        if (!pulsar.getPulsarResources().getTenantResources().tenantExists(tenant)) {
+            TenantInfo tenantInfo = TenantInfo.builder()
+                    .allowedClusters(Collections.singleton(cluster))
+                    .build();
+            pulsar.getPulsarResources().getTenantResources().createTenant(tenant, tenantInfo);
+        }
+        if (!pulsar.getPulsarResources().getNamespaceResources()
+                .namespaceExists(NamespaceName.get(tenant, namespace))) {
+            Policies nsPolicies = new Policies();
+            nsPolicies.replication_clusters = Sets.newHashSet(cluster);
+            pulsar.getPulsarResources().getNamespaceResources()
+                    .createPolicies(NamespaceName.get(tenant, namespace), nsPolicies);
+        }
+
         AsyncResponse response1 = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         CompletableFuture<List<String>> future = new CompletableFuture();

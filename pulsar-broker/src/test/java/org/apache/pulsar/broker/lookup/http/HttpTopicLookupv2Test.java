@@ -99,6 +99,8 @@ public class HttpTopicLookupv2Test {
         when(resources.getClusterResources()).thenReturn(clusters);
         when(pulsar.getPulsarResources()).thenReturn(resources);
         when(resources.getNamespaceResources()).thenReturn(namespaceResources);
+        when(namespaceResources.getPoliciesAsync(any(NamespaceName.class)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         doReturn(ns).when(pulsar).getNamespaceService();
         BrokerService brokerService = mock(BrokerService.class);

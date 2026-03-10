@@ -1870,7 +1870,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNamespaceResources() throws Exception {
-        String ns1V1 = "test/" + testNamespace + "v1";
+        String ns1V1 = testNamespace + "v1";
         String ns1V2 = testNamespace + "v2";
         admin.namespaces().createNamespace(testTenant + "/" + ns1V1);
         admin.namespaces().createNamespace(testTenant + "/" + ns1V2);
