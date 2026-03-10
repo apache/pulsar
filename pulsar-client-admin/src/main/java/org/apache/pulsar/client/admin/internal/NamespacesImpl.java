@@ -385,7 +385,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds, boolean compareTopicPartitions) throws PulsarAdminException {
+    public void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds,
+                                                boolean compareTopicPartitions) throws PulsarAdminException {
         sync(() -> setNamespaceReplicationClustersAsync(namespace, clusterIds, compareTopicPartitions));
     }
 
