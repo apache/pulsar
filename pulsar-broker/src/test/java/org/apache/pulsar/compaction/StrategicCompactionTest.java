@@ -46,7 +46,10 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import com.google.common.collect.Sets;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
@@ -66,6 +69,13 @@ public class StrategicCompactionTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         super.internalSetup();
+
+        admin.clusters().createCluster("test",
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns");
+
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
@@ -92,7 +102,7 @@ public class StrategicCompactionTest extends MockedPulsarServiceBaseTest {
 
         strategy = new NumericOrderCompactionStrategy();
 
-        String topic = "persistent://my-property/use/my-ns/numeric-order-compaction";
+        String topic = "persistent://my-property/my-ns/numeric-order-compaction";
         final int numMessages = 50;
         final int maxKeys = 5;
 
@@ -172,7 +182,7 @@ public class StrategicCompactionTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 20000)
     public void testSameBatchCompactToSameBatch() throws Exception {
         final String topic =
-                "persistent://my-property/use/my-ns/testSameBatchCompactToSameBatch" + UUID.randomUUID();
+                "persistent://my-property/my-ns/testSameBatchCompactToSameBatch" + UUID.randomUUID();
 
         // Use odd number to make sure the last message is flush by `reader.hasNext() == false`.
         final int messages = 11;

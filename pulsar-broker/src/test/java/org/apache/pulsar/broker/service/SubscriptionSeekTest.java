@@ -109,7 +109,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeek() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testSeek";
+        final String topicName = "persistent://prop/ns-abc/testSeek";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -165,7 +165,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekIsByReceive() throws PulsarClientException {
-        final String topicName = "persistent://prop/use/ns-abc/testSeekIsByReceive";
+        final String topicName = "persistent://prop/ns-abc/testSeekIsByReceive";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -190,7 +190,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekForBatch() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatch";
+        final String topicName = "persistent://prop/ns-abc/testSeekForBatch";
         String subscriptionName = "my-subscription-batch";
 
         @Cleanup
@@ -248,7 +248,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekForBatchMessageAndSpecifiedBatchIndex() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatchMessageAndSpecifiedBatchIndex";
+        final String topicName = "persistent://prop/ns-abc/testSeekForBatchMessageAndSpecifiedBatchIndex";
         String subscriptionName = "my-subscription-batch";
 
         @Cleanup
@@ -331,7 +331,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     @Test
     public void testSeekForBatchByAdmin() throws PulsarClientException, ExecutionException,
             InterruptedException, PulsarAdminException {
-        final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatchByAdmin-"
+        final String topicName = "persistent://prop/ns-abc/testSeekForBatchByAdmin-"
                 + UUID.randomUUID().toString();
         String subscriptionName = "my-subscription-batch";
 
@@ -415,7 +415,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testConcurrentResetCursor() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testConcurrentReset_" + System.currentTimeMillis();
+        final String topicName = "persistent://prop/ns-abc/testConcurrentReset_" + System.currentTimeMillis();
         final String subscriptionName = "test-sub-name";
 
         @Cleanup
@@ -465,7 +465,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testConcurrentResetCursorByTimestamp() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testConcurrentResetTimestamp_"
+        final String topicName = "persistent://prop/ns-abc/testConcurrentResetTimestamp_"
                 + System.currentTimeMillis();
         final String subscriptionName = "test-sub-name";
 
@@ -521,7 +521,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekOnPartitionedTopic() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testSeekPartitions";
+        final String topicName = "persistent://prop/ns-abc/testSeekPartitions";
 
         admin.topics().createPartitionedTopic(topicName, 2);
         @Cleanup
@@ -537,7 +537,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekWithNonOwnerTopicMessage() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testNonOwnerTopicMessage";
+        final String topicName = "persistent://prop/ns-abc/testNonOwnerTopicMessage";
 
         admin.topics().createPartitionedTopic(topicName, 2);
         @Cleanup
@@ -553,7 +553,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekTime() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testSeekTime";
+        final String topicName = "persistent://prop/ns-abc/testSeekTime";
         String resetTimeStr = "100s";
         long resetTimeInMillis = TimeUnit.SECONDS
                 .toMillis(RelativeTimeUtil.parseRelativeTimeInSeconds(resetTimeStr));
@@ -591,7 +591,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test(timeOut = 30_000)
     public void testSeekByTimestamp() throws Exception {
-        String topicName = "persistent://prop/use/ns-abc/testSeekByTimestamp";
+        String topicName = "persistent://prop/ns-abc/testSeekByTimestamp";
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, "my-sub", MessageId.earliest);
 
@@ -636,7 +636,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test(timeOut = 30_000)
     public void testSeekByTimestampWithSkipNonRecoverableData() throws Exception {
-        String topicName = "persistent://prop/use/ns-abc/testSeekByTimestampWithSkipNonRecoverableData";
+        String topicName = "persistent://prop/ns-abc/testSeekByTimestampWithSkipNonRecoverableData";
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, "my-sub", MessageId.earliest);
 
@@ -719,7 +719,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test(timeOut = 30_000)
     public void testSeekByTimestampWithLedgerTrim() throws Exception {
-        String topicName = "persistent://prop/use/ns-abc/testSeekByTimestampWithLedgerTrim";
+        String topicName = "persistent://prop/ns-abc/testSeekByTimestampWithLedgerTrim";
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, "my-sub", MessageId.earliest);
 
@@ -783,7 +783,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekTimeByFunction() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/test" + UUID.randomUUID();
         int partitionNum = 4;
         int msgNum = 20;
         admin.topics().createPartitionedTopic(topicName, partitionNum);
@@ -830,7 +830,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekTimeOnPartitionedTopic() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testSeekTimePartitions";
+        final String topicName = "persistent://prop/ns-abc/testSeekTimePartitions";
         final String resetTimeStr = "100s";
         final int partitions = 2;
         long resetTimeInMillis = TimeUnit.SECONDS
@@ -888,7 +888,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testShouldCloseAllConsumersForMultipleConsumerDispatcherWhenSeek() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testShouldCloseAllConsumersFor"
+        final String topicName = "persistent://prop/ns-abc/testShouldCloseAllConsumersFor"
                 + "MultipleConsumerDispatcherWhenSeek";
         // Disable pre-fetch in consumer to track the messages received
         @Cleanup
@@ -929,7 +929,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testOnlyCloseActiveConsumerForSingleActiveConsumerDispatcherWhenSeek() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testOnlyCloseActiveConsumer"
+        final String topicName = "persistent://prop/ns-abc/testOnlyCloseActiveConsumer"
                 + "ForSingleActiveConsumerDispatcherWhenSeek";
         // Disable pre-fetch in consumer to track the messages received
         @Cleanup
@@ -974,7 +974,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekByFunction() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/test" + UUID.randomUUID();
         int partitionNum = 4;
         int msgNum = 160;
         admin.topics().createPartitionedTopic(topicName, partitionNum);
@@ -1052,8 +1052,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testSeekByFunctionAndMultiTopic() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
-        final String topicName2 = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/test" + UUID.randomUUID();
+        final String topicName2 = "persistent://prop/ns-abc/test" + UUID.randomUUID();
         int partitionNum = 3;
         int msgNum = 15;
         admin.topics().createPartitionedTopic(topicName, partitionNum);
@@ -1166,7 +1166,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     @Test
     public void testExceptionBySeekFunction() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
+        final String topicName = "persistent://prop/ns-abc/test" + UUID.randomUUID();
         creatProducerAndSendMsg(topicName, 10);
         @Cleanup
         org.apache.pulsar.client.api.Consumer consumer = pulsarClient

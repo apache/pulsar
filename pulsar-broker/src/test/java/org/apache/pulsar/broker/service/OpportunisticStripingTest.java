@@ -62,7 +62,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();) {
 
-            final String ns1 = "prop/usc/opportunistic1";
+            final String ns1 = "prop/opportunistic1";
             admin.namespaces().createNamespace(ns1);
 
             final String topic1 = "persistent://" + ns1 + "/my-topic";

@@ -206,7 +206,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testAntiAffinityNamespaceFilteringWithDomain() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns";
+        final String namespace = "my-tenant/my-ns";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity";
         final String bundle = "/0x00000000_0xffffffff";
@@ -302,7 +302,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testAntiAffinityNamespaceFilteringWithoutDomain() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns-wo-domain";
+        final String namespace = "my-tenant/my-ns-wo-domain";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity-wo-domain";
         final String bundle = "/0x00000000_0xffffffff";
@@ -450,7 +450,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testLoadSheddingUtilWithAntiAffinityNamespace() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns-load-shedding-util";
+        final String namespace = "my-tenant/my-ns-load-shedding-util";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity-load-shedding-util";
         final String bundle = "/0x00000000_0xffffffff";
@@ -500,7 +500,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testLoadSheddingWithAntiAffinityNamespace() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns-load-shedding";
+        final String namespace = "my-tenant/my-ns-load-shedding";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity-load-shedding";
         final String bundle = "0x00000000_0xffffffff";

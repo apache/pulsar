@@ -2019,7 +2019,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testPulsarMetadataEventSyncProducerCreation() throws Exception {
-        final String topicName = "persistent://prop/usw/my-ns/syncTopic";
+        final String topicName = "persistent://prop/ns-abc/syncTopic";
         pulsar.getConfiguration().setMetadataSyncEventTopic(topicName);
         PulsarMetadataEventSynchronizer sync = new PulsarMetadataEventSynchronizer(pulsar, topicName);
         // set invalid client for retry

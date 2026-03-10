@@ -58,7 +58,7 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
 
     @Test
     public void testBrokerConnection() throws Exception {
-        var topicName = BrokerTestUtil.newUniqueName("persistent://my-namespace/use/my-ns/testBrokerConnection");
+        var topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testBrokerConnection");
 
         @Cleanup
         var producer = pulsarClient.newProducer().topic(topicName).create();
@@ -107,7 +107,7 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
 
     @Test
     public void testPublishLatency() throws Exception {
-        final var topicName = BrokerTestUtil.newUniqueName("persistent://my-namespace/use/my-ns/testPublishLatency");
+        final var topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testPublishLatency");
         @Cleanup
         final var producer = pulsarClient.newProducer().topic(topicName).create();
 

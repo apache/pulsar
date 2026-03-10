@@ -93,7 +93,7 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
 
-        final String topicName = "persistent://sample/test/local/testSimpleProduceAndConsume";
+        final String topicName = "persistent://sample/local/testSimpleProduceAndConsume";
         final String subName = "my-subscriber-name";
         final int messages = 100;
 

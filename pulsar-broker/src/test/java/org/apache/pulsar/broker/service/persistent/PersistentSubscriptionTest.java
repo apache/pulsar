@@ -76,7 +76,7 @@ public class PersistentSubscriptionTest {
     private Consumer consumerMock;
     private ManagedLedgerConfig managedLedgerConfigMock;
 
-    final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
+    final String successTopicName = "persistent://prop/ns-abc/successTopic";
     final String subName = "subscriptionName";
 
     final TxnID txnID1 = new TxnID(1, 1);
@@ -164,7 +164,7 @@ public class PersistentSubscriptionTest {
             persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair).get();
             fail("Single acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
-            assertEquals(e.getCause().getMessage(), "[persistent://prop/use/ns-abc/successTopic][subscriptionName] "
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/ns-abc/successTopic][subscriptionName] "
                     + "Transaction:(1,2) try to ack message:2:1 in pending ack status.");
         }
 
@@ -177,7 +177,7 @@ public class PersistentSubscriptionTest {
             fail("Cumulative acknowledge for transaction2 should fail. ");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof TransactionConflictException);
-            assertEquals(e.getCause().getMessage(), "[persistent://prop/use/ns-abc/successTopic]"
+            assertEquals(e.getCause().getMessage(), "[persistent://prop/ns-abc/successTopic]"
                     + "[subscriptionName] Transaction:(1,2) try to cumulative batch ack position: "
                     + "2:50 within range of current currentPosition: 1:100");
         }

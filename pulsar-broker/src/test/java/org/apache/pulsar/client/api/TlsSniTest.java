@@ -39,7 +39,7 @@ public class TlsSniTest extends TlsProducerConsumerBase {
      */
     @Test
     public void testIpAddressInBrokerServiceUrl() throws Exception {
-        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
 
         URI brokerServiceUrlTls = new URI(pulsar.getBrokerServiceUrlTls());
 

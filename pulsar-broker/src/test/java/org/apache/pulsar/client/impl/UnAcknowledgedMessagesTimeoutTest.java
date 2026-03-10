@@ -139,7 +139,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     @Test(dataProvider = "variationsRedeliveryTracker")
     public void testExclusiveCumulativeAckedNormalTopic(boolean isRedeliveryTracker) throws Exception {
         String key = "testExclusiveCumulativeAckedNormalTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;

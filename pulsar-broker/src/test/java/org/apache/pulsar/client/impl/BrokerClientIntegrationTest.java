@@ -529,7 +529,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      */
     @Test
     public void testMaxConcurrentTopicLoading() throws Exception {
-        final String topicName = "persistent://prop/usw/my-ns/cocurrentLoadingTopic";
+        final String topicName = "persistent://prop/my-ns/cocurrentLoadingTopic";
         int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
         final int concurrentLookupRequests = 20;
         @Cleanup("shutdownNow")
@@ -588,7 +588,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test
     public void testCloseConnectionOnInternalServerError() throws Exception {
 
-        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+        final String topicName = "persistent://prop/my-ns/newTopic";
 
         @Cleanup
         final PulsarClient pulsarClient = PulsarClient.builder()
@@ -665,14 +665,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         admin.clusters().createCluster("global", ClusterData.builder().build());
-        admin.namespaces().createNamespace("my-property/global/lookup");
+        admin.namespaces().createNamespace("my-property/lookup");
 
         final int operationTimeOut = 500;
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
                 .statsInterval(0, TimeUnit.SECONDS).operationTimeout(operationTimeOut, TimeUnit.MILLISECONDS).build();
         CountDownLatch latch = new CountDownLatch(1);
-        pulsarClient.newProducer().topic("persistent://my-property/global/lookup/my-topic1").createAsync()
+        pulsarClient.newProducer().topic("persistent://my-property/lookup/my-topic1").createAsync()
                 .handle((producer, e) -> {
                     latch.countDown();
                     return null;

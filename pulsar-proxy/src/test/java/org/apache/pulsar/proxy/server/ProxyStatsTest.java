@@ -132,7 +132,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testConnectionsStats() throws Exception {
-        final String topicName1 = "persistent://sample/test/local/connections-stats";
+        final String topicName1 = "persistent://sample/local/connections-stats";
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topicName1).enableBatching(false)
@@ -174,8 +174,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testTopicStats() throws Exception {
         proxyService.setProxyLogLevel(2);
-        final String topicName = "persistent://sample/test/local/topic-stats";
-        final String topicName2 = "persistent://sample/test/local/topic-stats-2";
+        final String topicName = "persistent://sample/local/topic-stats";
+        final String topicName2 = "persistent://sample/local/topic-stats-2";
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
@@ -226,8 +226,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testMemoryLeakFixed() throws Exception {
         proxyService.setProxyLogLevel(2);
-        final String topicName = "persistent://sample/test/local/topic-stats";
-        final String topicName2 = "persistent://sample/test/local/topic-stats-2";
+        final String topicName = "persistent://sample/local/topic-stats";
+        final String topicName2 = "persistent://sample/local/topic-stats-2";
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();

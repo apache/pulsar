@@ -133,7 +133,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = newClient();
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
+                .topic("persistent://sample/local/topic" + System.currentTimeMillis())
                 .create();
 
         for (int i = 0; i < 10; i++) {

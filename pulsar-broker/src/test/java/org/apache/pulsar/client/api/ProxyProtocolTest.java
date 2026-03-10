@@ -39,7 +39,7 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         // Client should try to connect to proxy and pass broker-url as SNI header
         String proxyUrl = pulsar.getBrokerServiceUrlTls();
         String brokerServiceUrl = "pulsar+ssl://unresolvable-address:6651";
-        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
@@ -62,7 +62,7 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         String brokerServiceUrl = "pulsar+ssl://1.1.1.1:6651";
         String proxyHost = "invalid-url";
         String proxyUrl = "pulsar+ssl://" + proxyHost + ":5555";
-        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
@@ -88,7 +88,7 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         // Client should try to connect to proxy and pass broker-url as SNI header
         String proxyUrl = pulsar.getBrokerServiceUrl();
         String brokerServiceUrl = "pulsar+ssl://1.1.1.1:6651";
-        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)
                 .proxyServiceUrl(proxyUrl, ProxyProtocol.SNI).operationTimeout(1000, TimeUnit.MILLISECONDS);

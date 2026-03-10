@@ -85,7 +85,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @Test
     public void testSimpleConsumerEvents() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/shared-topic1";
+        final String topicName = "persistent://prop/ns-abc/shared-topic1";
         final String subName = "sub1";
         final int numMsgs = 100;
 
@@ -186,7 +186,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @Test
     public void testReplayOnConsumerDisconnect() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/shared-topic3";
+        final String topicName = "persistent://prop/ns-abc/shared-topic3";
         final String subName = "sub3";
         final int numMsgs = 100;
 
@@ -240,7 +240,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
     // how the round robin distribution algorithm is behaving
     @Test(enabled = false)
     public void testRoundRobinBatchDistribution() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/shared-topic5";
+        final String topicName = "persistent://prop/ns-abc/shared-topic5";
         final String subName = "sub5";
         final int numMsgs = 137; /* some random number different than default batch size of 100 */
 
@@ -312,7 +312,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
     @Test(timeOut = 300000)
     public void testSharedSingleAckedNormalTopic() throws Exception {
         String key = "test1";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-shared-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 50;
@@ -383,7 +383,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
     @Test(timeOut = 60000)
     public void testCancelReadRequestOnLastDisconnect() throws Exception {
         String key = "testCancelReadRequestOnLastDisconnect";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-shared-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
@@ -459,7 +459,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @Test
     public void testUnackedCountWithRedeliveries() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testUnackedCountWithRedeliveries";
+        final String topicName = "persistent://prop/ns-abc/testUnackedCountWithRedeliveries";
         final String subName = "sub3";
         final int numMsgs = 10;
 

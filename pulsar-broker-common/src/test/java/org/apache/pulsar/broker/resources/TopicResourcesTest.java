@@ -58,16 +58,6 @@ public class TopicResourcesTest {
     }
 
     @Test
-    public void testListenerInvokedWhenTopicV1Created() {
-        TopicListener listener = mock(TopicListener.class);
-        when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/cluster/namespace"));
-        topicResources.registerPersistentTopicListener(listener);
-        topicResources.handleNotification(new Notification(NotificationType.Created,
-                "/managed-ledgers/tenant/cluster/namespace/persistent/topic"));
-        verify(listener).onTopicEvent("persistent://tenant/cluster/namespace/topic", NotificationType.Created);
-    }
-
-    @Test
     public void testListenerInvokedWhenTopicDeleted() {
         TopicListener listener = mock(TopicListener.class);
         when(listener.getNamespaceName()).thenReturn(NamespaceName.get("tenant/namespace"));

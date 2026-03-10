@@ -148,7 +148,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
 
         final int messageSize = 16 * 1024 + 1;
         log.info("-- message size -- {}", messageSize);
-        String topicName = "persistent://my-property/use/my-ns/testTlsLargeSizeMessage"
+        String topicName = "persistent://my-property/my-ns/testTlsLargeSizeMessage"
                            + System.currentTimeMillis();
 
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
@@ -184,7 +184,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
 
         final int messageSize = 16 * 1024 + 1;
         log.info("-- message size -- {}", messageSize);
-        String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverBinaryProtocol"
+        String topicName = "persistent://my-property/my-ns/testTlsClientAuthOverBinaryProtocol"
                            + System.currentTimeMillis();
 
         internalSetUpForNamespace();
@@ -216,7 +216,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
 
         final int messageSize = 16 * 1024 + 1;
         log.info("-- message size -- {}", messageSize);
-        String topicName = "persistent://my-property/use/my-ns/testTlsClientAuthOverHTTPProtocol"
+        String topicName = "persistent://my-property/my-ns/testTlsClientAuthOverHTTPProtocol"
                            + System.currentTimeMillis();
 
         internalSetUpForNamespace();

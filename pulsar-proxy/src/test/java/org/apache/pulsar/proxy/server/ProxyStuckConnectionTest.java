@@ -143,7 +143,7 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
                 // such as hash range conflicts
                 .keepAliveInterval(2, TimeUnit.SECONDS)
                 .build();
-        String topicName = BrokerTestUtil.newUniqueName("persistent://sample/test/local/test-topic");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://sample/local/test-topic");
 
         @Cleanup
         Consumer<byte[]> consumer = client.newConsumer()

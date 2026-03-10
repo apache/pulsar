@@ -120,7 +120,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
-                .topic("persistent://sample/test/local/websocket-topic")
+                .topic("persistent://sample/local/websocket-topic")
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -141,7 +141,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);
         producerWebSocketClient.start();
         MyWebSocket producerSocket = new MyWebSocket();
-        String produceUri = computeWsBasePath() + "/producer/persistent/sample/test/local/websocket-topic";
+        String produceUri = computeWsBasePath() + "/v2/producer/persistent/sample/local/websocket-topic";
         CompletableFuture<org.eclipse.jetty.websocket.api.Session>
                 producerSession = producerWebSocketClient.connect(producerSocket, URI.create(produceUri));
 
@@ -155,7 +155,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         WebSocketClient consumerWebSocketClient = new WebSocketClient(consumerClient);
         consumerWebSocketClient.start();
         MyWebSocket consumerSocket = new MyWebSocket();
-        String consumeUri = computeWsBasePath() + "/consumer/persistent/sample/test/local/websocket-topic/my-sub";
+        String consumeUri = computeWsBasePath() + "/v2/consumer/persistent/sample/local/websocket-topic/my-sub";
         CompletableFuture<org.eclipse.jetty.websocket.api.Session>
                 consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
         consumerSession.get().sendPing(ByteBuffer.wrap("ping".getBytes()), Callback.NOOP);

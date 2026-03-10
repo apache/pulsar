@@ -140,7 +140,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
+                .topic("persistent://sample/local/topic" + System.currentTimeMillis())
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -155,7 +155,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         try {
             @Cleanup
             Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                    .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
+                    .topic("persistent://sample/local/topic" + System.currentTimeMillis())
                     .create();
             Assert.fail("Should failed since broker setTlsRequireTrustedClientCertOnConnect, "
                         + "while client not set keystore");
@@ -170,7 +170,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
     public void testPartitions() throws Exception {
         @Cleanup
         PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
-        String topicName = "persistent://sample/test/local/partitioned-topic" + System.currentTimeMillis();
+        String topicName = "persistent://sample/local/partitioned-topic" + System.currentTimeMillis();
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, 2);

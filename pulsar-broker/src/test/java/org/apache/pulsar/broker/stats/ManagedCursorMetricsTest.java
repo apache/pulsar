@@ -45,7 +45,10 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarTestClient;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.Metrics;
+import com.google.common.collect.Sets;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -59,6 +62,13 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
+
+        admin.clusters().createCluster("test",
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.tenants().createTenant("my-namespace",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-namespace/my-ns");
+        admin.namespaces().setNamespaceReplicationClusters("my-namespace/my-ns", Sets.newHashSet("test"));
     }
 
     @Override
@@ -101,7 +111,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testManagedCursorMetrics() throws Exception {
         final String subName = "my-sub";
-        final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
+        final String topicName = "persistent://my-namespace/my-ns/my-topic1";
         /** Before create cursor. Verify metrics will not be generated. **/
         // Create ManagedCursorMetrics and verify empty.
         ManagedCursorMetrics metrics = new ManagedCursorMetrics(pulsar);
@@ -253,7 +263,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
          * TODO verify "brk_ml_cursor_persistZookeeperErrors".
          * This is not easy to implement, we can use {@link #mockZooKeeper} to fail ZK, but we cannot identify whether
          * the request is triggered by the "create new ledger then write ZK" or the "persistent cursor then write ZK".
-         * The cursor path is "/managed-ledgers/my-namespace/use/my-ns/persistent/my-topic1/my-sub". Maybe we can
+         * The cursor path is "/managed-ledgers/my-namespace/my-ns/persistent/my-topic1/my-sub". Maybe we can
          * mock/spy ManagedCursorImpl to overridden this case in another PR.
          */
         mockZooKeeper.unsetAlwaysFail();
@@ -279,7 +289,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
     public void testCursorReadWriteMetrics() throws Exception {
         final String subName1 = "read-write-sub-1";
         final String subName2 = "read-write-sub-2";
-        final String topicName = "persistent://my-namespace/use/my-ns/read-write";
+        final String topicName = "persistent://my-namespace/my-ns/read-write";
         final int messageSize = 10;
 
         ManagedCursorMetrics metrics = new ManagedCursorMetrics(pulsar);

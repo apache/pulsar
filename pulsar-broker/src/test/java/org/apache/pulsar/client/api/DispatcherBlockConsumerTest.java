@@ -520,7 +520,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
         int orginalDispatcherLimit = conf.getMaxUnackedMessagesPerSubscription();
         try {
-            final String topicName = "persistent://prop/use/ns-abc/blockDispatch";
+            final String topicName = "persistent://prop/ns-abc/blockDispatch";
             final String subName = "blockDispatch";
             final int timeWaitToSync = 100;
 

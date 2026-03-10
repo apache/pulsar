@@ -52,7 +52,7 @@ public class ChecksumTest extends BrokerTestBase {
 
     @Test
     public void verifyChecksumStoredInManagedLedger() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/topic0";
+        final String topicName = "persistent://prop/ns-abc/topic0";
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
@@ -79,7 +79,7 @@ public class ChecksumTest extends BrokerTestBase {
 
     @Test
     public void verifyChecksumSentToConsumer() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/topic-1";
+        final String topicName = "persistent://prop/ns-abc/topic-1";
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         RawReader reader = RawReader.create(pulsarClient, topicName, "sub").get();

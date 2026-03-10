@@ -87,7 +87,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
     public void zeroQueueSizeReceiveAsyncInCompatibility() throws PulsarClientException {
         String key = "zeroQueueSizeReceiveAsyncInCompatibility";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
@@ -98,7 +98,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     @Test(expectedExceptions = PulsarClientException.class)
     public void zeroQueueSizePartitionedTopicInCompatibility() throws PulsarClientException, PulsarAdminException {
         String key = "zeroQueueSizePartitionedTopicInCompatibility";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         int numberOfPartitions = 3;
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
@@ -110,7 +110,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         String key = "nonZeroQueueSizeNormalConsumer";
 
         // 1. Config
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
 
@@ -147,7 +147,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         String key = "zeroQueueSizeConsumerListener";
 
         // 1. Config
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
 
@@ -191,7 +191,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         String key = "zeroQueueSizeSharedSubscription";
 
         // 1. Config
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
 
@@ -232,7 +232,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         String key = "zeroQueueSizeFailoverSubscription";
 
         // 1. Config
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
 
@@ -288,12 +288,12 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     public void testFailedZeroQueueSizeBatchMessage() throws PulsarClientException {
 
         int batchMessageDelayMs = 100;
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop-xyz/use/ns-abc/topic1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop-xyz/ns-abc/topic1")
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
                 .subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-            .topic("persistent://prop-xyz/use/ns-abc/topic1")
+            .topic("persistent://prop-xyz/ns-abc/topic1")
             .messageRoutingMode(MessageRoutingMode.SinglePartition);
 
         if (batchMessageDelayMs != 0) {
@@ -592,7 +592,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         String key = "payloadProcessorReceiveBatchMessage";
 
         // 1. Config
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
 

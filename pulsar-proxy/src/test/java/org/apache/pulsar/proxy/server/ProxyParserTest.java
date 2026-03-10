@@ -110,7 +110,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
         Producer<byte[]> producer =
-                client.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic")
+                client.newProducer(Schema.BYTES).topic("persistent://sample/local/producer-topic")
                         .create();
 
         for (int i = 0; i < 10; i++) {
@@ -124,14 +124,14 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/producer-consumer-topic")
+                .topic("persistent://sample/local/producer-consumer-topic")
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         // Create a consumer directly attached to broker
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://sample/test/local/producer-consumer-topic").subscriptionName("my-sub").subscribe();
+                .topic("persistent://sample/local/producer-consumer-topic").subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -156,15 +156,15 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
                 .build();
-        admin.topics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
+        admin.topics().createPartitionedTopic("persistent://sample/local/partitioned-topic", 2);
 
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/partitioned-topic")
+                .topic("persistent://sample/local/partitioned-topic")
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/local/partitioned-topic")
                 .subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {
@@ -185,19 +185,19 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
         // create two topics by subscribing to a topic and closing it
         try (Consumer<byte[]> ignored = client.newConsumer()
-                .topic("persistent://sample/test/local/topic1")
+                .topic("persistent://sample/local/topic1")
                 .subscriptionName("ignored")
                 .subscribe()) {
         }
         try (Consumer<byte[]> ignored = client.newConsumer()
-                .topic("persistent://sample/test/local/topic2")
+                .topic("persistent://sample/local/topic2")
                 .subscriptionName("ignored")
                 .subscribe()) {
         }
         String subName = "regex-sub-proxy-parser-test-" + System.currentTimeMillis();
 
         // make sure regex subscription
-        String regexSubscriptionPattern = "persistent://sample/test/local/topic.*";
+        String regexSubscriptionPattern = "persistent://sample/local/topic.*";
         log.info("Regex subscribe to topics {}", regexSubscriptionPattern);
         try (Consumer<byte[]> consumer = client.newConsumer()
                 .topicsPattern(regexSubscriptionPattern)
@@ -208,7 +208,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
             final int numMessages = 20;
 
             try (Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                    .topic("persistent://sample/test/local/topic1")
+                    .topic("persistent://sample/local/topic1")
                     .create()) {
                 for (int i = 0; i < numMessages; i++) {
                     producer.send(("message-" + i).getBytes(UTF_8));
@@ -224,7 +224,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProtocolVersionAdvertisement() throws Exception {
-        final String topic = "persistent://sample/test/local/protocol-version-advertisement";
+        final String topic = "persistent://sample/local/protocol-version-advertisement";
         final String sub = "my-sub";
 
         ClientConfigurationData conf = new ClientConfigurationData();

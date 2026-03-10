@@ -43,7 +43,7 @@ public class PartitionKeyTest extends BrokerTestBase {
 
     @Test(timeOut = 10000)
     public void testPartitionKey() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testPartitionKey";
+        final String topicName = "persistent://prop/ns-abc/testPartitionKey";
 
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscription").subscribe();
