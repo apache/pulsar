@@ -1967,8 +1967,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.topics().createPartitionedTopic(tp, 4);
         admin2.topics().createNonPartitionedTopic(tp);
 
-        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)), false);
-        admin2.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)), false);
+        admin1.namespaces().setNamespaceReplicationClusters(ns,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), false);
+        admin2.namespaces().setNamespaceReplicationClusters(ns,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), false);
 
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
@@ -2037,8 +2039,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin1.topics().createPartitionedTopic(tp, 4);
         admin2.topics().createPartitionedTopic(tp, 8);
 
-        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)), false);
-        admin2.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1, cluster2)), false);
+        admin1.namespaces().setNamespaceReplicationClusters(ns,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), false);
+        admin2.namespaces().setNamespaceReplicationClusters(ns,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), false);
 
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic persistentTopic =
