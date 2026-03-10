@@ -133,15 +133,37 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
         CompletableFuture<Void> promise = closeFuture.get();
         executor.execute(() -> {
             try {
+                IOException first = null;
                 for (OffloadIndexBlockV2 indexBlock : indices) {
-                    indexBlock.close();
+                    try {
+                        indexBlock.close();
+                    } catch (IOException e) {
+                        if (first == null) {
+                            first = e;
+                        } else {
+                            first.addSuppressed(e);
+                        }
+                    }
                 }
                 for (DataInputStream dataStream : dataStreams) {
-                    dataStream.close();
+                    try {
+                        dataStream.close();
+                    } catch (IOException e) {
+                        if (first == null) {
+                            first = e;
+                        } else {
+                            first.addSuppressed(e);
+                        }
+                    }
                 }
                 state = State.Closed;
-                promise.complete(null);
-            } catch (IOException t) {
+                if (first != null) {
+                    promise.completeExceptionally(first);
+                } else {
+                    promise.complete(null);
+                }
+            } catch (Throwable t) {
+                state = State.Closed;
                 promise.completeExceptionally(t);
             }
         });
