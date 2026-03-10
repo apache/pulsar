@@ -328,17 +328,17 @@ public class CmdNamespaces extends CmdBase {
                 "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
         private String clusterIds;
 
-        @Option(names = { "--compareTopicPartitions", "-ctp" }, defaultValue = "true",
-                description = "Whether check topic partitions compatibility before enabling replication)")
-        private String compareTopicPartitions;
+        @Option(names = { "--skipCompareTopicPartitions" }, defaultValue = "false",
+                description = "Whether skip to check topic partitions compatibility before enabling replication)")
+        private Boolean skipCompareTopicPartitions;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
             boolean compareTopicPartitions = true;
-            if (!StringUtils.isEmpty(this.compareTopicPartitions)) {
-                compareTopicPartitions = !"false".equalsIgnoreCase(StringUtils.trim(this.compareTopicPartitions));
+            if (this.skipCompareTopicPartitions != null) {
+                compareTopicPartitions = !this.skipCompareTopicPartitions;
             }
             getAdmin().namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusters),
                     compareTopicPartitions);
