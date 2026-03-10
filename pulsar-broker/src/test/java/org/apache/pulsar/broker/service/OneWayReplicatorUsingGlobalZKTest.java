@@ -454,7 +454,8 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         p1.send("msg-1");
         p1.close();
 
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
+        admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(admin2.topics().getList(ns1).contains(topic1));
         });
