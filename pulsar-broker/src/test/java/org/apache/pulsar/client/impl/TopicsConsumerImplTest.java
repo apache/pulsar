@@ -1091,8 +1091,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName = "persistent://" + namespace + "/expiry";
         final String subName = "expiredSub";
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-
         admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("test")));
         admin.namespaces().createNamespace(namespace);
 
@@ -1260,7 +1258,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         topics.add("persistent://prop/ns-abc/topic-1");
         topics.add("persistent://prop/ns-abc/topic-2");
         topics.add("persistent://prop/ns-abc1/topic-3");
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
         admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
         admin.namespaces().createNamespace("prop/ns-abc1");
