@@ -684,7 +684,7 @@ public class ResendRequestTest extends BrokerTestBase {
             log.info("Producer produced " + message);
         }
 
-        // 4. Receive messages
+        // 4. Receive messages - determine which consumer is active (depends on topic name hash)
         int receivedConsumer1 = 0, receivedConsumer2 = 0;
         Message<byte[]> message1;
         Message<byte[]> message2;
@@ -706,18 +706,28 @@ public class ResendRequestTest extends BrokerTestBase {
         log.info("Consumer 2 receives = " + receivedConsumer2);
         log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
-        // Consumer 2 is on Stand By
-        assertEquals(receivedConsumer1, 0);
+        // One consumer is active, the other is on standby
+        Consumer<byte[]> activeConsumer;
+        Consumer<byte[]> standbyConsumer;
+        if (receivedConsumer1 == totalMessages) {
+            activeConsumer = consumer1;
+            standbyConsumer = consumer2;
+            assertEquals(receivedConsumer2, 0);
+        } else {
+            activeConsumer = consumer2;
+            standbyConsumer = consumer1;
+            assertEquals(receivedConsumer1, 0);
+        }
 
-        // 5. Consumer 2 asks for a redelivery but the request is ignored
-        log.info("Consumer 2 asks for resend");
-        consumer2.redeliverUnacknowledgedMessages();
+        // 5. Active consumer asks for a redelivery and gets the messages redelivered
+        log.info("Active consumer asks for resend");
+        activeConsumer.redeliverUnacknowledgedMessages();
         Thread.sleep(1000);
 
-        message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
-        message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-        assertNull(message1);
-        assertNotNull(message2);
+        Message<byte[]> standbyMsg = standbyConsumer.receive(500, TimeUnit.MILLISECONDS);
+        Message<byte[]> activeMsg = activeConsumer.receive(500, TimeUnit.MILLISECONDS);
+        assertNull(standbyMsg);
+        assertNotNull(activeMsg);
     }
 
     @SuppressWarnings("unchecked")
