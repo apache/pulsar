@@ -562,7 +562,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
                     this.testGlobalNamespaces.get(0).getTenant(),
                     this.testGlobalNamespaces.get(0).getLocalName(),
-                    List.of("use", "global")));
+                    List.of("use")));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, global should not be allowed in the list of replication clusters
