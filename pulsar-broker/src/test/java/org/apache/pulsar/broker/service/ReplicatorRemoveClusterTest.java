@@ -49,7 +49,6 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
         methodName = m.getName();
         admin1.namespaces().removeBacklogQuota("pulsar/ns");
         admin1.namespaces().removeBacklogQuota("pulsar/ns1");
-        admin1.namespaces().removeBacklogQuota("pulsar/global/ns");
     }
 
     @Override

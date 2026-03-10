@@ -136,7 +136,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         if (admin1 != null) {
             admin1.namespaces().removeBacklogQuota("pulsar/ns");
             admin1.namespaces().removeBacklogQuota("pulsar/ns1");
-            admin1.namespaces().removeBacklogQuota("pulsar/global/ns");
         }
     }
 
@@ -258,7 +257,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     @DataProvider(name = "namespace")
     public Object[][] namespaceNameProvider() {
-        return new Object[][] { { "pulsar/ns" }, { "pulsar/global/ns" } };
+        return new Object[][] { { "pulsar/ns" } };
     }
 
     @Test(dataProvider = "namespace")
@@ -1250,7 +1249,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::testReplicatedCluster ---");
 
-        final String namespace = BrokerTestUtil.newUniqueName("pulsar/global/repl");
+        final String namespace = BrokerTestUtil.newUniqueName("pulsar/repl");
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/topic1");
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
@@ -1617,7 +1616,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void testLookupAnotherCluster() throws Exception {
         log.info("--- Starting ReplicatorTest::testLookupAnotherCluster ---");
 
-        String namespace = "pulsar/r2/cross-cluster-ns";
+        String namespace = "pulsar/cross-cluster-ns";
         admin1.namespaces().createNamespace(namespace);
         final TopicName topicName = TopicName
                 .get("persistent://" + namespace + "/topic");
@@ -1654,7 +1653,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::testReplication ---");
 
-        String namespace = BrokerTestUtil.newUniqueName("pulsar/global/ns");
+        String namespace = BrokerTestUtil.newUniqueName("pulsar/ns");
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1"));
         final TopicName dest = TopicName
                 .get(BrokerTestUtil.newUniqueName("persistent://" + namespace + "/ackFailedTopic"));

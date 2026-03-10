@@ -437,7 +437,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     @Test
     public void testExpireIncompleteChunkMessage() throws Exception{
-        final String topicName = "persistent://prop/use/ns-abc/expireMsg";
+        final String topicName = "persistent://my-property/my-ns/expireMsg";
 
         // 1. producer connect
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()

@@ -576,7 +576,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         ReplicationClusterManager replication = new ReplicationClusterManager();
         replication.setupReplicationCluster();
         try {
-            final String globalTopicName = "non-persistent://pulsar/global/ns/nonPersistentTopic";
+            final String globalTopicName = "non-persistent://pulsar/ns/nonPersistentTopic";
             final int timeWaitToSync = 100;
 
             NonPersistentTopicStats stats;
@@ -1090,11 +1090,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                     .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
                     .build());
 
-            admin1.clusters().createCluster("global", ClusterData.builder().serviceUrl("http://global:8080").build());
             admin1.tenants().createTenant("pulsar", new TenantInfoImpl(
                     Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
-            admin1.namespaces().createNamespace("pulsar/global/ns");
-            admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",
+            admin1.namespaces().createNamespace("pulsar/ns");
+            admin1.namespaces().setNamespaceReplicationClusters("pulsar/ns",
                     Sets.newHashSet("r1", "r2", "r3"));
 
             assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());

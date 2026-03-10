@@ -69,11 +69,6 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "isV1")
-    public Object[][] isV1() {
-        return new Object[][] { { true }, { false } };
-    }
-
     @Test
     public void testSetThenRemoveMessageTTL() throws Exception {
         admin.topics().setMessageTTL(testTopic, 100);
@@ -176,9 +171,9 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
                 (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
     }
 
-    @Test(dataProvider = "isV1")
-    public void testNamespaceTTL(boolean isV1) throws Exception {
-        String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1" + isV1;
+    @Test
+    public void testNamespaceTTL() throws Exception {
+        String myNamespace = testTenant + "/" + "n1";
         admin.namespaces().createNamespace(myNamespace, Set.of(testCluster));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);

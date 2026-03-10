@@ -311,15 +311,6 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrlTls(), pulsar3.getBrokerServiceUrlTls());
         assertEquals(admin2.clusters().getCluster(cluster4).getBrokerServiceUrlTls(), pulsar4.getBrokerServiceUrlTls());
 
-        // Also create V1 namespace for compatibility check
-        admin1.clusters().createCluster("global", ClusterData.builder()
-                .serviceUrl("http://global:8080")
-                .serviceUrlTls("https://global:8443")
-                .build());
-        admin1.namespaces().createNamespace("pulsar/global/ns");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",
-                Sets.newHashSet(cluster1, cluster2, cluster3));
-
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");
 
