@@ -1052,14 +1052,12 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     @Test(timeOut = 10000)
     public void testPartitionedMetadataWithDeprecatedVersion() throws Exception {
 
-        final String cluster = "use2";
+        final String cluster = "test";
         final String tenant = "my-property2";
         final String namespace = "my-ns";
         final String topicName = "my-partitioned";
         final int totalPartitions = 10;
         final TopicName dest = TopicName.get("persistent", tenant, namespace, topicName);
-        admin.clusters().createCluster(cluster,
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(tenant + "/" + namespace);
