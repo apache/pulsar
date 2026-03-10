@@ -270,7 +270,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         String namespace = DEFAULT_TENANT + "/test-delete-namespace";
         String topicName = "persistent://" + namespace + "/test-delete-namespace-topic";
         admin.namespaces().createNamespace(namespace);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusterName));
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusterName), false);
         assertTrue(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
         admin.topics().createPartitionedTopic(topicName, 2);
         String broker = admin.lookups().lookupTopic(topicName);

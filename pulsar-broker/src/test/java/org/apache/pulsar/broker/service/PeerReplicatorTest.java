@@ -96,8 +96,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
         // add replication cluster
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"), false);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r2"), false);
         admin1.clusters().updatePeerClusterNames("r3", null);
         // disable tls as redirection url is prepared according tls configuration
         pulsar1.getConfiguration().setTlsEnabled(false);
@@ -199,7 +199,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         final String namespace1 = BrokerTestUtil.newUniqueName("pulsar/global/peer-change-repl-ns");
         admin1.namespaces().createNamespace(namespace1);
         // add replication cluster
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"), false);
         admin1.clusters().updatePeerClusterNames("r3", null);
         // disable tls as redirection url is prepared according tls configuration
         pulsar1.getConfiguration().setTlsEnabled(false);
@@ -227,7 +227,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         producer.close();
 
         // change the repl cluster to peer-cluster r3 from r1
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r3"), false);
         NamespaceBundles bundles = pulsar1.getNamespaceService().getNamespaceBundleFactory()
                 .getBundles(NamespaceName.get(namespace1));
         NamespaceBundle bundle = bundles.getBundles().get(0);

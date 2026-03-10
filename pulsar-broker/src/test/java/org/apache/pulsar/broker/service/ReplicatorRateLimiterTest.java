@@ -92,7 +92,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         admin1.namespaces().createNamespace(namespace);
         // set 2 clusters, there will be 1 replicator in each topic
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
             .statsInterval(0, TimeUnit.SECONDS).build();
@@ -140,7 +140,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         admin1.namespaces().createNamespace(namespace);
         // set 2 clusters, there will be 1 replicator in each topic
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
             .statsInterval(0, TimeUnit.SECONDS).build();
@@ -187,7 +187,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         admin1.namespaces().createNamespace(namespace);
         // set 2 clusters, there will be 1 replicator in each topic
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
             .statsInterval(0, TimeUnit.SECONDS).build();
@@ -229,7 +229,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         admin1.namespaces().createNamespace(namespace);
         // set 2 clusters, there will be 1 replicator in each topic
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
                 .statsInterval(0, TimeUnit.SECONDS).build();
@@ -323,7 +323,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         admin1.namespaces().createNamespace(namespace);
         // 0. set 2 clusters, there will be 1 replicator in each topic
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
@@ -389,7 +389,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         admin1.namespaces().createNamespace(namespace);
         // 0. set 2 clusters, there will be 1 replicator in each topic
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         final int messageRate = 100;
         DispatchRate dispatchRate;
@@ -475,7 +475,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         admin1.namespaces().createNamespace(namespace);
         // 0. set 2 clusters, there will be 1 replicator in each topic
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         final int messageRate = 100;
         DispatchRate dispatchRate = DispatchRate.builder()
@@ -548,7 +548,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
         admin1.namespaces().createNamespace(namespace);
         // 0. set 2 clusters, there will be 1 replicator in each topic
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         final int byteRate = 400;
         final int payloadSize = 100;

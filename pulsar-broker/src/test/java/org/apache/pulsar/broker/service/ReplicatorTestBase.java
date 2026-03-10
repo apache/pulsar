@@ -318,7 +318,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .build());
         admin1.namespaces().createNamespace("pulsar/global/ns");
         admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",
-                Sets.newHashSet(cluster1, cluster2, cluster3));
+                Sets.newHashSet(cluster1, cluster2, cluster3), false);
 
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");

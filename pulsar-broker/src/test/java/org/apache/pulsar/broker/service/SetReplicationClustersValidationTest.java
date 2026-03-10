@@ -57,8 +57,8 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
      * Helper method to clean up a namespace properly.
      */
     private void clearReplicationPolicies(String namespace) throws PulsarAdminException {
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1));
-        admin2.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1), true);
+        admin2.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster2), true);
     }
 
     @Test
@@ -67,7 +67,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         admin1.namespaces().createNamespace(namespace);
         admin2.namespaces().createNamespace(namespace);
         // Set replication clusters should succeed when no topics exist
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
         Set<String> clusters = new HashSet<>(admin1.namespaces().getNamespaceReplicationClusters(namespace));
         assertEquals(clusters, Sets.newHashSet(cluster1, cluster2));
         // cleanup
@@ -84,7 +84,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         admin1.topics().createPartitionedTopic(topic, 4);
         admin2.topics().createPartitionedTopic(topic, 4);
         // Set replication clusters should succeed
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
         Set<String> clusters = new HashSet<>(admin1.namespaces().getNamespaceReplicationClusters(namespace));
         assertEquals(clusters, Sets.newHashSet(cluster1, cluster2));
         // cleanup
@@ -104,7 +104,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         admin2.topics().createPartitionedTopic(topic, 8);
         // Set replication clusters should fail due to partition mismatch
         try {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
             fail("Should have failed due to partition count mismatch");
         } catch (PulsarAdminException.ConflictException e) {
             assertTrue(e.getMessage().contains("Partition count mismatch"));
@@ -126,7 +126,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         // Create partitioned topic only on local cluster
         admin1.topics().createPartitionedTopic(topic, 4);
         // Set replication clusters should succeed (topic doesn't exist on remote)
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
         Set<String> clusters = new HashSet<>(admin1.namespaces().getNamespaceReplicationClusters(namespace));
         assertEquals(clusters, Sets.newHashSet(cluster1, cluster2));
         // cleanup
@@ -146,7 +146,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         admin2.topics().createPartitionedTopic(topic, 4);
         // Set replication clusters should fail due to topic type mismatch
         try {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
             fail("Should have failed due to topic type mismatch");
         } catch (PulsarAdminException.ConflictException e) {
             assertTrue(e.getMessage().contains("Topic type mismatch"));
@@ -173,7 +173,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         admin1.namespaces().setAutoTopicCreation(namespace, policy);
         admin2.namespaces().setAutoTopicCreation(namespace, policy);
         // Set replication clusters should succeed
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
         Set<String> clusters = new HashSet<>(admin1.namespaces().getNamespaceReplicationClusters(namespace));
         assertEquals(clusters, Sets.newHashSet(cluster1, cluster2));
         // cleanup
@@ -199,7 +199,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         admin2.namespaces().setAutoTopicCreation(namespace, policy2);
         // Set replication clusters should fail due to policy mismatch
         try {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
             fail("Should have failed due to auto-topic creation policy mismatch");
         } catch (PulsarAdminException.ConflictException e) {
             assertTrue(e.getMessage().contains("auto-topic creation policy mismatch"));
@@ -228,7 +228,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
 
         // Set replication clusters should fail due to partition count mismatch
         try {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
             fail("Should have failed due to defaultNumPartitions mismatch");
         } catch (PulsarAdminException.ConflictException e) {
             assertTrue(e.getMessage().contains("auto-topic creation policy mismatch"));
@@ -259,7 +259,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         admin1.topics().createPartitionedTopic(topic, 1);
         admin2.topics().createPartitionedTopic(topic, 4);
         // This should succeed because validation is skipped when local cluster is not in the set
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster2), true);
         Set<String> clusters = new HashSet<>(admin1.namespaces().getNamespaceReplicationClusters(namespace));
         assertEquals(clusters, Sets.newHashSet(cluster2));
         // cleanup
@@ -272,7 +272,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
 
         // local namespace does not exist.
         try {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
         } catch (Exception ex) {
             assertTrue(ex.getMessage().contains("does not exist"));
         }
@@ -280,14 +280,14 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
         // remote namespace does not exist.
         admin1.namespaces().createNamespace(namespace);
         try {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
         } catch (Exception ex) {
             assertTrue(ex.getMessage().contains("Please ensure the namespace exists on the remote side"));
         }
 
         // Both exist.
         admin2.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
     }
 
 }

@@ -619,12 +619,12 @@ public class V1AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // (1) no conflicting peer
         Set<String> clusterIds = Set.of("us-east1", "us-east2");
-        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds, false);
 
         // (2) conflicting peer
         clusterIds = Set.of("us-west2", "us-west3", "us-west1");
         try {
-            admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+            admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds, false);
             fail("Peer-cluster can't coexist in replication cluster list");
         } catch (PulsarAdminException.ConflictException e) {
             // Ok
@@ -632,11 +632,11 @@ public class V1AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         clusterIds = Set.of("us-west2", "us-west3");
         // no peer coexist in replication clusters
-        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds, false);
 
         clusterIds = Set.of("us-west1", "us-west4");
         // no peer coexist in replication clusters
-        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds, false);
     }
 
     @Test

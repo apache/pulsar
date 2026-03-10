@@ -1159,12 +1159,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // (1) no conflicting peer
         Set<String> clusterIds = Set.of("us-east1", "us-east2");
-        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds, false);
 
         // (2) conflicting peer
         clusterIds = Set.of("us-west2", "us-west3", "us-west1");
         try {
-            admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+            admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds, false);
             fail("Peer-cluster can't coexist in replication cluster list");
         } catch (PulsarAdminException.ConflictException e) {
             // Ok
@@ -1172,11 +1172,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         clusterIds = Set.of("us-west2", "us-west3");
         // no peer coexist in replication clusters
-        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds, false);
 
         clusterIds = Set.of("us-west1", "us-west4");
         // no peer coexist in replication clusters
-        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds, false);
     }
 
     @Test
@@ -1249,7 +1249,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String namespace = newUniqueName(defaultTenant + "/ns2");
         final String topicName = "non-persistent://" + namespace + "/bundle-topic";
         admin.namespaces().createNamespace(namespace, 20);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of("test"), false);
         int totalTopics = 100;
 
         Set<String> topicNames = new HashSet<>();
@@ -1446,7 +1446,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String namespace = newUniqueName(defaultTenant + "/ns2");
         final String topicName = "non-persistent://" + namespace + "/topic";
         admin.namespaces().createNamespace(namespace, 20);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of("test"), false);
         int totalTopics = 100;
 
         Set<String> topicNames = new HashSet<>();
@@ -1720,7 +1720,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(defaultTenant + "/ns2");
         // By default the cluster will configure as configuration file. So the create topic operation
         // will never throw exception except there is no cluster.
-        admin.namespaces().setNamespaceReplicationClusters(defaultTenant + "/ns2", Sets.newHashSet(configClusterName));
+        admin.namespaces().setNamespaceReplicationClusters(defaultTenant + "/ns2",
+                Sets.newHashSet(configClusterName), false);
 
         admin.topics().createPartitionedTopic(persistentPartitionedTopicName, partitions);
         admin.topics().createPartitionedTopic(nonPersistentPartitionedTopicName, partitions);
@@ -2347,7 +2348,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         String tenantName = newUniqueName("prop-xyz2");
         admin.tenants().createTenant(tenantName, tenantInfo);
         admin.namespaces().createNamespace(tenantName + "/ns1", 10);
-        admin.namespaces().setNamespaceReplicationClusters(tenantName + "/ns1", Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters(tenantName + "/ns1", Set.of("test"), false);
         admin.namespaces().createNamespace(tenantName + "/test/ns2", 10);
         assertEquals(admin.namespaces().getBundles(tenantName + "/ns1").getNumBundles(), 10);
         assertEquals(admin.namespaces().getBundles(tenantName + "/test/ns2").getNumBundles(), 10);

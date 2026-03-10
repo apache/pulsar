@@ -826,7 +826,8 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("checkstyle:WhitespaceAfter")
-    protected CompletableFuture<Void> internalSetNamespaceReplicationClusters(List<String> clusterIds) {
+    protected CompletableFuture<Void> internalSetNamespaceReplicationClusters(List<String> clusterIds,
+                                                                              boolean compareTopicPartitions) {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenApply(__ -> {
@@ -869,13 +870,16 @@ public abstract class NamespacesBase extends AdminResource {
                                     }).collect(Collectors.toList());
                             return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);
                         }))
-                .thenCompose(replicationClusterSet ->
-                    getNamespacePoliciesAsync(namespaceName)
+                .thenCompose(replicationClusterSet -> {
+                    if (!compareTopicPartitions) {
+                        return CompletableFuture.completedFuture(replicationClusterSet);
+                    }
+                    return getNamespacePoliciesAsync(namespaceName)
                         .thenCompose(policies ->
                             validateReplicationClusterCompatibility(replicationClusterSet,
                             policies.replication_clusters))
-                        .thenApply(__ -> replicationClusterSet))
-                .thenCompose(replicationClusterSet -> updatePoliciesAsync(namespaceName, policies -> {
+                        .thenApply(__ -> replicationClusterSet);
+                }).thenCompose(replicationClusterSet -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.replication_clusters = replicationClusterSet;
                     return policies;
                 }));
@@ -952,9 +956,24 @@ public abstract class NamespacesBase extends AdminResource {
                             + remoteCluster + ": " + e.getMessage());
                     }
 
-                    // Validate both partition compatibility and auto-creation policy compatibility
-                    return validatePartitionCompatibility(remoteAdmin, remoteCluster)
-                            .thenCompose(__ -> validateAutoTopicCreationCompatibility(remoteAdmin, remoteCluster));
+                    // If the local cluster and the target cluster are sharing ZK, the target cluster cannot create any
+                    // topic before enabling replication, so verification can be skipped.
+                    return remoteAdmin.namespaces().getNamespaceReplicationClustersAsync(namespaceName.toString())
+                        .thenCompose(clusters -> {
+                            if (!clusters.contains(remoteCluster)) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            return remoteAdmin.namespaces().getNamespaceAllowedClustersAsync(namespaceName.toString())
+                                .thenCompose(allowedClusters -> {
+                                    if (!allowedClusters.contains(remoteCluster)) {
+                                        return CompletableFuture.completedFuture(null);
+                                    }
+                                    // Validate both partition compatibility and auto-creation policy compatibility
+                                    return validatePartitionCompatibility(remoteAdmin, remoteCluster)
+                                        .thenCompose(__ -> validateAutoTopicCreationCompatibility(remoteAdmin,
+                                                remoteCluster));
+                            });
+                    });
                 });
     }
 

@@ -959,7 +959,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         String namespaceName = "prop/expiry-check";
 
         admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"), false);
         admin.namespaces().setNamespaceMessageTTL(namespaceName, messageTTLSecs);
 
         final String topicName = "persistent://prop/expiry-check/topic1";
@@ -1012,7 +1012,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         setup();
 
         admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"), false);
         admin.namespaces().setNamespaceMessageTTL(namespaceName, namespaceMessageTTLSecs);
 
         final String topicName = "persistent://prop/expiry-check-2/topic2";
@@ -1102,7 +1102,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         String namespaceName = "prop/expiry-check-1";
 
         admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"), false);
         admin.namespaces().setNamespaceMessageTTL(namespaceName, messageTTLSecs);
 
         final String topicName = "persistent://prop/expiry-check-1/topic1";

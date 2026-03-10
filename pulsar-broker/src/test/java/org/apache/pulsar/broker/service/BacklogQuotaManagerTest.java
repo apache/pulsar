@@ -202,11 +202,11 @@ public class BacklogQuotaManagerTest {
     void createNamespaces() throws PulsarAdminException {
         config.setPreciseTimeBasedBacklogQuotaCheck(false);
         admin.namespaces().createNamespace("prop/ns-quota");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-quota", Sets.newHashSet("usc"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-quota", Sets.newHashSet("usc"), false);
         admin.namespaces().createNamespace("prop/quotahold");
-        admin.namespaces().setNamespaceReplicationClusters("prop/quotahold", Sets.newHashSet("usc"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/quotahold", Sets.newHashSet("usc"), false);
         admin.namespaces().createNamespace("prop/quotaholdasync");
-        admin.namespaces().setNamespaceReplicationClusters("prop/quotaholdasync", Sets.newHashSet("usc"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/quotaholdasync", Sets.newHashSet("usc"), false);
     }
 
     @AfterMethod(alwaysRun = true)

@@ -195,7 +195,7 @@ public class CmdNamespaces extends CmdBase {
                 }
 
                 if (clusters != null && !clusters.isEmpty()) {
-                    getAdmin().namespaces().setNamespaceReplicationClusters(namespace, new HashSet<>(clusters));
+                    getAdmin().namespaces().setNamespaceReplicationClusters(namespace, new HashSet<>(clusters), false);
                 }
             }
         }
@@ -328,11 +328,16 @@ public class CmdNamespaces extends CmdBase {
                 "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
         private String clusterIds;
 
+        @Option(names = { "--compareTopicPartitions",
+                "-ctp" }, description = "Whether check topic partitions compatibility before enabling replication)")
+        private boolean compareTopicPartitions = true;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
-            getAdmin().namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusters));
+            getAdmin().namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusters),
+                    compareTopicPartitions);
         }
     }
 

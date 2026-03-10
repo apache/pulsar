@@ -818,7 +818,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns2", Set.of("test"));
 
         admin.namespaces().createNamespace("prop-xyz/ns3", 4);
-        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns3", Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns3", Set.of("test"), false);
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns3").bundles.getNumBundles(), 4);
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns3").bundles.getBoundaries().size(), 5);
 
@@ -1481,7 +1481,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void testDeleteNamespaceBundle(Integer numBundles) throws Exception {
         deleteNamespaceWithRetry("prop-xyz/ns1", false);
         admin.namespaces().createNamespace("prop-xyz/ns1-bundles", numBundles);
-        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"), false);
 
         // since we have 2 brokers running, we try to let both of them acquire bundle ownership
         admin.lookups().lookupTopic("persistent://prop-xyz/ns1-bundles/ds1");
@@ -2109,7 +2109,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "numBundles")
     public void testNamespaceBundleUnload(Integer numBundles) throws Exception {
         admin.namespaces().createNamespace("prop-xyz/ns1-bundles", numBundles);
-        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"), false);
 
         assertEquals(admin.topics().getList("prop-xyz/ns1-bundles"), new ArrayList<>());
 
@@ -2210,7 +2210,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "bundling")
     public void testClearBacklogOnNamespace(Integer numBundles) throws Exception {
         admin.namespaces().createNamespace("prop-xyz/ns1-bundles", numBundles);
-        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"), false);
 
         // create consumer and subscription
         @Cleanup
@@ -2288,7 +2288,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "bundling")
     public void testUnsubscribeOnNamespace(Integer numBundles) throws Exception {
         admin.namespaces().createNamespace("prop-xyz/ns1-bundles", numBundles);
-        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"), false);
 
         // create consumer and subscription
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic("persistent://prop-xyz/ns1-bundles/ds2")

@@ -730,7 +730,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
 
         admin.clusters().createCluster("global", ClusterData.builder().serviceUrl("http://global:8080").build());
         admin.namespaces().createNamespace(namespace);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"), false);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
 
         // create producer and topic
