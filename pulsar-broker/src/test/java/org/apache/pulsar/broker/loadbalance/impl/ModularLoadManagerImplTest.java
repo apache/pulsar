@@ -292,7 +292,7 @@ public class ModularLoadManagerImplTest {
     }
 
     private String mockBundleName(final int i) {
-        return String.format("%d/%d/%d/0x00000000_0xffffffff", i, i, i);
+        return String.format("%d/%d/0x00000000_0xffffffff", i, i);
     }
 
     // Test disabled since it's depending on CPU usage in the machine
@@ -370,7 +370,7 @@ public class ModularLoadManagerImplTest {
 
         final String tenant = "test";
         final String cluster = "test";
-        String namespace = tenant + "/" + cluster + "/" + "test";
+        String namespace = tenant + "/" + "test";
         String topic = "persistent://" + namespace + "/my-topic1";
         admin1.clusters().createCluster(cluster, ClusterData.builder()
                 .serviceUrl(pulsar1.getWebServiceAddress()).build());
@@ -829,7 +829,7 @@ public class ModularLoadManagerImplTest {
 
         // (2) now we will have isolation policy : primary=broker1, secondary=broker2, minLimit=2
 
-        newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Host,
+        newPolicyJson = String.format(newPolicyJsonTemplate, tenant, namespace, broker1Host,
                 broker2Host, 2);
         nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(), NamespaceIsolationDataImpl.class);
         admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);
@@ -865,7 +865,7 @@ public class ModularLoadManagerImplTest {
 
         final String cluster = "use";
         final String tenant = "my-tenant";
-        final String namespace = "my-tenant/use/my-ns";
+        final String namespace = "my-tenant/my-ns";
         final String bundle = "0x00000000_0xffffffff";
         final String brokerHost = pulsar1.getAdvertisedAddress();
         final String brokerAddress = brokerHost  + ":8080";
