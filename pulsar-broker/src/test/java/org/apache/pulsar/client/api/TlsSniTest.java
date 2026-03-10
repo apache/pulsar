@@ -25,11 +25,13 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 public class TlsSniTest extends TlsProducerConsumerBase {
 
+    @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.setup();
