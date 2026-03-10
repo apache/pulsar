@@ -62,7 +62,7 @@ public class MessageIdTest extends BrokerTestBase {
     public void producerSendAsync(TopicType topicType) throws PulsarClientException, PulsarAdminException {
         // Given
         String key = "producerSendAsync-" + topicType;
-        final String topicName = "persistent://prop/namespace/topic-" + key;
+        final String topicName = "persistent://my-property/my-ns/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePrefix = "my-message-" + key + "-";
         final int numberOfMessages = 30;
@@ -129,7 +129,7 @@ public class MessageIdTest extends BrokerTestBase {
     public void producerSend(TopicType topicType) throws PulsarClientException, PulsarAdminException {
         // Given
         String key = "producerSend-" + topicType;
-        final String topicName = "persistent://prop/namespace/topic-" + key;
+        final String topicName = "persistent://my-property/my-ns/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePrefix = "my-message-" + key + "-";
         final int numberOfMessages = 30;
