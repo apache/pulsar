@@ -271,10 +271,10 @@ public class WebServiceTest {
     public void testRateLimiting() throws Exception {
         setupEnv(false, false, false, false, 10.0, false);
 
-        // setupEnv makes a HTTP call to create the cluster.
+        // setupEnv makes HTTP calls to create the cluster, tenant, and namespace.
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, 1);
+                Result.ACCEPTED.attributes, 3);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
                 .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
@@ -288,7 +288,7 @@ public class WebServiceTest {
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, 6);
+                Result.ACCEPTED.attributes, 8);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
                 .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
@@ -306,7 +306,7 @@ public class WebServiceTest {
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(6));
+                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(8));
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.REJECTED.attributes, value -> assertThat(value).isPositive());
     }

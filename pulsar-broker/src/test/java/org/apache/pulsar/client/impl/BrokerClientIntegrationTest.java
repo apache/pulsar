@@ -94,7 +94,6 @@ import org.apache.pulsar.client.impl.schema.reader.JacksonJsonReader;
 import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -529,7 +528,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      */
     @Test
     public void testMaxConcurrentTopicLoading() throws Exception {
-        final String topicName = "persistent://prop/my-ns/cocurrentLoadingTopic";
+        final String topicName = "persistent://my-property/my-ns/cocurrentLoadingTopic";
         int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
         final int concurrentLookupRequests = 20;
         @Cleanup("shutdownNow")
@@ -588,7 +587,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test
     public void testCloseConnectionOnInternalServerError() throws Exception {
 
-        final String topicName = "persistent://prop/my-ns/newTopic";
+        final String topicName = "persistent://my-property/my-ns/newTopic";
 
         @Cleanup
         final PulsarClient pulsarClient = PulsarClient.builder()
@@ -663,9 +662,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test
     public void testCleanProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
-        admin.clusters().createCluster("global", ClusterData.builder().build());
-        admin.namespaces().createNamespace("my-property/lookup");
 
         final int operationTimeOut = 500;
         @Cleanup

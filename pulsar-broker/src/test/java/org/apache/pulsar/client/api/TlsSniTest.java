@@ -30,6 +30,12 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class TlsSniTest extends TlsProducerConsumerBase {
 
+    @Override
+    protected void setup() throws Exception {
+        super.setup();
+        internalSetUpForNamespace();
+    }
+
     /**
      * Verify that using an IP-address in the broker service URL will work with using the SNI capabilities
      * of the client. If we try to create an {@link javax.net.ssl.SSLEngine} with a peer host that is an

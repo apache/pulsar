@@ -536,7 +536,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         Set<String> repCluster = (Set<String>) asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
                 this.testGlobalNamespaces.get(0).getTenant(),
                 this.testGlobalNamespaces.get(0).getLocalName()));
-        assertEquals(repCluster, new HashSet<>());
+        assertEquals(repCluster, Set.of("use"));
 
         asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
                 this.testGlobalNamespaces.get(0).getTenant(),
@@ -687,6 +687,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         URI uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testLocalNamespaces.get(2).toString());
         doReturn(uri).when(uriInfo).getRequestUri();
+
+        // Set the replication cluster to "usc" so that the delete redirects to that cluster
+        admin.namespaces().setNamespaceReplicationClusters(
+                this.testLocalNamespaces.get(2).toString(), Set.of("usc"));
 
         // Trick to force redirection
         conf.setAuthorizationEnabled(true);

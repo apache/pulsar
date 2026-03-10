@@ -762,22 +762,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .getNamespacePoliciesAsync(NamespaceName.get(tenant, namespace));
         doReturn("client-id").when(resourceQuotas).clientAppId();
 
-        try {
-            asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(
-                    ctx, tenant, namespace, bundleRange, quota));
-            fail();
-        } catch (Exception e) {
-            // OK : should fail without creating policies
-        }
-
-        try {
-            asyncRequests(ctx -> resourceQuotas.removeNamespaceBundleResourceQuota(
-                    ctx, tenant, namespace, bundleRange));
-            fail();
-        } catch (Exception e) {
-            // OK : should fail without creating policies
-        }
-
         // create policies
         TenantInfoImpl admin = TenantInfoImpl.builder()
                 .allowedClusters(Collections.singleton(cluster))

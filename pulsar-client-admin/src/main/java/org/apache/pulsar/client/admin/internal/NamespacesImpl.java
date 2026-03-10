@@ -483,7 +483,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public CompletableFuture<List<String>> getAntiAffinityNamespacesAsync(
             String tenant, String cluster, String namespaceAntiAffinityGroup) {
         WebTarget path = adminV2Namespaces.path(cluster)
-                .path("antiAffinity").path(namespaceAntiAffinityGroup).queryParam("property", tenant);
+                .path("antiAffinity").path(namespaceAntiAffinityGroup).queryParam("tenant", tenant);
         return asyncGetRequest(path, new FutureCallback<List<String>>() {
         });
     }

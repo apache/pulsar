@@ -146,6 +146,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     @Test(timeOut = 60000)
     public void testTlsCertsFromDynamicStream() throws Exception {
         log.info("-- Starting {} test --", methodName);
+        internalSetUpForNamespace();
         String topicName = "persistent://my-property/my-ns/my-topic1";
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())
                 .enableTls(true).allowTlsInsecureConnection(false)
@@ -203,6 +204,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     @Test
     public void testTlsCertsFromDynamicStreamExpiredAndRenewCert() throws Exception {
         log.info("-- Starting {} test --", methodName);
+        internalSetUpForNamespace();
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())
                 .enableTls(true).allowTlsInsecureConnection(false)
                 .autoCertRefreshSeconds(1)

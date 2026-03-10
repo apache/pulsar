@@ -1136,7 +1136,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         List<String> allClusters = admin.clusters().getClusters();
         Collections.sort(allClusters);
         assertEquals(allClusters,
-                List.of("test", "us-east1", "us-east2", "us-west1", "us-west2", "us-west3", "us-west4"));
+                List.of("global", "test", "us-east1", "us-east2", "us-west1", "us-west2", "us-west3", "us-west4"));
 
         final String tenant = newUniqueName("peer-prop");
         Set<String> allowedClusters = Set.of("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
@@ -1696,8 +1696,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("global", ClusterData.builder()
                 .serviceUrl("http://localhost:6650").build());
 
-        // Global cluster, if there, should be omitted from the results
-        assertEquals(admin.clusters().getClusters(), List.of(cluster));
+        // With V1 removal, "global" cluster is no longer filtered from the results
+        assertEquals(new HashSet<>(admin.clusters().getClusters()), Set.of(cluster, "global"));
     }
     /**
      * verifies cluster has been set before create topic.

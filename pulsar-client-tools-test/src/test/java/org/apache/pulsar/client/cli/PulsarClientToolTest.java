@@ -58,7 +58,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        super.internalSetup();
+        super.baseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -79,8 +79,9 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant(tenantName, tenantInfo);
+        admin.namespaces().createNamespace(tenantName + "/ns");
 
-        String topicName = String.format("persistent://%s/ns/topic-scale-ns-0/topic", tenantName);
+        String topicName = String.format("persistent://%s/ns/topic", tenantName);
 
         int numberOfMessages = 10;
 
@@ -433,7 +434,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     private static String getTopicWithRandomSuffix(String localNameBase) {
-        return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
+        return String.format("persistent://prop/ns-abc/%s-%s", localNameBase, UUID.randomUUID().toString());
     }
 
 

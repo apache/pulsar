@@ -369,7 +369,7 @@ public class ModularLoadManagerImplTest {
         pulsar3.start();
 
         final String tenant = "test";
-        final String cluster = "test";
+        final String cluster = "use";
         String namespace = tenant + "/" + "test";
         String topic = "persistent://" + namespace + "/my-topic1";
         admin1.clusters().createCluster(cluster, ClusterData.builder()

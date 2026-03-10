@@ -394,8 +394,8 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         final String broker2 = secondaryHost;
         final String cluster = pulsar1.getConfiguration().getClusterName();
         final String tenant = "tenant-" + UUID.randomUUID();
-        final String namespace1 = tenant + "/" + cluster + "/ns1";
-        final String namespace2 = tenant + "/" + cluster + "/ns2";
+        final String namespace1 = tenant + "/ns1";
+        final String namespace2 = tenant + "/ns2";
         final String namespaceAntiAffinityGroup = "group";
 
         FailureDomain domain1 = FailureDomain.builder()

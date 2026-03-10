@@ -28,6 +28,7 @@ import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
@@ -85,7 +86,11 @@ public class HttpTopicLookupv2Test {
         clusters.add("use");
         clusters.add("usc");
         clusters.add("usw");
-        ClusterData useData = ClusterData.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build();
+        LinkedHashSet<String> peerClusters = new LinkedHashSet<>();
+        peerClusters.add("usc");
+        peerClusters.add("usw");
+        ClusterData useData = ClusterData.builder().serviceUrl("http://broker.messaging.use.example.com:8080")
+                .peerClusterNames(peerClusters).build();
         ClusterData uscData = ClusterData.builder().serviceUrl("http://broker.messaging.usc.example.com:8080").build();
         ClusterData uswData = ClusterData.builder().serviceUrl("http://broker.messaging.usw.example.com:8080").build();
         doReturn(config).when(pulsar).getConfiguration();
@@ -113,6 +118,13 @@ public class HttpTopicLookupv2Test {
 
     @Test
     public void crossColoLookup() throws Exception {
+
+        // Set up namespace policies with replication clusters that do NOT include the local
+        // cluster "use", so the lookup will redirect to a peer cluster.
+        Policies crossColoPolicies = new Policies();
+        crossColoPolicies.replication_clusters = Sets.newHashSet("usc");
+        when(namespaceResources.getPoliciesAsync(NamespaceName.get("myprop", "ns2")))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(crossColoPolicies)));
 
         TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();

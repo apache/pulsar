@@ -120,6 +120,9 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc1");
+        admin.namespaces().createNamespace("prop/ns-abc2");
+        admin.namespaces().createNamespace("prop/ns-abc3");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -167,6 +170,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -265,6 +269,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -331,6 +336,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -416,6 +422,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -551,6 +558,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName = "persistent://prop/ns-abc/testTopicNameValid";
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName, 3);
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
@@ -613,6 +621,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -776,6 +785,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -846,6 +856,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName1, 2);
 
         // 1. producer connect
@@ -1125,6 +1136,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 

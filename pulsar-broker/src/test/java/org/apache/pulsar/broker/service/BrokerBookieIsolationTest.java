@@ -130,10 +130,10 @@ public class BrokerBookieIsolationTest {
     public void testBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
-        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
-        final String ns4 = String.format("%s/%s/%s", tenant1, cluster, "ns4");
+        final String ns1 = String.format("%s/%s", tenant1, "ns1");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
+        final String ns3 = String.format("%s/%s", tenant1, "ns3");
+        final String ns4 = String.format("%s/%s", tenant1, "ns4");
         final int totalPublish = 100;
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
@@ -310,7 +310,7 @@ public class BrokerBookieIsolationTest {
     public void testSetRackInfoAndAffinityGroupDuringProduce() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
         final int totalPublish = 100;
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
@@ -450,10 +450,10 @@ public class BrokerBookieIsolationTest {
     public void testStrictBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
-        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
-        final String ns4 = String.format("%s/%s/%s", tenant1, cluster, "ns4");
+        final String ns1 = String.format("%s/%s", tenant1, "ns1");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
+        final String ns3 = String.format("%s/%s", tenant1, "ns3");
+        final String ns4 = String.format("%s/%s", tenant1, "ns4");
         final int totalPublish = 100;
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
@@ -616,10 +616,10 @@ public class BrokerBookieIsolationTest {
     public void testBookieIsolationWithSecondaryGroup() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
-        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
-        final String ns4 = String.format("%s/%s/%s", tenant1, cluster, "ns4");
+        final String ns1 = String.format("%s/%s", tenant1, "ns1");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
+        final String ns3 = String.format("%s/%s", tenant1, "ns3");
+        final String ns4 = String.format("%s/%s", tenant1, "ns4");
         final int totalPublish = 100;
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
@@ -773,8 +773,8 @@ public class BrokerBookieIsolationTest {
 
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
-        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
+        final String ns3 = String.format("%s/%s", tenant1, "ns3");
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
         final String tenantNamespaceIsolationGroupsPrimary = "tenant1-isolation-primary";
