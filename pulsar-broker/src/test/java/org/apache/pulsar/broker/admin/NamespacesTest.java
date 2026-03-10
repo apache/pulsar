@@ -45,6 +45,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -217,11 +218,16 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn("test").when(namespaces).clientAppId();
         doReturn(null).when(namespaces).originalPrincipal();
         doReturn(null).when(namespaces).clientAuthData();
-        doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
+        doReturn(Set.of("use", "usw", "usc")).when(namespaces).clusters();
 
         admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://127.0.0.2:8082").build());
         admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://127.0.0.3:8083").build());
+        // After V1 removal, all namespaces go through the peer-cluster redirect path
+        // (NamespaceName.isGlobal() always returns true), so peer clusters must be configured.
+        // Only "usc" is a peer because peer clusters cannot also be replication clusters.
+        admin.clusters().updatePeerClusterNames("use",
+                new LinkedHashSet<>(List.of("usc")));
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
         admin.tenants().createTenant(this.testOtherTenant,
@@ -559,17 +565,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
-                    this.testGlobalNamespaces.get(0).getTenant(),
-                    this.testGlobalNamespaces.get(0).getLocalName(),
-                    List.of("use")));
-            fail("should have failed");
-        } catch (RestException e) {
-            // Ok, global should not be allowed in the list of replication clusters
-            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
-        }
-
-        try {
             asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant,
                     this.testGlobalNamespaces.get(0).getLocalName(),
                     List.of("use", "invalid-cluster")));
@@ -702,7 +697,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
-                UriBuilder.fromUri(uri).host("127.0.0.3").port(8083).toString());
+                UriBuilder.fromUri(uri).host("127.0.0.3").port(8083)
+                        .replaceQueryParam("authoritative", false).toString());
 
         uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testLocalNamespaces.get(2).toString() + "/unload");
