@@ -440,7 +440,11 @@ public class PulsarAdminToolTest {
         namespaces.run(split("revoke-permission myprop/clust/ns1 --role role1"));
         verify(mockNamespaces).revokePermissionsOnNamespace("myprop/clust/ns1", "role1");
 
-        namespaces.run(split("set-clusters myprop/clust/ns1 -c use,usw,usc"));
+        namespaces.run(split("set-clusters myprop/clust/ns1 -c use,usw,usc -ctp true"));
+        verify(mockNamespaces).setNamespaceReplicationClusters("myprop/clust/ns1",
+                Sets.newHashSet("use", "usw", "usc"), true);
+
+        namespaces.run(split("set-clusters myprop/clust/ns1 -c use,usw,usc -ctp false"));
         verify(mockNamespaces).setNamespaceReplicationClusters("myprop/clust/ns1",
                 Sets.newHashSet("use", "usw", "usc"), false);
 
