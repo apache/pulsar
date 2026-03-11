@@ -114,7 +114,7 @@ public class ConsumerMetricsTest {
 
     @Test
     public void testRecordDlq() {
-        consumerMetrics.recordDlq();
+        consumerMetrics.recordDlqMessageSent();
 
         Collection<MetricData> metrics = metricReader.collectAllMetrics();
 
