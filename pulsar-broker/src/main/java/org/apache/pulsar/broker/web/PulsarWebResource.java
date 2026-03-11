@@ -1088,6 +1088,42 @@ public abstract class PulsarWebResource {
         return CompletableFuture.completedFuture(null);
     }
 
+    protected CompletableFuture<Void> canUpdateCluster(String tenant, Set<String> oldClusters,
+            Set<String> newClusters) {
+        // Check if any clusters are being removed
+        Set<String> removedClusters = new java.util.HashSet<>(oldClusters);
+        removedClusters.removeAll(newClusters);
+        if (removedClusters.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // For each removed cluster, check if any namespace under this tenant references it
+        return tenantResources().getListOfNamespacesAsync(tenant)
+                .thenCompose(namespaces -> {
+                    java.util.List<CompletableFuture<Void>> checks = new java.util.ArrayList<>();
+                    for (String ns : namespaces) {
+                        NamespaceName namespaceName = NamespaceName.get(ns);
+                        CompletableFuture<Void> check = namespaceResources()
+                                .getPoliciesAsync(namespaceName)
+                                .thenAccept(policiesOpt -> {
+                                    if (policiesOpt.isPresent()) {
+                                        for (String cluster : removedClusters) {
+                                            if (policiesOpt.get().replication_clusters.contains(cluster)) {
+                                                throw new RestException(Status.PRECONDITION_FAILED,
+                                                        "Cannot remove cluster " + cluster
+                                                                + " from tenant " + tenant
+                                                                + ": namespace " + ns
+                                                                + " still has it as a replication cluster");
+                                            }
+                                        }
+                                    }
+                                });
+                        checks.add(check);
+                    }
+                    return FutureUtil.waitForAll(checks);
+                });
+    }
+
     protected PulsarResources getPulsarResources() {
         return pulsar().getPulsarResources();
     }

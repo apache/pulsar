@@ -23,6 +23,7 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -177,8 +178,11 @@ public class TenantsBase extends PulsarWebResource {
                     if (!tenantAdmin.isPresent()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant " + tenant + " not found");
                     }
-                    return tenantResources().updateTenantAsync(tenant, old -> newTenantAdmin);
+                    TenantInfo oldTenantAdmin = tenantAdmin.get();
+                    Set<String> newClusters = new HashSet<>(newTenantAdmin.getAllowedClusters());
+                    return canUpdateCluster(tenant, oldTenantAdmin.getAllowedClusters(), newClusters);
                 })
+                .thenCompose(__ -> tenantResources().updateTenantAsync(tenant, old -> newTenantAdmin))
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully updated tenant info {}", clientAppId, tenant);
                     asyncResponse.resume(Response.noContent().build());
