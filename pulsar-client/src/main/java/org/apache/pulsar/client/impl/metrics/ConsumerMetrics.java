@@ -20,6 +20,11 @@ package org.apache.pulsar.client.impl.metrics;
 
 import io.opentelemetry.api.common.Attributes;
 
+/**
+ * Encapsulates OpenTelemetry metrics for a Pulsar consumer, tracking message receives,
+ * prefetch queue size, acknowledgements, negative acknowledgements, dead-letter queue
+ * messages, and consumer session open/close events.
+ */
 public class ConsumerMetrics {
 
     private final Counter messagesReceivedCounter;

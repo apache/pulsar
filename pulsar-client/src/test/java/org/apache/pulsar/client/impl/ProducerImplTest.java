@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.ProducerMetrics;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -36,6 +37,9 @@ import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class ProducerImplTest {
+    private static final ProducerMetrics NOOP_PRODUCER_METRICS =
+            new ProducerMetrics(InstrumentProvider.NOOP, "test-topic");
+
     @Test
     public void testChunkedMessageCtxDeallocate() {
         int totalChunks = 3;
@@ -46,7 +50,7 @@ public class ProducerImplTest {
         for (int i = 0; i < totalChunks; i++) {
             ProducerImpl.OpSendMsg opSendMsg =
                     ProducerImpl.OpSendMsg.create(
-                            (ProducerMetrics) null,
+                            NOOP_PRODUCER_METRICS,
                             MessageImpl.create(new MessageMetadata(), ByteBuffer.allocate(0), Schema.STRING, null),
                             null, 0, null);
             opSendMsg.chunkedMessageCtx = ctx;
@@ -100,7 +104,7 @@ public class ProducerImplTest {
         MessageImpl<?> msg = Mockito.mock(MessageImpl.class);
         Mockito.when(msg.getUncompressedSize()).thenReturn(10);
         ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(
-                (ProducerMetrics) null,
+                NOOP_PRODUCER_METRICS,
                 msg,
                 Mockito.mock(ByteBufPair.class),
                 1L,
@@ -118,7 +122,7 @@ public class ProducerImplTest {
         Mockito.doAnswer(invocation -> {
             // Reentrant retry during callback
             ProducerImpl.OpSendMsg retryOp = ProducerImpl.OpSendMsg.create(
-                    (ProducerMetrics) null,
+                    NOOP_PRODUCER_METRICS,
                     retryMsg,
                     Mockito.mock(ByteBufPair.class),
                     2L,
