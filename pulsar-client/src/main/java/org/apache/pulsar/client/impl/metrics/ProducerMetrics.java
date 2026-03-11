@@ -23,7 +23,7 @@ import io.opentelemetry.api.common.Attributes;
 public class ProducerMetrics {
 
     private final LatencyHistogram sendLatencyHistogram;
-    public final LatencyHistogram rpcLatencyHistogram;
+    private final LatencyHistogram rpcLatencyHistogram;
     private final Counter publishedBytesCounter;
     private final UpDownCounter pendingMessagesUpDownCounter;
     private final UpDownCounter pendingBytesUpDownCounter;
@@ -91,5 +91,9 @@ public class ProducerMetrics {
 
     public void recordProducerClosed() {
         producersClosedCounter.increment();
+    }
+
+    public LatencyHistogram getRpcLatencyHistogram() {
+        return rpcLatencyHistogram;
     }
 }
