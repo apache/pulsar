@@ -209,10 +209,10 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             throw new IllegalArgumentException("The method cleanupTopics does not support for global ZK");
         }
         waitChangeEventsInit(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Collections.singleton(cluster1));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Collections.singleton(cluster1), true);
         admin1.namespaces().unload(namespace);
         cleanupTopicAction.run();
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
         waitChangeEventsInit(namespace);
     }
 
@@ -302,9 +302,9 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     protected void cleanupPulsarResources() throws Exception {
         // delete namespaces.
         waitChangeEventsInit(replicatedNamespace);
-        admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1));
+        admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1), true);
         if (!usingGlobalZK) {
-            admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2));
+            admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2), true);
         }
         admin1.namespaces().deleteNamespace(replicatedNamespace, true);
         admin1.namespaces().deleteNamespace(nonReplicatedNamespace, true);

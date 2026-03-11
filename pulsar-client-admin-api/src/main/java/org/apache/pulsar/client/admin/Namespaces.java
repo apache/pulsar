@@ -882,7 +882,8 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException;
+    void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds, boolean compareTopicPartitions)
+            throws PulsarAdminException;
 
     /**
      * Set the replication clusters for a namespace asynchronously.
@@ -907,7 +908,8 @@ public interface Namespaces {
      * @param clusterIds
      *            Pulsar Cluster Ids
      */
-    CompletableFuture<Void> setNamespaceReplicationClustersAsync(String namespace, Set<String> clusterIds);
+    CompletableFuture<Void> setNamespaceReplicationClustersAsync(String namespace, Set<String> clusterIds,
+                                                                 boolean compareTopicPartitions);
 
     /**
      * Get the message TTL for a namespace.

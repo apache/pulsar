@@ -564,7 +564,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
                 this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
                 this.testGlobalNamespaces.get(0).getLocalName(),
-                List.of("use", "usw")));
+                List.of("use", "usw"), false));
 
         repCluster = (Set<String>) asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
                 this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
@@ -575,7 +575,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
                     this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
                     this.testGlobalNamespaces.get(0).getLocalName(),
-                    List.of("use", "invalid-cluster")));
+                    List.of("use", "invalid-cluster"), false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.FORBIDDEN.getStatusCode());
@@ -585,7 +585,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
                     this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
                     this.testGlobalNamespaces.get(0).getLocalName(),
-                    List.of("use", "global")));
+                    List.of("use", "global"), false));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, global should not be allowed in the list of replication clusters
@@ -595,7 +595,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         try {
             asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
                     this.testGlobalNamespaces.get(0).getLocalName(),
-                    List.of("use", "invalid-cluster")));
+                    List.of("use", "invalid-cluster"),  false));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, invalid-cluster is an invalid cluster id
@@ -607,7 +607,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         try {
             asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), List.of("use", "usw")));
+                    this.testGlobalNamespaces.get(0).getLocalName(), List.of("use", "usw"), false));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, usw was not configured in the list of allowed clusters
@@ -620,7 +620,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         try {
             asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), List.of("use")));
+                    this.testGlobalNamespaces.get(0).getLocalName(), List.of("use"), false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -642,7 +642,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         store.invalidateAll();
         try {
             asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), List.of("use")));
+                    this.testGlobalNamespaces.get(0).getLocalName(), List.of("use"), false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 500);
@@ -658,7 +658,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         try {
             asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant,
-                    "global", "non-existing-ns", List.of("use")));
+                    "global", "non-existing-ns", List.of("use"), false));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -691,7 +691,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // setting the replication clusters for a local namespace to the local cluster should succeed
         asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName(), List.of(this.testLocalCluster)));
+                this.testLocalNamespaces.get(0).getLocalName(), List.of(this.testLocalCluster), false));
 
         // cleanup
         resetBroker();
@@ -767,7 +767,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 }), Mockito.any());
 
         admin.namespaces().setNamespaceReplicationClusters(testGlobalNamespaces.get(0).toString(),
-                Set.of("usw"));
+                Set.of("usw"), false);
 
         uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testLocalNamespaces.get(2).toString() + "?authoritative=false");
@@ -1339,7 +1339,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         admin.namespaces().createNamespace(namespace, 100);
         assertThrows(PulsarAdminException.PreconditionFailedException.class,
-                () -> admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of()));
+                () -> admin.namespaces().setNamespaceReplicationClusters(namespace, Set.of(), false));
     }
 
     @Test
@@ -2371,7 +2371,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(globalNamespace);
 
         Set<String> replicationClusters = Sets.newHashSet(remoteCluster);
-        admin.namespaces().setNamespaceReplicationClusters(globalNamespace, replicationClusters);
+        admin.namespaces().setNamespaceReplicationClusters(globalNamespace, replicationClusters, false);
 
         try {
             // This should attempt to redirect to remote cluster using HTTP (not HTTPS)
@@ -2414,7 +2414,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         String globalNamespaceTls = tenant + "/test-ns-tls-enabled";
         admin.namespaces().createNamespace(globalNamespaceTls);
         Set<String> replicationClustersTls = Sets.newHashSet(remoteClusterTls);
-        admin.namespaces().setNamespaceReplicationClusters(globalNamespaceTls, replicationClustersTls);
+        admin.namespaces().setNamespaceReplicationClusters(globalNamespaceTls, replicationClustersTls, false);
 
         try {
             // This should attempt to redirect to remote cluster using HTTPS (port 8443)
@@ -2450,7 +2450,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         String globalNamespaceNoTlsUrl = tenant + "/test-ns-no-tls-url";
         admin.namespaces().createNamespace(globalNamespaceNoTlsUrl);
         Set<String> replicationClustersNoTlsUrl = Sets.newHashSet(remoteClusterNoTlsUrl);
-        admin.namespaces().setNamespaceReplicationClusters(globalNamespaceNoTlsUrl, replicationClustersNoTlsUrl);
+        admin.namespaces().setNamespaceReplicationClusters(globalNamespaceNoTlsUrl, replicationClustersNoTlsUrl, false);
 
         try {
             // This should throw a precondition failed error because TLS is enabled

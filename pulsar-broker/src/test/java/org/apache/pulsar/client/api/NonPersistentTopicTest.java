@@ -1095,7 +1095,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                     Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r2", "r3")));
             admin1.namespaces().createNamespace("pulsar/global/ns");
             admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",
-                    Sets.newHashSet("r1", "r2", "r3"));
+                    Sets.newHashSet("r1", "r2", "r3"), false);
 
             assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
             assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());

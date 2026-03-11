@@ -187,10 +187,10 @@ public class ClusterMigrationTest {
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r3")));
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r3"));
         admin3.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r3"), false);
         admin1.namespaces().createNamespace(namespaceNotToMigrate, Sets.newHashSet("r1", "r3"));
         admin3.namespaces().createNamespace(namespaceNotToMigrate);
-        admin1.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r1", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r1", "r3"), false);
 
         // Setting r4 as replication cluster for r2
         updateTenantInfo(admin2, "pulsar",
@@ -199,10 +199,10 @@ public class ClusterMigrationTest {
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r2", "r4")));
         admin2.namespaces().createNamespace(namespace, Sets.newHashSet("r2", "r4"));
         admin4.namespaces().createNamespace(namespace);
-        admin2.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r4"));
+        admin2.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r4"), false);
         admin2.namespaces().createNamespace(namespaceNotToMigrate, Sets.newHashSet("r2", "r4"));
         admin4.namespaces().createNamespace(namespaceNotToMigrate);
-        admin2.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r2", "r4"));
+        admin2.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r2", "r4"), false);
 
         assertEquals(admin1.clusters().getCluster("r1").getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());

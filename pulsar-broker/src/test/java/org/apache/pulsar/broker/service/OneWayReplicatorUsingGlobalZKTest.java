@@ -93,6 +93,11 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.testReplicatorProducerStatInTopic();
     }
 
+    @Test(dataProvider = "isPartitioned")
+    public void testReplicatorCreateTopic(boolean isPartitioned) throws Exception {
+        super.testReplicatorCreateTopic(isPartitioned);
+    }
+
     @Override
     @Test
     public void testDeleteRemoteTopicByGlobalPolicy() throws Exception {
@@ -449,7 +454,8 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         p1.send("msg-1");
         p1.close();
 
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(admin2.topics().getList(ns1).contains(topic1));
         });
@@ -493,7 +499,8 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         final String topic = "persistent://" + ns1 + "/___tp-5dd50794-7af8-4a34-8a0b-06188052c66a";
         final String topicChangeEvents = "persistent://" + ns1 + "/__change_events";
         admin1.namespaces().createNamespace(ns1);
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
         admin1.topics().createNonPartitionedTopic(topic);
         admin1.topics().createSubscription(topic, "s1", MessageId.earliest);
 
@@ -507,7 +514,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
 
         // The topics under the namespace of the cluster-1 will be deleted.
         // Verify the result.
-        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)));
+        admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster2)), true);
         Awaitility.await().atMost(Duration.ofSeconds(120)).ignoreExceptions().untilAsserted(() -> {
             Map<String, CompletableFuture<Optional<Topic>>> tps = pulsar1.getBrokerService().getTopics();
             assertFalse(tps.containsKey(topic));
@@ -654,7 +661,8 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
 
         // New replication clusters should be included in allowed clusters.
         try {
-            admin1.namespaces().setNamespaceReplicationClusters(ns1, new HashSet<>(Arrays.asList(cluster1, cluster2)));
+            admin1.namespaces().setNamespaceReplicationClusters(ns1,
+                    new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
             fail("New replication clusters should be included in allowed clusters.");
         } catch (PulsarAdminException e) {
             assertTrue(e.getMessage().contains("is not in the list of allowed clusters list"));

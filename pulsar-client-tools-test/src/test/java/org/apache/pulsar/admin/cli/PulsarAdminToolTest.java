@@ -440,9 +440,13 @@ public class PulsarAdminToolTest {
         namespaces.run(split("revoke-permission myprop/clust/ns1 --role role1"));
         verify(mockNamespaces).revokePermissionsOnNamespace("myprop/clust/ns1", "role1");
 
+        namespaces.run(split("set-clusters myprop/clust/ns1 -c use,usw,usc --skipCompareTopicPartitions"));
+        verify(mockNamespaces).setNamespaceReplicationClusters("myprop/clust/ns1",
+                Sets.newHashSet("use", "usw", "usc"), false);
+
         namespaces.run(split("set-clusters myprop/clust/ns1 -c use,usw,usc"));
         verify(mockNamespaces).setNamespaceReplicationClusters("myprop/clust/ns1",
-                Sets.newHashSet("use", "usw", "usc"));
+                Sets.newHashSet("use", "usw", "usc"), true);
 
         namespaces.run(split("get-clusters myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceReplicationClusters("myprop/clust/ns1");
@@ -946,7 +950,7 @@ public class PulsarAdminToolTest {
         namespaces.run(split("create my-prop/my-cluster/my-namespace --bundles 5 --clusters a,b,c"));
         verify(mockNamespaces).createNamespace("my-prop/my-cluster/my-namespace", 5);
         verify(mockNamespaces).setNamespaceReplicationClusters("my-prop/my-cluster/my-namespace",
-                Sets.newHashSet("a", "b", "c"));
+                Sets.newHashSet("a", "b", "c"), false);
     }
 
     @Test

@@ -68,7 +68,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("prop",
                 new TenantInfoImpl(Set.of("appid1"), Set.of("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of("test"), false);
         persistentTopics = spy(PersistentTopics.class);
         persistentTopics.setServletContext(mock(ServletContext.class));
         persistentTopics.setPulsar(pulsar);

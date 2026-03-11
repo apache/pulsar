@@ -93,7 +93,8 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                 TenantInfo.builder().adminRoles(new HashSet<>(Arrays.asList("appid1", "appid2")))
                 .allowedClusters(Collections.singleton("standalone")).build());
         admin.namespaces().createNamespace("my-property/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns",
+                Collections.singleton("standalone"), false);
     }
 
     @Override

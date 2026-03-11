@@ -166,7 +166,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             // For V1 API, we pass the BundlesData on creation
             return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)).thenCompose(ignore -> {
                 // For V1, we need to do it in 2 steps
-                return setNamespaceReplicationClustersAsync(namespace, clusters);
+                return setNamespaceReplicationClustersAsync(namespace, clusters, false);
             });
         }
     }
@@ -385,15 +385,18 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds) throws PulsarAdminException {
-        sync(() -> setNamespaceReplicationClustersAsync(namespace, clusterIds));
+    public void setNamespaceReplicationClusters(String namespace, Set<String> clusterIds,
+                                                boolean compareTopicPartitions) throws PulsarAdminException {
+        sync(() -> setNamespaceReplicationClustersAsync(namespace, clusterIds, compareTopicPartitions));
     }
 
     @Override
-    public CompletableFuture<Void> setNamespaceReplicationClustersAsync(String namespace, Set<String> clusterIds) {
+    public CompletableFuture<Void> setNamespaceReplicationClustersAsync(String namespace, Set<String> clusterIds,
+                                                                        boolean compareTopicPartitions) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "replication");
-        return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path.queryParam("compareTopicPartitions", compareTopicPartitions),
+                Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
     }
 
     @Override

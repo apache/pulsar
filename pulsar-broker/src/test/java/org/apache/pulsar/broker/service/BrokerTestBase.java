@@ -54,7 +54,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("prop",
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"), false);
     }
 
     protected void createTransactionCoordinatorAssign() throws MetadataStoreException {

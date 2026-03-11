@@ -184,7 +184,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         for (String ns : namespaceList) {
             admin.namespaces().createNamespace(ns);
-            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"));
+            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"), false);
         }
 
         final String topic = "persistent://prop/ns-abc/testDeletePolicyUpdate";
@@ -259,7 +259,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
         for (String ns : namespaceList) {
             admin.namespaces().createNamespace(ns);
-            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"));
+            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"), false);
         }
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptionsWithMultiConfig";

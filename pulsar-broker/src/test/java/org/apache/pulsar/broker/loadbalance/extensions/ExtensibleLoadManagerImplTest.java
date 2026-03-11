@@ -1050,7 +1050,8 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         String namespace = "public/test-delete-namespace";
         TopicName topicName = TopicName.get(namespace + "/test-delete-namespace-topic");
         admin.namespaces().createNamespace(namespace);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(this.conf.getClusterName()));
+        admin.namespaces().setNamespaceReplicationClusters(namespace,
+                Sets.newHashSet(this.conf.getClusterName()), false);
         assertTrue(admin.namespaces().getNamespaces("public").contains(namespace));
         admin.topics().createPartitionedTopic(topicName.toString(), 2);
         admin.lookups().lookupTopic(topicName.toString());

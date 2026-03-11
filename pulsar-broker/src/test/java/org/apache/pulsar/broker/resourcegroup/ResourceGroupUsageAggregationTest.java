@@ -282,6 +282,6 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
             admin.tenants().createTenant(tenantName,
                     new TenantInfoImpl(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace(tenantAndNsName);
-        admin.namespaces().setNamespaceReplicationClusters(tenantAndNsName, Sets.newHashSet(clusterName));
+        admin.namespaces().setNamespaceReplicationClusters(tenantAndNsName, Sets.newHashSet(clusterName), false);
     }
 }
