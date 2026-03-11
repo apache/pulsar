@@ -34,7 +34,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.concurrent.FastThreadLocal;
-import io.opentelemetry.api.common.Attributes;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -98,10 +98,8 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
-import org.apache.pulsar.client.impl.metrics.Counter;
+import org.apache.pulsar.client.impl.metrics.ConsumerMetrics;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
-import org.apache.pulsar.client.impl.metrics.Unit;
-import org.apache.pulsar.client.impl.metrics.UpDownCounter;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -228,16 +226,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final boolean createTopicIfDoesNotExist;
     private final boolean poolMessages;
 
-    private final Counter messagesReceivedCounter;
-    private final Counter bytesReceivedCounter;
-    private final UpDownCounter messagesPrefetchedGauge;
-    private final UpDownCounter bytesPrefetchedGauge;
-    private final Counter consumersOpenedCounter;
-    private final Counter consumersClosedCounter;
-    private final Counter consumerAcksCounter;
-    private final Counter consumerNacksCounter;
-
-    private final Counter consumerDlqMessagesCounter;
+    private final ConsumerMetrics consumerMetrics;
 
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final AtomicInteger previousExceptionCount = new AtomicInteger();
@@ -421,29 +410,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         topicNameWithoutPartition = topicName.getPartitionedTopicName();
 
         InstrumentProvider ip = client.instrumentProvider();
-        Attributes attrs = Attributes.builder().put("pulsar.subscription", subscription).build();
-        consumersOpenedCounter = ip.newCounter("pulsar.client.consumer.opened", Unit.Sessions,
-                "The number of consumer sessions opened", topic, attrs);
-        consumersClosedCounter = ip.newCounter("pulsar.client.consumer.closed", Unit.Sessions,
-                "The number of consumer sessions closed", topic, attrs);
-        messagesReceivedCounter = ip.newCounter("pulsar.client.consumer.message.received.count", Unit.Messages,
-                "The number of messages explicitly received by the consumer application", topic, attrs);
-        bytesReceivedCounter = ip.newCounter("pulsar.client.consumer.message.received.size", Unit.Bytes,
-                "The number of bytes explicitly received by the consumer application", topic, attrs);
-        messagesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.count", Unit.Messages,
-                "The number of messages currently sitting in the consumer receive queue", topic, attrs);
-        bytesPrefetchedGauge = ip.newUpDownCounter("pulsar.client.consumer.receive_queue.size", Unit.Bytes,
-                "The total size in bytes of messages currently sitting in the consumer receive queue", topic, attrs);
-
-        consumerAcksCounter = ip.newCounter("pulsar.client.consumer.message.ack", Unit.Messages,
-                "The number of acknowledged messages", topic, attrs);
-        consumerNacksCounter = ip.newCounter("pulsar.client.consumer.message.nack", Unit.Messages,
-                "The number of negatively acknowledged messages", topic, attrs);
-        consumerDlqMessagesCounter = ip.newCounter("pulsar.client.consumer.message.dlq", Unit.Messages,
-                "The number of messages sent to DLQ", topic, attrs);
+        consumerMetrics = new ConsumerMetrics(ip, topic, subscription);
         grabCnx();
 
-        consumersOpenedCounter.increment();
+        consumerMetrics.recordConsumerOpened();
     }
 
     public ConnectionHandler getConnectionHandler() {
@@ -607,7 +577,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String, Long> properties,
                                                     TransactionImpl txn) {
-        consumerAcksCounter.increment();
+        consumerMetrics.recordAck();
 
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
@@ -630,7 +600,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
                                                     Map<String, Long> properties, TransactionImpl txn) {
-        consumerAcksCounter.increment();
+        consumerMetrics.recordAck();
 
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
@@ -721,7 +691,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
                             copyMessageEventTime(message, typedMessageBuilderNew);
                             typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
-                                consumerDlqMessagesCounter.increment();
+                                consumerMetrics.recordDlq();
 
                                 doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null).thenAccept(v -> {
                                     result.complete(null);
@@ -835,7 +805,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void negativeAcknowledge(MessageId messageId) {
-        consumerNacksCounter.increment();
+        consumerMetrics.recordNack();
         negativeAcksTracker.add(messageId);
 
         // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
@@ -844,7 +814,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public void negativeAcknowledge(Message<?> message) {
-        consumerNacksCounter.increment();
+        consumerMetrics.recordNack();
         negativeAcksTracker.add(message);
 
         // Ensure the message is not redelivered for ack-timeout, since we did receive an "ack"
@@ -1185,7 +1155,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return compositeCloseFuture;
         }
 
-        consumersClosedCounter.increment();
+        consumerMetrics.recordConsumerClosed();
 
         if (!isConnected()) {
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
@@ -1369,8 +1339,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private void executeNotifyCallback(final MessageImpl<T> message) {
-        messagesPrefetchedGauge.increment();
-        bytesPrefetchedGauge.add(message.size());
+        consumerMetrics.recordMessagePrefetched(message.size());
 
         // Enqueue the message so that it can be retrieved when application calls receive()
         // if the conf.getReceiverQueueSize() is 0 then discard message if no one is waiting for it.
@@ -1869,11 +1838,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ClientCnx msgCnx = ((MessageImpl<?>) msg).getCnx();
         lastDequeuedMessageId = msg.getMessageId();
 
-        messagesPrefetchedGauge.decrement();
-        messagesReceivedCounter.increment();
-
-        bytesPrefetchedGauge.subtract(msg.size());
-        bytesReceivedCounter.add(msg.size());
+        consumerMetrics.recordMessageReceived(msg.size());
 
         if (msgCnx != currentCnx) {
             // The processed message did belong to the old queue that was cleared after reconnection.

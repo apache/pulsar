@@ -81,11 +81,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
-import org.apache.pulsar.client.impl.metrics.Counter;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
-import org.apache.pulsar.client.impl.metrics.Unit;
-import org.apache.pulsar.client.impl.metrics.UpDownCounter;
+import org.apache.pulsar.client.impl.metrics.ProducerMetrics;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -183,14 +181,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private boolean errorState;
 
-    private final LatencyHistogram latencyHistogram;
+    private final ProducerMetrics producerMetrics;
+    // rpcLatencyHistogram 需要传递给 OpSendMsg，保留包级别访问
     final LatencyHistogram rpcLatencyHistogram;
-    private final Counter publishedBytesCounter;
-    private final UpDownCounter pendingMessagesUpDownCounter;
-    private final UpDownCounter pendingBytesUpDownCounter;
-
-    private final Counter producersOpenedCounter;
-    private final Counter producersClosedCounter;
     private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
     // This variable can be exposed as a metrics in the future, a PIP is needed.
     private final AtomicInteger pendingQueueFullCounter;
@@ -294,30 +287,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         InstrumentProvider ip = client.instrumentProvider();
-        latencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.message.send.duration",
-                "Publish latency experienced by the application, includes client batching time", topic,
-                Attributes.empty());
-        rpcLatencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.rpc.send.duration",
-                "Publish RPC latency experienced internally by the client when sending data to receiving an ack", topic,
-                Attributes.empty());
-        publishedBytesCounter = ip.newCounter("pulsar.client.producer.message.send.size",
-                Unit.Bytes, "The number of bytes published", topic, Attributes.empty());
-        pendingMessagesUpDownCounter =
-                ip.newUpDownCounter("pulsar.client.producer.message.pending.count", Unit.Messages,
-                        "The number of messages in the producer internal send queue, waiting to be sent", topic,
-                        Attributes.empty());
-        pendingBytesUpDownCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.size", Unit.Bytes,
-                "The size of the messages in the producer internal queue, waiting to sent", topic, Attributes.empty());
-        producersOpenedCounter = ip.newCounter("pulsar.client.producer.opened", Unit.Sessions,
-                "The number of producer sessions opened", topic, Attributes.empty());
-        producersClosedCounter = ip.newCounter("pulsar.client.producer.closed", Unit.Sessions,
-                "The number of producer sessions closed", topic, Attributes.empty());
+        producerMetrics = new ProducerMetrics(ip, topic);
+        rpcLatencyHistogram = producerMetrics.rpcLatencyHistogram;
         pendingQueueFullCounter = new AtomicInteger();
 
         this.connectionHandler = initConnectionHandler();
         setChunkMaxMessageSize();
         grabCnx();
-        producersOpenedCounter.increment();
+        producerMetrics.recordProducerOpened();
     }
 
     @VisibleForTesting
@@ -398,8 +375,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         int msgSize = interceptorMessage.getDataBuffer().readableBytes();
-        pendingMessagesUpDownCounter.increment();
-        pendingBytesUpDownCounter.add(msgSize);
+        producerMetrics.recordPendingMessage(msgSize);
 
         sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
         return future;
@@ -457,8 +433,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             long createdAt = (sendCallback instanceof ProducerImpl.DefaultSendMessageCallback)
                     ? ((DefaultSendMessageCallback) sendCallback).createdAt : this.createdAt;
             long latencyNanos = System.nanoTime() - createdAt;
-            pendingMessagesUpDownCounter.decrement();
-            pendingBytesUpDownCounter.subtract(msgSize);
             ByteBuf payload = msg.getDataBuffer();
             if (payload == null) {
                 log.error("[{}] [{}] Payload is null when calling onSendComplete, which is not expected.",
@@ -466,13 +440,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             try {
                 if (e != null) {
-                    latencyHistogram.recordFailure(latencyNanos);
+                    producerMetrics.recordSendFailed(latencyNanos, msgSize);
                     stats.incrementSendFailed();
                     onSendAcknowledgement(msg, null, e);
                     sendCallback.getFuture().completeExceptionally(e);
                 } else {
-                    latencyHistogram.recordSuccess(latencyNanos);
-                    publishedBytesCounter.add(msgSize);
+                    producerMetrics.recordSendSuccess(latencyNanos, msgSize);
                     stats.incrementNumAcksReceived(latencyNanos);
                     onSendAcknowledgement(msg, msg.getMessageId(), null);
                     sendCallback.getFuture().complete(msg.getMessageId());
@@ -1219,7 +1192,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return CompletableFuture.completedFuture(null);
         }
 
-        producersClosedCounter.increment();
+        producerMetrics.recordProducerClosed();
         closeProducerTasks();
 
         ClientCnx cnx = cnx();
