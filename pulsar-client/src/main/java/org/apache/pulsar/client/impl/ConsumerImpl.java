@@ -690,7 +690,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             copyMessageKeysIfNeeded(message, typedMessageBuilderNew);
                             copyMessageEventTime(message, typedMessageBuilderNew);
                             typedMessageBuilderNew.sendAsync().thenAccept(msgId -> {
-                                consumerMetrics.recordDlq();
+                                consumerMetrics.recordDlqMessageSent();
 
                                 doAcknowledge(finalMessageId, ackType, Collections.emptyMap(), null).thenAccept(v -> {
                                     result.complete(null);
