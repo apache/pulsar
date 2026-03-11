@@ -114,6 +114,7 @@ import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.resources.DynamicConfigurationResources;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -144,8 +145,10 @@ import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -3391,20 +3394,45 @@ public class BrokerService implements Closeable {
                             return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
                         }
 
-                        // Allow auto create non-partitioned topic.
-                        boolean autoCreatePartitionedTopic = pulsar.getBrokerService()
-                                .isDefaultTopicTypePartitioned(topicName, policies);
-                        if (!autoCreatePartitionedTopic || topicName.isPartitioned()) {
-                            return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
-                        }
+                        return getRemotePartitionedTopicMetadataForAutoCreation(topicName, policies)
+                            .thenCompose(remoteTopicExistsInfo -> {
+                                // If remote topic exists, prioritize topic shape from remote clusters.
+                                if (remoteTopicExistsInfo.isExists()) {
+                                    if (remoteTopicExistsInfo.getTopicType() == TopicType.PARTITIONED) {
+                                        log.info("===> C cluster: {}, topic: {}, partitions: {}",
+                                                pulsar.getConfig().getClusterName(),
+                                                topicName, topicExistsInfo.getPartitions());
+                                        return createPartitionedTopicMetadataAsync(topicName,
+                                            remoteTopicExistsInfo.getPartitions());
+                                    }
+                                    log.info("===> C cluster: {}, topic: {}, partitions: {}",
+                                            pulsar.getConfig().getClusterName(),
+                                            topicName, "non-partitioned");
+                                    return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+                                } else {
+                                    log.info("===> E cluster: {}, topic: {}, partitions: {}",
+                                            pulsar.getConfig().getClusterName(),
+                                            topicName, "not found");
+                                }
 
-                        // Create partitioned metadata.
-                        return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName, policies)
-                            .exceptionallyCompose(ex -> {
+                                // Allow auto create non-partitioned topic.
+                                boolean autoCreatePartitionedTopic = pulsar.getBrokerService()
+                                        .isDefaultTopicTypePartitioned(topicName, policies);
+                                if (!autoCreatePartitionedTopic || topicName.isPartitioned()) {
+                                    log.info("===> D cluster: {}, topic: {}, partitions: {}",
+                                            pulsar.getConfig().getClusterName(),
+                                            topicName, "non-partitioned");
+                                    return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+                                }
+
+                                // Create partitioned metadata.
+                                return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName,
+                                        policies);
+                            }).exceptionallyCompose(ex -> {
                                 // The partitioned topic might be created concurrently.
                                 if (ex.getCause() instanceof MetadataStoreException.AlreadyExistsException) {
-                                    log.info("[{}] The partitioned topic is already created, try to refresh the cache"
-                                            + " and read again.", topicName);
+                                    log.info("[{}] The partitioned topic is already created, try to refresh "
+                                            + "the cache and read again.", topicName);
                                     CompletableFuture<PartitionedTopicMetadata> recheckFuture =
                                             fetchPartitionedTopicMetadataAsync(topicName, true);
                                     recheckFuture.exceptionally(ex2 -> {
@@ -3433,20 +3461,28 @@ public class BrokerService implements Closeable {
     private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName,
                                                                                         Optional<Policies> policies) {
         final int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName, policies);
+        log.info("===> D cluster: {}, topic: {}, partitions: {}",
+                pulsar.getConfig().getClusterName(),
+                topicName, defaultNumPartitions);
+        return createPartitionedTopicMetadataAsync(topicName, defaultNumPartitions);
+    }
+
+    private CompletableFuture<PartitionedTopicMetadata> createPartitionedTopicMetadataAsync(TopicName topicName,
+                                                                                            int numPartitions) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
-        if (defaultNumPartitions <= 0) {
+        if (numPartitions <= 0) {
             return FutureUtil.failedFuture(
                     new IllegalArgumentException("Default number of partitions should be more than 0"));
         }
-        if (maxPartitions > 0 && defaultNumPartitions > maxPartitions) {
+        if (maxPartitions > 0 && numPartitions > maxPartitions) {
             return FutureUtil.failedFuture(
                     new IllegalArgumentException("Number of partitions should be less than or equal to "
                             + maxPartitions));
         }
 
-        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(defaultNumPartitions);
+        PartitionedTopicMetadata configMetadata = new PartitionedTopicMetadata(numPartitions);
 
-        return checkMaxTopicsPerNamespace(topicName, defaultNumPartitions, true)
+        return checkMaxTopicsPerNamespace(topicName, numPartitions, true)
                 .thenCompose(__ -> {
                     PartitionedTopicResources partitionResources = pulsar.getPulsarResources().getNamespaceResources()
                             .getPartitionedTopicResources();
@@ -3456,6 +3492,87 @@ public class BrokerService implements Closeable {
                                 return configMetadata;
                             });
                 });
+    }
+
+    private CompletableFuture<TopicExistsInfo> getRemotePartitionedTopicMetadataForAutoCreation(
+            TopicName topicName, Optional<Policies> policies) {
+        if (!pulsar.getConfig().isCreateTopicToRemoteClusterForReplication()) {
+            return CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists());
+        }
+        if (topicName.isPartitioned() || !topicName.isPersistent() || policies.isEmpty()) {
+            return CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists());
+        }
+        Set<String> replicationClusters = policies.get().replication_clusters;
+        if (replicationClusters == null || replicationClusters.isEmpty()) {
+            return CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists());
+        }
+        String localCluster = pulsar.getConfiguration().getClusterName();
+        if (!replicationClusters.contains(localCluster) || replicationClusters.size() <= 1) {
+            return CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists());
+        }
+        List<String> remoteClusters = replicationClusters.stream()
+                .filter(cluster -> !cluster.equals(localCluster))
+                .sorted()
+                .toList();
+        return findRemoteTopicMetadataForAutoCreation(topicName, remoteClusters, 0, null);
+    }
+
+    private CompletableFuture<TopicExistsInfo> findRemoteTopicMetadataForAutoCreation(
+            TopicName topicName, List<String> remoteClusters, int index, Throwable errOccurred) {
+        if (index >= remoteClusters.size()) {
+            if (errOccurred != null) {
+                log.error("[{}] Failed to check remote topic partitioned metadata on cluster {}. Fallback to "
+                    + "default auto topic creation policy.",
+                    topicName, remoteClusters, errOccurred);
+            }
+            return CompletableFuture.completedFuture(TopicExistsInfo.newTopicNotExists());
+        }
+        final String remoteCluster = remoteClusters.get(index);
+        return pulsar.getPulsarResources().getClusterResources().getClusterAsync(remoteCluster)
+            .thenCompose(clusterData -> {
+                if (clusterData.isEmpty()) {
+                    log.warn("[{}] Skip checking remote cluster {} because cluster data is missing",
+                            topicName, remoteCluster);
+                    return findRemoteTopicMetadataForAutoCreation(topicName, remoteClusters, index + 1, null);
+                }
+                PulsarClient client = getReplicationClient(remoteCluster, clusterData);
+                CompletableFuture<TopicExistsInfo> future = new CompletableFuture<>();
+                client.getPartitionsForTopic(topicName.toString(), false).handle((topics, t) -> {
+                    if (t != null) {
+                        Throwable actEx = FutureUtil.unwrapCompletionException(t);
+                        if (actEx instanceof PulsarClientException.NotFoundException
+                            | actEx instanceof PulsarClientException.TopicDoesNotExistException
+                            | actEx instanceof PulsarAdminException.NotFoundException) {
+                            future.complete(TopicExistsInfo.newTopicNotExists());
+                        } else {
+                            FutureUtil.completeAfter(future,
+                                findRemoteTopicMetadataForAutoCreation(topicName, remoteClusters, index + 1, actEx));
+                        }
+                    }
+                    if (topics.isEmpty()) {
+                        log.info("===> B cluster: {}, topic: {}, partitions: {}",
+                                pulsar.getConfig().getClusterName(),
+                                topicName, "not found");
+                        future.complete(TopicExistsInfo.newTopicNotExists());
+                    } else if (topics.size() == 1 && !TopicName.get(topics.get(0)).isPartitioned()) {
+                        log.info("===> B cluster: {}, topic: {}, partitions: {}",
+                                pulsar.getConfig().getClusterName(),
+                                topicName, "non-partitioned");
+                        future.complete(TopicExistsInfo.newNonPartitionedTopicExists());
+                    } else {
+                        int maxPartitionNum = 0;
+                        for (String topic : topics) {
+                            maxPartitionNum = Math.max(maxPartitionNum, TopicName.get(topic).getPartitionIndex());
+                        }
+                        log.info("===> B cluster: {}, topic: {}, partitions: {}",
+                                pulsar.getConfig().getClusterName(),
+                                topicName, maxPartitionNum + 1);
+                        future.complete(TopicExistsInfo.newPartitionedTopicExists(maxPartitionNum + 1));
+                    }
+                    return null;
+                });
+                return future;
+            });
     }
 
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(TopicName topicName) {

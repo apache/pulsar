@@ -725,12 +725,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             namespaceService.checkTopicExistsAsync(topicName).thenAccept(topicExistsInfo -> {
                                 lookupSemaphore.release();
                                 if (!topicExistsInfo.isExists()) {
+                                    log.info("===> A cluster: {}, topic: {}, partitions: {}",
+                                        getBrokerService().getPulsar().getConfig().getClusterName(),
+                                        topicName, "not-found");
                                     writeAndFlush(Commands.newPartitionMetadataResponse(
                                             ServerError.TopicNotFound, "", requestId));
                                 } else if (topicExistsInfo.getTopicType().equals(TopicType.PARTITIONED)) {
+                                    log.info("===> A cluster: {}, topic: {}, partitions: {}",
+                                            getBrokerService().getPulsar().getConfig().getClusterName(),
+                                            topicName, topicExistsInfo.getPartitions());
                                     commandSender.sendPartitionMetadataResponse(topicExistsInfo.getPartitions(),
                                             requestId);
                                 } else {
+                                    log.info("===> A cluster: {}, topic: {}, partitions: {}",
+                                            getBrokerService().getPulsar().getConfig().getClusterName(),
+                                            topicName, "non-partitioned");
                                     commandSender.sendPartitionMetadataResponse(0, requestId);
                                 }
                                 // release resources.

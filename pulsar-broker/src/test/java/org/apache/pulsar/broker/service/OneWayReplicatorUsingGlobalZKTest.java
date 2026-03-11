@@ -37,6 +37,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -50,9 +52,11 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
@@ -667,6 +671,96 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         } catch (PulsarAdminException e) {
             assertTrue(e.getMessage().contains("is not in the list of allowed clusters list"));
         }
+    }
+
+    @Test
+    public void testSystemTopicCreationWithDifferentTopicCreationRule() throws Exception {
+        String ns = defaultTenant + "/" + UUID.randomUUID().toString().replace("-", "");
+        admin1.namespaces().createNamespace(ns);
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1)), false);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin1.namespaces().getNamespaceReplicationClusters(ns).size(), 1);
+            assertEquals(admin2.namespaces().getNamespaceReplicationClusters(ns).size(), 1);
+        });
+
+        // Trigger system topic creation on cluster1.
+        String topicUsedToTriggerSystemTopic = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
+        admin1.topics().createNonPartitionedTopic(topicUsedToTriggerSystemTopic);
+        admin1.topics().delete(topicUsedToTriggerSystemTopic, false);
+
+        // Enable replication.
+        // Set topic auto-creation rule to "partitions: 2".
+        final String tp = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
+        final Set<String> clusters = new HashSet<>(Arrays.asList(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(ns, clusters, true);
+        AutoTopicCreationOverride autoTopicCreation =
+                AutoTopicCreationOverrideImpl.builder().allowAutoTopicCreation(true)
+                        .topicType("partitioned").defaultNumPartitions(2).build();
+        admin1.namespaces().setAutoTopicCreation(ns, autoTopicCreation);
+        admin2.namespaces().setAutoTopicCreation(ns, autoTopicCreation);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin1.namespaces().getAutoTopicCreationAsync(ns).join()
+                    .getDefaultNumPartitions(), 2);
+            assertEquals(admin2.namespaces().getAutoTopicCreationAsync(ns).join()
+                    .getDefaultNumPartitions(), 2);
+        });
+
+        admin2.topics().createNonPartitionedTopic(tp);
+        Producer<String> p2 = client2.newProducer(Schema.STRING).topic(tp).create();
+        p2.send("msg-1");
+        p2.close();
+        Producer<String> p1 = client1.newProducer(Schema.STRING).topic(tp).create();
+        p1.send("msg-1");
+        p1.close();
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic1 = (PersistentTopic) broker1.getTopic(tp, false).join().get();
+            assertFalse(persistentTopic1.getReplicators().isEmpty());
+            PersistentTopic persistentTopic2 = (PersistentTopic) broker2.getTopic(tp, false).join().get();
+            assertFalse(persistentTopic2.getReplicators().isEmpty());
+        });
+
+        // Verify: the topics are the same between two clusters.
+        Predicate<String> topicNameFilter = t -> TopicName.get(t).getNamespace().equals(ns);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> topics1 = pulsar1.getBrokerService().getTopics().keySet()
+                    .stream().filter(topicNameFilter).collect(Collectors.toList());
+            List<String> topics2 = pulsar2.getBrokerService().getTopics().keySet()
+                    .stream().filter(topicNameFilter).collect(Collectors.toList());
+            Collections.sort(topics1);
+            Collections.sort(topics2);
+            boolean systemTopicCreated1 = false;
+            for (String tp1 : topics1) {
+                if (tp1.contains("__change_events")) {
+                    systemTopicCreated1 = true;
+                    break;
+                }
+            }
+            boolean systemTopicCreated2 = false;
+            for (String tp2 : topics2) {
+                if (tp2.contains("__change_events")) {
+                    systemTopicCreated2 = true;
+                    break;
+                }
+            }
+            log.info("topics1: {}", topics1);
+            log.info("topics2: {}", topics2);
+            assertTrue(systemTopicCreated1);
+            assertTrue(systemTopicCreated2);
+            assertEquals(topics1, topics2);
+        });
+
+        // cleanup.
+        admin1.topics().setReplicationClusters(tp, Arrays.asList(cluster1));
+        admin2.topics().setReplicationClusters(tp, Arrays.asList(cluster2));
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopic persistentTopic1 = (PersistentTopic) broker1.getTopic(tp, false).join().get();
+            assertTrue(persistentTopic1.getReplicators().isEmpty());
+            PersistentTopic persistentTopic2 = (PersistentTopic) broker1.getTopic(tp, false).join().get();
+            assertTrue(persistentTopic2.getReplicators().isEmpty());
+        });
+
+        admin1.topics().delete(tp, false);
+        admin2.topics().delete(tp, false);
     }
 
     @Test
