@@ -38,7 +38,7 @@ public class ProducerMetrics {
 
         rpcLatencyHistogram = ip.newLatencyHistogram(
                 "pulsar.client.producer.rpc.send.duration",
-                "Publish RPC latency experienced internally by the client when sending data to receiving an ack",
+                "Publish RPC latency experienced internally by the client when sending data and receiving an ack",
                 topic, Attributes.empty());
 
         publishedBytesCounter = ip.newCounter(
@@ -53,7 +53,7 @@ public class ProducerMetrics {
 
         pendingBytesUpDownCounter = ip.newUpDownCounter(
                 "pulsar.client.producer.message.pending.size", Unit.Bytes,
-                "The size of the messages in the producer internal queue, waiting to sent",
+                "The size of the messages in the producer internal queue, waiting to be sent",
                 topic, Attributes.empty());
 
         producersOpenedCounter = ip.newCounter(
@@ -85,15 +85,19 @@ public class ProducerMetrics {
         sendLatencyHistogram.recordFailure(latencyNanos);
     }
 
+    public void recordRpcLatencySuccess(long latencyNanos) {
+        rpcLatencyHistogram.recordSuccess(latencyNanos);
+    }
+
+    public void recordRpcLatencyFailure(long latencyNanos) {
+        rpcLatencyHistogram.recordFailure(latencyNanos);
+    }
+
     public void recordProducerOpened() {
         producersOpenedCounter.increment();
     }
 
     public void recordProducerClosed() {
         producersClosedCounter.increment();
-    }
-
-    public LatencyHistogram getRpcLatencyHistogram() {
-        return rpcLatencyHistogram;
     }
 }

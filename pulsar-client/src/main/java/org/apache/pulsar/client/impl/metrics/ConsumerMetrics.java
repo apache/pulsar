@@ -75,7 +75,7 @@ public class ConsumerMetrics {
         consumerNacksCounter.increment();
     }
 
-    public void recordDlq() {
+    public void recordDlqMessageSent() {
         consumerDlqMessagesCounter.increment();
     }
 
