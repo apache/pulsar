@@ -133,8 +133,13 @@ public class TopicName implements ServiceUnitId {
             String rest = parts.get(1);
 
             // Expected format: tenant/namespace/<localName>
-            parts = Splitter.on("/").limit(3).splitToList(rest);
-            if (parts.size() == 3) {
+            parts = Splitter.on("/").limit(4).splitToList(rest);
+            if (parts.size() == 4) {
+                throw new IllegalArgumentException(
+                        "V1 topic names (with cluster component) are no longer supported. "
+                        + "Please use the V2 format: '<domain>://tenant/namespace/topic'. Got: "
+                        + completeTopicName);
+            } else if (parts.size() == 3) {
                 this.tenant = parts.get(0);
                 this.namespacePortion = parts.get(1);
                 this.localName = parts.get(2);
@@ -396,7 +401,12 @@ public class TopicName implements ServiceUnitId {
         final int index = topic.indexOf("://");
         if (index >= 0) {
             TopicDomain.getEnum(topic.substring(0, index));
-            final List<String> parts = splitBySlash(topic.substring(index + "://".length()), 3);
+            final List<String> parts = splitBySlash(topic.substring(index + "://".length()), 4);
+            if (parts.size() == 4) {
+                throw new IllegalArgumentException(
+                        "V1 topic names (with cluster component) are no longer supported. "
+                        + "Please use the V2 format: '<domain>://tenant/namespace/topic'. Got: " + topic);
+            }
             if (parts.size() != 3) {
                 throw new IllegalArgumentException(topic + " is invalid. "
                     + "Expected format: '<domain>://tenant/namespace/topic'");

@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
@@ -272,18 +271,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         final String domain = parts.get(4);
         final NamespaceName namespace = NamespaceName.get(parts.get(5), parts.get(6));
 
-        // The topic name which contains slashes is also split, so it needs to be jointed
-        int startPosition = 7;
-        boolean isConsumer = "consumer".equals(parts.get(3));
-        int endPosition = isConsumer ? parts.size() - 1 : parts.size();
-        StringBuilder topicName = new StringBuilder(parts.get(startPosition));
-        while (++startPosition < endPosition) {
-            if (StringUtils.isEmpty(parts.get(startPosition))) {
-               continue;
-            }
-            topicName.append("/").append(parts.get(startPosition));
-        }
-        final String name = Codec.decode(topicName.toString());
+        final String name = Codec.decode(parts.get(7));
 
         topic = TopicName.get(domain, namespace, name);
     }

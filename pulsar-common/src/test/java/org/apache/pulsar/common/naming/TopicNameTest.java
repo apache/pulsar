@@ -110,11 +110,11 @@ public class TopicNameTest {
         assertThrows(IllegalArgumentException.class,
                 () -> TopicName.toFullTopicName("invalid://tenant/namespace/topic"));
 
-        // Fully-qualified names with extra slashes are parsed as V2 with slashes in local name
-        TopicName v2WithSlash = TopicName.get("persistent://tenant/cluster/namespace/topic");
-        assertEquals(v2WithSlash.getTenant(), "tenant");
-        assertEquals(v2WithSlash.getNamespacePortion(), "cluster");
-        assertEquals(v2WithSlash.getLocalName(), "namespace/topic");
+        // V1 topic names (with cluster component) are no longer supported
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("persistent://tenant/cluster/namespace/topic"));
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("non-persistent://tenant/cluster/namespace/topic"));
 
         // 4-part short topic names (without domain) are not supported
         assertThrows(IllegalArgumentException.class,
@@ -155,20 +155,13 @@ public class TopicNameTest {
         }
         assertThrows(IllegalArgumentException.class, () -> TopicName.toFullTopicName(" "));
 
-        TopicName nameWithSlash = TopicName.get("persistent://tenant/namespace/ns-abc/table/1");
-        assertEquals(nameWithSlash.getEncodedLocalName(), Codec.encode("ns-abc/table/1"));
-
-        TopicName nameEndingInSlash = TopicName
-                .get("persistent://tenant/namespace/ns-abc/table/1/");
-        assertEquals(nameEndingInSlash.getEncodedLocalName(), Codec.encode("ns-abc/table/1/"));
-
-        TopicName nameWithTwoSlashes = TopicName
-                .get("persistent://tenant/namespace//ns-abc//table//1//");
-        assertEquals(nameWithTwoSlashes.getEncodedLocalName(), Codec.encode("/ns-abc//table//1//"));
-
-        TopicName nameWithRandomCharacters = TopicName
-                .get("persistent://tenant/namespace/$#3rpa/table/1");
-        assertEquals(nameWithRandomCharacters.getEncodedLocalName(), Codec.encode("$#3rpa/table/1"));
+        // V2 topic names do not allow '/' in local names (V1 did)
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("persistent://tenant/namespace/ns-abc/table/1"));
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("persistent://tenant/namespace/ns-abc/table/1/"));
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("persistent://tenant/namespace/$#3rpa/table/1"));
 
         TopicName topicName = TopicName.get("persistent://myprop/myns/mytopic");
         assertEquals(topicName.getPartition(0).toString(), "persistent://myprop/myns/mytopic-partition-0");
@@ -201,9 +194,8 @@ public class TopicNameTest {
 
     @Test
     public void testDecodeEncode() throws Exception {
-        String encodedName =
-                "a%3Aen-in_in_business_content_item_20150312173022_https%5C%3A%2F%2Fin.news.example.com%2Fr";
-        String rawName = "a:en-in_in_business_content_item_20150312173022_https\\://in.news.example.com/r";
+        String encodedName = "a%3Aen-in_in_business_content_item_20150312173022_https%5C%3A";
+        String rawName = "a:en-in_in_business_content_item_20150312173022_https\\:";
         assertEquals(Codec.decode(encodedName), rawName);
         assertEquals(Codec.encode(rawName), encodedName);
 
@@ -313,7 +305,11 @@ public class TopicNameTest {
         assertEquals("persistent://tenant/ns/tp???xx=", TopicName.toFullTopicName("tenant/ns/tp???xx="));
         assertEquals("persistent://tenant/ns/test", TopicName.toFullTopicName("persistent://tenant/ns/test"));
         assertThrows(IllegalArgumentException.class, () -> TopicName.toFullTopicName("ns/topic"));
-        // v1 format is not supported when the domain is not included
+        // v1 format is not supported
         assertThrows(IllegalArgumentException.class, () -> TopicName.toFullTopicName("tenant/cluster/ns/topic"));
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.toFullTopicName("persistent://tenant/cluster/ns/topic"));
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.toFullTopicName("non-persistent://tenant/cluster/ns/topic"));
     }
 }

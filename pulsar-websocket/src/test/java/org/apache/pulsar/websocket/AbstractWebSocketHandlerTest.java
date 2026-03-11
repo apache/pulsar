@@ -137,8 +137,7 @@ public class AbstractWebSocketHandlerTest {
     public void parseTopicNameTest() {
         String producerV2 = "/ws/v2/producer/persistent/my-property/my-ns/my-topic";
         String consumerV2 = "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription";
-        String consumerLongTopicNameV2 = "/ws/v2/consumer/persistent/my-tenant/my-ns/some/topic/with/slashes/my-sub";
-        String readerV2 = "/ws/v2/reader/persistent/my-property/my-ns/my-topic/ / /@!$#^&*( /)1 /_、`，《》</>";
+        String readerV2 = "/ws/v2/reader/persistent/my-property/my-ns/my-topic";
 
         httpServletRequest = mock(HttpServletRequest.class);
 
@@ -152,15 +151,10 @@ public class AbstractWebSocketHandlerTest {
         topicName = webSocketHandler.getTopic();
         assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic");
 
-        when(httpServletRequest.getRequestURI()).thenReturn(consumerLongTopicNameV2);
-        webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
-        topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-tenant/my-ns/some/topic/with/slashes");
-
         when(httpServletRequest.getRequestURI()).thenReturn(readerV2);
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic/ / /@!$#^&*( /)1 /_、`，《》</>");
+        assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic");
 
     }
 
