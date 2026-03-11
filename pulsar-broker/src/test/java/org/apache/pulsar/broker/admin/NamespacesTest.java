@@ -574,6 +574,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.FORBIDDEN.getStatusCode());
         }
 
+        // First remove usw from namespace replication clusters before removing from tenant
+        asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
+                this.testGlobalNamespaces.get(0).getTenant(),
+                this.testGlobalNamespaces.get(0).getLocalName(),
+                List.of("use"), false));
+
         admin.tenants().updateTenant(testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc")));
 

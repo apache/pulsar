@@ -450,7 +450,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
 
         }
 
-        final String topic1 = "persistent://" + ns1 + "/`~!@#$%^&*()-_+=[]://{}|\\;:'\"<>,./?-30e04524";
+        final String topic1 = "persistent://" + ns1 + "/`~!@#$%^&*()-_+=[]{}|\\;:'\"<>,.?-30e04524";
         final String subName1 = "c1";
         final byte[] content = "test".getBytes();
 

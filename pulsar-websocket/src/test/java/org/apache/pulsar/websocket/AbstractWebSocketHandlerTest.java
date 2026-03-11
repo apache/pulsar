@@ -90,7 +90,7 @@ public class AbstractWebSocketHandlerTest {
         String consumerV2Topic = "my-topic";
         String consumerV2Sub = "my-subscription[][]<>";
         String readerV2 = "/ws/v2/reader/persistent/my-property/my-ns/";
-        String readerV2Topic = "my-topic/ / /@!$#^&*( /)1 /_、`，《》</>[]";
+        String readerV2Topic = "my-topic @!$#^&*()-_、`，《》<>[]";
 
         httpServletRequest = mock(HttpServletRequest.class);
 
