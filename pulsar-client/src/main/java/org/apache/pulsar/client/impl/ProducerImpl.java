@@ -182,7 +182,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private boolean errorState;
 
     private final ProducerMetrics producerMetrics;
-    // rpcLatencyHistogram 需要传递给 OpSendMsg，保留包级别访问
     final LatencyHistogram rpcLatencyHistogram;
     private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
     // This variable can be exposed as a metrics in the future, a PIP is needed.
@@ -288,7 +287,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         InstrumentProvider ip = client.instrumentProvider();
         producerMetrics = new ProducerMetrics(ip, topic);
-        rpcLatencyHistogram = producerMetrics.rpcLatencyHistogram;
+        rpcLatencyHistogram = producerMetrics.getRpcLatencyHistogram();
         pendingQueueFullCounter = new AtomicInteger();
 
         this.connectionHandler = initConnectionHandler();

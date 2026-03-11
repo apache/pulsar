@@ -110,10 +110,10 @@ public class ProducerMetricsTest {
 
     @Test
     public void testRpcLatencyHistogramIsAccessible() {
-        assertNotNull(producerMetrics.rpcLatencyHistogram);
+        assertNotNull(producerMetrics.getRpcLatencyHistogram());
 
-        producerMetrics.rpcLatencyHistogram.recordSuccess(TimeUnit.MILLISECONDS.toNanos(3));
-        producerMetrics.rpcLatencyHistogram.recordFailure(TimeUnit.MILLISECONDS.toNanos(1));
+        producerMetrics.getRpcLatencyHistogram().recordSuccess(TimeUnit.MILLISECONDS.toNanos(3));
+        producerMetrics.getRpcLatencyHistogram().recordFailure(TimeUnit.MILLISECONDS.toNanos(1));
 
         Collection<MetricData> metrics = metricReader.collectAllMetrics();
         assertHistogramCount(metrics, "pulsar.client.producer.rpc.send.duration", 2);
