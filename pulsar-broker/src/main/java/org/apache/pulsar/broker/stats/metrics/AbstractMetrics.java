@@ -173,9 +173,7 @@ abstract class AbstractMetrics {
         Matcher m = V2_LEDGER_NAME_PATTERN.matcher(ledgerName);
 
         if (m.matches()) {
-            // Ledger name format: tenant/namespace/domain/topic
-            // Extract only tenant/namespace (groups 2 and 3), excluding the domain.
-            return m.group(2) + "/" + m.group(3);
+            return m.group(1);
         } else {
             throw new RuntimeException("Failed to parse the namespace from ledger name : " + ledgerName);
         }
