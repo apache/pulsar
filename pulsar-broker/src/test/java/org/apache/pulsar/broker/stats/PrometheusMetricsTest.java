@@ -794,7 +794,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             assertEquals(mlMetric.get(0).value, 2.0);
         }
         assertEquals(mlMetric.get(0).tags.get("cluster"), "test");
-        assertEquals(mlMetric.get(0).tags.get("namespace"), ns);
+        assertEquals(mlMetric.get(0).tags.get("namespace"), ns + "/persistent");
     }
 
     @Test
@@ -1482,13 +1482,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
         String ns = cm.get(0).tags.get("namespace");
-        assertTrue(ns.equals("my-property/my-ns") || ns.equals("my-property/my-ns2"));
+        assertTrue(ns.equals("my-property/my-ns/persistent") || ns.equals("my-property/my-ns2/persistent"));
 
         cm = (List<Metric>) metrics.get("pulsar_ml_AddEntryMessagesRate");
         assertEquals(cm.size(), 2);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
         ns = cm.get(0).tags.get("namespace");
-        assertTrue(ns.equals("my-property/my-ns") || ns.equals("my-property/my-ns2"));
+        assertTrue(ns.equals("my-property/my-ns/persistent") || ns.equals("my-property/my-ns2/persistent"));
 
         p1.close();
         p2.close();
