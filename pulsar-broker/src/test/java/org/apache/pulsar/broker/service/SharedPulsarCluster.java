@@ -110,6 +110,7 @@ public class SharedPulsarCluster {
         bkConf.setServerNumIOThreads(1);
         bkConf.setNumLongPollWorkerThreads(1);
         bkConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
+        bkConf.setLedgerStorageClass("org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage");
 
         bkCluster = BKCluster.builder()
                 .baseServerConfiguration(bkConf)
@@ -143,6 +144,19 @@ public class SharedPulsarCluster {
         config.setDispatcherRetryBackoffMaxTimeInMs(0);
         config.setForceDeleteNamespaceAllowed(true);
         config.setForceDeleteTenantAllowed(true);
+
+        // Reduce thread pool sizes for faster startup (fewer threads to create)
+        config.setNumIOThreads(2);
+        config.setNumOrderedExecutorThreads(1);
+        config.setNumHttpServerThreads(4);
+        config.setBookkeeperClientNumWorkerThreads(1);
+        config.setBookkeeperClientNumIoThreads(2);
+        config.setNumCacheExecutorThreadPoolSize(1);
+        config.setManagedLedgerNumSchedulerThreads(1);
+        config.setTopicOrderedExecutorThreadNum(2);
+
+        // Disable the load balancer — single-broker cluster doesn't need it
+        config.setLoadBalancerEnabled(false);
 
         pulsarService = new PulsarService(config);
         pulsarService.start();
