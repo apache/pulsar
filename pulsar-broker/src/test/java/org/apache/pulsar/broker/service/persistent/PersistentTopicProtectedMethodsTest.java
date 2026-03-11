@@ -92,7 +92,9 @@ public class PersistentTopicProtectedMethodsTest extends ProducerConsumerBase {
         admin.topics().skipAllMessages(tp, "s1");
         Awaitility.await().untilAsserted(() -> {
             assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
-            assertEquals(cursor.getMarkDeletedPosition(), ml.getLastConfirmedEntry());
+            // Use >= comparison: after skipAll, a ledger rollover may create a new empty ledger,
+            // moving the cursor's mark-delete position past the LAC (e.g., 10:-1 vs 9:1).
+            assertTrue(cursor.getMarkDeletedPosition().compareTo(ml.getLastConfirmedEntry()) >= 0);
         });
         CompletableFuture completableFuture = new CompletableFuture();
         ml.trimConsumedLedgersInBackground(completableFuture);
@@ -100,7 +102,7 @@ public class PersistentTopicProtectedMethodsTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> {
             assertEquals(ml.getLedgersInfo().size(), 1);
             assertEquals(cursor.getNumberOfEntriesInBacklog(true), 0);
-            assertEquals(cursor.getMarkDeletedPosition(), ml.getLastConfirmedEntry());
+            assertTrue(cursor.getMarkDeletedPosition().compareTo(ml.getLastConfirmedEntry()) >= 0);
         });
 
         // Verify: "persistentTopic.estimatedTimeBasedBacklogQuotaCheck" will not get a NullPointerException.
