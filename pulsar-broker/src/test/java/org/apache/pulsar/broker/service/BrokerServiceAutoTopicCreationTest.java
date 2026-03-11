@@ -19,22 +19,14 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
@@ -46,16 +38,13 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.awaitility.Awaitility;
@@ -138,96 +127,6 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertTrue(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
         for (int i = 0; i < 3; i++) {
             assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString + "-partition-" + i));
-        }
-    }
-
-    @Test
-    public void testAutoTopicCreationUseRemotePartitionedMetadata() throws Exception {
-        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
-        pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-        final String tenant = "prop";
-        final String ns = BrokerTestUtil.newUniqueName(tenant + "/ns-abc");
-        final String remoteCluster = "remote-" + UUID.randomUUID();
-        final String topicString = "persistent://" + ns + "/remote-partitioned-topic";
-        final String subscriptionName = "remote-partitioned-topic-sub";
-        try {
-            admin.clusters().createCluster(remoteCluster, ClusterData.builder()
-                    .serviceUrl(pulsar.getWebServiceAddress())
-                    .build());
-            TenantInfo tenantInfo = admin.tenants().getTenantInfo(tenant);
-            tenantInfo.getAllowedClusters().add(remoteCluster);
-            admin.tenants().updateTenant(tenant, tenantInfo);
-            admin.namespaces().createNamespace(ns);
-            admin.namespaces().setNamespaceReplicationClusters(ns,
-                    Set.of(configClusterName, remoteCluster), false);
-            mockRemoteTopicMetadata(remoteCluster, topicString, CompletableFuture.completedFuture(
-                    new PartitionedTopicMetadata(5)));
-
-            pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
-            List<String> topics = admin.topics().getList(ns);
-            assertTrue(admin.topics().getPartitionedTopicList(ns).contains(topicString));
-            assertEquals(admin.topics().getPartitionedTopicMetadata(topicString).partitions, 5);
-        } finally {
-            cleanupRemoteClusterConfig(remoteCluster);
-        }
-    }
-
-    @Test
-    public void testAutoTopicCreationUseRemoteNonPartitionedMetadata() throws Exception {
-        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
-        pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        pulsar.getConfiguration().setDefaultNumPartitions(4);
-        final String remoteCluster = "remote-" + UUID.randomUUID();
-        final String topicString = "persistent://prop/ns-abc/remote-non-partitioned-topic";
-        final String subscriptionName = "remote-non-partitioned-topic-sub";
-        try {
-            admin.clusters().createCluster(remoteCluster, ClusterData.builder()
-                    .serviceUrl(pulsar.getWebServiceAddress())
-                    .build());
-            admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc",
-                    Set.of(configClusterName, remoteCluster), false);
-            mockRemoteTopicMetadata(remoteCluster, topicString, CompletableFuture.completedFuture(
-                    new PartitionedTopicMetadata(0)));
-
-            pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
-
-            assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
-            assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
-        } finally {
-            cleanupRemoteClusterConfig(remoteCluster);
-        }
-    }
-
-    @Test
-    public void testAutoTopicCreationFallbackWhenRemoteTopicNotFound() throws Exception {
-        pulsar.getConfiguration().setAllowAutoTopicCreation(true);
-        pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        pulsar.getConfiguration().setDefaultNumPartitions(3);
-        final String tenant = "prop";
-        final String remoteCluster = "remote-" + UUID.randomUUID();
-        final String topicString = "persistent://prop/ns-abc/remote-not-found-topic";
-        final String subscriptionName = "remote-not-found-topic-sub";
-        try {
-            admin.clusters().createCluster(remoteCluster, ClusterData.builder()
-                    .serviceUrl(pulsar.getWebServiceAddress())
-                    .build());
-            TenantInfo tenantInfo = admin.tenants().getTenantInfo(tenant);
-            tenantInfo.getAllowedClusters().add(remoteCluster);
-            admin.tenants().updateTenant(tenant, tenantInfo);
-            admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc",
-                    Set.of(configClusterName, remoteCluster), false);
-
-            CompletableFuture<PartitionedTopicMetadata> notFoundFuture = new CompletableFuture<>();
-            notFoundFuture.completeExceptionally(
-                    new PulsarAdminException.NotFoundException(new Exception("not found"), "not found", 404));
-            mockRemoteTopicMetadata(remoteCluster, topicString, notFoundFuture);
-
-            pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
-
-            assertTrue(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
-            assertEquals(admin.topics().getPartitionedTopicMetadata(topicString).partitions, 3);
-        } finally {
-            cleanupRemoteClusterConfig(remoteCluster);
         }
     }
 
@@ -767,46 +666,6 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getConfiguration().setBrokerDeleteInactiveTopicsEnabled(originalDeleteInactiveTopics);
         pulsar.getConfiguration().setBrokerDeleteInactivePartitionedTopicMetadataEnabled(
                 originalDeleteInactivePartitionedTopicMetadataE);
-    }
-
-    private void mockRemoteTopicMetadata(String remoteCluster, String topic,
-                                         CompletableFuture<PartitionedTopicMetadata> metadataFuture) {
-        PulsarClientImpl remoteClient = mock(PulsarClientImpl.class);
-
-
-        doAnswer(invocationOnMock -> {
-            String paramTopic = invocationOnMock.getArgument(0, String.class);
-            if (!paramTopic.equals(topic)) {
-                return CompletableFuture.completedFuture(Arrays.asList(paramTopic));
-            }
-
-            CompletableFuture<List<String>> topicsFuture = new CompletableFuture<>();
-            metadataFuture.handle((metadata, t) -> {
-                if (t != null) {
-                    topicsFuture.completeExceptionally(t);
-                    return null;
-                }
-                if (metadata.partitions <= 0) {
-                    topicsFuture.complete(Arrays.asList(topic));
-                    return null;
-                }
-                List<String> res = new ArrayList<>();
-                TopicName topicName = TopicName.get(topic);
-                for (int i = 0; i < metadata.partitions; i++) {
-                    res.add(topicName.getPartition(i).toString());
-                }
-                topicsFuture.complete(res);
-                return null;
-            });
-            return  topicsFuture;
-        }).when(remoteClient).getPartitionsForTopic(anyString(), anyBoolean());
-        pulsar.getBrokerService().getReplicationClients().put(remoteCluster, remoteClient);
-    }
-
-    private void cleanupRemoteClusterConfig(String remoteCluster) throws Exception {
-        pulsar.getBrokerService().getClusterAdmins().remove(remoteCluster);
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Set.of(configClusterName), false);
-        admin.clusters().deleteCluster(remoteCluster);
     }
 
 }

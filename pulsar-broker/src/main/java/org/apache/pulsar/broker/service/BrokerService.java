@@ -3399,29 +3399,16 @@ public class BrokerService implements Closeable {
                                 // If remote topic exists, prioritize topic shape from remote clusters.
                                 if (remoteTopicExistsInfo.isExists()) {
                                     if (remoteTopicExistsInfo.getTopicType() == TopicType.PARTITIONED) {
-                                        log.info("===> C cluster: {}, topic: {}, partitions: {}",
-                                                pulsar.getConfig().getClusterName(),
-                                                topicName, topicExistsInfo.getPartitions());
                                         return createPartitionedTopicMetadataAsync(topicName,
                                             remoteTopicExistsInfo.getPartitions());
                                     }
-                                    log.info("===> C cluster: {}, topic: {}, partitions: {}",
-                                            pulsar.getConfig().getClusterName(),
-                                            topicName, "non-partitioned");
                                     return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
-                                } else {
-                                    log.info("===> E cluster: {}, topic: {}, partitions: {}",
-                                            pulsar.getConfig().getClusterName(),
-                                            topicName, "not found");
                                 }
 
                                 // Allow auto create non-partitioned topic.
                                 boolean autoCreatePartitionedTopic = pulsar.getBrokerService()
                                         .isDefaultTopicTypePartitioned(topicName, policies);
                                 if (!autoCreatePartitionedTopic || topicName.isPartitioned()) {
-                                    log.info("===> D cluster: {}, topic: {}, partitions: {}",
-                                            pulsar.getConfig().getClusterName(),
-                                            topicName, "non-partitioned");
                                     return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
                                 }
 
@@ -3461,9 +3448,6 @@ public class BrokerService implements Closeable {
     private CompletableFuture<PartitionedTopicMetadata> createDefaultPartitionedTopicAsync(TopicName topicName,
                                                                                         Optional<Policies> policies) {
         final int defaultNumPartitions = pulsar.getBrokerService().getDefaultNumPartitions(topicName, policies);
-        log.info("===> D cluster: {}, topic: {}, partitions: {}",
-                pulsar.getConfig().getClusterName(),
-                topicName, defaultNumPartitions);
         return createPartitionedTopicMetadataAsync(topicName, defaultNumPartitions);
     }
 
