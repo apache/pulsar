@@ -191,7 +191,7 @@ flexible messaging model and an intuitive client API.</description>
     <curator.version>5.7.1</curator.version>
     <netty.version>4.1.131.Final</netty.version>
     <netty-iouring.version>0.0.26.Final</netty-iouring.version>
-    <jetty.version>12.1.5</jetty.version>
+    <jetty.version>12.1.7</jetty.version>
     <!-- Jetty 9 is used in tiered-storage/file-system tests and pulsar-io/alluxio -->
     <jetty9.version>9.4.58.v20250814</jetty9.version>
     <conscrypt.version>2.5.2</conscrypt.version>
@@ -240,17 +240,17 @@ flexible messaging model and an intuitive client API.</description>
     <aws-sdk2.version>2.32.28</aws-sdk2.version>
     <avro.version>1.12.0</avro.version>
     <joda.version>2.10.10</joda.version>
-    <jclouds.version>2.6.0</jclouds.version>
+    <jclouds.version>2.7.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
-    <sqlite-jdbc.version>3.47.1.0</sqlite-jdbc.version>
-    <postgresql-jdbc.version>42.7.7</postgresql-jdbc.version>
-    <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
+    <sqlite-jdbc.version>3.51.2.0</sqlite-jdbc.version>
+    <postgresql-jdbc.version>42.7.10</postgresql-jdbc.version>
+    <clickhouse-jdbc.version>0.9.7</clickhouse-jdbc.version>
     <mariadb-jdbc.version>3.5.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.19.4</opensearch.version>
-    <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
-    <debezium.version>3.2.5.Final</debezium.version>
+    <elasticsearch-java.version>8.19.12</elasticsearch-java.version>
+    <debezium.version>3.2.7.Final</debezium.version>
     <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
     <debezium.mysql.version>9.4.0</debezium.mysql.version>
     <jsonwebtoken.version>0.13.0</jsonwebtoken.version>
@@ -289,7 +289,7 @@ flexible messaging model and an intuitive client API.</description>
     <jose4j.version>0.9.6</jose4j.version>
     <okhttp3.version>5.3.1</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
-    <okio.version>3.16.3</okio.version>
+    <okio.version>3.16.4</okio.version>
     <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
     <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
