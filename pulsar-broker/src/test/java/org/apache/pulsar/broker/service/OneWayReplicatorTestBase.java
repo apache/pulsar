@@ -306,8 +306,14 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         if (!usingGlobalZK) {
             admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2), true);
         }
-        admin1.namespaces().deleteNamespace(replicatedNamespace, true);
-        admin1.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+        // When using global ZK, reducing replication clusters triggers async topic cleanup on removed clusters.
+        // Retry namespace deletion to handle topics that may be in a transitional state.
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+            admin1.namespaces().deleteNamespace(replicatedNamespace, true);
+        });
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+            admin1.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+        });
         if (!usingGlobalZK) {
             admin2.namespaces().deleteNamespace(replicatedNamespace, true);
             admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
