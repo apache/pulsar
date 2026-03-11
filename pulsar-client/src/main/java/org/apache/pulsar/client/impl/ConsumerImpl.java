@@ -34,7 +34,6 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
