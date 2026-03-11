@@ -20,6 +20,11 @@ package org.apache.pulsar.client.impl.metrics;
 
 import io.opentelemetry.api.common.Attributes;
 
+/**
+ * Encapsulates OpenTelemetry metrics for a Pulsar producer, tracking message send latency,
+ * RPC latency, published bytes, pending queue message count and size, and producer session
+ * open/close events.
+ */
 public class ProducerMetrics {
 
     private final LatencyHistogram sendLatencyHistogram;
