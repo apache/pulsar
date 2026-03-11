@@ -621,7 +621,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         for (String ns : nsList) {
             admin.namespaces().createNamespace(ns, numBundles);
-            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"));
+            admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("test"), false);
             String topic1 = String.format("persistent://%s/topic1", ns);
             producerList.add(pulsarClient.newProducer().topic(topic1).create());
             String topic2 = String.format("persistent://%s/topic2", ns);
@@ -1172,7 +1172,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         } catch (PulsarAdminException.ConflictException e) {
             // Ok.. (if test fails intermittently and namespace is already created)
         }
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"), false);
 
         // own namespace bundle
         final String topicName = "persistent://" + namespace + "/my-topic";

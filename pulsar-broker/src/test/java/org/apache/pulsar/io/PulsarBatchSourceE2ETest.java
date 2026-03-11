@@ -48,7 +48,7 @@ public class PulsarBatchSourceE2ETest extends AbstractPulsarE2ETest {
         final String sourceName = "PulsarBatchSource";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, sourceName, sinkTopic);
         sourceConfig.setBatchSourceConfig(createBatchSourceConfig());

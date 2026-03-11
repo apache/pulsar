@@ -469,9 +469,10 @@ public class Namespaces extends NamespacesBase {
     public void setNamespaceReplicationClusters(@Suspended AsyncResponse asyncResponse,
                                                 @PathParam("tenant") String tenant,
                                                 @PathParam("namespace") String namespace,
-            @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds) {
+            @ApiParam(value = "List of replication clusters", required = true) List<String> clusterIds,
+            @QueryParam(value = "compareTopicPartitions") boolean compareTopicPartitions) {
         validateNamespaceName(tenant, namespace);
-        internalSetNamespaceReplicationClusters(clusterIds)
+        internalSetNamespaceReplicationClusters(clusterIds, compareTopicPartitions)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(e -> {
                     log.error("[{}] Failed to set namespace replication clusters on namespace {}",

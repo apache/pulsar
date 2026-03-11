@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import java.beans.Transient;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -233,6 +235,8 @@ public class Policies {
     /**
      * Get the cluster that can delete the namespace.
      */
+    @JsonIgnore
+    @Transient
     public String getClusterThatCanDeleteNamespace() {
         if (this.replication_clusters.size() != 1 ||  this.allowed_clusters.size() > 1) {
             return null;

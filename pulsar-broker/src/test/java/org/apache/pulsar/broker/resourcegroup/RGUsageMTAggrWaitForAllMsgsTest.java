@@ -925,14 +925,14 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             if (!createdNamespaces.contains(tenantAndNsNameSameOrder[ix])) {
                 admin.namespaces().createNamespace(tenantAndNsNameSameOrder[ix]);
                 admin.namespaces().setNamespaceReplicationClusters(
-                        tenantAndNsNameSameOrder[ix], Sets.newHashSet(clusterName));
+                        tenantAndNsNameSameOrder[ix], Sets.newHashSet(clusterName), false);
                 createdNamespaces.add(tenantAndNsNameSameOrder[ix]);
             }
 
             if (!createdNamespaces.contains(tenantAndNsNameOppositeOrder[ix])) {
                 admin.namespaces().createNamespace(tenantAndNsNameOppositeOrder[ix]);
                 admin.namespaces().setNamespaceReplicationClusters(
-                        tenantAndNsNameOppositeOrder[ix], Sets.newHashSet(clusterName));
+                        tenantAndNsNameOppositeOrder[ix], Sets.newHashSet(clusterName), false);
                 createdNamespaces.add(tenantAndNsNameOppositeOrder[ix]);
             }
         }

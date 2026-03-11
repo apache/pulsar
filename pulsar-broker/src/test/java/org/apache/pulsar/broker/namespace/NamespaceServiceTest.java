@@ -912,7 +912,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         // SUCCESS
         // 2.1.1. Set replication clusters without allowed clusters at namespace level.
-        namespaces.setNamespaceReplicationClusters(namespace, replicationClusters);
+        namespaces.setNamespaceReplicationClusters(namespace, replicationClusters, false);
         // 2..1.2 Set allowed clusters.
         namespaces.setNamespaceAllowedClusters(namespace, allowedClusters);
         // 2.1.3. Get allowed clusters and replication clusters.
@@ -933,7 +933,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // 2.1.5. Fail: Set replication clusters whose scope is excel the allowed clusters.
         Set<String> replicationClustersExcel = Set.of("r1", "r4");
         try {
-            namespaces.setNamespaceReplicationClusters(namespace, replicationClustersExcel);
+            namespaces.setNamespaceReplicationClusters(namespace, replicationClustersExcel, false);
             fail();
             //Todo: The status code in the old implementation is confused.
         } catch (PulsarAdminException ignore) {
@@ -952,7 +952,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         } catch (PulsarAdminException.ConflictException ignore) {}
 
         // CleanUp: Namespace with replication clusters can not be deleted by force.
-        namespaces.setNamespaceReplicationClusters(namespace, Set.of(conf.getClusterName()));
+        namespaces.setNamespaceReplicationClusters(namespace, Set.of(conf.getClusterName()), false);
         namespaces.setNamespaceAllowedClusters(namespace, Set.of(conf.getClusterName()));
         admin.namespaces().deleteNamespace(namespace, true);
         admin.tenants().deleteTenant(tenant, true);

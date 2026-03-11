@@ -1598,7 +1598,8 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         execFlag = setAuthorizationPolicyOperationChecker(subject,
                 PolicyName.REPLICATION, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () -> subAdmin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test")));
+                () -> subAdmin.namespaces().setNamespaceReplicationClusters(namespace,
+                        Sets.newHashSet("test"), false));
         Assert.assertTrue(execFlag.get());
     }
 

@@ -93,7 +93,8 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         admin.tenants().createTenant("my-property", new TenantInfoImpl(
                 new HashSet<>(Arrays.asList("appid1", "appid2")), Collections.singleton("standalone")));
         admin.namespaces().createNamespace("my-property/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns",
+                Collections.singleton("standalone"), false);
         admin.namespaces().createNamespace("my-property/myenc-ns", Collections.singleton("standalone"));
     }
 

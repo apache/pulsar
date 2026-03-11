@@ -112,7 +112,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         boolean replicateSubscriptionState = true;
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -214,7 +214,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         boolean replicateSubscriptionState = true;
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -287,7 +287,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         final LinkedHashSet<String> sentMessages = new LinkedHashSet<>();
         final Set<String> receivedMessages = Collections.synchronizedSet(new LinkedHashSet<>());
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest, isReplicatedSubscription);
         final PersistentTopic topic1 =
@@ -374,7 +374,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         String subscriptionName = "cluster-subscription";
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder()
@@ -464,7 +464,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         final boolean allowDuplicates = true;
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -636,7 +636,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         final boolean allowDuplicates = true;
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         admin1.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup
@@ -748,7 +748,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         admin4.tenants().createTenant("geo",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid4"), Sets.newHashSet(cluster1, cluster4)));
         admin4.namespaces().createNamespace(namespace);
-        admin4.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4));
+        admin4.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4), false);
         admin4.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup
@@ -787,7 +787,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         String subscriptionName = "sub";
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
@@ -930,7 +930,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
             admin1.topics().createNonPartitionedTopic(topic2);
             admin1.topics().setReplicationClusters(topic2, List.of("r1", "r2"));
         } else {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         }
         @Cleanup
         Consumer<byte[]> consumer2 = client1.newConsumer()
@@ -950,7 +950,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         if (isTopicPolicyEnabled) {
             admin1.topics().setReplicationClusters(topic2, List.of("r1"));
         } else {
-            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"));
+            admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"), false);
         }
         testReplicatedSubscriptionWhenDisableReplication(producer2, consumer2, topic2);
         // 4. Clear resource.
@@ -966,7 +966,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         final String subName = "sub";
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topicPolicies().setCompactionThreshold(topicName, 100 * 1024 * 1024L);
 
@@ -1036,7 +1036,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         admin1.tenants().createTenant("pulsar-r4",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid4"), Sets.newHashSet(cluster1, cluster4)));
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster4), false);
 
         String subscriptionName = "cluster-subscription";
         boolean replicateSubscriptionState = true;

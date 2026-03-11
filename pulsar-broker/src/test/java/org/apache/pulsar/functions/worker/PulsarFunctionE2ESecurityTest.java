@@ -198,7 +198,7 @@ public class PulsarFunctionE2ESecurityTest {
         final String replNamespace = TENANT + "/" + NAMESPACE;
         superUserAdmin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        superUserAdmin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        superUserAdmin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create another test tenant and namespace
         propAdmin = TenantInfo.builder()

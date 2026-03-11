@@ -1412,7 +1412,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Test
     public void testManagedLedgerStats() throws Exception {
         admin.namespaces().createNamespace("my-property/my-ns2");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns2", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns2", Sets.newHashSet("test"), false);
 
         Producer<byte[]> p1 = pulsarClient.newProducer()
                 .topic("persistent://my-property/my-ns/my-topic1").create();

@@ -209,7 +209,7 @@ public class ClientDeduplicationFailureTest {
         final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
         admin.namespaces().setDeduplicationStatus(replNamespace, true);
         admin.namespaces().setRetention(replNamespace, new RetentionPolicies(-1, -1));
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -295,7 +295,7 @@ public class ClientDeduplicationFailureTest {
         final List<Message<String>> msgRecvd = new LinkedList<>();
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
         admin.namespaces().setDeduplicationStatus(replNamespace, true);
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic)
                 .producerName("test-producer-1").create();

@@ -68,7 +68,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("my-namespace",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-namespace/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-namespace/my-ns", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("my-namespace/my-ns", Sets.newHashSet("test"), false);
     }
 
     @Override

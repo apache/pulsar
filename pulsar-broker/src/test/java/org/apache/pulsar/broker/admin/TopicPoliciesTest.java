@@ -4248,7 +4248,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             assertTrue(actEx.getMessage().contains("namespace-level replication"));
         }
         // Can not set global topic level clusters that does not exist in namespace-level replication.
-        admin.namespaces().setNamespaceReplicationClusters(myNamespace, Collections.singleton(cluster));
+        admin.namespaces().setNamespaceReplicationClusters(myNamespace, Collections.singleton(cluster), false);
         try {
             admin.topicPolicies(true)
                     .setReplicationClusters(topic, Arrays.asList("not-local-cluster", cluster)).get();

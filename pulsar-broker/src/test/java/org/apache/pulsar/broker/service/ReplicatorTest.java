@@ -179,7 +179,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/removeClusterTest");
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1"), false);
 
         final String topicName = "persistent://" + namespace + "/topic";
 
@@ -207,7 +207,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/concurrent");
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         final TopicName topicName = TopicName
                 .get(BrokerTestUtil.newUniqueName("persistent://" + namespace + "/topic"));
 
@@ -234,7 +234,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final var replicationClients = pulsar1.getBrokerService().getReplicationClients();
         replicationClients.put("r3", pulsarClient);
 
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"), false);
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(5);
         for (int i = 0; i < 5; i++) {
@@ -1147,7 +1147,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String persistentTopicName = "persistent://" + namespace + "/partTopic" + UUID.randomUUID();
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"), false);
         // Create partitioned-topic from R1
         admin1.topics().createPartitionedTopic(persistentTopicName, 3);
         // List partitioned topics from R2
@@ -1201,7 +1201,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         BrokerService brokerService = pulsar1.getBrokerService();
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"), false);
 
         if (isPartitionedTopic) {
             admin1.topics().createPartitionedTopic(persistentTopicName, 5);
@@ -1252,7 +1252,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/repl");
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/topic1");
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"), false);
         admin1.topics().createPartitionedTopic(topicName, 4);
 
         @Cleanup
@@ -1393,7 +1393,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 + "-non-partitioned");
         final int startPartitions = 4;
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"), false);
         admin1.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         admin1.topics().createNonPartitionedTopic(nonPartitionedTopicName);
 
@@ -1511,7 +1511,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final int numPartitions = 3;
 
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2, cluster3));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"), false);
 
         admin1.topics().createPartitionedTopic(persistentPartitionedTopic, numPartitions);
         admin1.topics().createPartitionedTopic(nonPersistentPartitionedTopic, numPartitions);
@@ -1685,7 +1685,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 Mockito.any());
 
         log.info("--- Starting producer --- " + url1);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         // Produce from cluster1 and consume from the rest
         producer1.produce(2);
 
@@ -1727,7 +1727,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         log.info("--- testWhenUpdateReplicationCluster ---");
         String namespace = BrokerTestUtil.newUniqueName("pulsar/ns");
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         final TopicName dest = TopicName.get(
                 BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWhenUpdateReplicationCluster"));
         @Cleanup
@@ -1756,12 +1756,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
         log.info("--- testReplicatorProducerNotExceed ---");
         String namespace1 = BrokerTestUtil.newUniqueName("pulsar/ns1");
         admin1.namespaces().createNamespace(namespace1);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1", "r2"), false);
         final TopicName dest1 = TopicName.get(
                 BrokerTestUtil.newUniqueName("persistent://" + namespace1 + "/testReplicatorProducerNotExceed1"));
         String namespace2 = BrokerTestUtil.newUniqueName("pulsar/ns2");
         admin2.namespaces().createNamespace(namespace2);
-        admin2.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r1", "r2"));
+        admin2.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r1", "r2"), false);
         final TopicName dest2 = TopicName.get(
                 BrokerTestUtil.newUniqueName("persistent://" + namespace1 + "/testReplicatorProducerNotExceed2"));
         admin1.topics().createPartitionedTopic(dest1.toString(), 1);
@@ -1793,7 +1793,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final TopicName topic = TopicName
                 .get(BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testReplicatorWithTTL"));
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), false);
         admin1.topics().createNonPartitionedTopic(topic.toString());
         admin1.topicPolicies().setMessageTTL(topic.toString(), 1);
 

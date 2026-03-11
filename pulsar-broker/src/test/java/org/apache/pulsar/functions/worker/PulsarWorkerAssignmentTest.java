@@ -202,7 +202,7 @@ public class PulsarWorkerAssignmentTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         final Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         final String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion,
@@ -257,7 +257,7 @@ public class PulsarWorkerAssignmentTest {
         final int parallelism = 2;
         admin.namespaces().createNamespace(replNamespace);
         final Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
         final FunctionRuntimeManager runtimeManager = functionsWorkerService.getFunctionRuntimeManager();
 
         final String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
