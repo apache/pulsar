@@ -24,7 +24,7 @@ import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.Iterator;
-import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
+import org.apache.pulsar.client.impl.metrics.ProducerMetrics;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -41,7 +41,7 @@ public class OpSendMsgQueueTest {
     }
 
     private ProducerImpl.OpSendMsg createDummyOpSendMsg() {
-        return ProducerImpl.OpSendMsg.create(LatencyHistogram.NOOP, message, null, 0L, null);
+        return ProducerImpl.OpSendMsg.create((ProducerMetrics) null, message, null, 0L, null);
     }
 
     @Test

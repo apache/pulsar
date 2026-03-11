@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
+import org.apache.pulsar.client.impl.metrics.ProducerMetrics;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.mockito.Mockito;
@@ -46,7 +46,7 @@ public class ProducerImplTest {
         for (int i = 0; i < totalChunks; i++) {
             ProducerImpl.OpSendMsg opSendMsg =
                     ProducerImpl.OpSendMsg.create(
-                            LatencyHistogram.NOOP,
+                            (ProducerMetrics) null,
                             MessageImpl.create(new MessageMetadata(), ByteBuffer.allocate(0), Schema.STRING, null),
                             null, 0, null);
             opSendMsg.chunkedMessageCtx = ctx;
@@ -100,7 +100,7 @@ public class ProducerImplTest {
         MessageImpl<?> msg = Mockito.mock(MessageImpl.class);
         Mockito.when(msg.getUncompressedSize()).thenReturn(10);
         ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(
-                Mockito.mock(LatencyHistogram.class),
+                (ProducerMetrics) null,
                 msg,
                 Mockito.mock(ByteBufPair.class),
                 1L,
@@ -118,7 +118,7 @@ public class ProducerImplTest {
         Mockito.doAnswer(invocation -> {
             // Reentrant retry during callback
             ProducerImpl.OpSendMsg retryOp = ProducerImpl.OpSendMsg.create(
-                    Mockito.mock(LatencyHistogram.class),
+                    (ProducerMetrics) null,
                     retryMsg,
                     Mockito.mock(ByteBufPair.class),
                     2L,
