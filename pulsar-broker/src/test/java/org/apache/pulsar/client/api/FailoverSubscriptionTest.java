@@ -23,38 +23,24 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class FailoverSubscriptionTest extends ProducerConsumerBase {
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class FailoverSubscriptionTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 30_000, invocationCount = 5)
     public void testWaitingCursorsCountAfterSwitchingActiveConsumers() throws Exception {
-        final String tp = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp");
+        final String tp = newTopicName();
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(tp);
         admin.topics().createSubscription(tp, subscription, MessageId.earliest);
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(tp, false).join().get();
+        PersistentTopic topic = (PersistentTopic) getTopic(tp, false).join().get();
         Map<String, ConsumerImpl<byte[]>> consumerMap = new HashMap<>();
         ConsumerImpl<byte[]> firstConsumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(tp)
                 .subscriptionType(SubscriptionType.Failover).subscriptionName(subscription).subscribe();

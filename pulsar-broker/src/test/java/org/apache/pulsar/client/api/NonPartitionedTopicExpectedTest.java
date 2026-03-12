@@ -19,36 +19,22 @@
 package org.apache.pulsar.client.api;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class NonPartitionedTopicExpectedTest extends ProducerConsumerBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class NonPartitionedTopicExpectedTest extends SharedPulsarBaseTest {
 
     @Test
     public void testWhenNonPartitionedTopicExists() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topic = newTopicName();
         admin.topics().createNonPartitionedTopic(topic);
         ProducerBuilderImpl<String> producerBuilder =
                 (ProducerBuilderImpl<String>) pulsarClient.newProducer(Schema.STRING).topic(topic);
@@ -62,7 +48,7 @@ public class NonPartitionedTopicExpectedTest extends ProducerConsumerBase {
 
     @Test
     public void testWhenPartitionedTopicExists() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
         ProducerBuilderImpl<String> producerBuilder =
                 (ProducerBuilderImpl<String>) pulsarClient.newProducer(Schema.STRING).topic(topic);
@@ -89,8 +75,8 @@ public class NonPartitionedTopicExpectedTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "topicTypes")
     public void testWhenTopicNotExists(TopicType topicType) throws Exception {
-        final String namespace = "public/default";
-        final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        final String namespace = getNamespace();
+        final String topic = newTopicName();
         final TopicName topicName = TopicName.get(topic);
         AutoTopicCreationOverride.Builder policyBuilder = AutoTopicCreationOverride.builder()
                 .topicType(topicType.toString()).allowAutoTopicCreation(true);
@@ -106,9 +92,10 @@ public class NonPartitionedTopicExpectedTest extends ProducerConsumerBase {
         // Verify: create successfully.
         Producer producer = producerBuilder.create();
         // Verify: only create non-partitioned topic.
-        Assert.assertFalse(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .partitionedTopicExists(topicName));
-        Assert.assertTrue(pulsar.getNamespaceService().checkNonPartitionedTopicExists(topicName).join());
+        Assert.assertFalse(SharedPulsarCluster.get().getPulsarService().getPulsarResources()
+                .getNamespaceResources().getPartitionedTopicResources().partitionedTopicExists(topicName));
+        Assert.assertTrue(SharedPulsarCluster.get().getPulsarService().getNamespaceService()
+                .checkNonPartitionedTopicExists(topicName).join());
 
         // cleanup.
         producer.close();
