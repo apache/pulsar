@@ -3534,23 +3534,14 @@ public class BrokerService implements Closeable {
                         }
                     }
                     if (topics.isEmpty()) {
-                        log.info("===> B cluster: {}, topic: {}, partitions: {}",
-                                pulsar.getConfig().getClusterName(),
-                                topicName, "not found");
                         future.complete(TopicExistsInfo.newTopicNotExists());
                     } else if (topics.size() == 1 && !TopicName.get(topics.get(0)).isPartitioned()) {
-                        log.info("===> B cluster: {}, topic: {}, partitions: {}",
-                                pulsar.getConfig().getClusterName(),
-                                topicName, "non-partitioned");
                         future.complete(TopicExistsInfo.newNonPartitionedTopicExists());
                     } else {
                         int maxPartitionNum = 0;
                         for (String topic : topics) {
                             maxPartitionNum = Math.max(maxPartitionNum, TopicName.get(topic).getPartitionIndex());
                         }
-                        log.info("===> B cluster: {}, topic: {}, partitions: {}",
-                                pulsar.getConfig().getClusterName(),
-                                topicName, maxPartitionNum + 1);
                         future.complete(TopicExistsInfo.newPartitionedTopicExists(maxPartitionNum + 1));
                     }
                     return null;

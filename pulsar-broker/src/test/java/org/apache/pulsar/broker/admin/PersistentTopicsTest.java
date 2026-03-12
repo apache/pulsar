@@ -139,6 +139,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
+    protected void doInitConf() throws Exception {
+        configureInitialConfig(conf);
+        conf.setCreateTopicToRemoteClusterForReplication(false);
+    }
+
+    @Override
     @BeforeMethod
     protected void setup() throws Exception {
         conf.setTopicLevelPoliciesEnabled(false);
