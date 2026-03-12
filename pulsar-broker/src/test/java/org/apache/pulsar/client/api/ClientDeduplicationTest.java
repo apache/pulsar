@@ -34,18 +34,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class ClientDeduplicationTest extends ProducerConsumerBase {
+public class ClientDeduplicationTest extends SharedPulsarBaseTest {
 
     @DataProvider
     public static Object[][] batchingTypes() {
@@ -55,22 +54,9 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         };
     }
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
     @Test(priority = -1)
     public void testNamespaceDeduplicationApi() throws Exception {
-        final String namespace = "my-property/my-ns";
+        final String namespace = getNamespace();
         assertNull(admin.namespaces().getDeduplicationStatus(namespace));
         admin.namespaces().setDeduplicationStatus(namespace, true);
         Awaitility.await().untilAsserted(() -> assertTrue(admin.namespaces().getDeduplicationStatus(namespace)));
@@ -82,8 +68,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerSequenceAfterReconnect() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
-        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+        final String topic = newTopicName();
+        admin.namespaces().setDeduplicationStatus(getNamespace(), true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
                 .producerName("my-producer-name");
@@ -113,8 +99,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerSequenceAfterRestart() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerSequenceAfterRestart";
-        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+        String topic = newTopicName();
+        admin.namespaces().setDeduplicationStatus(getNamespace(), true);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
                 .producerName("my-producer-name");
@@ -130,8 +116,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
         producer.close();
 
-        // Kill and restart broker
-        restartBroker();
+        // Unload topic to force reload of dedup state
+        admin.topics().unload(topic);
 
         producer = producerBuilder.create();
         assertEquals(producer.getLastSequenceId(), 9L);
@@ -147,8 +133,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testProducerDeduplication() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerDeduplication";
-        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+        String topic = newTopicName();
+        admin.namespaces().setDeduplicationStatus(getNamespace(), true);
 
         // Set infinite timeout
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
@@ -180,8 +166,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);
 
-        // Kill and restart broker
-        restartBroker();
+        // Unload topic to force reload of dedup state
+        admin.topics().unload(topic);
 
         producer = producerBuilder.create();
         assertEquals(producer.getLastSequenceId(), 2L);
@@ -198,9 +184,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000, dataProvider = "batchingTypes")
     public void testProducerDeduplicationWithDiscontinuousSequenceId(BatcherBuilder batcherBuilder) throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerDeduplicationWithDiscontinuousSequenceId-"
-                + System.currentTimeMillis();
-        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+        String topic = newTopicName();
+        admin.namespaces().setDeduplicationStatus(getNamespace(), true);
 
         // Set infinite timeout
         ProducerBuilder<byte[]> producerBuilder =
@@ -244,8 +229,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         assertNull(msg);
 
         producer.close();
-        // Kill and restart broker
-        restartBroker();
+        // Unload topic to force reload of dedup state
+        admin.topics().unload(topic);
 
         producer = producerBuilder.create();
         assertEquals(producer.getLastSequenceId(), 6L);
@@ -263,8 +248,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testProducerDeduplicationNonBatchAsync() throws Exception {
-        String topic = "persistent://my-property/my-ns/testProducerDeduplicationNonBatchAsync";
-        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+        String topic = newTopicName();
+        admin.namespaces().setDeduplicationStatus(getNamespace(), true);
 
         // Set infinite timeout
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
@@ -295,8 +280,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);
 
-        // Kill and restart broker
-        restartBroker();
+        // Unload topic to force reload of dedup state
+        admin.topics().unload(topic);
 
         producer = producerBuilder.create();
         assertEquals(producer.getLastSequenceId(), 5L);
@@ -313,8 +298,8 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testKeyBasedBatchingOrder() throws Exception {
-        final String topic = "persistent://my-property/my-ns/test-key-based-batching-order";
-        admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
+        final String topic = newTopicName();
+        admin.namespaces().setDeduplicationStatus(getNamespace(), true);
 
         final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -379,13 +364,13 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @Test
     public void testUpdateSequenceIdInSyncCodeSegment() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testUpdateSequenceIdInSyncCodeSegment";
+        final String topic = newTopicName();
         int totalMessage = 200;
         int threadSize = 5;
-        String topicName = "subscription";
+        String subscriptionName = "subscription";
         @Cleanup("shutdownNow")
         ExecutorService executorService = Executors.newFixedThreadPool(threadSize);
-        conf.setBrokerDeduplicationEnabled(true);
+        admin.namespaces().setDeduplicationStatus(getNamespace(), true);
 
         //build producer/consumer
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -397,7 +382,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
-                .subscriptionName(topicName)
+                .subscriptionName(subscriptionName)
                 .subscribe();
 
         CountDownLatch countDownLatch = new CountDownLatch(threadSize);

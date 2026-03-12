@@ -145,6 +145,7 @@ public class SharedPulsarCluster {
         config.setForceDeleteNamespaceAllowed(true);
         config.setForceDeleteTenantAllowed(true);
         config.setBrokerDeleteInactiveTopicsEnabled(false);
+        config.setBrokerDeduplicationEnabled(true);
 
         // Reduce thread pool sizes for faster startup (fewer threads to create)
         config.setNumIOThreads(2);
