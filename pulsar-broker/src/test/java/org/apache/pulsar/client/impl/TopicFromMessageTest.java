@@ -21,31 +21,38 @@ package org.apache.pulsar.client.impl;
 import com.google.common.collect.Lists;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class TopicFromMessageTest extends ProducerConsumerBase {
+public class TopicFromMessageTest extends SharedPulsarBaseTest {
 
     private static final long TEST_TIMEOUT = 90000; // 1.5 min
     private static final int BATCHING_MAX_MESSAGES_THRESHOLD = 2;
 
     @Override
-    @BeforeMethod
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+    @BeforeClass(alwaysRun = true)
+    public void setupSharedCluster() throws Exception {
+        super.setupSharedCluster();
+        // These tests use short topic names (e.g. "topic1") which resolve to public/default
+        try {
+            admin.tenants().createTenant("public",
+                    new TenantInfoImpl(Set.of(), Set.of(SharedPulsarCluster.CLUSTER_NAME)));
+        } catch (Exception e) {
+            // tenant may already exist
+        }
+        try {
+            admin.namespaces().createNamespace("public/default",
+                    Set.of(SharedPulsarCluster.CLUSTER_NAME));
+        } catch (Exception e) {
+            // namespace may already exist
+        }
     }
 
     @Test(timeOut = TEST_TIMEOUT)
@@ -61,12 +68,13 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
 
     @Test(timeOut = TEST_TIMEOUT)
     public void testSingleTopicConsumerNoBatchFullName() throws Exception {
+        final String topic = newTopicName();
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("my-property/my-ns/topic1").subscriptionName("sub1").subscribe();
+                .topic(topic).subscriptionName("sub1").subscribe();
              Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("my-property/my-ns/topic1").enableBatching(false).create()) {
+                .topic(topic).enableBatching(false).create()) {
             producer.send("foobar".getBytes());
-            Assert.assertEquals(consumer.receive().getTopicName(), "persistent://my-property/my-ns/topic1");
+            Assert.assertEquals(consumer.receive().getTopicName(), topic);
         }
     }
 

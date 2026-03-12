@@ -23,33 +23,19 @@ import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 @Slf4j
-public class HierarchyTopicAutoCreationTest extends ProducerConsumerBase {
-
-    @Override
-    @BeforeMethod
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class HierarchyTopicAutoCreationTest extends SharedPulsarBaseTest {
 
     @Test(invocationCount = 3)
     @SneakyThrows
@@ -69,7 +55,8 @@ public class HierarchyTopicAutoCreationTest extends ProducerConsumerBase {
                 .getAutoTopicCreation(namespace);
         Assert.assertEquals(nsAutoTopicCreationOverride, expectedPolicies);
         // Background invalidate cache
-        final MetadataCache<Policies> nsCache = pulsar.getPulsarResources().getNamespaceResources().getCache();
+        final MetadataCache<Policies> nsCache = SharedPulsarCluster.get().getPulsarService()
+                .getPulsarResources().getNamespaceResources().getCache();
         @Cleanup("interrupt")
         final Thread t1 = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {

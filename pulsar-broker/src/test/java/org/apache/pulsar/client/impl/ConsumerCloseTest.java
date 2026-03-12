@@ -21,36 +21,20 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class ConsumerCloseTest extends ProducerConsumerBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ConsumerCloseTest extends SharedPulsarBaseTest {
 
     @Test
     public void testReceiveWillDoneAfterClosedConsumer() throws Exception {
-        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        String tpName = newTopicName();
         String subName = "test-sub";
         admin.topics().createNonPartitionedTopic(tpName);
         admin.topics().createSubscription(tpName, subName, MessageId.earliest);
@@ -65,10 +49,10 @@ public class ConsumerCloseTest extends ProducerConsumerBase {
 
     @Test
     public void testReceiveWillDoneAfterTopicDeleted() throws Exception {
-        String namespace = "public/default";
+        String namespace = getNamespace();
         admin.namespaces().setAutoTopicCreation(namespace, AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(false).build());
-        String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        String tpName = newTopicName();
         String subName = "test-sub";
         admin.topics().createNonPartitionedTopic(tpName);
         admin.topics().createSubscription(tpName, subName, MessageId.earliest);
