@@ -1693,8 +1693,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         producer1.close();
         assertTrue(pulsar2.getPulsarResources().getTopicResources().persistentTopicExists(topicNameObj).join());
         admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
-        admin1.topics().createSubscription(subscriptionName, topicName, MessageId.earliest);
-        admin2.topics().createSubscription(subscriptionName, topicName, MessageId.earliest);
+        admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
 
         // Case 1: Global topic level policies -> Add: replicate.
         PublishRate publishRateAddGlobal = new PublishRate(100, 10000);
