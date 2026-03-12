@@ -18,11 +18,17 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -40,6 +46,7 @@ import org.testng.annotations.BeforeMethod;
 @Slf4j
 public abstract class SharedPulsarBaseTest {
 
+    private PulsarService pulsar;
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
 
@@ -53,12 +60,69 @@ public abstract class SharedPulsarBaseTest {
     }
 
     /**
+     * Returns the broker service URL (pulsar://...) for creating dedicated PulsarClient instances.
+     */
+    protected String getBrokerServiceUrl() {
+        return pulsar.getBrokerServiceUrl();
+    }
+
+    /**
+     * Returns the web service URL (http://...) for HTTP-based lookups and admin operations.
+     */
+    protected String getWebServiceUrl() {
+        return pulsar.getWebServiceAddress();
+    }
+
+    /**
+     * Creates a new PulsarClient connected to the shared cluster. The caller is responsible for closing it.
+     */
+    protected PulsarClient newPulsarClient() throws PulsarClientException {
+        return PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+    }
+
+    /**
+     * Returns the shared broker's {@link ServiceConfiguration} for runtime config inspection or changes.
+     */
+    protected ServiceConfiguration getConfig() {
+        return pulsar.getConfig();
+    }
+
+    /**
+     * Returns the shared broker's {@link SchemaStorage} instance.
+     */
+    protected SchemaStorage getSchemaStorage() {
+        return pulsar.getSchemaStorage();
+    }
+
+    /**
+     * Returns the topic reference for an already-loaded topic, if present.
+     */
+    protected Optional<Topic> getTopicReference(String topic) {
+        return pulsar.getBrokerService().getTopicReference(topic);
+    }
+
+    /**
+     * Looks up a topic by name, optionally creating it if it doesn't exist.
+     */
+    protected CompletableFuture<Optional<Topic>> getTopic(String topic, boolean createIfMissing) {
+        return pulsar.getBrokerService().getTopic(topic, createIfMissing);
+    }
+
+    /**
+     * Returns the topic if it exists in the broker, loading it from storage if necessary.
+     */
+    protected CompletableFuture<Optional<Topic>> getTopicIfExists(String topic) {
+        return pulsar.getBrokerService().getTopicIfExists(topic);
+    }
+
+    /**
      * Initializes the shared cluster singleton and sets up {@link #admin} and {@link #pulsarClient}.
      * Called once per test class.
      */
     @BeforeClass(alwaysRun = true)
     public void setupSharedCluster() throws Exception {
         SharedPulsarCluster cluster = SharedPulsarCluster.get();
+        pulsar = cluster.getPulsarService();
         admin = cluster.getAdmin();
         pulsarClient = cluster.getClient();
     }

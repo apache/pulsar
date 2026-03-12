@@ -90,10 +90,10 @@ public class SharedPulsarCluster {
 
         // Start a single bookie with minimal configuration
         ServerConfiguration bkConf = new ServerConfiguration();
-        bkConf.setProperty("dbStorage_writeCacheMaxSizeMb", 2);
-        bkConf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 1);
-        bkConf.setProperty("dbStorage_rocksDB_writeBufferSizeMB", 1);
-        bkConf.setProperty("dbStorage_rocksDB_blockCacheSize", 1024 * 1024);
+        bkConf.setProperty("dbStorage_writeCacheMaxSizeMb", 32);
+        bkConf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 4);
+        bkConf.setProperty("dbStorage_rocksDB_writeBufferSizeMB", 4);
+        bkConf.setProperty("dbStorage_rocksDB_blockCacheSize", 4 * 1024 * 1024);
         bkConf.setJournalSyncData(false);
         bkConf.setJournalWriteData(false);
         bkConf.setProperty("journalMaxGroupWaitMSec", 0L);
@@ -144,6 +144,7 @@ public class SharedPulsarCluster {
         config.setDispatcherRetryBackoffMaxTimeInMs(0);
         config.setForceDeleteNamespaceAllowed(true);
         config.setForceDeleteTenantAllowed(true);
+        config.setBrokerDeleteInactiveTopicsEnabled(false);
 
         // Reduce thread pool sizes for faster startup (fewer threads to create)
         config.setNumIOThreads(2);
