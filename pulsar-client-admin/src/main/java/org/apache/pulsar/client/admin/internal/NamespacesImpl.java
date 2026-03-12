@@ -82,16 +82,6 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         });
     }
 
-    @Override
-    public List<String> getNamespaces(String tenant, String cluster) throws PulsarAdminException {
-        return sync(() -> getNamespacesAsync(tenant, cluster));
-    }
-
-    public CompletableFuture<List<String>> getNamespacesAsync(String tenant, String cluster) {
-        WebTarget path = adminV2Namespaces.path(tenant).path(cluster);
-        return asyncGetRequest(path, new FutureCallback<List<String>>() {
-        });
-    }
 
     @Override
     public List<String> getTopics(String namespace) throws PulsarAdminException {

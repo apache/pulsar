@@ -81,17 +81,6 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Command(description = "Get the namespaces for a tenant in a cluster", hidden = true)
-    private class GetNamespacesPerCluster extends CliCommand {
-        @Parameters(description = "tenant/cluster", arity = "1")
-        private String params;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String[] parts = validatePropertyCluster(params);
-            print(getAdmin().namespaces().getNamespaces(parts[0], parts[1]));
-        }
-    }
 
     @Command(description = "Get the list of topics for a namespace")
     private class GetTopics extends CliCommand {
@@ -2704,7 +2693,6 @@ public class CmdNamespaces extends CmdBase {
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         addCommand("list", new GetNamespacesPerProperty());
-        addCommand("list-cluster", new GetNamespacesPerCluster());
 
         addCommand("topics", new GetTopics());
         addCommand("bundles", new GetBundles());
