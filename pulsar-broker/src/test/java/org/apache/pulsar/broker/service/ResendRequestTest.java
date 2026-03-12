@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -40,33 +41,18 @@ import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class ResendRequestTest extends BrokerTestBase {
+public class ResendRequestTest extends SharedPulsarBaseTest {
     private static final long testTimeout = 60000; // 1 min
     private static final Logger log = LoggerFactory.getLogger(ResendRequestTest.class);
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.baseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
     @Test(timeOut = testTimeout)
     public void testExclusiveSingleAckedNormalTopic() throws Exception {
-        String key = "testExclusiveSingleAckedNormalTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
 
         HashSet<MessageId> messageIdHashSet = new HashSet<>();
@@ -78,7 +64,7 @@ public class ResendRequestTest extends BrokerTestBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topicRef = (PersistentTopic) getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -156,17 +142,16 @@ public class ResendRequestTest extends BrokerTestBase {
 
     @Test(timeOut = testTimeout)
     public void testSharedSingleAckedNormalTopic() throws Exception {
-        String key = "testSharedSingleAckedNormalTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-shared-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-shared-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topicRef = (PersistentTopic) getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -175,7 +160,8 @@ public class ResendRequestTest extends BrokerTestBase {
                 .subscriptionName(subscriptionName).receiverQueueSize(totalMessages / 2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        @Cleanup
+        PulsarClient newPulsarClient = newPulsarClient();
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(totalMessages / 2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -235,7 +221,6 @@ public class ResendRequestTest extends BrokerTestBase {
             message2 = consumer2.receive(200, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
         log.info("Additional received = " + receivedMessagesAfterRedelivery);
-        newPulsarClient.close();
         assertTrue(receivedMessagesAfterRedelivery > 0);
 
         assertEquals(receivedConsumer1 + receivedConsumer2, totalMessages);
@@ -243,17 +228,16 @@ public class ResendRequestTest extends BrokerTestBase {
 
     @Test(timeOut = testTimeout)
     public void testFailoverSingleAckedNormalTopic() throws Exception {
-        String key = "testFailoverSingleAckedNormalTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-failover-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-failover-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topicRef = (PersistentTopic) getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -361,10 +345,9 @@ public class ResendRequestTest extends BrokerTestBase {
 
     @Test(timeOut = testTimeout)
     public void testExclusiveCumulativeAckedNormalTopic() throws Exception {
-        String key = "testExclusiveCumulativeAckedNormalTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
 
         // 1. producer connect
@@ -373,7 +356,7 @@ public class ResendRequestTest extends BrokerTestBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topicRef = (PersistentTopic) getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -418,10 +401,9 @@ public class ResendRequestTest extends BrokerTestBase {
 
     @Test(timeOut = testTimeout)
     public void testExclusiveSingleAckedPartitionedTopic() throws Exception {
-        String key = "testExclusiveSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         final int numberOfPartitions = 4;
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
@@ -471,10 +453,9 @@ public class ResendRequestTest extends BrokerTestBase {
 
     @Test(timeOut = testTimeout)
     public void testSharedSingleAckedPartitionedTopic() throws Exception {
-        String key = "testSharedSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-shared-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-shared-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
@@ -489,7 +470,8 @@ public class ResendRequestTest extends BrokerTestBase {
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscriptionType(SubscriptionType.Shared).subscribe();
 
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        @Cleanup
+        PulsarClient newPulsarClient = newPulsarClient();
         Consumer<byte[]> consumer2 = newPulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(7).subscriptionType(SubscriptionType.Shared).subscribe();
 
@@ -529,14 +511,14 @@ public class ResendRequestTest extends BrokerTestBase {
             message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
-        log.info(key + " messageCount1 = " + messageCount1);
-        log.info(key + " messageCount2 = " + messageCount2);
-        log.info(key + " ackCount1 = " + ackCount1);
-        log.info(key + " ackCount2 = " + ackCount2);
+        log.info("messageCount1 = " + messageCount1);
+        log.info("messageCount2 = " + messageCount2);
+        log.info("ackCount1 = " + ackCount1);
+        log.info("ackCount2 = " + ackCount2);
         assertEquals(messageCount1 + messageCount2, totalMessages);
 
         // 5. Ask for redeliver
-        log.info(key + ": Sent a Redeliver Message Request");
+        log.info("Sent a Redeliver Message Request");
         consumer1.redeliverUnacknowledgedMessages();
         if ((ackCount1 + ackCount2) == totalMessages) {
             return;
@@ -559,20 +541,18 @@ public class ResendRequestTest extends BrokerTestBase {
             message2 = consumer2.receive(1000, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
 
-        log.info(key + " messageCount1 = " + messageCount1);
-        log.info(key + " messageCount2 = " + messageCount2);
-        log.info(key + " ackCount1 = " + ackCount1);
-        log.info(key + " ackCount2 = " + ackCount2);
-        newPulsarClient.close();
+        log.info("messageCount1 = " + messageCount1);
+        log.info("messageCount2 = " + messageCount2);
+        log.info("ackCount1 = " + ackCount1);
+        log.info("ackCount2 = " + ackCount2);
         assertEquals(messageCount1 + messageCount2 + ackCount1, totalMessages);
     }
 
     @Test(timeOut = testTimeout)
     public void testFailoverSingleAckedPartitionedTopic() throws Exception {
-        String key = "testFailoverSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-failover-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-failover-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
@@ -625,16 +605,16 @@ public class ResendRequestTest extends BrokerTestBase {
             message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
-        log.info(key + " messageCount1 = " + messageCount1);
-        log.info(key + " messageCount2 = " + messageCount2);
-        log.info(key + " ackCount1 = " + ackCount1);
-        log.info(key + " ackCount2 = " + ackCount2);
+        log.info("messageCount1 = " + messageCount1);
+        log.info("messageCount2 = " + messageCount2);
+        log.info("ackCount1 = " + ackCount1);
+        log.info("ackCount2 = " + ackCount2);
         assertEquals(messageCount1 + messageCount2, totalMessages);
         if ((ackCount1 + ackCount2) == totalMessages) {
             return;
         }
         // 5. Ask for redeliver
-        log.info(key + ": Sent a Redeliver Message Request");
+        log.info("Sent a Redeliver Message Request");
         consumer1.redeliverUnacknowledgedMessages();
         consumer1.close();
 
@@ -648,26 +628,25 @@ public class ResendRequestTest extends BrokerTestBase {
             }
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         } while (message2 != null);
-        log.info(key + " messageCount1 = " + messageCount1);
-        log.info(key + " messageCount2 = " + messageCount2);
-        log.info(key + " ackCount1 = " + ackCount1);
-        log.info(key + " ackCount2 = " + ackCount2);
+        log.info("messageCount1 = " + messageCount1);
+        log.info("messageCount2 = " + messageCount2);
+        log.info("ackCount1 = " + ackCount1);
+        log.info("ackCount2 = " + ackCount2);
         assertEquals(messageCount2 + ackCount1, totalMessages);
     }
 
     @Test(timeOut = testTimeout)
     public void testFailoverInactiveConsumer() throws Exception {
-        String key = "testFailoverInactiveConsumer";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-failover-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-failover-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentTopic topicRef = (PersistentTopic) getTopicReference(topicName).get();
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
@@ -737,7 +716,7 @@ public class ResendRequestTest extends BrokerTestBase {
         Field field = ConsumerBase.class.getDeclaredField("incomingMessages");
         field.setAccessible(true);
         imq = (GrowableArrayBlockingQueue<Message<byte[]>>) field.get(c);
-        log.info("Incoming MEssage Queue: {}", imq.toList());
+        log.info("Incoming Message Queue: {}", imq.toList());
         return imq;
     }
 

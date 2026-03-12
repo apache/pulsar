@@ -24,6 +24,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.util.HashedWheelTimer;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -39,25 +40,11 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class ExclusiveProducerTest extends BrokerTestBase {
-
-    @BeforeClass
-    protected void setup() throws Exception {
-        // use Pulsar binary lookup since the HTTP client shares the Pulsar client timer
-        isTcpLookup = true;
-        baseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        internalCleanup();
-    }
+public class ExclusiveProducerTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "topics")
     public static Object[][] topics() {
@@ -150,7 +137,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
 
         @Cleanup
         PulsarClient pulsarClient2 = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .operationTimeout(2, TimeUnit.SECONDS)
                 .build();
 
@@ -222,13 +209,21 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     @Test(dataProvider = "topics")
     public void testProducerTasksCleanupWhenUsingExclusiveProducers(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+
+        // Use a dedicated client so we can assert zero pending timeouts without interference
+        // from operations on the shared client.
+        @Cleanup
+        PulsarClient dedicatedClient = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .build();
+
+        Producer<String> p1 = dedicatedClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(ProducerAccessMode.Exclusive)
                 .create();
 
         try {
-            pulsarClient.newProducer(Schema.STRING)
+            dedicatedClient.newProducer(Schema.STRING)
                     .topic(topic)
                     .accessMode(ProducerAccessMode.Exclusive)
                     .create();
@@ -239,7 +234,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
 
         p1.close();
 
-        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
+        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) dedicatedClient).timer();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(timer.pendingTimeouts(), 0));
     }
 
@@ -322,13 +317,13 @@ public class ExclusiveProducerTest extends BrokerTestBase {
 
         // Simulate a producer that takes over and fences p1 through the topic epoch
         if (!partitioned) {
-            Topic t = pulsar.getBrokerService().getTopic(topic, false).get().get();
+            Topic t = getTopic(topic, false).get().get();
             CompletableFuture<?> f = ((AbstractTopic) t).incrementTopicEpoch(Optional.of(0L));
             f.get();
         } else {
             for (int i = 0; i < 3; i++) {
                 String name = TopicName.get(topic).getPartition(i).toString();
-                Topic t = pulsar.getBrokerService().getTopic(name, false).get().get();
+                Topic t = getTopic(name, false).get().get();
                 CompletableFuture<?> f = ((AbstractTopic) t).incrementTopicEpoch(Optional.of(0L));
                 f.get();
             }
@@ -423,7 +418,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .serviceUrl(getBrokerServiceUrl())
                 .operationTimeout(1, TimeUnit.SECONDS)
                 .build();
 
@@ -463,7 +458,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
     }
 
     private String newTopic(String type, boolean isPartitioned) throws Exception {
-        String topic = type + "://" + newTopicName();
+        String topicSuffix = UUID.randomUUID().toString().substring(0, 8);
+        String topic = type + "://" + getNamespace() + "/topic-" + topicSuffix;
         if (isPartitioned) {
             admin.topics().createPartitionedTopic(topic, 3);
         }

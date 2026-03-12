@@ -30,7 +30,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
-import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -41,54 +41,36 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class ShadowTopicTest extends BrokerTestBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        baseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
-    }
-
-    private String newShadowSourceTopicName() {
-        return "persistent://" + newTopicName();
-    }
+public class ShadowTopicTest extends SharedPulsarBaseTest {
 
     @Test
     public void testNonPartitionedShadowTopicSetup() throws Exception {
-        String sourceTopic = newShadowSourceTopicName();
+        String sourceTopic = newTopicName();
         String shadowTopic = sourceTopic + "-shadow";
         //1. test shadow topic setting in topic creation.
         admin.topics().createNonPartitionedTopic(sourceTopic);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
         PersistentTopic brokerShadowTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopic).get().get();
+                (PersistentTopic) getTopicIfExists(shadowTopic).get().get();
         Assert.assertTrue(brokerShadowTopic.getManagedLedger() instanceof ShadowManagedLedgerImpl);
         Assert.assertEquals(brokerShadowTopic.getShadowSourceTopic().get().toString(), sourceTopic);
         Assert.assertEquals(admin.topics().getShadowSource(shadowTopic), sourceTopic);
 
         //2. test shadow topic could be properly loaded after unload.
-        admin.namespaces().unload("prop/ns-abc");
-        Assert.assertTrue(pulsar.getBrokerService().getTopicReference(shadowTopic).isEmpty());
+        admin.namespaces().unload(getNamespace());
+        Assert.assertTrue(getTopicReference(shadowTopic).isEmpty());
         Assert.assertEquals(admin.topics().getShadowSource(shadowTopic), sourceTopic);
-        brokerShadowTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopic).get().get();
+        brokerShadowTopic = (PersistentTopic) getTopicIfExists(shadowTopic).get().get();
         Assert.assertTrue(brokerShadowTopic.getManagedLedger() instanceof ShadowManagedLedgerImpl);
         Assert.assertEquals(brokerShadowTopic.getShadowSourceTopic().get().toString(), sourceTopic);
     }
 
     @Test
     public void testPartitionedShadowTopicSetup() throws Exception {
-        String sourceTopic = newShadowSourceTopicName();
+        String sourceTopic = newTopicName();
         String shadowTopic = sourceTopic + "-shadow";
         String sourceTopicPartition = TopicName.get(sourceTopic).getPartition(0).toString();
         String shadowTopicPartition = TopicName.get(shadowTopic).getPartition(0).toString();
@@ -98,26 +80,25 @@ public class ShadowTopicTest extends BrokerTestBase {
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
         pulsarClient.newProducer().topic(shadowTopic).create().close(); //trigger loading partitions.
 
-        PersistentTopic brokerShadowTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicIfExists(shadowTopicPartition).get().get();
+        PersistentTopic brokerShadowTopic = (PersistentTopic) getTopicIfExists(shadowTopicPartition).get().get();
         Assert.assertTrue(brokerShadowTopic.getManagedLedger() instanceof ShadowManagedLedgerImpl);
         Assert.assertEquals(brokerShadowTopic.getShadowSourceTopic().get().toString(), sourceTopicPartition);
         Assert.assertEquals(admin.topics().getShadowSource(shadowTopic), sourceTopic);
 
         //2. test shadow topic could be properly loaded after unload.
-        admin.namespaces().unload("prop/ns-abc");
-        Assert.assertTrue(pulsar.getBrokerService().getTopicReference(shadowTopic).isEmpty());
+        admin.namespaces().unload(getNamespace());
+        Assert.assertTrue(getTopicReference(shadowTopic).isEmpty());
 
         Assert.assertEquals(admin.topics().getShadowSource(shadowTopic), sourceTopic);
         brokerShadowTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopicPartition).get().get();
+                (PersistentTopic) getTopicIfExists(shadowTopicPartition).get().get();
         Assert.assertTrue(brokerShadowTopic.getManagedLedger() instanceof ShadowManagedLedgerImpl);
         Assert.assertEquals(brokerShadowTopic.getShadowSourceTopic().get().toString(), sourceTopicPartition);
     }
 
     @Test
     public void testPartitionedShadowTopicProduceAndConsume() throws Exception {
-        String sourceTopic = newShadowSourceTopicName();
+        String sourceTopic = newTopicName();
         String shadowTopic = sourceTopic + "-shadow";
         admin.topics().createPartitionedTopic(sourceTopic, 3);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
@@ -146,7 +127,7 @@ public class ShadowTopicTest extends BrokerTestBase {
 
     @Test
     public void testShadowTopicNotWritable() throws Exception {
-        String sourceTopic = newShadowSourceTopicName();
+        String sourceTopic = newTopicName();
         String shadowTopic = sourceTopic + "-shadow";
         admin.topics().createNonPartitionedTopic(sourceTopic);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
@@ -156,18 +137,19 @@ public class ShadowTopicTest extends BrokerTestBase {
     }
 
     private void awaitUntilShadowReplicatorReady(String sourceTopic, String shadowTopic) {
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().untilAsserted(() -> {
             PersistentTopic sourcePersistentTopic =
-                    (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopic).get().get();
+                    (PersistentTopic) getTopicIfExists(sourceTopic).get().get();
             ShadowReplicator
                     replicator = (ShadowReplicator) sourcePersistentTopic.getShadowReplicators().get(shadowTopic);
             Assert.assertNotNull(replicator);
             Assert.assertEquals(String.valueOf(replicator.getState()), "Started");
         });
     }
+
     @Test
     public void testShadowTopicConsuming() throws Exception {
-        String sourceTopic = newShadowSourceTopicName();
+        String sourceTopic = newTopicName();
         String shadowTopic = sourceTopic + "-shadow";
         admin.topics().createNonPartitionedTopic(sourceTopic);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
@@ -188,7 +170,7 @@ public class ShadowTopicTest extends BrokerTestBase {
 
     @Test
     public void testShadowTopicConsumingWithStringSchema() throws Exception {
-        String sourceTopic = newShadowSourceTopicName();
+        String sourceTopic = newTopicName();
         String shadowTopic = sourceTopic + "-shadow";
         admin.topics().createNonPartitionedTopic(sourceTopic);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
@@ -220,9 +202,10 @@ public class ShadowTopicTest extends BrokerTestBase {
         int x;
         int y;
     }
+
     @Test
     public void testShadowTopicConsumingWithJsonSchema() throws Exception {
-        String sourceTopic = newShadowSourceTopicName();
+        String sourceTopic = newTopicName();
         String shadowTopic = sourceTopic + "-shadow";
         admin.topics().createNonPartitionedTopic(sourceTopic);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
@@ -244,7 +227,7 @@ public class ShadowTopicTest extends BrokerTestBase {
 
     @Test
     public void testConsumeShadowMessageWithoutCache() throws Exception {
-        String sourceTopic = newShadowSourceTopicName();
+        String sourceTopic = newTopicName();
         String shadowTopic = sourceTopic + "-shadow";
         admin.topics().createNonPartitionedTopic(sourceTopic);
         @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();

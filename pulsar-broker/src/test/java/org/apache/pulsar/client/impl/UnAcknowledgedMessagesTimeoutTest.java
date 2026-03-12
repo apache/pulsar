@@ -23,9 +23,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.util.HashSet;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -37,28 +36,14 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 
 @Test(groups = "broker-impl")
-public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
+public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
     private static final Logger log = LoggerFactory.getLogger(UnAcknowledgedMessagesTimeoutTest.class);
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
-
-    @Override
-    @BeforeMethod
-    public void setup() throws Exception {
-        super.baseSetup();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
 
     @DataProvider(name = "variationsRedeliveryTracker")
     public static Object[][] variationsRedeliveryTracker() {
@@ -71,10 +56,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
     @Test(dataProvider = "variationsRedeliveryTracker")
     public void testExclusiveSingleAckedNormalTopic(boolean isRedeliveryTracker) throws Exception {
-        String key = "testExclusiveSingleAckedNormalTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
 
         // 1. producer connect
@@ -110,7 +94,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         }
         long size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
-        log.info(key + " Unacked Message Tracker size is " + size);
+        log.info(" Unacked Message Tracker size is " + size);
         assertEquals(size, totalMessages / 2);
 
         // Blocking call, redeliver should kick in
@@ -131,17 +115,16 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         } while (message != null);
 
         size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
-        log.info(key + " Unacked Message Tracker size is " + size);
+        log.info(" Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
         assertEquals(hSet.size(), totalMessages);
     }
 
     @Test(dataProvider = "variationsRedeliveryTracker")
     public void testExclusiveCumulativeAckedNormalTopic(boolean isRedeliveryTracker) throws Exception {
-        String key = "testExclusiveCumulativeAckedNormalTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
 
         // 1. producer connect
@@ -194,10 +177,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
     @Test(dataProvider = "variationsRedeliveryTracker")
     public void testSharedSingleAckedPartitionedTopic(boolean isRedeliveryTracker) throws Exception {
-        String key = "testSharedSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-shared-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-shared-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 20;
         final int numberOfPartitions = 3;
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
@@ -248,36 +230,36 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         int ackCount1 = 0;
         int ackCount2 = messageCount2;
 
-        log.info(key + " messageCount1 = " + messageCount1);
-        log.info(key + " messageCount2 = " + messageCount2);
-        log.info(key + " ackCount1 = " + ackCount1);
-        log.info(key + " ackCount2 = " + ackCount2);
+        log.info(" messageCount1 = " + messageCount1);
+        log.info(" messageCount2 = " + messageCount2);
+        log.info(" ackCount1 = " + ackCount1);
+        log.info(" ackCount2 = " + ackCount2);
         assertEquals(messageCount1 + messageCount2, totalMessages);
 
         // 5. Check if Messages redelivered again
         // Since receive is a blocking call hoping that timeout will kick in
         Thread.sleep((int) (ackTimeOutMillis * 1.1));
-        log.info(key + " Timeout should be triggered now");
+        log.info(" Timeout should be triggered now");
         messageCount1 = receiveAllMessage(consumer1, true);
         messageCount2 += receiveAllMessage(consumer2, false);
 
         ackCount1 = messageCount1;
 
-        log.info(key + " messageCount1 = " + messageCount1);
-        log.info(key + " messageCount2 = " + messageCount2);
-        log.info(key + " ackCount1 = " + ackCount1);
-        log.info(key + " ackCount2 = " + ackCount2);
+        log.info(" messageCount1 = " + messageCount1);
+        log.info(" messageCount2 = " + messageCount2);
+        log.info(" ackCount1 = " + ackCount1);
+        log.info(" ackCount2 = " + ackCount2);
         assertEquals(messageCount1 + messageCount2, totalMessages);
         assertEquals(ackCount1 + messageCount2, totalMessages);
 
         Thread.sleep((int) (ackTimeOutMillis * 2));
 
         // Since receive is a blocking call hoping that timeout will kick in
-        log.info(key + " Timeout should be triggered again");
+        log.info(" Timeout should be triggered again");
         ackCount1 += receiveAllMessage(consumer1, true);
         ackCount2 += receiveAllMessage(consumer2, true);
-        log.info(key + " ackCount1 = " + ackCount1);
-        log.info(key + " ackCount2 = " + ackCount2);
+        log.info(" ackCount1 = " + ackCount1);
+        log.info(" ackCount2 = " + ackCount2);
         assertEquals(ackCount1 + ackCount2, totalMessages);
     }
 
@@ -300,10 +282,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
     @Test(dataProvider = "variationsRedeliveryTracker")
     public void testFailoverSingleAckedPartitionedTopic(boolean isRedeliveryTracker) throws Exception {
-        String key = "testFailoverSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key + UUID.randomUUID().toString();
-        final String subscriptionName = "my-failover-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-failover-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
@@ -397,7 +378,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 5. Check if Messages redelivered again
         Thread.sleep(ackTimeOutMillis * 2);
-        log.info(key + " Timeout should be triggered now");
+        log.info(" Timeout should be triggered now");
         messagesReceived = 0;
         while (true) {
             Message<byte[]> message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
@@ -439,10 +420,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
     @Test
     public void testCheckUnAcknowledgedMessageTimer() throws PulsarClientException, InterruptedException {
-        String key = "testCheckUnAcknowledgedMessageTimer";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 3;
 
         // 1. producer connect
@@ -494,10 +474,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     public void testCheckUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
                                                               long maxDelayMs, int multiplier)
             throws PulsarClientException, InterruptedException {
-        String key = "testCheckUnAcknowledgedMessageRedeliveryTimer";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
         final int totalMessages = 3;
 
         // 1. producer connect
@@ -544,7 +523,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
     @Test
     public void testSingleMessageBatch() throws Exception {
-        String topicName = "prop/ns-abc/topic-estSingleMessageBatch";
+        String topicName = newTopicName();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topicName)
