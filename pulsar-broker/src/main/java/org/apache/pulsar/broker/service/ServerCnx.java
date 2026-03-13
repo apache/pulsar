@@ -1803,9 +1803,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 return backlogQuotaCheckFuture;
             }).exceptionally(exception -> {
                 Throwable cause = exception.getCause();
-                if (cause instanceof BrokerServiceException.TopicBacklogQuotaExceededException) {
-                    BrokerServiceException.TopicBacklogQuotaExceededException tbqe =
-                            (BrokerServiceException.TopicBacklogQuotaExceededException) cause;
+                if (cause instanceof BrokerServiceException.TopicBlockedQuotaExceededException) {
+                    BrokerServiceException.TopicBlockedQuotaExceededException tbqe =
+                            (BrokerServiceException.TopicBlockedQuotaExceededException) cause;
                     IllegalStateException illegalStateException = new IllegalStateException(tbqe);
                     BacklogQuota.RetentionPolicy retentionPolicy = tbqe.getRetentionPolicy();
                     if (producerFuture.completeExceptionally(illegalStateException)) {
