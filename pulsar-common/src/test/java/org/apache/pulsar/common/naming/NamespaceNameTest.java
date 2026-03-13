@@ -20,7 +20,6 @@ package org.apache.pulsar.common.naming;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
 public class NamespaceNameTest {
@@ -114,7 +113,6 @@ public class NamespaceNameTest {
         NamespaceName ns = NamespaceName.get("my-tenant/my-namespace");
         assertEquals(ns.getTenant(), "my-tenant");
         assertEquals(ns.getLocalName(), "my-namespace");
-        assertTrue(ns.isGlobal());
         assertEquals(ns.getPersistentTopicName("my-topic"), "persistent://my-tenant/my-namespace/my-topic");
     }
 }

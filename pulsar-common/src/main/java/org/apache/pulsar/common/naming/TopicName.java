@@ -352,10 +352,6 @@ public class TopicName implements ServiceUnitId {
         return String.format("%s/%s/%s/%s", domain, tenant, namespacePortion, getEncodedLocalName());
     }
 
-    public boolean isGlobal() {
-        return namespaceName.isGlobal();
-    }
-
     public String getSchemaName() {
         return getTenant()
             + "/" + getNamespacePortion()

@@ -239,14 +239,12 @@ public class NonPersistentTopics extends PersistentTopics {
                 throw new RestException(Response.Status.PRECONDITION_FAILED,
                         "Partitioned Topic Name should not contain '-partition-'");
             }
-            if (topicName.isGlobal()) {
-                try {
-                    validateGlobalNamespaceOwnership(namespaceName);
-                } catch (Exception e) {
-                    log.error("[{}] Failed to get partitioned stats for {}", clientAppId(), topicName, e);
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                    return;
-                }
+            try {
+                validateGlobalNamespaceOwnership(namespaceName);
+            } catch (Exception e) {
+                log.error("[{}] Failed to get partitioned stats for {}", clientAppId(), topicName, e);
+                resumeAsyncResponseExceptionally(asyncResponse, e);
+                return;
             }
             getPartitionedTopicMetadataAsync(topicName,
                     authoritative, false).thenAccept(partitionMetadata -> {

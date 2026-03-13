@@ -2791,9 +2791,6 @@ public class BrokerService implements Closeable {
      * @param namespace
      */
     private void unloadDeletedReplNamespace(Policies data, NamespaceName namespace) {
-        if (!namespace.isGlobal()) {
-            return;
-        }
         final String localCluster = this.pulsar.getConfiguration().getClusterName();
         if (pulsar.getBrokerService().isCurrentClusterAllowed(namespace, data)) {
             return;

@@ -1942,7 +1942,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> checkReplication() {
         TopicName name = TopicName.get(topic);
-        if (!name.isGlobal() || NamespaceService.isHeartbeatNamespace(name)
+        if (NamespaceService.isHeartbeatNamespace(name)
                 || ExtensibleLoadManagerImpl.isInternalTopic(topic)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -2112,7 +2112,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     if (nsPolicies.isPresent()) {
                         allowedClusters = nsPolicies.get().allowed_clusters;
                     }
-                    if (TopicName.get(topic).isGlobal() && !topicRepls.contains(localCluster)
+                    if (!topicRepls.contains(localCluster)
                             && !allowedClusters.contains(localCluster)) {
                         log.warn("Local cluster {} is not part of global namespace repl list {} and allowed list {}",
                                 localCluster, topicRepls, allowedClusters);
@@ -3197,12 +3197,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
                 break;
         }
-        if (TopicName.get(topic).isGlobal()) {
-            // no local producers
-            return hasLocalProducers();
-        } else {
-            return currentUsageCount() != 0;
-        }
+        // no local producers
+        return hasLocalProducers();
     }
 
     private boolean hasBacklogs(boolean getPreciseBacklog) {
@@ -3410,46 +3406,42 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             CompletableFuture<Void> replCloseFuture = new CompletableFuture<>();
 
-            if (TopicName.get(topic).isGlobal()) {
-                // For global namespace, close repl producers first.
-                // Once all repl producers are closed, we can delete the topic,
-                // provided no remote producers connected to the broker.
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Global topic inactive for {} seconds, closing repl producers.", topic,
-                        maxInactiveDurationInSec);
-                }
-                /**
-                 * There is a race condition that may cause a NPE:
-                 * - task 1: a callback of "replicator.cursor.asyncRead" will trigger a replication.
-                 * - task 2: "closeReplProducersIfNoBacklog" called by current thread will make the variable
-                 *   "replicator.producer" to a null value.
-                 * Race condition: task 1 will get a NPE when it tries to send messages using the variable
-                 * "replicator.producer", because task 2 will set this variable to "null".
-                 * TODO Create a seperated PR to fix it.
-                 */
-                closeReplProducersIfNoBacklog().thenRun(() -> {
-                    if (hasRemoteProducers()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Global topic has connected remote producers. Not a candidate for GC",
-                                    topic);
-                        }
-                        replCloseFuture
-                                .completeExceptionally(new TopicBusyException("Topic has connected remote producers"));
-                    } else {
-                        log.info("[{}] Global topic inactive for {} seconds, closed repl producers", topic,
-                            maxInactiveDurationInSec);
-                        replCloseFuture.complete(null);
-                    }
-                }).exceptionally(e -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Global topic has replication backlog. Not a candidate for GC", topic);
-                    }
-                    replCloseFuture.completeExceptionally(e.getCause());
-                    return null;
-                });
-            } else {
-                replCloseFuture.complete(null);
+            // Close repl producers first.
+            // Once all repl producers are closed, we can delete the topic,
+            // provided no remote producers connected to the broker.
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Topic inactive for {} seconds, closing repl producers.", topic,
+                    maxInactiveDurationInSec);
             }
+            /**
+             * There is a race condition that may cause a NPE:
+             * - task 1: a callback of "replicator.cursor.asyncRead" will trigger a replication.
+             * - task 2: "closeReplProducersIfNoBacklog" called by current thread will make the variable
+             *   "replicator.producer" to a null value.
+             * Race condition: task 1 will get a NPE when it tries to send messages using the variable
+             * "replicator.producer", because task 2 will set this variable to "null".
+             * TODO Create a seperated PR to fix it.
+             */
+            closeReplProducersIfNoBacklog().thenRun(() -> {
+                if (hasRemoteProducers()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Topic has connected remote producers. Not a candidate for GC",
+                                topic);
+                    }
+                    replCloseFuture
+                            .completeExceptionally(new TopicBusyException("Topic has connected remote producers"));
+                } else {
+                    log.info("[{}] Topic inactive for {} seconds, closed repl producers", topic,
+                        maxInactiveDurationInSec);
+                    replCloseFuture.complete(null);
+                }
+            }).exceptionally(e -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Topic has replication backlog. Not a candidate for GC", topic);
+                }
+                replCloseFuture.completeExceptionally(e.getCause());
+                return null;
+            });
 
             replCloseFuture.thenCompose(v -> delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
                 deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, false))

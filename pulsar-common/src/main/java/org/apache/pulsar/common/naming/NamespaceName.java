@@ -119,10 +119,6 @@ public class NamespaceName implements ServiceUnitId {
         return localName;
     }
 
-    public boolean isGlobal() {
-        return true;
-    }
-
     public String getPersistentTopicName(String localTopic) {
         return getTopicName(TopicDomain.persistent, localTopic);
     }
