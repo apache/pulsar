@@ -118,11 +118,17 @@ public abstract class CliCommand implements Callable<Integer> {
     }
 
     <T> void print(T item) {
+        print(item, true);
+    }
+
+    <T> void print(T item, boolean prettyPrint) {
         try {
             if (item instanceof String) {
                 commandSpec.commandLine().getOut().println(item);
-            } else {
+            } else if (prettyPrint) {
                 prettyPrint(item);
+            } else {
+                plainPrint(item);
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -132,6 +138,14 @@ public abstract class CliCommand implements Callable<Integer> {
     <T> void prettyPrint(T item) {
         try {
             commandSpec.commandLine().getOut().println(WRITER.writeValueAsString(item));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    <T> void plainPrint(T item) {
+        try {
+            commandSpec.commandLine().getOut().println(MAPPER.writeValueAsString(item));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -83,6 +83,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import picocli.CommandLine.Command;
@@ -3001,24 +3002,44 @@ public class CmdTopics extends CmdBase {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
 
-        @Option(names = { "-s", "--subscription" }, description = "Subscription to be analyzed", required = true)
+        @Option(names = {"-s", "--subscription"}, description = "Subscription to be analyzed", required = true)
         private String subName;
 
-        @Option(names = { "--position",
-                "-p" }, description = "message position to start the scan from (ledgerId:entryId)", required = false)
+        @Option(names = {"--position",
+                "-p"}, description = "Message position to start the scan from (ledgerId:entryId)", required = false)
         private String messagePosition;
 
+        @Option(names = {"--backlog-scan-max-entries",
+                "-b"}, description = "The maximum number of backlog entries the client will scan before terminating "
+                + "its loop", required = false)
+        private long backlogScanMaxEntries = -1;
+
+        @Option(names = {"--quiet", "-q"}, description = "Disable analyze-backlog progress reporting", required = false)
+        private boolean quiet = false;
+
+        @Option(names = {"--plain-print",
+                "-pp"}, description = "Plain(Non-pretty) print the final result output as NDJSON", required = false)
+        private boolean plainPrint = false;
+
         @Override
-        void run() throws PulsarAdminException {
+        void run() throws Exception {
             String persistentTopic = validatePersistentTopic(topicName);
             Optional<MessageId> startPosition = Optional.empty();
+            int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
             if (isNotBlank(messagePosition)) {
-                int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
                 MessageId messageId = validateMessageIdString(messagePosition, partitionIndex);
                 startPosition = Optional.of(messageId);
             }
-            print(getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition));
 
+            AnalyzeSubscriptionBacklogResult backlogResult =
+                    getTopics().analyzeSubscriptionBacklogAsync(persistentTopic, subName, startPosition, result -> {
+                        boolean terminate = result.getEntries() >= backlogScanMaxEntries;
+                        if (!quiet && !terminate) {
+                            print(result, false);
+                        }
+                        return terminate;
+                    }).get();
+            print(backlogResult, !plainPrint);
         }
     }
 
