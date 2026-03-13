@@ -169,11 +169,12 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
                 log.info("ZooKeeper client reconnection with server quorum. Current status: {}", currentStatus);
                 disconnectedAt = 0;
 
+                SessionEvent previousStatus = currentStatus;
+                currentStatus = SessionEvent.SessionReestablished;
                 sessionListener.accept(SessionEvent.Reconnected);
-                if (currentStatus == SessionEvent.SessionLost) {
+                if (previousStatus == SessionEvent.SessionLost) {
                     sessionListener.accept(SessionEvent.SessionReestablished);
                 }
-                currentStatus = SessionEvent.SessionReestablished;
             }
             break;
         }
