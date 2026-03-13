@@ -93,7 +93,6 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Reflections;
@@ -1526,7 +1525,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
         try {
             var admin = getPulsarAdmin();
-            admin.brokers().healthcheckAsync(TopicVersion.V2, Optional.of(brokerId))
+            admin.brokers().healthcheckAsync(Optional.of(brokerId))
                     .whenComplete((__, e) -> {
                         if (e == null) {
                             log.info("Completed health-check broker :{}", brokerId, e);

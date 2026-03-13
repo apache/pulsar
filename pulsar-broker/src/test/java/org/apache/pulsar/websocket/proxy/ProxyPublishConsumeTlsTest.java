@@ -99,9 +99,9 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     public void socketTest() throws Exception {
         String consumerUri =
                 "wss://localhost:" + proxyServer.getListenPortHTTPS().get()
-                        + "/ws/consumer/persistent/my-property/use/my-ns/my-topic/my-sub";
+                        + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-sub";
         String producerUri = "wss://localhost:" + proxyServer.getListenPortHTTPS().get()
-                + "/ws/producer/persistent/my-property/use/my-ns/my-topic/";
+                + "/ws/v2/producer/persistent/my-property/my-ns/my-topic/";
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
 

@@ -85,8 +85,8 @@ public class MockBrokerService {
 
     private class GenericResponseHandler extends AbstractHandler {
         private final ObjectMapper objectMapper = new ObjectMapper();
-        private final String lookupURI = "/lookup/v2/destination/persistent";
-        private final String partitionMetadataURI = "/admin/persistent";
+        private final String lookupURI = "/lookup/v2/topic/persistent";
+        private final String partitionMetadataURI = "/admin/v2/persistent";
         private final PartitionedTopicMetadata singlePartitionedTopicMetadata = new PartitionedTopicMetadata(1);
         private final PartitionedTopicMetadata multiPartitionedTopicMetadata = new PartitionedTopicMetadata(4);
         private final PartitionedTopicMetadata nonPartitionedTopicMetadata = new PartitionedTopicMetadata();

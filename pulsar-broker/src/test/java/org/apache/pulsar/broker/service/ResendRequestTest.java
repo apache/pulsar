@@ -37,7 +37,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBase;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +52,7 @@ public class ResendRequestTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        super.internalSetup();
+        super.baseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -65,7 +64,7 @@ public class ResendRequestTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testExclusiveSingleAckedNormalTopic() throws Exception {
         String key = "testExclusiveSingleAckedNormalTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
@@ -158,7 +157,7 @@ public class ResendRequestTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testSharedSingleAckedNormalTopic() throws Exception {
         String key = "testSharedSingleAckedNormalTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-shared-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
@@ -245,7 +244,7 @@ public class ResendRequestTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testFailoverSingleAckedNormalTopic() throws Exception {
         String key = "testFailoverSingleAckedNormalTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-failover-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
@@ -363,7 +362,7 @@ public class ResendRequestTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testExclusiveCumulativeAckedNormalTopic() throws Exception {
         String key = "testExclusiveCumulativeAckedNormalTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
@@ -420,15 +419,12 @@ public class ResendRequestTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testExclusiveSingleAckedPartitionedTopic() throws Exception {
         String key = "testExclusiveSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         final int numberOfPartitions = 4;
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
-        // Special step to create partitioned topic
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -476,16 +472,13 @@ public class ResendRequestTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testSharedSingleAckedPartitionedTopic() throws Exception {
         String key = "testSharedSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-shared-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         Random rn = new Random();
-        // Special step to create partitioned topic
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -577,16 +570,13 @@ public class ResendRequestTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testFailoverSingleAckedPartitionedTopic() throws Exception {
         String key = "testFailoverSingleAckedPartitionedTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-failover-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         Random rn = new Random();
-        // Special step to create partitioned topic
 
         // 1. producer connect
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -668,7 +658,7 @@ public class ResendRequestTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testFailoverInactiveConsumer() throws Exception {
         String key = "testFailoverInactiveConsumer";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-failover-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
@@ -694,7 +684,7 @@ public class ResendRequestTest extends BrokerTestBase {
             log.info("Producer produced " + message);
         }
 
-        // 4. Receive messages
+        // 4. Receive messages - determine which consumer is active (depends on topic name hash)
         int receivedConsumer1 = 0, receivedConsumer2 = 0;
         Message<byte[]> message1;
         Message<byte[]> message2;
@@ -716,18 +706,28 @@ public class ResendRequestTest extends BrokerTestBase {
         log.info("Consumer 2 receives = " + receivedConsumer2);
         log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
-        // Consumer 2 is on Stand By
-        assertEquals(receivedConsumer1, 0);
+        // One consumer is active, the other is on standby
+        Consumer<byte[]> activeConsumer;
+        Consumer<byte[]> standbyConsumer;
+        if (receivedConsumer1 == totalMessages) {
+            activeConsumer = consumer1;
+            standbyConsumer = consumer2;
+            assertEquals(receivedConsumer2, 0);
+        } else {
+            activeConsumer = consumer2;
+            standbyConsumer = consumer1;
+            assertEquals(receivedConsumer1, 0);
+        }
 
-        // 5. Consumer 2 asks for a redelivery but the request is ignored
-        log.info("Consumer 2 asks for resend");
-        consumer2.redeliverUnacknowledgedMessages();
+        // 5. Active consumer asks for a redelivery and gets the messages redelivered
+        log.info("Active consumer asks for resend");
+        activeConsumer.redeliverUnacknowledgedMessages();
         Thread.sleep(1000);
 
-        message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
-        message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
-        assertNull(message1);
-        assertNotNull(message2);
+        Message<byte[]> standbyMsg = standbyConsumer.receive(500, TimeUnit.MILLISECONDS);
+        Message<byte[]> activeMsg = activeConsumer.receive(500, TimeUnit.MILLISECONDS);
+        assertNull(standbyMsg);
+        assertNotNull(activeMsg);
     }
 
     @SuppressWarnings("unchecked")

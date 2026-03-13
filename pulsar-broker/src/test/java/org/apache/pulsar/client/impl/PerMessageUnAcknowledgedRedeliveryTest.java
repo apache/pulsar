@@ -27,7 +27,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -43,7 +42,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Override
     @BeforeMethod
     public void setup() throws Exception {
-        super.internalSetup();
+        super.baseSetup();
     }
 
     @Override
@@ -55,7 +54,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testSharedAckedNormalTopic() throws Exception {
         String key = "testSharedAckedNormalTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
@@ -153,7 +152,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testUnAckedMessageTrackerSize() throws Exception {
         String key = "testUnAckedMessageTrackerSize";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
@@ -195,7 +194,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testExclusiveAckedNormalTopic() throws Exception {
         String key = "testExclusiveAckedNormalTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
@@ -293,7 +292,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testFailoverAckedNormalTopic() throws Exception {
         String key = "testFailoverAckedNormalTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
@@ -397,13 +396,11 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testSharedAckedPartitionedTopic() throws Exception {
         String key = "testSharedAckedPartitionedTopic";
-        final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
+        final String topicName = "persistent://prop/ns-abc/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
         final int numberOfPartitions = 3;
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("prop", tenantInfo);
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect

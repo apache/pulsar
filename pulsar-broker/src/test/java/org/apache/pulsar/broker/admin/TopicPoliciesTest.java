@@ -134,7 +134,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final String myNamespace = testTenant + "/" + testNamespace;
 
-    private final String myNamespaceV1 = testTenant + "/test/" + testNamespace;
+    private final String myNamespaceV1 = testTenant + "/" + testNamespace + "-v1";
 
     private final String testTopic = "persistent://" + myNamespace + "/test-set-backlog-quota";
 
@@ -3605,7 +3605,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsar.getBrokerService().getTopics().forEach((k, v) -> {
             TopicName topicName = TopicName.get(k);
             assertNull(NamespaceService.checkHeartbeatNamespace(topicName.getNamespaceObject()));
-            assertNull(NamespaceService.checkHeartbeatNamespaceV2(topicName.getNamespaceObject()));
         });
     }
 

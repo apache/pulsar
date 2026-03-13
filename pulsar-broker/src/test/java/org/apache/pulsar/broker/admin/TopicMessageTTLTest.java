@@ -32,7 +32,6 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -67,11 +66,6 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-    }
-
-    @DataProvider(name = "isV1")
-    public Object[][] isV1() {
-        return new Object[][] { { true }, { false } };
     }
 
     @Test
@@ -176,9 +170,9 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
                 (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
     }
 
-    @Test(dataProvider = "isV1")
-    public void testNamespaceTTL(boolean isV1) throws Exception {
-        String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1" + isV1;
+    @Test
+    public void testNamespaceTTL() throws Exception {
+        String myNamespace = testTenant + "/" + "n1";
         admin.namespaces().createNamespace(myNamespace, Set.of(testCluster));
 
         admin.namespaces().setNamespaceMessageTTL(myNamespace, 10);

@@ -73,7 +73,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -113,13 +112,16 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         String key = "TopicsFromDifferentNamespace";
         final String subscriptionName = "my-ex-subscription-" + key;
 
-        final String topicName1 = "persistent://prop/use/ns-abc1/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc2/topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc3/topic-3-" + key;
+        final String topicName1 = "persistent://prop/ns-abc1/topic-1-" + key;
+        final String topicName2 = "persistent://prop/ns-abc2/topic-2-" + key;
+        final String topicName3 = "persistent://prop/ns-abc3/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc1");
+        admin.namespaces().createNamespace("prop/ns-abc2");
+        admin.namespaces().createNamespace("prop/ns-abc3");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -140,7 +142,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     @Test(timeOut = testTimeout)
     public void testRetryClusterTopic() throws Exception {
         String key = "testRetryClusterTopic";
-        final String topicName = "persistent://prop/use/ns-abc1/topic-1-" + key;
+        final String topicName = "persistent://prop/ns-abc1/topic-1-" + key;
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         final String namespace = "prop/ns-abc1";
         admin.tenants().createTenant("prop", tenantInfo);
@@ -160,13 +162,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         String key = "TopicsConsumerGet";
         final String subscriptionName = "my-ex-subscription-" + key;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        final String topicName1 = "persistent://prop/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/ns-abc/topic-2-" + key;
+        final String topicName3 = "persistent://prop/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -258,13 +261,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 30;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        final String topicName1 = "persistent://prop/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/ns-abc/topic-2-" + key;
+        final String topicName3 = "persistent://prop/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -324,13 +328,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 30;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        final String topicName1 = "persistent://prop/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/ns-abc/topic-2-" + key;
+        final String topicName3 = "persistent://prop/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -409,13 +414,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 30;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        final String topicName1 = "persistent://prop/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/ns-abc/topic-2-" + key;
+        final String topicName3 = "persistent://prop/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -548,9 +554,10 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test
     public void testTopicNameValid() throws Exception{
-        final String topicName = "persistent://prop/use/ns-abc/testTopicNameValid";
+        final String topicName = "persistent://prop/ns-abc/testTopicNameValid";
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName, 3);
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
@@ -606,13 +613,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 30;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        final String topicName1 = "persistent://prop/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/ns-abc/topic-2-" + key;
+        final String topicName3 = "persistent://prop/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -771,11 +779,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         String key = "TopicsNameSubscribeWithBuilder";
         final String subscriptionName = "my-ex-subscription-" + key;
 
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        final String topicName2 = "persistent://prop/ns-abc/topic-2-" + key;
+        final String topicName3 = "persistent://prop/ns-abc/topic-3-" + key;
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -841,11 +850,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         // set latch larger than totalMessages, so timeout message get resend
         CountDownLatch latch = new CountDownLatch(totalMessages * 3);
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
+        final String topicName1 = "persistent://prop/ns-abc/topic-1-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1);
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName1, 2);
 
         // 1. producer connect
@@ -1076,13 +1086,11 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         int totalMessages = 10;
         this.conf.setTtlDurationDefaultInSeconds(defaultTTLSec);
 
-        final String namespace = "prop/use/expiry";
+        final String namespace = "prop/expiry";
         final String topicName = "persistent://" + namespace + "/expiry";
         final String subName = "expiredSub";
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-
-        admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("use")));
+        admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("test")));
         admin.namespaces().createNamespace(namespace);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -1118,13 +1126,14 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 30;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        final String topicName1 = "persistent://prop/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/ns-abc/topic-2-" + key;
+        final String topicName3 = "persistent://prop/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("prop", tenantInfo);
+        admin.namespaces().createNamespace("prop/ns-abc");
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
@@ -1245,13 +1254,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     @Test(timeOut = testTimeout)
     public void multiTopicsInDifferentNameSpace() throws PulsarAdminException, PulsarClientException {
         List<String> topics = new ArrayList<>();
-        topics.add("persistent://prop/use/ns-abc/topic-1");
-        topics.add("persistent://prop/use/ns-abc/topic-2");
-        topics.add("persistent://prop/use/ns-abc1/topic-3");
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
-        admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("prop/use/ns-abc");
-        admin.namespaces().createNamespace("prop/use/ns-abc1");
+        topics.add("persistent://prop/ns-abc/topic-1");
+        topics.add("persistent://prop/ns-abc/topic-2");
+        topics.add("persistent://prop/ns-abc1/topic-3");
+        admin.tenants().createTenant("prop", new TenantInfoImpl(null, Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("prop/ns-abc");
+        admin.namespaces().createNamespace("prop/ns-abc1");
         Consumer consumer = pulsarClient.newConsumer()
                 .topics(topics)
                 .subscriptionName("multiTopicSubscription")
@@ -1259,15 +1267,15 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 .subscribe();
         // create Producer
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://prop/use/ns-abc/topic-1")
+                .topic("persistent://prop/ns-abc/topic-1")
                 .producerName("producer")
                 .create();
         Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://prop/use/ns-abc/topic-2")
+                .topic("persistent://prop/ns-abc/topic-2")
                 .producerName("producer1")
                 .create();
         Producer<String> producer2 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://prop/use/ns-abc1/topic-3")
+                .topic("persistent://prop/ns-abc1/topic-3")
                 .producerName("producer2")
                 .create();
         //send message

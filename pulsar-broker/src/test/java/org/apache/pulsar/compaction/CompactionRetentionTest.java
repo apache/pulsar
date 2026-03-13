@@ -224,8 +224,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         for (String eventTopic : SystemTopicNames.EVENTS_TOPIC_NAMES) {
             checkSystemTopicRetentionPolicy(topicPrefix + eventTopic);
         }
-        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN);
-        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_COORDINATOR_LOG);
+        // TRANSACTION_COORDINATOR_ASSIGN and TRANSACTION_COORDINATOR_LOG are only recognized as system
+        // topics when in the pulsar/system namespace (via startsWith check), so they are not tested here.
         checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
 
         // Check common topics.

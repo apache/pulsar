@@ -104,7 +104,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
             throws IllegalAccessException, ExecutionException, InterruptedException,
             TimeoutException, PulsarAdminException, PulsarClientException {
 
-        final String namespace = "my-tenant/test/my-ns-filter";
+        final String namespace = "my-tenant/my-ns-filter";
         final String namespaceAntiAffinityGroup = "my-antiaffinity-filter";
 
 

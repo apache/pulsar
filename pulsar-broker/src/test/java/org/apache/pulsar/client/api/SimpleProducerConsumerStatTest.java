@@ -97,7 +97,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     public void testSyncProducerAndConsumer(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic1").subscriptionName("my-subscriber-name");
+                .topic("persistent://my-property/my-ns/my-topic1").subscriptionName("my-subscriber-name");
 
         // Cumulative Ack-counter works if ackTimeOutTimer-task is enabled
         boolean isAckTimeoutTaskEnabledForCumulativeAck = ackTimeoutSec > 0;
@@ -108,7 +108,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic1");
+                .topic("persistent://my-property/my-ns/my-topic1");
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
@@ -144,7 +144,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2").subscriptionName("my-subscriber-name");
+                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name");
         if (ackTimeoutSec > 0) {
             consumerBuilder.ackTimeout(ackTimeoutSec, TimeUnit.SECONDS);
         }
@@ -152,7 +152,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .topic("persistent://my-property/my-ns/my-topic2")
                 .messageRoutingMode(MessageRoutingMode.SinglePartition);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
@@ -202,7 +202,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
             throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2").subscriptionName("my-subscriber-name");
+                .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name");
         if (ackTimeoutSec > 0) {
             consumerBuilder.ackTimeout(ackTimeoutSec, TimeUnit.SECONDS);
         }
@@ -210,7 +210,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = consumerBuilder.subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic2")
+                .topic("persistent://my-property/my-ns/my-topic2")
                 .messageRoutingMode(MessageRoutingMode.SinglePartition);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
@@ -265,7 +265,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         int numMessages = 100;
         final CountDownLatch latch = new CountDownLatch(numMessages);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/tp1/my-ns/my-topic3")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic3")
                 .subscriptionName("my-subscriber-name").ackTimeout(100, TimeUnit.SECONDS)
                 .messageListener((consumer1, msg) -> {
                     assertNotNull(msg, "Message cannot be null");
@@ -276,7 +276,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
                 }).subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic3");
+                .topic("persistent://my-property/my-ns/my-topic3");
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true).batchingMaxPublishDelay(batchMessageDelayMs, TimeUnit.MILLISECONDS)
                     .batchingMaxMessages(5);
@@ -309,11 +309,11 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     public void testSendTimeout(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/tp1/my-ns/my-topic5")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic5")
                 .subscriptionName("my-subscriber-name").subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic5").sendTimeout(1, TimeUnit.SECONDS);
+                .topic("persistent://my-property/my-ns/my-topic5").sendTimeout(1, TimeUnit.SECONDS);
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true)
                     .batchingMaxPublishDelay(2L * batchMessageDelayMs, TimeUnit.MILLISECONDS)
@@ -356,7 +356,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     @Test
     public void testBatchMessagesRateOut() throws PulsarClientException, InterruptedException, PulsarAdminException {
         log.info("-- Starting {} test --", methodName);
-        String topicName = "persistent://my-property/cluster/my-ns/testBatchMessagesRateOut";
+        String topicName = "persistent://my-property/my-ns/testBatchMessagesRateOut";
         double produceRate = 17;
         int batchSize = 5;
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
@@ -402,7 +402,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic1");
+                .topic("persistent://my-property/my-ns/my-topic1");
 
         Producer<byte[]> producer = producerBuilder.create();
 
@@ -447,7 +447,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     public void testProducerPendingQueueSizeStats(boolean batchingEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-                .topic("persistent://my-property/tp1/my-ns/my-topic1");
+                .topic("persistent://my-property/my-ns/my-topic1");
 
         @Cleanup
         Producer<byte[]> producer = producerBuilder.enableBatching(batchingEnabled).create();
@@ -528,7 +528,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     public void testMsgRateExpired() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        String topicName = "persistent://my-property/tp1/my-ns/" + methodName;
+        String topicName = "persistent://my-property/my-ns/" + methodName;
         String subName = "my-sub";
         admin.topics().createSubscription(topicName, subName, MessageId.latest);
 

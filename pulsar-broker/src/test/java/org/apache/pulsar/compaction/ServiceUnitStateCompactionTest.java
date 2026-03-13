@@ -148,10 +148,10 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns");
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
@@ -183,12 +183,12 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     }
     TestData generateTestData() throws PulsarAdminException, PulsarClientException {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
         final int numMessages = 20;
         final int maxKeys = 5;
 
         // Configure retention to ensue data is retained for reader
-        admin.namespaces().setRetention("my-property/use/my-ns", new RetentionPolicies(-1, -1));
+        admin.namespaces().setRetention("my-property/my-ns", new RetentionPolicies(-1, -1));
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
@@ -328,7 +328,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testCompactionWithTableview() throws Exception {
         var tv = pulsar.getClient().newTableViewBuilder(schema)
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .loadConf(Map.of(
                         "topicCompactionStrategyClassName",
                         ServiceUnitStateDataConflictResolver.class.getName()))
@@ -383,7 +383,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     @Test
     public void testReadCompactedBeforeCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
@@ -430,7 +430,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     @Test
     public void testReadEntriesAfterCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
@@ -472,7 +472,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testSeekEarliestAfterCompaction() throws Exception {
 
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
@@ -523,7 +523,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     @Test
     public void testSlowTableviewAfterCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
         String strategyClassName = "topicCompactionStrategyClassName";
         strategy.checkBrokers(true);
 
@@ -572,7 +572,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         });
 
         // Configure retention to ensue data is retained for reader
-        admin.namespaces().setRetention("my-property/use/my-ns",
+        admin.namespaces().setRetention("my-property/my-ns",
                 new RetentionPolicies(-1, -1));
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
@@ -644,7 +644,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     @Test
     public void testSlowReceiveTableviewAfterCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
         String strategyClassName = "topicCompactionStrategyClassName";
 
         pulsarClient.newConsumer(schema)
@@ -662,7 +662,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .create();
 
         // Configure retention to ensue data is retained for reader
-        admin.namespaces().setRetention("my-property/use/my-ns",
+        admin.namespaces().setRetention("my-property/my-ns",
                 new RetentionPolicies(-1, -1));
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
@@ -718,7 +718,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     @Test
     public void testBrokerRestartAfterCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
@@ -767,7 +767,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     @Test
     public void testCompactEmptyTopic() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
@@ -795,7 +795,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     @Test
     public void testWholeBatchCompactedOut() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         // subscribe before sending anything, so that we get all messages
         pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
@@ -832,7 +832,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     }
 
     public void testCompactionWithLastDeletedKey() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic)
                 .compressionType(MSG_COMPRESSION_TYPE)
@@ -863,7 +863,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     @Test(timeOut = 20000)
     public void testEmptyCompactionLedger() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic)
                 .compressionType(MSG_COMPRESSION_TYPE)
@@ -893,7 +893,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     @Test(timeOut = 20000)
     public void testAllEmptyCompactionLedger() throws Exception {
         final String topic =
-                "persistent://my-property/use/my-ns/testAllEmptyCompactionLedger" + UUID.randomUUID().toString();
+                "persistent://my-property/my-ns/testAllEmptyCompactionLedger" + UUID.randomUUID().toString();
 
         final int messages = 10;
 
@@ -929,7 +929,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     public void testCompactMultipleTimesWithoutEmptyMessage()
             throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic =
-                "persistent://my-property/use/my-ns/testCompactMultipleTimesWithoutEmptyMessage" + UUID.randomUUID()
+                "persistent://my-property/my-ns/testCompactMultipleTimesWithoutEmptyMessage" + UUID.randomUUID()
                         .toString();
 
         final int messages = 10;
@@ -980,7 +980,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     @Test(timeOut = 200000)
     public void testReadUnCompacted()
             throws PulsarClientException, ExecutionException, InterruptedException {
-        final String topic = "persistent://my-property/use/my-ns/testReadUnCompacted" + UUID.randomUUID().toString();
+        final String topic = "persistent://my-property/my-ns/testReadUnCompacted" + UUID.randomUUID().toString();
 
         final int messages = 10;
         final String key = "1";

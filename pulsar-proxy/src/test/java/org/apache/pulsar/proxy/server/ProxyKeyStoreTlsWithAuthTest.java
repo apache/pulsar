@@ -43,7 +43,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -61,6 +60,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -140,7 +140,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
         @Cleanup
         Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
+                .topic("persistent://public/default/topic" + System.currentTimeMillis())
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -155,7 +155,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
         try {
             @Cleanup
             Producer<byte[]> producer = client.newProducer(Schema.BYTES)
-                    .topic("persistent://sample/test/local/topic" + System.currentTimeMillis())
+                    .topic("persistent://public/default/topic" + System.currentTimeMillis())
                     .create();
             Assert.fail("Should failed since broker setTlsRequireTrustedClientCertOnConnect, "
                         + "while client not set keystore");
@@ -170,9 +170,7 @@ public class ProxyKeyStoreTlsWithAuthTest extends MockedPulsarServiceBaseTest {
     public void testPartitions() throws Exception {
         @Cleanup
         PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
-        String topicName = "persistent://sample/test/local/partitioned-topic" + System.currentTimeMillis();
-        TenantInfoImpl tenantInfo = createDefaultTenantInfo();
-        admin.tenants().createTenant("sample", tenantInfo);
+        String topicName = "persistent://public/default/partitioned-topic" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topicName, 2);
 
         @Cleanup

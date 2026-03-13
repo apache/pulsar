@@ -70,6 +70,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -132,7 +133,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testConnectionsStats() throws Exception {
-        final String topicName1 = "persistent://sample/test/local/connections-stats";
+        final String topicName1 = "persistent://public/default/connections-stats";
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topicName1).enableBatching(false)
@@ -174,8 +175,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testTopicStats() throws Exception {
         proxyService.setProxyLogLevel(2);
-        final String topicName = "persistent://sample/test/local/topic-stats";
-        final String topicName2 = "persistent://sample/test/local/topic-stats-2";
+        final String topicName = "persistent://public/default/topic-stats";
+        final String topicName2 = "persistent://public/default/topic-stats-2";
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
@@ -226,8 +227,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testMemoryLeakFixed() throws Exception {
         proxyService.setProxyLogLevel(2);
-        final String topicName = "persistent://sample/test/local/topic-stats";
-        final String topicName2 = "persistent://sample/test/local/topic-stats-2";
+        final String topicName = "persistent://public/default/topic-stats";
+        final String topicName2 = "persistent://public/default/topic-stats-2";
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();

@@ -287,9 +287,17 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
 
+        // Remove r4 from existing namespace replication clusters before shrinking the tenant,
+        // since canUpdateCluster validation prevents removing a cluster that namespaces still reference.
+        Set<String> targetClusters = Sets.newHashSet("r1", "r2", "r3");
+        if (admin1.tenants().getTenants().contains("pulsar")) {
+            for (String ns : admin1.namespaces().getNamespaces("pulsar")) {
+                admin1.namespaces().setNamespaceReplicationClusters(ns, targetClusters, false);
+            }
+        }
         updateTenantInfo("pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
-                        Sets.newHashSet("r1", "r2", "r3")));
+                        targetClusters));
         admin1.namespaces().createNamespace("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
         admin1.namespaces().createNamespace("pulsar/ns1", Sets.newHashSet("r1", "r2"));
 
@@ -311,14 +319,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrlTls(), pulsar3.getBrokerServiceUrlTls());
         assertEquals(admin2.clusters().getCluster(cluster4).getBrokerServiceUrlTls(), pulsar4.getBrokerServiceUrlTls());
 
-        // Also create V1 namespace for compatibility check
-        admin1.clusters().createCluster("global", ClusterData.builder()
-                .serviceUrl("http://global:8080")
-                .serviceUrlTls("https://global:8443")
-                .build());
-        admin1.namespaces().createNamespace("pulsar/global/ns");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns",
-                Sets.newHashSet(cluster1, cluster2, cluster3), false);
+
 
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");

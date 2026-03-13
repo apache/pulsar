@@ -70,11 +70,6 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
                         return CompletableFuture.completedFuture(null);
                     }
                 });
-        if (!namespaceName.isGlobal()) {
-            ret = ret.thenCompose(__ -> validateClusterOwnershipAsync(namespaceName.getCluster()))
-                    .thenCompose(__ -> validateClusterForTenantAsync(namespaceName.getTenant(),
-                            namespaceName.getCluster()));
-        }
         return ret
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenApply(policies -> validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange));

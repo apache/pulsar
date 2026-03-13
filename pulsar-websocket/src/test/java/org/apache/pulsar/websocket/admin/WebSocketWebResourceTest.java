@@ -123,7 +123,7 @@ public class WebSocketWebResourceTest {
         // Mock UriInfo
         when(uri.getRequestUri()).thenReturn(null);
 
-        topicName = TopicName.get("persistent://tenant/cluster/ns/dest");
+        topicName = TopicName.get("persistent://tenant/ns/dest");
     }
 
     @AfterMethod(alwaysRun = true)

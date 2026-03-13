@@ -103,7 +103,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class TopicsImpl extends BaseResource implements Topics {
-    private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
     private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
@@ -144,7 +143,6 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     public TopicsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
         super(auth, requestTimeoutMs);
-        adminTopics = web.path("/admin");
         adminV2Topics = web.path("/admin/v2");
     }
 
@@ -1255,15 +1253,13 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     private WebTarget namespacePath(String domain, NamespaceName namespace, String... parts) {
-        final WebTarget base = namespace.isV2() ? adminV2Topics : adminTopics;
-        WebTarget namespacePath = base.path(domain).path(namespace.toString());
+        WebTarget namespacePath = adminV2Topics.path(domain).path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2Topics : adminTopics;
-        WebTarget topicPath = base.path(topic.getRestPath());
+        WebTarget topicPath = adminV2Topics.path(topic.getRestPath());
         topicPath = WebTargets.addParts(topicPath, parts);
         return topicPath;
     }

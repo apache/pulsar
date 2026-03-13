@@ -116,7 +116,7 @@ public class MessageChecksumTest extends BrokerTestBase {
             throws Exception {
         // GIVEN
         final String topicName =
-                "persistent://prop/use/ns-abc/testChecksumBackwardsCompatibilityWithOldBrokerWithoutChecksumHandling";
+                "persistent://prop/ns-abc/testChecksumBackwardsCompatibilityWithOldBrokerWithoutChecksumHandling";
 
         if (mixedVersionScenario == MixedVersionScenario.CONNECTED_TO_OLD_THEN_NEW_VERSION) {
             // Given, the client thinks it's connected to a broker that doesn't support message checksums
@@ -220,7 +220,7 @@ public class MessageChecksumTest extends BrokerTestBase {
     public void testTamperingMessageIsDetected() throws Exception {
         // GIVEN
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic("persistent://prop/use/ns-abc/testTamperingMessageIsDetected")
+                .topic("persistent://prop/ns-abc/testTamperingMessageIsDetected")
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();

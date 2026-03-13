@@ -108,7 +108,6 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -282,18 +281,18 @@ public class ModularLoadManagerImplTest {
         }
     }
 
-    private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {
-        return nsFactory.getBundle(NamespaceName.get(property, cluster, namespace),
+    private NamespaceBundle makeBundle(final String tenant, final String namespace) {
+        return nsFactory.getBundle(NamespaceName.get(tenant, namespace),
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
     }
 
     private NamespaceBundle makeBundle(final String all) {
-        return makeBundle(all, all, all);
+        return makeBundle(all, all);
     }
 
     private String mockBundleName(final int i) {
-        return String.format("%d/%d/%d/0x00000000_0xffffffff", i, i, i);
+        return String.format("%d/%d/0x00000000_0xffffffff", i, i);
     }
 
     // Test disabled since it's depending on CPU usage in the machine
@@ -335,7 +334,7 @@ public class ModularLoadManagerImplTest {
     // Test disabled since it's depending on CPU usage in the machine
     @Test(enabled = false)
     public void testEvenBundleDistribution() throws Exception {
-        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test", 16);
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", 16);
         int numAssignedToPrimary = 0;
         int numAssignedToSecondary = 0;
         final BundleData bundleData = new BundleData(10, 1000);
@@ -370,8 +369,8 @@ public class ModularLoadManagerImplTest {
         pulsar3.start();
 
         final String tenant = "test";
-        final String cluster = "test";
-        String namespace = tenant + "/" + cluster + "/" + "test";
+        final String cluster = "use";
+        String namespace = tenant + "/" + "test";
         String topic = "persistent://" + namespace + "/my-topic1";
         admin1.clusters().createCluster(cluster, ClusterData.builder()
                 .serviceUrl(pulsar1.getWebServiceAddress()).build());
@@ -430,7 +429,7 @@ public class ModularLoadManagerImplTest {
     public void testMaxTopicDistributionToBroker() throws Exception {
 
         final int totalBundles = 50;
-        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test", "test",
+        final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(nsFactory, "test", "test",
                 totalBundles);
         final BundleData bundleData = new BundleData(10, 1000);
         // it sets max topics under this bundle so, owner of this broker reaches max-topic threshold
@@ -470,7 +469,7 @@ public class ModularLoadManagerImplTest {
         // create and configure bundle-data
         final int totalBundles = 5;
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils.makeBundles(
-                nsFactory, "test", "test", "test", totalBundles);
+                nsFactory, "test", "test", totalBundles);
         LoadData loadData = (LoadData) getField(loadManager, "loadData");
         for (int i = 0; i < totalBundles; i++) {
             final BundleData bundleData = new BundleData(10, 1000);
@@ -774,13 +773,13 @@ public class ModularLoadManagerImplTest {
                 .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
-        admin1.namespaces().createNamespace(tenant + "/" + cluster + "/" + namespace);
+        admin1.namespaces().createNamespace(tenant + "/" + namespace);
 
         // set a new policy
-        String newPolicyJsonTemplate = "{\"namespaces\":[\"%s/%s/%s.*\"],\"primary\":[\"%s\"],"
+        String newPolicyJsonTemplate = "{\"namespaces\":[\"%s/%s.*\"],\"primary\":[\"%s\"],"
                 + "\"secondary\":[\"%s\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\","
                 + "\"parameters\":{\"min_limit\":%s,\"usage_threshold\":80}}}";
-        String newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Host,
+        String newPolicyJson = String.format(newPolicyJsonTemplate, tenant, namespace, broker1Host,
                 broker2Host, 1);
         String newPolicyName = "my-ns-isolation-policies";
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
@@ -790,7 +789,7 @@ public class ModularLoadManagerImplTest {
 
         SimpleResourceAllocationPolicies simpleResourceAllocationPolicies = new SimpleResourceAllocationPolicies(
                 pulsar1);
-        ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, cluster, namespace, 1)[0];
+        ServiceUnitId serviceUnit = LoadBalancerTestingUtils.makeBundles(nsFactory, tenant, namespace, 1)[0];
         BrokerTopicLoadingPredicate brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
             public boolean isEnablePersistentTopics(String brokerId) {
@@ -830,7 +829,7 @@ public class ModularLoadManagerImplTest {
 
         // (2) now we will have isolation policy : primary=broker1, secondary=broker2, minLimit=2
 
-        newPolicyJson = String.format(newPolicyJsonTemplate, tenant, cluster, namespace, broker1Host,
+        newPolicyJson = String.format(newPolicyJsonTemplate, tenant, namespace, broker1Host,
                 broker2Host, 2);
         nsPolicyData = jsonMapper.readValue(newPolicyJson.getBytes(), NamespaceIsolationDataImpl.class);
         admin1.clusters().createNamespaceIsolationPolicy("use", newPolicyName, nsPolicyData);
@@ -866,7 +865,7 @@ public class ModularLoadManagerImplTest {
 
         final String cluster = "use";
         final String tenant = "my-tenant";
-        final String namespace = "my-tenant/use/my-ns";
+        final String namespace = "my-tenant/my-ns";
         final String bundle = "0x00000000_0xffffffff";
         final String brokerHost = pulsar1.getAdvertisedAddress();
         final String brokerAddress = brokerHost  + ":8080";
@@ -967,17 +966,12 @@ public class ModularLoadManagerImplTest {
         assertEquals(data.size(), 1);
     }
 
-    @DataProvider(name = "isV1")
-    public Object[][] isV1() {
-        return new Object[][] {{true}, {false}};
-    }
-
-    @Test(dataProvider = "isV1")
-    public void testBundleDataDefaultValue(boolean isV1) throws Exception {
+    @Test
+    public void testBundleDataDefaultValue() throws Exception {
         final String cluster = "use";
         final String tenant = "my-tenant";
         final String namespace = "my-ns";
-        NamespaceName ns = isV1 ? NamespaceName.get(tenant, cluster, namespace) : NamespaceName.get(tenant, namespace);
+        NamespaceName ns = NamespaceName.get(tenant, namespace);
         admin1.clusters().createCluster(cluster, ClusterData.builder()
                 .serviceUrl(pulsar1.getWebServiceAddress()).build());
         admin1.tenants().createTenant(tenant,

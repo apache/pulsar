@@ -718,7 +718,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 .open(TopicName.get(nonPartitionTopicName2).getPersistenceNamingEncoding());
         doAnswer(invocation -> {
             persistentTopics.namespaceName = NamespaceName.get("tenant", "namespace");
-            persistentTopics.topicName = TopicName.get("persistent", "tenant", "cluster", "namespace", "topicname");
+            persistentTopics.topicName = TopicName.get("persistent", "tenant", "namespace", "topicname");
             return null;
         }).when(persistentTopics).validatePartitionedTopicName(any(), any(), any());
 
@@ -1870,7 +1870,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNamespaceResources() throws Exception {
-        String ns1V1 = "test/" + testNamespace + "v1";
+        String ns1V1 = testNamespace + "v1";
         String ns1V2 = testNamespace + "v2";
         admin.namespaces().createNamespace(testTenant + "/" + ns1V1);
         admin.namespaces().createNamespace(testTenant + "/" + ns1V2);

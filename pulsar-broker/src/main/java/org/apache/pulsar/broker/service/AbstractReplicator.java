@@ -487,7 +487,7 @@ public abstract class AbstractReplicator implements Replicator {
      *
      * <pre>
      * eg:
-     * if topic : persistent://prop/cluster/ns/my-topic is a partitioned topic with 2 partitions then
+     * if topic : persistent://prop/ns/my-topic is a partitioned topic with 2 partitions then
      * broker explicitly creates replicator producer for: "my-topic-partition-1" and "my-topic-partition-2".
      *
      * However, if broker tries to start producer with root topic "my-topic" then client-lib internally

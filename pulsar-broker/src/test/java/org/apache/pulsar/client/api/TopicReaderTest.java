@@ -989,7 +989,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMessageAvailableAfterRestart() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testMessageAvailableAfterRestart";
+        String topic = "persistent://my-property/my-ns/testMessageAvailableAfterRestart";
         String content = "my-message-1";
 
         // stop retention from cleaning up
@@ -1025,7 +1025,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiReaderMessageAvailableAfterRestart() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testMessageAvailableAfterRestart2";
+        String topic = "persistent://my-property/my-ns/testMessageAvailableAfterRestart2";
         String content = "my-message-1";
         admin.topics().createPartitionedTopic(topic, 3);
         // stop retention from cleaning up

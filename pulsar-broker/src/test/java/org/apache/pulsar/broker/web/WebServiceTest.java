@@ -271,10 +271,10 @@ public class WebServiceTest {
     public void testRateLimiting() throws Exception {
         setupEnv(false, false, false, false, 10.0, false);
 
-        // setupEnv makes a HTTP call to create the cluster.
+        // setupEnv makes HTTP calls to create the cluster, tenant, and namespace.
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, 1);
+                Result.ACCEPTED.attributes, 3);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
                 .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
@@ -288,7 +288,7 @@ public class WebServiceTest {
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, 6);
+                Result.ACCEPTED.attributes, 8);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
                 .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
@@ -306,7 +306,7 @@ public class WebServiceTest {
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(6));
+                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(8));
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.REJECTED.attributes, value -> assertThat(value).isPositive());
     }
@@ -561,9 +561,9 @@ public class WebServiceTest {
         }
 
         brokerLookUpUrl = brokerUrlBase
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+                + "/lookup/v2/topic/persistent/my-property/my-namespace/my-topic";
         brokerLookUpUrlTls = brokerUrlBaseTls
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+                + "/lookup/v2/topic/persistent/my-property/my-namespace/my-topic";
         @Cleanup
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 
@@ -571,6 +571,13 @@ public class WebServiceTest {
             pulsarAdmin.clusters().createCluster(config.getClusterName(),
                     ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         } catch (ConflictException ce) {
+            // This is OK.
+        }
+        try {
+            pulsarAdmin.tenants().createTenant("my-property",
+                    TenantInfo.builder().allowedClusters(Sets.newHashSet(config.getClusterName())).build());
+            pulsarAdmin.namespaces().createNamespace("my-property/my-namespace");
+        } catch (Exception e) {
             // This is OK.
         }
     }

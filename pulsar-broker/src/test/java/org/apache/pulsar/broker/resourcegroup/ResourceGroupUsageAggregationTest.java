@@ -265,7 +265,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
     final String tenantName = "pulsar-test";
     final String nsName = "test";
     final String tenantAndNsName = tenantName + "/" + nsName;
-    final String testProduceConsumeTopicName = "/test/prod-cons-topic";
+    final String testProduceConsumeTopicName = "/prod-cons-topic";
     final String produceConsumePersistentTopic = "persistent://" + tenantAndNsName + testProduceConsumeTopicName;
     final String produceConsumeNonPersistentTopic =
                                                 "non-persistent://" + tenantAndNsName + testProduceConsumeTopicName;

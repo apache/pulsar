@@ -378,7 +378,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
         Producer<byte[]> p1 = pulsarClient
                 .newProducer()
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
         Transaction transaction = pulsarClient

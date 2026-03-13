@@ -48,13 +48,11 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 
 public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
-    private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     private final boolean isGlobal;
 
     protected TopicPoliciesImpl(WebTarget web, Authentication auth, long readTimeoutMs, boolean isGlobal) {
         super(auth, readTimeoutMs);
-        this.adminTopics = web.path("/admin");
         this.adminV2Topics = web.path("/admin/v2");
         this.isGlobal = isGlobal;
     }
@@ -1389,8 +1387,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2Topics : adminTopics;
-        WebTarget topicPath = base.path(topic.getRestPath());
+        WebTarget topicPath = adminV2Topics.path(topic.getRestPath());
         topicPath = WebTargets.addParts(topicPath, parts);
         topicPath = addGlobalIfNeeded(topicPath);
         return topicPath;

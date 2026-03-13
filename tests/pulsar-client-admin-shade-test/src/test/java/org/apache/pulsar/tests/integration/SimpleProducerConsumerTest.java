@@ -95,6 +95,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         admin.namespaces().createNamespace("my-property/my-ns");
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns",
                 Collections.singleton("standalone"), false);
+        admin.namespaces().createNamespace("my-property/myenc-ns", Collections.singleton("standalone"));
     }
 
     @Override
@@ -400,12 +401,12 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         MessageImpl<byte[]> msg = null;
         Set<String> messageSet = new HashSet<>();
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
+                .topic("persistent://my-property/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         // 1. Invalid key name
         try {
-            pulsarClient.newProducer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+            pulsarClient.newProducer().topic("persistent://my-property/myenc-ns/myenc-topic1")
                     .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
             Assert.fail("Producer creation should not suceed if failing to read key");
         } catch (Exception e) {
@@ -414,7 +415,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         // 2. Producer with valid key name
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+                .topic("persistent://my-property/myenc-ns/myenc-topic1")
                 .addEncryptionKey("client-rsa.pem")
                 .cryptoKeyReader(new EncKeyReader())
                 .enableBatching(false)
@@ -433,7 +434,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         // 4. Set consumer config to consume even if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
@@ -454,7 +455,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         // 5. Set keyreader and failure action
         consumer.close();
         // Set keyreader
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
                 .cryptoKeyReader(new EncKeyReader()).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
@@ -474,7 +475,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         // 6. Set consumer config to discard if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 

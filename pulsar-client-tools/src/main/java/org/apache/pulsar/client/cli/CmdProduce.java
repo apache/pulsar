@@ -438,24 +438,16 @@ public class CmdProduce extends AbstractCmd {
 
     }
 
-    @SuppressWarnings("deprecation")
     @VisibleForTesting
     public String getWebSocketProduceUri(String topic) {
         String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
                 serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
 
         TopicName topicName = TopicName.get(topic);
-        String wsTopic;
-        if (topicName.isV2()) {
-            wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getNamespacePortion(), topicName.getLocalName());
-        } else {
-            wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
-        }
+        String wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                topicName.getNamespacePortion(), topicName.getLocalName());
 
-        String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/") + "producer/%s";
-        return String.format(uriFormat, serviceURLWithoutTrailingSlash, wsTopic);
+        return String.format("%s/ws/v2/producer/%s", serviceURLWithoutTrailingSlash, wsTopic);
     }
 
     @SuppressWarnings("deprecation")

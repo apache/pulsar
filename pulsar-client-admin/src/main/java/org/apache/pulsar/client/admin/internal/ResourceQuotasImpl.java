@@ -30,12 +30,10 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 
 public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
-    private final WebTarget adminQuotas;
     private final WebTarget adminV2Quotas;
 
     public ResourceQuotasImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
         super(auth, requestTimeoutMs);
-        adminQuotas = web.path("/admin/resource-quotas");
         adminV2Quotas = web.path("/admin/v2/resource-quotas");
     }
 
@@ -98,8 +96,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
     }
 
     private WebTarget namespacePath(NamespaceName namespace, String... parts) {
-        final WebTarget base = namespace.isV2() ? adminV2Quotas : adminQuotas;
-        WebTarget namespacePath = base.path(namespace.toString());
+        WebTarget namespacePath = adminV2Quotas.path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
     }

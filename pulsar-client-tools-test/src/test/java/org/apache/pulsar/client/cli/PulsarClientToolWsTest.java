@@ -38,7 +38,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.internalSetup();
+        super.baseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -53,7 +53,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
+        final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         {
@@ -100,7 +100,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
+        final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         {
@@ -148,7 +148,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
+        final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         {

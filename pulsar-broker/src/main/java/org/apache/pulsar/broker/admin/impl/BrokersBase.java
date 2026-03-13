@@ -51,7 +51,6 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.BrokerOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
@@ -365,8 +364,6 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error"),
         @ApiResponse(code = 503, message = "Service unavailable")})
     public void healthCheck(@Suspended AsyncResponse asyncResponse,
-                            @ApiParam(value = "Topic Version")
-                            @QueryParam("topicVersion") TopicVersion topicVersion,
                             @QueryParam("brokerId") String brokerId) {
         if (pulsar().getState() == State.Closed || pulsar().getState() == State.Closing) {
             asyncResponse.resume(Response.status(Status.SERVICE_UNAVAILABLE).build());
@@ -377,7 +374,7 @@ public class BrokersBase extends AdminResource {
                 .thenCompose(__ -> maybeRedirectToBroker(
                         StringUtils.isBlank(brokerId) ? pulsar().getBrokerId() : brokerId))
                 .thenAccept(__ -> checkDeadlockedThreads())
-                .thenCompose(__ -> internalRunHealthCheck(topicVersion))
+                .thenCompose(__ -> internalRunHealthCheck())
                 .thenAccept(__ -> {
                     LOG.info("[{}] Successfully run health check.", clientAppId());
                     asyncResponse.resume(Response.ok("ok").build());
@@ -414,8 +411,8 @@ public class BrokersBase extends AdminResource {
         }
     }
 
-    private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
-        return pulsar().runHealthCheck(topicVersion, clientAppId());
+    private CompletableFuture<Void> internalRunHealthCheck() {
+        return pulsar().runHealthCheck(clientAppId());
     }
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {

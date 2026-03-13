@@ -82,7 +82,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     @BeforeClass
     public void initNamespace() throws Exception {
         testLocalNamespaces = new ArrayList<>();
-        testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testLocalCluster, this.testNamespace));
+        testLocalNamespaces.add(NamespaceName.get(this.testTenant, this.testNamespace));
 
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
@@ -113,11 +113,11 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         createTestNamespaces(this.testLocalNamespaces);
 
         doThrow(new RestException(Response.Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
-                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
+                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/test-namespace-1"),
                         PolicyName.PERSISTENCE, PolicyOperation.WRITE);
 
         doThrow(new RestException(Response.Status.UNAUTHORIZED, "unauthorized")).when(namespaces)
-                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/use/test-namespace-1"),
+                .validateNamespacePolicyOperation(NamespaceName.get("other-tenant/test-namespace-1"),
                         PolicyName.RETENTION, PolicyOperation.WRITE);
 
         nsSvc = pulsar.getNamespaceService();

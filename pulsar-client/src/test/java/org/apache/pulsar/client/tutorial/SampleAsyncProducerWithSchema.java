@@ -37,7 +37,7 @@ public class SampleAsyncProducerWithSchema {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
         Producer<JsonPojo> producer = pulsarClient.newProducer(JSONSchema.of(SchemaDefinition.<JsonPojo>builder()
-                        .withPojo(JsonPojo.class).build())).topic("persistent://my-property/use/my-ns/my-topic")
+                        .withPojo(JsonPojo.class).build())).topic("persistent://my-property/my-ns/my-topic")
                 .sendTimeout(3, TimeUnit.SECONDS).create();
 
         List<CompletableFuture<MessageId>> futures = new ArrayList<>();

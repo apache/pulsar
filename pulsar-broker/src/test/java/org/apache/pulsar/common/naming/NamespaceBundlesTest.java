@@ -67,7 +67,7 @@ public class NamespaceBundlesTest {
 
         long[] partitions = new long[]{0L, 0x10000000L, 0x40000000L, 0xffffffffL};
 
-        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/use/ns2"), factory,
+        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/ns2"), factory,
                 Optional.empty(), partitions);
         Field partitionField = NamespaceBundles.class.getDeclaredField("partitions");
         Field nsField = NamespaceBundles.class.getDeclaredField("nsname");
@@ -79,7 +79,7 @@ public class NamespaceBundlesTest {
         // the same instance
         assertEquals(partitions.length, partFld.length);
         NamespaceName nsFld = (NamespaceName) nsField.get(bundles);
-        assertEquals(nsFld.toString(), "pulsar/use/ns2");
+        assertEquals(nsFld.toString(), "pulsar/ns2");
         ArrayList<NamespaceBundle> bundleList = (ArrayList<NamespaceBundle>) bundlesField.get(bundles);
         assertEquals(bundleList.size(), 3);
         assertEquals(bundleList.get(0),
@@ -123,13 +123,13 @@ public class NamespaceBundlesTest {
         partitions.add(0xb0000000L);
         partitions.add(0xc0000000L);
         partitions.add(0xffffffffL);
-        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/global/ns1"),
+        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/ns1"),
                 factory, Optional.empty(), partitions);
-        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
+        TopicName topicName = TopicName.get("persistent://pulsar/ns1/topic-1");
         NamespaceBundle bundle = bundles.findBundle(topicName);
         assertTrue(bundle.includes(topicName));
 
-        topicName = TopicName.get("persistent://pulsar/use/ns2/topic-2");
+        topicName = TopicName.get("persistent://pulsar/ns2/topic-2");
         try {
             bundles.findBundle(topicName);
             fail("Should have failed due to mismatched namespace name");
@@ -150,15 +150,15 @@ public class NamespaceBundlesTest {
             bundles = new NamespaceBundles(topicName.getNamespaceObject(), factory, Optional.empty(), newPar);
             bundles.findBundle(topicName);
             fail("Should have failed due to out-of-range");
-        } catch (IndexOutOfBoundsException iae) {
+        } catch (IllegalArgumentException iae) {
             // OK, expected
         }
     }
 
     @Test
     public void testSplitBundles() throws Exception {
-        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
+        NamespaceName nsname = NamespaceName.get("pulsar/ns1");
+        TopicName topicName = TopicName.get("persistent://pulsar/ns1/topic-1");
         NamespaceBundles bundles = factory.getBundles(nsname);
         NamespaceBundle bundle = bundles.findBundle(topicName);
         final int numberSplitBundles = 4;
@@ -212,8 +212,8 @@ public class NamespaceBundlesTest {
     @Test
     public void testSplitBundleInTwo() throws Exception {
         final int noBundles = 2;
-        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
+        NamespaceName nsname = NamespaceName.get("pulsar/ns1");
+        TopicName topicName = TopicName.get("persistent://pulsar/ns1/topic-1");
         NamespaceBundles bundles = factory.getBundles(nsname);
         NamespaceBundle bundle = bundles.findBundle(topicName);
         // (1) split : [0x00000000,0xffffffff] => [0x00000000_0x7fffffff,0x7fffffff_0xffffffff]
@@ -243,7 +243,7 @@ public class NamespaceBundlesTest {
 
     @Test
     public void testSplitBundleByFixBoundary() throws Exception {
-        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
+        NamespaceName nsname = NamespaceName.get("pulsar/ns1");
         NamespaceBundles bundles = factory.getBundles(nsname);
         NamespaceBundle bundleToSplit = bundles.getBundles().get(0);
 

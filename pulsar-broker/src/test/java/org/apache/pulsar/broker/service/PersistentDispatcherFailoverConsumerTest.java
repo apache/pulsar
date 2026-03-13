@@ -101,8 +101,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     protected PulsarTestContext pulsarTestContext;
 
-    final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
-    final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
+    final String successTopicName = "persistent://part-perf/perf.t1/ptopic";
+    final String failTopicName = "persistent://part-perf/perf.t1/pfailTopic";
 
     @BeforeMethod
     public void setup() throws Exception {

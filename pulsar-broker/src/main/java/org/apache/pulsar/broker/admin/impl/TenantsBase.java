@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.pulsar.common.naming.Constants.GLOBAL_CLUSTER;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
@@ -293,7 +292,7 @@ public class TenantsBase extends PulsarWebResource {
 
         return clusterResources().listAsync().thenAccept(availableClusters -> {
             List<String> nonexistentClusters = allowedClusters.stream()
-                    .filter(cluster -> !(availableClusters.contains(cluster) || GLOBAL_CLUSTER.equals(cluster)))
+                    .filter(cluster -> !availableClusters.contains(cluster))
                     .collect(Collectors.toList());
             if (nonexistentClusters.size() > 0) {
                 log.warn("[{}] Failed to validate due to clusters {} do not exist", clientAppId(), nonexistentClusters);

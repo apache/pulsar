@@ -96,31 +96,6 @@ public interface Namespaces {
      */
     CompletableFuture<List<String>> getNamespacesAsync(String tenant);
 
-    /**
-     * Get the list of namespaces.
-     * <p/>
-     * Get the list of all the namespaces for a certain tenant on single cluster.
-     * <p/>
-     * Response Example:
-     *
-     * <pre>
-     * <code>["my-tenant/use/namespace1", "my-tenant/use/namespace2"]</code>
-     * </pre>
-     *
-     * @param tenant
-     *            Tenant name
-     * @param cluster
-     *            Cluster name
-     *
-     * @throws NotAuthorizedException
-     *             Don't have admin permission
-     * @throws NotFoundException
-     *             Tenant or cluster does not exist
-     * @throws PulsarAdminException
-     *             Unexpected error
-     */
-    @Deprecated
-    List<String> getNamespaces(String tenant, String cluster) throws PulsarAdminException;
 
     /**
      * Get the list of topics.

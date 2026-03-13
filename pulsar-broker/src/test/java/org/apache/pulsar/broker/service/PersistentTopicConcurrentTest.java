@@ -68,7 +68,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     @SuppressWarnings("unused")
     private ManagedCursor cursorMock;
 
-    final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
+    final String successTopicName = "persistent://prop/ns-abc/successTopic";
     final String successSubName = "successSub";
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
 

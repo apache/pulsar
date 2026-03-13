@@ -167,9 +167,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
 
-    final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
-    final String successPartitionTopicName = "persistent://prop/use/ns-abc/successTopic-partition-0";
-    final String failTopicName = "persistent://prop/use/ns-abc/failTopic";
+    final String successTopicName = "persistent://prop/ns-abc/successTopic";
+    final String successPartitionTopicName = "persistent://prop/ns-abc/successTopic-partition-0";
+    final String failTopicName = "persistent://prop/ns-abc/failTopic";
     final String successSubName = "successSub";
     final String successSubName2 = "successSub2";
     private static final Logger log = LoggerFactory.getLogger(PersistentTopicTest.class);
@@ -266,7 +266,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
 
-        final String topicName = "persistent://prop/use/ns-abc/topic1";
+        final String topicName = "persistent://prop/ns-abc/topic1";
         doAnswer(invocationOnMock -> {
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
@@ -290,7 +290,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCreateTopicMLFailure() {
-        final String jinxedTopicName = "persistent://prop/use/ns-abc/topic3";
+        final String jinxedTopicName = "persistent://prop/ns-abc/topic3";
         doAnswer(invocationOnMock -> {
             new Thread(() -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null)).start();
@@ -388,7 +388,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testPublishMessageMLFailure() throws Exception {
-        final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
+        final String successTopicName = "persistent://prop/ns-abc/successTopic";
 
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
         doReturn(new ManagedLedgerConfig()).when(ledgerMock).getConfig();
@@ -1690,7 +1690,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
      */
     @Test
     public void testAtomicReplicationRemoval() throws Exception {
-        final String globalTopicName = "persistent://prop/global/ns-abc/successTopic";
+        final String globalTopicName = "persistent://prop/ns-abc/successTopic";
         String localCluster = "local";
         String remoteCluster = "remote";
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
@@ -1757,7 +1757,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @SuppressWarnings("unchecked")
     @Test
     public void testClosingReplicationProducerTwice() throws Exception {
-        final String globalTopicName = "persistent://prop/global/ns/testClosingReplicationProducerTwice";
+        final String globalTopicName = "persistent://prop/ns/testClosingReplicationProducerTwice";
         String localCluster = "local";
         String remoteCluster = "remote";
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);

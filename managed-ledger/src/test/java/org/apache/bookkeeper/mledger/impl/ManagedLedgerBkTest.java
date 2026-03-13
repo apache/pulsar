@@ -542,7 +542,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1)
                 .setMetadataAckQuorumSize(1);
-        ManagedLedger ledger = factory.open("property/cluster/namespace/my-ledger", config);
+        ManagedLedger ledger = factory.open("property/namespace/my-ledger", config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
         int num = 1;
@@ -560,7 +560,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerOfflineBacklog offlineTopicBacklog = new ManagedLedgerOfflineBacklog(
                 DigestType.CRC32, "".getBytes(StandardCharsets.UTF_8), "", false);
         PersistentOfflineTopicStats offlineTopicStats = offlineTopicBacklog.getEstimatedUnloadedTopicBacklog(
-                (ManagedLedgerFactoryImpl) factory, "property/cluster/namespace/my-ledger");
+                (ManagedLedgerFactoryImpl) factory, "property/namespace/my-ledger");
         assertNotNull(offlineTopicStats);
     }
 

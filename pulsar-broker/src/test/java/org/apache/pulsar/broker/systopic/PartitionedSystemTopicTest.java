@@ -55,7 +55,6 @@ import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -166,14 +165,14 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testHealthCheckTopicNotOffload() throws Exception {
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent", namespaceName, HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topicName.toString(), true).get().get();
         ManagedLedgerConfig config = persistentTopic.getManagedLedger().getConfig();
         config.setLedgerOffloader(NullLedgerOffloader.INSTANCE);
-        admin.brokers().healthcheck(TopicVersion.V2);
+        admin.brokers().healthcheck();
         admin.topics().triggerOffload(topicName.toString(), MessageId.earliest);
         Awaitility.await().untilAsserted(() -> {
             Assert.assertEquals(persistentTopic.getManagedLedger().getOffloadedSize(), 0);
@@ -185,8 +184,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testSystemNamespaceNotCreateChangeEventsTopic() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        admin.brokers().healthcheck();
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent", namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
         Optional<Topic> optionalTopic = pulsar.getBrokerService()
@@ -203,8 +202,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatTopicNotAllowedToSendEvent() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        admin.brokers().healthcheck();
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent", namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
         for (int partition = 0; partition < PARTITIONS; partition++) {
@@ -218,8 +217,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatTopicBeDeleted() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        admin.brokers().healthcheck();
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
         TopicName heartbeatTopicName = TopicName.get("persistent", namespaceName,
                 HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX);
@@ -235,8 +234,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testHeartbeatNamespaceNotCreateTransactionInternalTopic() throws Exception {
-        admin.brokers().healthcheck(TopicVersion.V2);
-        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getBrokerId(),
+        admin.brokers().healthcheck();
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent",
                 namespaceName, SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);

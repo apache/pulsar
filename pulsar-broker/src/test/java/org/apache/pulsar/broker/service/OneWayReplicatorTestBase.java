@@ -485,6 +485,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         Awaitility.await().untilAsserted(() -> {
             TopicPolicies policies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(), topicName,
                     global);
+            Assert.assertNotNull(policies, "Topic policies not yet available");
             assertEquals(new HashSet<>(policies.getReplicationClusters()), expected);
             if (partitions == 0) {
                 checkNonPartitionedTopicLevelClusters(topicName.toString(), clusters, admin, pulsar,

@@ -3359,12 +3359,6 @@ public class PersistentTopicsBase extends AdminResource {
         }
         Set<String> replicationClustersSet = Sets.newHashSet(clusterIds);
         return validatePoliciesReadOnlyAccessAsync()
-                .thenAccept(__ -> {
-                    if (replicationClustersSet.contains("global")) {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Cannot specify global in the list of replication clusters");
-                    }
-                })
                 .thenCompose(__ -> {
                     // Set a topic-level replicated clusters that do not contain local cluster is not meaningful, except
                     // the following scenario: User has two clusters, which enabled Geo-Replication through a global

@@ -25,8 +25,7 @@ import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServletFactory;
 public class WebSocketProducerServlet extends JettyWebSocketServlet {
     private static final long serialVersionUID = 1L;
 
-    public static final String SERVLET_PATH = "/ws/producer";
-    public static final String SERVLET_PATH_V2 = "/ws/v2/producer";
+    public static final String SERVLET_PATH = "/ws/v2/producer";
 
     private final transient WebSocketService service;
 

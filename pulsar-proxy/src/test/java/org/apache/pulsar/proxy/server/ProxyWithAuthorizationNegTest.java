@@ -190,7 +190,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         PulsarClient proxyClient =
                 createPulsarClient("pulsar+ssl://localhost:" + proxyService.getListenPortTls().get());
 
-        String namespaceName = "my-property/proxy-authorization-neg/my-ns";
+        String namespaceName = "my-property/my-ns";
 
         admin.clusters().createCluster("proxy-authorization-neg",
                 ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
@@ -208,7 +208,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer;
         try {
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
         } catch (Exception ex) {
             // expected
@@ -216,19 +216,19 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
                     Sets.newHashSet(AuthAction.consume));
             log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
         }
         Producer<byte[]> producer;
         try {
             producer = proxyClient.newProducer(Schema.BYTES)
-                    .topic("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1").create();
+                    .topic("persistent://my-property/my-ns/my-topic1").create();
         } catch (Exception ex) {
             // expected
             admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
                     Sets.newHashSet(AuthAction.produce, AuthAction.consume));
             producer = proxyClient.newProducer(Schema.BYTES)
-                    .topic("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1").create();
+                    .topic("persistent://my-property/my-ns/my-topic1").create();
         }
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {

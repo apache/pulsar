@@ -205,21 +205,14 @@ public class CmdRead extends AbstractCmdConsume {
 
     }
 
-    @SuppressWarnings("deprecation")
     @VisibleForTesting
     public String getWebSocketReadUri(String topic) {
         String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
                 serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
 
         TopicName topicName = TopicName.get(topic);
-        String wsTopic;
-        if (topicName.isV2()) {
-            wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getNamespacePortion(), topicName.getLocalName());
-        } else {
-            wsTopic = String.format("%s/%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
-                    topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
-        }
+        String wsTopic = String.format("%s/%s/%s/%s", topicName.getDomain(), topicName.getTenant(),
+                topicName.getNamespacePortion(), topicName.getLocalName());
 
         String msgIdQueryParam;
         if ("latest".equals(startMessageId) || "earliest".equals(startMessageId)) {
@@ -229,8 +222,8 @@ public class CmdRead extends AbstractCmdConsume {
             msgIdQueryParam = Base64.getEncoder().encodeToString(msgId.toByteArray());
         }
 
-        String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/") + "reader/%s?messageId=%s";
-        return String.format(uriFormat, serviceURLWithoutTrailingSlash, wsTopic, msgIdQueryParam);
+        return String.format("%s/ws/v2/reader/%s?messageId=%s", serviceURLWithoutTrailingSlash, wsTopic,
+                msgIdQueryParam);
     }
 
     @SuppressWarnings("deprecation")

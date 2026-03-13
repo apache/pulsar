@@ -98,7 +98,7 @@ public class TestRunMain {
         printWriter.close();
         testConfigFile.deleteOnExit();
 
-        String argStrTemp = "%s %s --admin-url https://url:4443 " + "topics stats persistent://prop/cluster/ns/t1";
+        String argStrTemp = "%s %s --admin-url https://url:4443 " + "topics stats persistent://prop/ns/t1";
         boolean prevValue = PulsarAdminTool.allowSystemExit;
         PulsarAdminTool.allowSystemExit = false;
 

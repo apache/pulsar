@@ -319,12 +319,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @DataProvider(name = "namespaceNames")
     public Object[][] namespaceNameProvider() {
-        return new Object[][] { { "ns1" }, { "global" } };
-    }
-
-    @DataProvider(name = "isV1")
-    public Object[][] isV1() {
-        return new Object[][] { { true }, { false } };
+        return new Object[][] { { "ns1" } };
     }
 
 
@@ -919,7 +914,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @Test(dataProvider = "namespaceNames", timeOut = 30000)
     public void testResetCursorOnPosition(String namespaceName) throws Exception {
         restartClusterAfterTest();
-        final String topicName = "persistent://" + defaultTenant + "/use/" + namespaceName + "/resetPosition";
+        final String topicName = "persistent://" + defaultTenant + "/" + namespaceName + "/resetPosition";
         final int totalProducedMessages = 50;
 
         // set retention
@@ -1136,20 +1131,19 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080").build());
         admin.clusters().createCluster("us-east2",
                 ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080").build());
-        admin.clusters().createCluster("global", ClusterData.builder().build());
 
         List<String> allClusters = admin.clusters().getClusters();
         Collections.sort(allClusters);
         assertEquals(allClusters,
                 List.of("test", "us-east1", "us-east2", "us-west1", "us-west2", "us-west3", "us-west4"));
 
-        final String property = newUniqueName("peer-prop");
-        Set<String> allowedClusters = Set.of("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
-                "us-east2", "global");
+        final String tenant = newUniqueName("peer-prop");
+        Set<String> allowedClusters = Set.of("test", "us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
+                "us-east2");
         TenantInfoImpl propConfig = new TenantInfoImpl(Set.of("test"), allowedClusters);
-        admin.tenants().createTenant(property, propConfig);
+        admin.tenants().createTenant(tenant, propConfig);
 
-        final String namespace = property + "/global/conflictPeer";
+        final String namespace = tenant + "/conflictPeer";
         admin.namespaces().createNamespace(namespace);
 
         admin.clusters().updatePeerClusterNames("us-west1",
@@ -1525,7 +1519,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().createNamespace("prop_xyz/my-namespace", Set.of("test"));
 
-        String topic = "persistent://prop_xyz/use/my-namespace/my-topic";
+        String topic = "persistent://prop_xyz/my-namespace/my-topic";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -1701,8 +1695,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("global", ClusterData.builder()
                 .serviceUrl("http://localhost:6650").build());
 
-        // Global cluster, if there, should be omitted from the results
-        assertEquals(admin.clusters().getClusters(), List.of(cluster));
+        // With V1 removal, "global" cluster is no longer filtered from the results
+        assertEquals(new HashSet<>(admin.clusters().getClusters()), Set.of(cluster, "global"));
     }
     /**
      * verifies cluster has been set before create topic.
@@ -2349,11 +2343,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(tenantName, tenantInfo);
         admin.namespaces().createNamespace(tenantName + "/ns1", 10);
         admin.namespaces().setNamespaceReplicationClusters(tenantName + "/ns1", Set.of("test"), false);
-        admin.namespaces().createNamespace(tenantName + "/test/ns2", 10);
+        admin.namespaces().createNamespace(tenantName + "/ns2", 10);
         assertEquals(admin.namespaces().getBundles(tenantName + "/ns1").getNumBundles(), 10);
-        assertEquals(admin.namespaces().getBundles(tenantName + "/test/ns2").getNumBundles(), 10);
+        assertEquals(admin.namespaces().getBundles(tenantName + "/ns2").getNumBundles(), 10);
 
-        admin.namespaces().deleteNamespace(tenantName + "/test/ns2");
+        admin.namespaces().deleteNamespace(tenantName + "/ns2");
     }
 
     @Test
@@ -3532,13 +3526,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         producer2.close();
     }
 
-    @Test(dataProvider = "isV1")
-    public void testNonPartitionedTopic(boolean isV1) throws Exception {
+    @Test
+    public void testNonPartitionedTopic() throws Exception {
         restartClusterAfterTest();
         String tenant = defaultTenant;
         String cluster = "test";
-        String namespace = tenant + "/" + (isV1 ? cluster + "/" : "") + "n1" + isV1;
-        String topic = "persistent://" + namespace + "/t1" + isV1;
+        String namespace = tenant + "/n1";
+        String topic = "persistent://" + namespace + "/t1";
         admin.namespaces().createNamespace(namespace, Set.of(cluster));
         admin.topics().createNonPartitionedTopic(topic);
         assertTrue(admin.topics().getList(namespace).contains(topic));

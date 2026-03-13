@@ -76,13 +76,13 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
         Consumer<JsonEncodedPojo> consumer = pulsarClient
             .newConsumer(jsonSchema)
-            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .topic("persistent://my-property/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscribe();
 
         Producer<JsonEncodedPojo> producer = pulsarClient
             .newProducer(jsonSchema)
-            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .topic("persistent://my-property/my-ns/my-topic1")
             .create();
 
         for (int i = 0; i < 10; i++) {
@@ -134,13 +134,13 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
         Consumer<JsonEncodedPojo> consumer = pulsarClient
             .newConsumer(jsonSchema)
-            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .topic("persistent://my-property/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscribe();
 
         Producer<JsonEncodedPojo> producer = pulsarClient
             .newProducer(jsonSchema)
-            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .topic("persistent://my-property/my-ns/my-topic1")
             .create();
 
         consumer.close();
@@ -191,13 +191,13 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
         Consumer<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> consumer = pulsarClient
                 .newConsumer(protobufSchema)
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name")
                 .subscribe();
 
         Producer<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> producer = pulsarClient
                 .newProducer(protobufSchema)
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -255,7 +255,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
                 .newConsumer(AvroSchema.of
                         (SchemaDefinition.<org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong>builder().
                         withPojo(org.apache.pulsar.client.api.schema.proto.Test.TestMessageWrong.class).build()))
-                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name")
                 .subscribe();
 
@@ -272,13 +272,13 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
        Consumer<AvroEncodedPojo> consumer = pulsarClient
            .newConsumer(avroSchema)
-           .topic("persistent://my-property/use/my-ns/my-topic1")
+           .topic("persistent://my-property/my-ns/my-topic1")
            .subscriptionName("my-subscriber-name")
            .subscribe();
 
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
-           .topic("persistent://my-property/use/my-ns/my-topic1")
+           .topic("persistent://my-property/my-ns/my-topic1")
            .create();
 
        for (int i = 0; i < 10; i++) {
@@ -338,7 +338,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         Consumer<AvroEncodedPojo> consumer = pulsarClient
             .newConsumer(AvroSchema.of(SchemaDefinition.<AvroEncodedPojo>builder().
                     withPojo(AvroEncodedPojo.class).withAlwaysAllowNull(false).build()))
-            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .topic("persistent://my-property/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscribe();
 
@@ -441,7 +441,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
-           .topic("persistent://my-property/use/my-ns/my-topic1")
+           .topic("persistent://my-property/my-ns/my-topic1")
            .create();
 
        for (int i = 0; i < 10; i++) {
@@ -451,7 +451,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
        Consumer<GenericRecord> consumer = pulsarClient
            .newConsumer(Schema.AUTO_CONSUME())
-           .topic("persistent://my-property/use/my-ns/my-topic1")
+           .topic("persistent://my-property/my-ns/my-topic1")
            .subscriptionName("my-subscriber-name")
            .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
            .subscribe();
@@ -490,7 +490,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
        Producer<AvroEncodedPojo> producer = pulsarClient
            .newProducer(avroSchema)
-           .topic("persistent://my-property/use/my-ns/my-topic1")
+           .topic("persistent://my-property/my-ns/my-topic1")
            .create();
 
        for (int i = 0; i < 10; i++) {
@@ -500,7 +500,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
        Reader<GenericRecord> reader = pulsarClient
                .newReader(Schema.AUTO_CONSUME())
-               .topic("persistent://my-property/use/my-ns/my-topic1")
+               .topic("persistent://my-property/my-ns/my-topic1")
                .startMessageId(MessageId.earliest)
            .create();
 
@@ -537,7 +537,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
         try (Producer<AvroEncodedPojo> producer = pulsarClient
             .newProducer(avroSchema)
-            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .topic("persistent://my-property/my-ns/my-topic1")
             .create()) {
             for (int i = 0; i < 10; i++) {
                 String message = "my-message-" + i;
@@ -547,7 +547,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
         try (Producer<byte[]> producer = pulsarClient
             .newProducer(Schema.AUTO_PRODUCE_BYTES())
-            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .topic("persistent://my-property/my-ns/my-topic1")
             .create()) {
             // try to produce junk data
             for (int i = 10; i < 20; i++) {
@@ -572,7 +572,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
         Consumer<GenericRecord> consumer = pulsarClient
             .newConsumer(Schema.AUTO_CONSUME())
-            .topic("persistent://my-property/use/my-ns/my-topic1")
+            .topic("persistent://my-property/my-ns/my-topic1")
             .subscriptionName("my-subscriber-name")
             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
             .subscribe();

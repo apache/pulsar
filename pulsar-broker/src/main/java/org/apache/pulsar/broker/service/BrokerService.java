@@ -158,13 +158,11 @@ import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
-import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -696,7 +694,7 @@ public class BrokerService implements Closeable {
         if (!pulsar().isRunning()) {
             return CompletableFuture.completedFuture(null);
         }
-        return pulsar().runHealthCheck(TopicVersion.V2, null).thenAccept(__ -> {
+        return pulsar().runHealthCheck(null).thenAccept(__ -> {
             this.pulsarStats.getBrokerOperabilityMetrics().recordHealthCheckStatusSuccess();
         }).exceptionally(ex -> {
             this.pulsarStats.getBrokerOperabilityMetrics().recordHealthCheckStatusFail();
@@ -3689,13 +3687,6 @@ public class BrokerService implements Closeable {
             return CompletableFuture.completedFuture(true);
         }
 
-        //If 'allowAutoTopicCreation' is true, and the name of the topic contains 'cluster',
-        //the topic cannot be automatically created.
-        if (!pulsar.getConfiguration().isAllowAutoTopicCreationWithLegacyNamingScheme()
-                && StringUtils.isNotBlank(topicName.getCluster())) {
-            return CompletableFuture.completedFuture(false);
-        }
-
         final boolean allowed;
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
@@ -3940,10 +3931,6 @@ public class BrokerService implements Closeable {
      * means the default replication clusters for the topics under the namespace.
      */
     public boolean isCurrentClusterAllowed(NamespaceName nsName, Policies nsPolicies) {
-        // Compatibility with v1 version namespace.
-        if (Constants.GLOBAL_CLUSTER.equalsIgnoreCase(nsName.getCluster())) {
-            return nsPolicies.replication_clusters.contains(pulsar.getConfig().getClusterName());
-        }
         // If allowed clusters has been set, only check allowed clusters.
         if (!nsPolicies.allowed_clusters.isEmpty()) {
             return nsPolicies.allowed_clusters.contains(pulsar.getConfig().getClusterName());
@@ -3953,10 +3940,6 @@ public class BrokerService implements Closeable {
     }
 
     public void setCurrentClusterAllowedIfNoClusterIsAllowed(NamespaceName nsName, Policies nsPolicies) {
-        // Compatibility with v1 version namespace.
-        if (!nsName.isV2()) {
-            return;
-        }
         if (nsPolicies.replication_clusters.contains(pulsar.getConfig().getClusterName())
                 || nsPolicies.allowed_clusters.contains(pulsar.getConfig().getClusterName())) {
             return;

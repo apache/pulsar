@@ -84,7 +84,6 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("schematest", tenantInfo);
         admin.namespaces().createNamespace("schematest/test", Set.of("test"));
-        admin.namespaces().createNamespace("schematest/" + cluster + "/test", Set.of("test"));
         admin.namespaces().createNamespace(schemaCompatibilityNamespace, Set.of("test"));
     }
 
@@ -95,7 +94,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     enum ApiVersion{
-        V1, V2;
+        V2;
     }
 
     public static class Foo {
@@ -155,7 +154,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     @DataProvider(name = "version")
     public Object[][] versions() {
-        return new Object[][] { { ApiVersion.V1 }, { ApiVersion.V2 } };
+        return new Object[][] { { ApiVersion.V2 } };
     }
 
     @Test(dataProvider = "schemas")
@@ -190,7 +189,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "version")
     public void testPostSchemaCompatibilityStrategy(ApiVersion version) throws PulsarAdminException {
-        String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
+        String namespace = format("%s%s%s", "schematest", "/",
                 "test");
         String topicName = "persistent://" + namespace + "/testStrategyChange";
         SchemaInfo fooSchemaInfo = Schema.AVRO(SchemaDefinition.builder()
@@ -248,7 +247,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "version")
     public void createKeyValueSchema(ApiVersion version) throws Exception {
-        String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
+        String namespace = format("%s%s%s", "schematest", "/",
                 "test");
         String topicName = "persistent://" + namespace + "/test-key-value-schema";
         Schema keyValueSchema = Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class));
@@ -270,7 +269,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "version")
     public void testInvalidSchemaDataException(ApiVersion version) {
-        String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
+        String namespace = format("%s%s%s", "schematest", "/",
                 "test");
         String topicName = "persistent://" + namespace + "/test-invalid-schema-data-exception";
         SchemaInfo schemaInfo = SchemaInfo.builder()

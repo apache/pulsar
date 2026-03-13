@@ -106,7 +106,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String ns1 = "prop/usc/crash-broker";
+        final String ns1 = "prop/crash-broker";
 
         admin.namespaces().createNamespace(ns1);
 
@@ -204,7 +204,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String ns1 = "prop/usc/crash-broker";
+        final String ns1 = "prop/crash-broker";
         final int totalMessages = 99;
         final int totalDataLedgers = 5;
         final int entriesPerLedger = 20;
@@ -443,14 +443,14 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String ns1 = "prop/usc/topicWithSpecialChar";
+        final String ns1 = "prop/topicWithSpecialChar";
         try {
             admin.namespaces().createNamespace(ns1);
         } catch (Exception e) {
 
         }
 
-        final String topic1 = "persistent://" + ns1 + "/`~!@#$%^&*()-_+=[]://{}|\\;:'\"<>,./?-30e04524";
+        final String topic1 = "persistent://" + ns1 + "/`~!@#$%^&*()-_+=[]{}|\\;:'\"<>,.?-30e04524";
         final String subName1 = "c1";
         final byte[] content = "test".getBytes();
 
@@ -467,7 +467,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
 
     @Test
     public void testDeleteTopicWithMissingData() throws Exception {
-        String namespace = BrokerTestUtil.newUniqueName("prop/usc");
+        String namespace = BrokerTestUtil.newUniqueName("prop/ns");
         admin.namespaces().createNamespace(namespace);
 
         String topic = BrokerTestUtil.newUniqueName(namespace + "/my-topic");
@@ -512,7 +512,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
 
     @Test
     public void testDeleteTopicWithoutTopicLoaded() throws Exception {
-        String namespace = BrokerTestUtil.newUniqueName("prop/usc");
+        String namespace = BrokerTestUtil.newUniqueName("prop/ns");
         admin.namespaces().createNamespace(namespace);
 
         String topic = BrokerTestUtil.newUniqueName(namespace + "/my-topic");
@@ -553,7 +553,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
                 Optional.empty(),
                 null).get();
 
-        final String namespace = BrokerTestUtil.newUniqueName("prop/usc");
+        final String namespace = BrokerTestUtil.newUniqueName("prop/ns");
         final String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
         final String subscription = "s1";
         admin.namespaces().createNamespace(namespace);

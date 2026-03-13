@@ -188,14 +188,13 @@ public class ServerCnxTest {
     private final int currentProtocolVersion = ProtocolVersion.values()[ProtocolVersion.values().length - 1]
             .getValue();
 
-    protected final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
-    private final String failTopicName = "persistent://prop/use/ns-abc/failTopic";
-    private final String nonOwnedTopicName = "persistent://prop/use/ns-abc/success-not-owned-topic";
-    private final String encryptionRequiredTopicName = "persistent://prop/use/ns-abc/successEncryptionRequiredTopic";
+    protected final String successTopicName = "persistent://prop/ns-abc/successTopic";
+    private final String failTopicName = "persistent://prop/ns-abc/failTopic";
+    private final String nonOwnedTopicName = "persistent://prop/ns-abc/success-not-owned-topic";
+    private final String encryptionRequiredTopicName = "persistent://prop/ns-abc/successEncryptionRequiredTopic";
     private final String successSubName = "successSub";
     private final String nonExistentTopicName =
-            "persistent://nonexistent-prop/nonexistent-cluster/nonexistent-namespace/successNonExistentTopic";
-    private final String topicWithNonLocalCluster = "persistent://prop/usw/ns-abc/successTopic";
+            "persistent://nonexistent-prop/nonexistent-namespace/successNonExistentTopic";
     private final List<String> matchingTopics = Arrays.asList(
             "persistent://use/ns-abc/topic-1",
             "persistent://use/ns-abc/topic-2");
@@ -1715,13 +1714,6 @@ public class ServerCnxTest {
                 "prod-name", Collections.emptyMap(), false);
         channel.writeInbound(clientCommand);
         assertTrue(getResponse() instanceof CommandProducerSuccess);
-
-        resetChannel();
-        setChannelConnected();
-        clientCommand = Commands.newProducer(topicWithNonLocalCluster, 1 /* producer id */, 1 /* request id */,
-                "prod-name", Collections.emptyMap(), false);
-        channel.writeInbound(clientCommand);
-        assertTrue(getResponse() instanceof CommandError);
         channel.finish();
     }
 
