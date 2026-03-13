@@ -29,6 +29,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -755,11 +756,24 @@ public class CmdTopics extends CmdBase {
         @Option(names = { "-m",
         "--metadata" }, description = "Flag to include ledger metadata")
         private boolean metadata = false;
+        @Option(names = "--streaming", description = "Streaming the output directly to the standard output without "
+                + "parsing the response in memory.")
+        private boolean streaming = false;
 
         @Override
-        void run() throws PulsarAdminException {
+        void run() throws PulsarAdminException, IOException {
             String topic = validateTopicName(topicName);
-            print(getTopics().getInternalStats(topic, metadata));
+            if (streaming) {
+                try (InputStream in = getTopics().streamInternalStats(topic, metadata);) {
+                    int size;
+                    byte[] buffer = new byte[2048];
+                    while ((size = in.read(buffer)) != -1) {
+                        System.out.write(buffer, 0, size);
+                    }
+                }
+            } else {
+                print(getTopics().getInternalStats(topic, metadata));
+            }
         }
     }
 
@@ -819,11 +833,25 @@ public class CmdTopics extends CmdBase {
     private class GetPartitionedStatsInternal extends CliCommand {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
         private String topicName;
+        @Option(names = "--streaming", description = "Streaming the output directly to the standard output without "
+                + "parsing the response in memory.")
+        private boolean streaming = false;
 
         @Override
         void run() throws Exception {
             String topic = validateTopicName(topicName);
-            print(getTopics().getPartitionedInternalStats(topic));
+            if (streaming) {
+                try (InputStream in = getTopics().streamPartitionedInternalStats(topic)) {
+                    int size;
+                    byte[] buffer = new byte[2048];
+                    while ((size = in.read(buffer)) != -1) {
+                        System.out.write(buffer, 0, size);
+                    }
+                }
+            } else {
+                print(getTopics().getPartitionedInternalStats(topic));
+            }
+
         }
     }
 
