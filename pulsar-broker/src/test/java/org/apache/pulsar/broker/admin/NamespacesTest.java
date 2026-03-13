@@ -223,8 +223,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://127.0.0.2:8082").build());
         admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://127.0.0.3:8083").build());
-        // After V1 removal, all namespaces go through the peer-cluster redirect path
-        // (NamespaceName.isGlobal() always returns true), so peer clusters must be configured.
+        // All namespaces go through the peer-cluster redirect path, so peer clusters must be configured.
         // Only "usc" is a peer because peer clusters cannot also be replication clusters.
         admin.clusters().updatePeerClusterNames("use",
                 new LinkedHashSet<>(List.of("usc")));
