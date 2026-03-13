@@ -611,6 +611,11 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         }
 
         @Override
+        public CompletableFuture<Position> asyncFindPosition(long offset, Predicate<Entry> predicate) {
+            return delegate.asyncFindPosition(offset, predicate);
+        }
+
+        @Override
         public ManagedLedgerInterceptor getManagedLedgerInterceptor() {
             return delegate.getManagedLedgerInterceptor();
         }

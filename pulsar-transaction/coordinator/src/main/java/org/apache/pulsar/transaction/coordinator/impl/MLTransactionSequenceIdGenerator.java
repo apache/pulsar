@@ -90,4 +90,9 @@ public class MLTransactionSequenceIdGenerator implements ManagedLedgerIntercepto
     long getCurrentSequenceId() {
         return sequenceId.get();
     }
+
+    @Override
+    public long getIndex() {
+        return -1L;
+    }
 }
