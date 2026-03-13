@@ -121,7 +121,7 @@ import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedCursorImpl implements ManagedCursor {
-    private static final Comparator<Entry> ENTRY_COMPARATOR = (e1, e2) -> {
+    static final Comparator<Entry> ENTRY_COMPARATOR = (e1, e2) -> {
         if (e1.getLedgerId() != e2.getLedgerId()) {
             return e1.getLedgerId() < e2.getLedgerId() ? -1 : 1;
         }
@@ -3928,6 +3928,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     public Position getNextAvailablePosition(Position position) {
         lock.readLock().lock();
         try {
+            if (individualDeletedMessages.isEmpty()) {
+                return ledger.getNextValidPosition(position);
+            }
             Range<Position> range = individualDeletedMessages.rangeContaining(position.getLedgerId(),
                     position.getEntryId());
             if (range != null) {
@@ -3935,7 +3938,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return (nextPosition != null && nextPosition.compareTo(position) > 0)
                         ? nextPosition : position.getNext();
             }
-            return position.getNext();
+            return ledger.getNextValidPosition(position);
         } finally {
             lock.readLock().unlock();
         }
