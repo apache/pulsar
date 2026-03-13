@@ -3532,6 +3532,7 @@ public class BrokerService implements Closeable {
                             FutureUtil.completeAfter(future,
                                 findRemoteTopicMetadataForAutoCreation(topicName, remoteClusters, index + 1, actEx));
                         }
+                        return null;
                     }
                     if (topics.isEmpty()) {
                         future.complete(TopicExistsInfo.newTopicNotExists());
