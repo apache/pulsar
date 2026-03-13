@@ -112,7 +112,7 @@ public class RawBatchConverter {
 
     public static Optional<RawMessage> rebatchMessage(RawMessage msg,
                                                       BiPredicate<String, MessageId> filter) throws IOException {
-        return rebatchMessage(msg, null, filter, true);
+        return rebatchMessage(msg, null, filter, true, true);
     }
 
     /**
@@ -124,7 +124,7 @@ public class RawBatchConverter {
     public static Optional<RawMessage> rebatchMessage(RawMessage msg,
                                                       MessageMetadata metadata,
                                                       BiPredicate<String, MessageId> filter,
-                                                      boolean retainNullKey)
+                                                      boolean retainNullKey, boolean retainNullValue)
             throws IOException {
         checkArgument(msg.getMessageIdData().getBatchIndex() == -1);
 
@@ -169,6 +169,15 @@ public class RawBatchConverter {
                             Unpooled.EMPTY_BUFFER, batchBuffer);
                 } else if (!singleMessageMetadata.hasPartitionKey()) {
                     if (retainNullKey) {
+                        retainedBatchIndexes.add(i);
+                        Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadata,
+                                singleMessagePayload, batchBuffer);
+                    } else {
+                        Commands.serializeSingleMessageInBatchWithPayload(emptyMetadata,
+                                Unpooled.EMPTY_BUFFER, batchBuffer);
+                    }
+                } else if (singleMessageMetadata.hasNullValue()) {
+                    if (retainNullValue) {
                         retainedBatchIndexes.add(i);
                         Commands.serializeSingleMessageInBatchWithPayload(singleMessageMetadata,
                                 singleMessagePayload, batchBuffer);
