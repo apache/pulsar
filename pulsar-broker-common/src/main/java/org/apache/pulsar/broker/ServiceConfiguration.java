@@ -1569,6 +1569,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "Whether to replicate all subscription states. If true, it will overwrite the value of"
+                    + " the replicateSubscriptionState configuration item configured by the client consumer;"
+                    + " If false, use the value of the client-side replicateSubscriptionState.")
+    private boolean replicateAllSubscriptionState = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "Frequency of snapshots for replicated subscriptions tracking.")
     private int replicatedSubscriptionsSnapshotFrequencyMillis = 1_000;
 
