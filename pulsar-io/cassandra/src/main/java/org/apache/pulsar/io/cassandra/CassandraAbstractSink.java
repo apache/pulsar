@@ -19,58 +19,65 @@
 package org.apache.pulsar.io.cassandra;
 
 import com.datastax.driver.core.BoundStatement;
-import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.ResultSetFuture;
-import com.datastax.driver.core.Session;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Map;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.core.KeyValue;
+import org.apache.pulsar.io.cassandra.util.BoundStatementProvider;
+import org.apache.pulsar.io.cassandra.util.CassandraConnector;
+import org.apache.pulsar.io.cassandra.util.RecordWrapper;
+import org.apache.pulsar.io.cassandra.util.TableMetadataProvider;
+import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 
-/**
- * A Simple abstract class for Cassandra sink.
- * Users need to implement extractKeyValue function to use this sink
- */
-public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
+@Connector(
+        name = "cassandra",
+        type = IOType.SINK,
+        help = "The CassandraStringSink is used for moving messages from Pulsar to Cassandra.",
+        configClass = CassandraSinkConfig.class)
+public abstract class CassandraAbstractSink<T> implements Sink<T> {
 
-    // ----- Runtime fields
-    private Cluster cluster;
-    private Session session;
+    CassandraConnector connector;
     CassandraSinkConfig cassandraSinkConfig;
-    private PreparedStatement statement;
+    PreparedStatement stmt;
+    BoundStatementProvider boundStatementProvider;
 
     @Override
-    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        cassandraSinkConfig = CassandraSinkConfig.load(config);
+    public void open(Map<String, Object> config, SinkContext ctx) throws Exception {
+
+        cassandraSinkConfig = IOConfigUtils.loadWithSecrets(config, CassandraSinkConfig.class, ctx);
+
         if (cassandraSinkConfig.getRoots() == null
                 || cassandraSinkConfig.getKeyspace() == null
-                || cassandraSinkConfig.getKeyname() == null
-                || cassandraSinkConfig.getColumnFamily() == null
-                || cassandraSinkConfig.getColumnName() == null) {
+                || cassandraSinkConfig.getColumnFamily() == null) {
             throw new IllegalArgumentException("Required property not set.");
         }
-        createClient(cassandraSinkConfig.getRoots());
-        statement = session.prepare("INSERT INTO " + cassandraSinkConfig.getColumnFamily() + " ("
-                + cassandraSinkConfig.getKeyname() + ", " + cassandraSinkConfig.getColumnName() + ") VALUES (?, ?)");
+
+        connector = new CassandraConnector(cassandraSinkConfig);
+        connector.connect();
+
+        boundStatementProvider = new BoundStatementProvider(
+                TableMetadataProvider.getTableDefinition(
+                        connector.getTableMetadata(),
+                        cassandraSinkConfig.getKeyspace(),
+                        cassandraSinkConfig.getColumnFamily()));
     }
 
     @Override
-    public void close() throws Exception {
-        session.close();
-        cluster.close();
-    }
+    public void write(Record<T> record) throws Exception {
 
-    @Override
-    public void write(Record<byte[]> record) {
-        KeyValue<K, V> keyValue = extractKeyValue(record);
-        BoundStatement bound = statement.bind(keyValue.getKey(), keyValue.getValue());
-        ResultSetFuture future = session.executeAsync(bound);
+        BoundStatement bs = boundStatementProvider.bindStatement(
+                getStatement(), wrapRecord(record));
+
+        ResultSetFuture future = connector.getSession().executeAsync(bs);
+
         Futures.addCallback(future,
                 new FutureCallback<ResultSet>() {
                     @Override
@@ -85,23 +92,24 @@ public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
                 }, MoreExecutors.directExecutor());
     }
 
-    private void createClient(String roots) {
-        String[] hosts = roots.split(",");
-        if (hosts.length <= 0) {
-            throw new RuntimeException("Invalid cassandra roots");
-        }
-        Cluster.Builder b = Cluster.builder();
-        for (int i = 0; i < hosts.length; ++i) {
-            String[] hostPort = hosts[i].split(":");
-            b.addContactPoint(hostPort[0]);
-            if (hostPort.length > 1) {
-                b.withPort(Integer.parseInt(hostPort[1]));
+    @Override
+    public void close()  {
+        if (connector != null) {
+            try {
+                connector.close();
+            } catch (final Throwable t) {
+
             }
         }
-        cluster = b.withoutJMXReporting().build();
-        session = cluster.connect();
-        session.execute("USE " + cassandraSinkConfig.getKeyspace());
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> record);
+    abstract RecordWrapper<T> wrapRecord(Record<T> record);
+
+    PreparedStatement getStatement() {
+        if (stmt == null) {
+            stmt = connector.getPreparedStatement();
+        }
+        return stmt;
+    }
+
 }

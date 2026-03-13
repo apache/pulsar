@@ -18,14 +18,15 @@
  */
 package org.apache.pulsar.io.cassandra;
 
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.cassandra.util.GenericRecordWrapper;
 import org.apache.pulsar.io.cassandra.util.RecordWrapper;
-import org.apache.pulsar.io.cassandra.util.StringRecordWrapper;
 
-public class CassandraStringSink extends CassandraAbstractSink<String> {
+public class CassandraGenericRecordSink extends CassandraAbstractSink<GenericRecord> {
 
     @Override
-    RecordWrapper<String> wrapRecord(Record<String> record) {
-        return new StringRecordWrapper(record.getValue());
+    RecordWrapper<GenericRecord> wrapRecord(Record<GenericRecord> record) {
+        return new GenericRecordWrapper(record.getValue());
     }
 }

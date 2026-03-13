@@ -16,16 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.io.cassandra;
+package org.apache.pulsar.io.cassandra.util;
 
-import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.io.cassandra.util.RecordWrapper;
-import org.apache.pulsar.io.cassandra.util.StringRecordWrapper;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 
-public class CassandraStringSink extends CassandraAbstractSink<String> {
+public class GenericRecordWrapper extends RecordWrapper<GenericRecord> {
+
+    public GenericRecordWrapper(GenericRecord value) {
+        super(value);
+    }
 
     @Override
-    RecordWrapper<String> wrapRecord(Record<String> record) {
-        return new StringRecordWrapper(record.getValue());
+    public Object get(TableMetadataProvider.ColumnId column) {
+        return getValueAsExpectedType(recordValue.getField(column.getName()), column);
+    }
+
+    @Override
+    public boolean containsKey(String name) {
+        return this.recordValue.getField(name) != null;
     }
 }
