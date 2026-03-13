@@ -514,4 +514,10 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setLookupProperties(properties);
         return this;
     }
+
+    @Override
+    public ClientBuilder maxHttpRequestRetries(int maxHttpRequestRetries) {
+        conf.setMaxHttpRequestRetries(maxHttpRequestRetries);
+        return this;
+    }
 }
