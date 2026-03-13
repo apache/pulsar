@@ -93,11 +93,10 @@ public class ClustersBase extends AdminResource {
     })
     public void getClusters(@Suspended AsyncResponse asyncResponse) {
         clusterResources().listAsync()
-                .thenApply(clusters -> clusters.stream()
+                .thenAcceptAsync(clusters -> asyncResponse.resume(clusters.stream()
                         // Remove "global" cluster from returned list
                         .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster))
-                        .collect(Collectors.toSet()))
-                .thenAccept(asyncResponse::resume)
+                        .collect(Collectors.toSet())), pulsar().getWebService().getWebServiceExecutor())
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to get clusters {}", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
