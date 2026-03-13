@@ -1051,6 +1051,23 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
+    private PulsarClientException getTerminalException(State state) {
+        switch (state) {
+            case Terminated:
+                return new PulsarClientException.TopicTerminatedException(
+                        format("The topic %s that the producer %s produces to has been terminated", topic,
+                                producerName));
+            case Closed:
+                return new PulsarClientException.AlreadyClosedException(
+                        format("The producer %s of the topic %s was already closed", producerName, topic));
+            case ProducerFenced:
+                return new PulsarClientException.ProducerFencedException(
+                        format("The producer %s of the topic %s was fenced", producerName, topic));
+            default:
+                return new PulsarClientException.NotConnectedException();
+        }
+    }
+
     private boolean isValidProducerState(SendCallback callback, long sequenceId) {
         switch (getState()) {
             case Ready:
@@ -2472,9 +2489,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 op.cmd.release();
                 return;
             }
+            final State state = getState();
+            if (state == State.Terminated || state == State.Closed || state == State.ProducerFenced) {
+                // The producer is in a terminal state and will never reconnect. Fail the message immediately
+                // rather than leaving it stuck in pendingMessages until sendTimeout.
+                releaseSemaphoreForSendOp(op);
+                client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
+                op.sendComplete(getTerminalException(state));
+                ReferenceCountUtil.safeRelease(op.cmd);
+                op.recycle();
+                return;
+            }
             pendingMessages.add(op);
             updateLastSeqPushed(op);
-            if (State.RegisteringSchema.equals(getState())) {
+            if (State.RegisteringSchema.equals(state)) {
                 // Since there is a in-progress schema registration, do not continuously publish to avoid break publish
                 // ordering. After the schema registration finished, it will trigger a "recoverProcessOpSendMsgFrom" to
                 // publish all messages in "pendingMessages".

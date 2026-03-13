@@ -142,6 +142,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
+            .sendTimeout(5, TimeUnit.SECONDS)
             .create();
 
         CyclicBarrier barrier = new CyclicBarrier(2);
@@ -170,7 +171,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         boolean alreadyFailed = false;
 
         try {
-            FutureUtil.waitForAll(futures).get();
+            FutureUtil.waitForAll(futures).get(10, TimeUnit.SECONDS);
         } catch (Exception e) {
             // Ignore for now, check is below
         }
