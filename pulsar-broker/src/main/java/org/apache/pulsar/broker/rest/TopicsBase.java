@@ -88,6 +88,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -272,35 +273,42 @@ public class TopicsBase extends PersistentTopicsBase {
     private CompletableFuture<Position> publishSingleMessageToPartition(String topic, Message message) {
         CompletableFuture<Position> publishResult = new CompletableFuture<>();
         pulsar().getBrokerService().getTopic(topic, false)
-        .thenAccept(t -> {
-            // TODO: Check message backlog and fail if backlog too large.
-            if (!t.isPresent()) {
-                // Topic not found, and remove from owning partition list.
-                publishResult.completeExceptionally(new BrokerServiceException.TopicNotFoundException("Topic not "
-                        + "owned by current broker."));
-                TopicName topicName = TopicName.get(topic);
-                pulsar().getBrokerService().getOwningTopics().get(topicName.getPartitionedTopicName())
-                        .remove(topicName.getPartitionIndex());
-            } else {
-                try {
-                    ByteBuf headersAndPayload = messageToByteBuf(message);
-                    try {
-                        Topic topicObj = t.get();
-                        topicObj.publishMessage(headersAndPayload,
-                                RestMessagePublishContext.get(publishResult, topicObj, System.nanoTime()));
-                    } finally {
-                        headersAndPayload.release();
+                .thenCompose(tOpt -> {
+                    if (tOpt.isEmpty()) {
+                        publishResult.completeExceptionally(
+                                new BrokerServiceException.TopicNotFoundException("Topic not "
+                                        + "owned by current broker."));
+                        TopicName tn = TopicName.get(topic);
+                        pulsar().getBrokerService().getOwningTopics().get(tn.getPartitionedTopicName())
+                                .remove(tn.getPartitionIndex());
+                        return CompletableFuture.completedFuture(null);
                     }
-                } catch (Exception e) {
+                    Topic topicObj = tOpt.get();
+                    CompletableFuture<Void> backlogQuotaCheckFuture = CompletableFuture.allOf(
+                            topicObj.checkBacklogQuotaExceeded(message.getProducerName(),
+                                    BacklogQuota.BacklogQuotaType.destination_storage),
+                            topicObj.checkBacklogQuotaExceeded(message.getProducerName(),
+                                    BacklogQuota.BacklogQuotaType.message_age));
+                    return backlogQuotaCheckFuture.thenRun(() -> {
+                        ByteBuf headersAndPayload = messageToByteBuf(message);
+                        try {
+                            topicObj.publishMessage(headersAndPayload,
+                                    RestMessagePublishContext.get(publishResult, topicObj, System.nanoTime()));
+                        } finally {
+                            headersAndPayload.release();
+                        }
+                    });
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
                     if (log.isDebugEnabled()) {
-                        log.debug("Fail to publish single messages to topic  {}: {} ",
-                                topicName, e.getCause());
+                        log.debug("Fail to publish single message to topic {}: {}", topic, cause.getMessage());
                     }
-                    publishResult.completeExceptionally(e);
-                }
-            }
-        });
-
+                    if (!publishResult.isDone()) {
+                        publishResult.completeExceptionally(cause);
+                    }
+                    return null;
+                });
         return publishResult;
     }
 
