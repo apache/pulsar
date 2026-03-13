@@ -44,7 +44,6 @@ import io.netty.util.ReferenceCounted;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
-import io.opentelemetry.api.common.Attributes;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -81,11 +80,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
-import org.apache.pulsar.client.impl.metrics.Counter;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
-import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
-import org.apache.pulsar.client.impl.metrics.Unit;
-import org.apache.pulsar.client.impl.metrics.UpDownCounter;
+import org.apache.pulsar.client.impl.metrics.ProducerMetrics;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -183,14 +179,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private boolean errorState;
 
-    private final LatencyHistogram latencyHistogram;
-    final LatencyHistogram rpcLatencyHistogram;
-    private final Counter publishedBytesCounter;
-    private final UpDownCounter pendingMessagesUpDownCounter;
-    private final UpDownCounter pendingBytesUpDownCounter;
-
-    private final Counter producersOpenedCounter;
-    private final Counter producersClosedCounter;
+    final ProducerMetrics producerMetrics;
     private final boolean pauseSendingToPreservePublishOrderOnSchemaRegFailure;
     // This variable can be exposed as a metrics in the future, a PIP is needed.
     private final AtomicInteger pendingQueueFullCounter;
@@ -294,30 +283,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         InstrumentProvider ip = client.instrumentProvider();
-        latencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.message.send.duration",
-                "Publish latency experienced by the application, includes client batching time", topic,
-                Attributes.empty());
-        rpcLatencyHistogram = ip.newLatencyHistogram("pulsar.client.producer.rpc.send.duration",
-                "Publish RPC latency experienced internally by the client when sending data to receiving an ack", topic,
-                Attributes.empty());
-        publishedBytesCounter = ip.newCounter("pulsar.client.producer.message.send.size",
-                Unit.Bytes, "The number of bytes published", topic, Attributes.empty());
-        pendingMessagesUpDownCounter =
-                ip.newUpDownCounter("pulsar.client.producer.message.pending.count", Unit.Messages,
-                        "The number of messages in the producer internal send queue, waiting to be sent", topic,
-                        Attributes.empty());
-        pendingBytesUpDownCounter = ip.newUpDownCounter("pulsar.client.producer.message.pending.size", Unit.Bytes,
-                "The size of the messages in the producer internal queue, waiting to sent", topic, Attributes.empty());
-        producersOpenedCounter = ip.newCounter("pulsar.client.producer.opened", Unit.Sessions,
-                "The number of producer sessions opened", topic, Attributes.empty());
-        producersClosedCounter = ip.newCounter("pulsar.client.producer.closed", Unit.Sessions,
-                "The number of producer sessions closed", topic, Attributes.empty());
+        producerMetrics = new ProducerMetrics(ip, topic);
         pendingQueueFullCounter = new AtomicInteger();
 
         this.connectionHandler = initConnectionHandler();
         setChunkMaxMessageSize();
         grabCnx();
-        producersOpenedCounter.increment();
+        producerMetrics.recordProducerOpened();
     }
 
     @VisibleForTesting
@@ -398,8 +370,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         int msgSize = interceptorMessage.getDataBuffer().readableBytes();
-        pendingMessagesUpDownCounter.increment();
-        pendingBytesUpDownCounter.add(msgSize);
+        producerMetrics.recordPendingMessage(msgSize);
 
         sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
         return future;
@@ -457,8 +428,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             long createdAt = (sendCallback instanceof ProducerImpl.DefaultSendMessageCallback)
                     ? ((DefaultSendMessageCallback) sendCallback).createdAt : this.createdAt;
             long latencyNanos = System.nanoTime() - createdAt;
-            pendingMessagesUpDownCounter.decrement();
-            pendingBytesUpDownCounter.subtract(msgSize);
             ByteBuf payload = msg.getDataBuffer();
             if (payload == null) {
                 log.error("[{}] [{}] Payload is null when calling onSendComplete, which is not expected.",
@@ -466,13 +435,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             try {
                 if (e != null) {
-                    latencyHistogram.recordFailure(latencyNanos);
+                    producerMetrics.recordSendFailed(latencyNanos, msgSize);
                     stats.incrementSendFailed();
                     onSendAcknowledgement(msg, null, e);
                     sendCallback.getFuture().completeExceptionally(e);
                 } else {
-                    latencyHistogram.recordSuccess(latencyNanos);
-                    publishedBytesCounter.add(msgSize);
+                    producerMetrics.recordSendSuccess(latencyNanos, msgSize);
                     stats.incrementNumAcksReceived(latencyNanos);
                     onSendAcknowledgement(msg, msg.getMessageId(), null);
                     sendCallback.getFuture().complete(msg.getMessageId());
@@ -823,9 +791,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
                 ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata,
                         encryptedPayload);
-                op = OpSendMsg.create(rpcLatencyHistogram, msg, cmd, sequenceId, callback);
+            op = OpSendMsg.create(producerMetrics, msg, cmd, sequenceId, callback);
+
             } else {
-                op = OpSendMsg.create(rpcLatencyHistogram, msg, null, sequenceId, callback);
+            op = OpSendMsg.create(producerMetrics, msg, null, sequenceId, callback);
+
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
                     if (msgMetadata.hasChunkId()) {
@@ -1219,7 +1189,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return CompletableFuture.completedFuture(null);
         }
 
-        producersClosedCounter.increment();
+        producerMetrics.recordProducerClosed();
         closeProducerTasks();
 
         ClientCnx cnx = cnx();
@@ -1556,7 +1526,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     protected static final class OpSendMsg {
-        LatencyHistogram rpcLatencyHistogram;
+        ProducerMetrics producerMetrics;
         MessageImpl<?> msg;
         List<MessageImpl<?>> msgs;
         ByteBufPair cmd;
@@ -1576,7 +1546,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         int chunkId = -1;
 
         void initialize() {
-            rpcLatencyHistogram = null;
+            producerMetrics = null;
             msg = null;
             msgs = null;
             cmd = null;
@@ -1596,11 +1566,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             chunkedMessageCtx = null;
         }
 
-        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, MessageImpl<?> msg, ByteBufPair cmd,
+        static OpSendMsg create(ProducerMetrics producerMetrics, MessageImpl<?> msg, ByteBufPair cmd,
                                 long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
-            op.rpcLatencyHistogram = rpcLatencyHistogram;
+            op.producerMetrics = producerMetrics;
             op.msg = msg;
             op.cmd = cmd;
             op.callback = callback;
@@ -1610,11 +1580,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, List<MessageImpl<?>> msgs, ByteBufPair cmd,
+        static OpSendMsg create(ProducerMetrics producerMetrics, List<MessageImpl<?>> msgs, ByteBufPair cmd,
                                 long sequenceId, SendCallback callback, int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
-            op.rpcLatencyHistogram = rpcLatencyHistogram;
+            op.producerMetrics = producerMetrics;
             op.msgs = msgs;
             op.cmd = cmd;
             op.callback = callback;
@@ -1628,12 +1598,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(LatencyHistogram rpcLatencyHistogram, List<MessageImpl<?>> msgs, ByteBufPair cmd,
+        static OpSendMsg create(ProducerMetrics producerMetrics, List<MessageImpl<?>> msgs, ByteBufPair cmd,
                                 long lowestSequenceId,
                                 long highestSequenceId, SendCallback callback, int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
-            op.rpcLatencyHistogram = rpcLatencyHistogram;
+            op.producerMetrics = producerMetrics;
             op.msgs = msgs;
             op.cmd = cmd;
             op.callback = callback;
@@ -1685,9 +1655,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
 
                 if (e == null) {
-                    rpcLatencyHistogram.recordSuccess(now - this.lastSentAt);
+                    producerMetrics.recordRpcLatencySuccess(now - this.lastSentAt);
                 } else {
-                    rpcLatencyHistogram.recordFailure(now - this.lastSentAt);
+                    producerMetrics.recordRpcLatencyFailure(now - this.lastSentAt);
                 }
 
                 OpSendMsgStats opSendMsgStats = OpSendMsgStatsImpl.builder()
