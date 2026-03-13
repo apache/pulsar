@@ -84,6 +84,8 @@ message PositionInfo {
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 5;
     repeated LongListMap individualDeletedMessageRanges = 6;
+    // Last active time of the cursor, it will changes when consumer registers or unregisters.
+    optional int64 lastActive = 7;
 }
 
 message NestedPositionInfo {
@@ -132,7 +134,7 @@ message ManagedCursorInfo {
     repeated LongProperty properties = 5;
 
     // deprecated, do not persist this field anymore
-    optional int64 lastActive = 6 [deprecated = true];
+    optional int64 lastActive = 6;
 
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 7;

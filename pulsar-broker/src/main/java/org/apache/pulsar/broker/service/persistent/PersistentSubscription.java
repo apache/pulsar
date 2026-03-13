@@ -241,9 +241,10 @@ public class PersistentSubscription extends AbstractSubscription {
     }
 
     private CompletableFuture<Void> addConsumerInternal(Consumer consumer) {
-        return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
+        return pendingAckHandle.pendingAckHandleFuture()
+            .thenCompose(__ -> cursor.updateLastActive(true))
+            .thenCompose(future -> {
             synchronized (PersistentSubscription.this) {
-                cursor.updateLastActive();
                 if (!cursor.isActive()
                         && (topic.getManagedLedger().getConfig().isCacheEvictionByExpectedReadCount()
                         // set the cursor active when it connects, if the backlog size is less than the threshold.
@@ -352,7 +353,7 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
-        cursor.updateLastActive();
+        cursor.updateLastActive(true);
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
         }
@@ -363,6 +364,7 @@ public class PersistentSubscription extends AbstractSubscription {
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
+            cursor.updateLastActive(false);
             deactivateCursor();
             // Remove the cursor from the waiting cursors list.
             // For durable cursors, we should *not* cancel the pending read with cursor.cancelPendingReadRequest.
@@ -433,7 +435,7 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
-        cursor.updateLastActive();
+        cursor.updateLastActive(true);
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
 
         if (ackType == AckType.Cumulative) {
@@ -913,6 +915,7 @@ public class PersistentSubscription extends AbstractSubscription {
         // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
         synchronized (this) {
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
+                cursor.updateLastActive(true);
                 disconnectFuture = dispatcher.disconnectActiveConsumers(true);
             } else {
                 disconnectFuture = CompletableFuture.completedFuture(null);
@@ -958,6 +961,9 @@ public class PersistentSubscription extends AbstractSubscription {
                 cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
                     @Override
                     public void resetComplete(Object ctx) {
+                        if (dispatcher != null && !dispatcher.getConsumers().isEmpty()) {
+                            cursor.updateLastActive(true);
+                        }
                         if (log.isDebugEnabled()) {
                             log.debug("[{}][{}] Successfully reset subscription to position {}", topicName, subName,
                                     finalPosition);
