@@ -1390,6 +1390,25 @@ public class NamespaceService implements AutoCloseable {
                 });
     }
 
+    public CompletableFuture<List<String>> getOwnedPersistentTopicListForNamespaceBundle(NamespaceBundle bundle) {
+        return getListOfPersistentTopics(bundle.getNamespaceObject()).thenCompose(topics ->
+                        CompletableFuture.completedFuture(
+                                topics.stream()
+                                        .filter(topic -> bundle.includes(TopicName.get(topic)))
+                                        .collect(Collectors.toList())))
+                .thenCombine(getPartitions(bundle.getNamespaceObject(), TopicDomain.persistent).thenCompose(topics ->
+                        CompletableFuture.completedFuture(
+                                topics.stream().filter(topic -> bundle.includes(TopicName.get(topic)))
+                                        .collect(Collectors.toList()))), (left, right) -> {
+                    for (String topic : right) {
+                        if (!left.contains(topic)) {
+                            left.add(topic);
+                        }
+                    }
+                    return left;
+                });
+    }
+
     /***
      * Checks whether the topic exists( partitioned or non-partitioned ).
      */
