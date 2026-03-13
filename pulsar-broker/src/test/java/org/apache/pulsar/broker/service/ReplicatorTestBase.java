@@ -290,8 +290,10 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         // Remove r4 from existing namespace replication clusters before shrinking the tenant,
         // since canUpdateCluster validation prevents removing a cluster that namespaces still reference.
         Set<String> targetClusters = Sets.newHashSet("r1", "r2", "r3");
-        for (String ns : admin1.namespaces().getNamespaces("pulsar")) {
-            admin1.namespaces().setNamespaceReplicationClusters(ns, targetClusters, false);
+        if (admin1.tenants().getTenants().contains("pulsar")) {
+            for (String ns : admin1.namespaces().getNamespaces("pulsar")) {
+                admin1.namespaces().setNamespaceReplicationClusters(ns, targetClusters, false);
+            }
         }
         updateTenantInfo("pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
