@@ -395,7 +395,7 @@ public abstract class AbstractReplicator implements Replicator {
                 return;
             }
             if (setDisconnectedRes.getRight() == State.Terminating
-                    || setDisconnectingRes.getRight() == State.Terminated) {
+                    || setDisconnectedRes.getRight() == State.Terminated) {
                 log.info("[{}] Skip setting state to terminated because it was terminated, state : {}",
                         replicatorId, state);
             } else {
