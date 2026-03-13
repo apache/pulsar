@@ -1553,6 +1553,22 @@ public interface Topics {
     CompletableFuture<Void> skipMessagesAsync(String topic, String subName, long numMessages);
 
     /**
+     * Skip messages by specifying a list of message IDs in various formats.
+     * Supports base64-encoded MessageId byte arrays and structured messageId objects with batchIndex.
+     *
+     * @param topic topic name (persistent://tenant/namespace/name)
+     * @param subName subscription name
+     * @param request request payload supporting multiple messageId formats
+     * @throws PulsarAdminException in case of error
+     */
+    void skipMessages(String topic, String subName, SkipMessageIdsRequest request) throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #skipMessages(String, String, SkipMessageIdsRequest)}.
+     */
+    CompletableFuture<Void> skipMessagesAsync(String topic, String subName, SkipMessageIdsRequest request);
+
+    /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription.
      *
      * @param topic

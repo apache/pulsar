@@ -51,6 +51,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.GetStatsOptions;
@@ -1567,6 +1568,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiOperation(value = "Skipping messages on a topic subscription.")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 400, message = "Invalid request"),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -1592,6 +1594,43 @@ public class PersistentTopics extends PersistentTopicsBase {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             internalSkipMessages(asyncResponse, decode(encodedSubName), numMessages, authoritative);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/skipByMessageIds")
+    @ApiOperation(value = "Skipping messages on a topic subscription.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Operation successful"),
+            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(code = 400, message = "Bad Request: invalid messageIds format"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace or topic or subscription does not exist"),
+            @ApiResponse(code = 405, message = "Skipping messages on a partitioned topic is not allowed"),
+            @ApiResponse(code = 500, message = "Internal server error"),
+            @ApiResponse(code = 503, message = "Failed to validate global cluster configuration")
+    })
+    public void skipByMessageIds(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Name of subscription")
+            @PathParam("subName") String encodedSubName,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @ApiParam(value = "The message ID to skip") SkipMessageIdsRequest messageIds) {
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalSkipByMessageIds(asyncResponse, decode(encodedSubName), authoritative, messageIds);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

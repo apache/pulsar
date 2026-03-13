@@ -55,6 +55,7 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
+import org.apache.pulsar.client.admin.SkipMessageIdsRequest;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
@@ -834,6 +835,24 @@ public class TopicsImpl extends BaseResource implements Topics {
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName, "skip", String.valueOf(numMessages));
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void skipMessages(String topic, String subName, SkipMessageIdsRequest request)
+            throws PulsarAdminException {
+        sync(() -> skipMessagesAsync(topic, subName, request));
+    }
+
+    @Override
+    public CompletableFuture<Void> skipMessagesAsync(String topic, String subName,
+            SkipMessageIdsRequest request) {
+        TopicName tn = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(tn, "subscription", encodedSubName, "skipByMessageIds");
+        if (request == null) {
+            request = new SkipMessageIdsRequest();
+        }
+        return asyncPostRequest(path, Entity.entity(request, MediaType.APPLICATION_JSON));
     }
 
     @Override

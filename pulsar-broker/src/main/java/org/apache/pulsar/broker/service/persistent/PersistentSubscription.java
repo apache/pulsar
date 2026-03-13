@@ -23,11 +23,16 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopi
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
+import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -50,7 +55,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -69,6 +76,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
 import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.SkipEntry;
 import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -831,6 +839,182 @@ public class PersistentSubscription extends AbstractSubscription {
                 }, null);
 
         return future;
+    }
+
+    private CompletableFuture<Void> deletePositionsAsync(List<Position> positions) {
+        if (positions == null || positions.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        cursor.updateLastActive();
+        Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        cursor.asyncDelete(positions, new AsyncCallbacks.DeleteCallback() {
+            @Override
+            public void deleteComplete(Object context) {
+                // Signal the dispatchers to give chance to take extra actions.
+                if (dispatcher != null) {
+                    dispatcher.afterAckMessages(null, context);
+                }
+                notifyTheMarkDeletePositionChanged((Position) context);
+                future.complete(null);
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+                if (dispatcher != null) {
+                    dispatcher.afterAckMessages(exception, ctx);
+                }
+                future.completeExceptionally(exception);
+            }
+        }, previousMarkDeletePosition);
+
+        if (config.isTransactionCoordinatorEnabled()) {
+            positions.forEach(position -> {
+                if (cursor.isMessageDeleted(position)) {
+                    pendingAckHandle.clearIndividualPosition(position);
+                }
+            });
+        }
+
+        if (dispatcher != null) {
+            dispatcher.getRedeliveryTracker().removeBatch(positions);
+        }
+
+        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
+            // Notify all consumers that the end of topic was reached.
+            if (dispatcher != null) {
+                checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
+            }
+        }
+
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> skipMessages(List<SkipEntry> entries) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}][{}] Skipping messages by messageIds, current backlog {}", topicName, subName,
+                    cursor.getNumberOfEntriesInBacklog(false));
+        }
+
+        if (entries == null || entries.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if (Subscription.isCumulativeAckMode(getType())) {
+            return CompletableFuture.failedFuture(new NotAllowedException("Unsupported subscription type."));
+        }
+
+        // Collect full-entry acks and partial (batchIndex) acks
+        List<Position> fullEntryPositions = new ArrayList<>();
+        Map<String, List<Integer>> partialAckIndexByPos = new HashMap<>(); // key: ledgerId:entryId
+
+        for (SkipEntry e : entries) {
+            final long ledgerId = e.getLedgerId();
+            final long entryId = e.getEntryId();
+            List<Integer> batchIdx = e.getBatchIndexes();
+            if (batchIdx == null || batchIdx.isEmpty()) {
+                fullEntryPositions.add(PositionFactory.create(ledgerId, entryId));
+            } else {
+                String key = ledgerId + ":" + entryId;
+                partialAckIndexByPos.computeIfAbsent(key, __ -> new ArrayList<>()).addAll(batchIdx);
+            }
+        }
+
+        // If there are no partial ack requests, just ack full entries.
+        if (partialAckIndexByPos.isEmpty()) {
+            return deletePositionsAsync(fullEntryPositions);
+        }
+
+        // We need to read entries corresponding to partial ack positions to determine batch sizes
+        Set<Position> positionsToLoad = new HashSet<>();
+        for (String key : partialAckIndexByPos.keySet()) {
+            int sep = key.indexOf(':');
+            long ledgerId = Long.parseLong(key.substring(0, sep));
+            long entryId = Long.parseLong(key.substring(sep + 1));
+            positionsToLoad.add(PositionFactory.create(ledgerId, entryId));
+        }
+
+        CompletableFuture<Void> result = new CompletableFuture<>();
+
+        cursor.asyncReplayEntries(positionsToLoad, new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> readEntries, Object ctx) {
+                List<Position> positionsForAck = new ArrayList<>(fullEntryPositions.size() + readEntries.size());
+                // include full-entry positions
+                positionsForAck.addAll(fullEntryPositions);
+
+                Throwable failure = null;
+                for (Entry entry : readEntries) {
+                    try {
+                        if (failure != null) {
+                            continue;
+                        }
+
+                        final long ledgerId = entry.getLedgerId();
+                        final long entryId = entry.getEntryId();
+                        final String key = ledgerId + ":" + entryId;
+                        List<Integer> indexes = partialAckIndexByPos.get(key);
+                        if (indexes == null || indexes.isEmpty()) {
+                            // Nothing to ack for this entry
+                            continue;
+                        }
+
+                        MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                        int batchSize = metadata.hasNumMessagesInBatch() ? metadata.getNumMessagesInBatch() : 1;
+                        if (batchSize <= 1) {
+                            failure = new NotAllowedException("batchIndex specified but entry is not a batch message");
+                            continue;
+                        }
+
+                        // Validate and build ackSet bitset.
+                        BitSet bitSet = new BitSet();
+                        bitSet.set(0, batchSize);
+                        for (int bi : indexes) {
+                            if (bi < 0 || bi >= batchSize) {
+                                failure = new NotAllowedException("Invalid batchIndex: " + bi + ", batchSize="
+                                        + batchSize);
+                                break;
+                            }
+                            bitSet.clear(bi);
+                        }
+                        if (failure != null) {
+                            continue;
+                        }
+
+                        long[] ackSet = bitSet.toLongArray();
+                        Position posWithAckSet = AckSetStateUtil.createPositionWithAckSet(ledgerId, entryId, ackSet);
+                        positionsForAck.add(posWithAckSet);
+                    } catch (Throwable t) {
+                        failure = t;
+                    } finally {
+                        entry.release();
+                    }
+                }
+
+                if (failure != null) {
+                    result.completeExceptionally(failure);
+                    return;
+                }
+
+                deletePositionsAsync(positionsForAck).whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        result.completeExceptionally(ex);
+                    } else {
+                        result.complete(null);
+                    }
+                });
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null, true);
+
+        return result;
     }
 
     @Override
