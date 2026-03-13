@@ -287,6 +287,9 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
 
+        // Remove r4 from system namespace replication clusters before shrinking the tenant,
+        // since canUpdateCluster validation prevents removing a cluster that namespaces still reference.
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/system", Sets.newHashSet("r1", "r2", "r3"), false);
         updateTenantInfo("pulsar",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),
                         Sets.newHashSet("r1", "r2", "r3")));
