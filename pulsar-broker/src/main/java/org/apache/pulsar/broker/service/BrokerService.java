@@ -1652,6 +1652,10 @@ public class BrokerService implements Closeable {
                 PulsarAdminBuilder builder = PulsarAdmin.builder();
 
                 ServiceConfiguration conf = pulsar.getConfig();
+                // most of the admin request requires to make zk-call so, keep the max read-timeout based on
+                // zk-operation timeout. Put it before loading brokerClient_ prefix config, so user can override it
+                builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+
                 // Apply all arbitrary configuration. This must be called before setting any fields annotated as
                 // @Secret on the ClientConfigurationData object because of the way they are serialized.
                 // See https://github.com/apache/pulsar/issues/8509 for more information.
@@ -1706,10 +1710,6 @@ public class BrokerService implements Closeable {
                             conf.getBrokerClientSslFactoryPluginParams()
                     );
                 }
-
-                // most of the admin request requires to make zk-call so, keep the max read-timeout based on
-                // zk-operation timeout
-                builder.readTimeout(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
 
                 PulsarAdmin adminClient = builder.build();
                 log.info("created admin with url {} ", adminApiUrl);
