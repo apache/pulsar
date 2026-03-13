@@ -1477,6 +1477,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         return cursor;
     }
 
+    @Override
+    protected Optional<DelayedDeliveryTracker> getDelayedDeliveryTrackerOptional() {
+        return delayedDeliveryTracker;
+    }
+
+    @Override
+    public void markDeletePositionMoveForward() {
+        // Centralized propagation to topic-level tracker
+        propagateMarkDeleteToTopicDelayedTracker();
+    }
+
     protected int getStickyKeyHash(Entry entry) {
         // There's no need to calculate the hash for Shared subscription
         return STICKY_KEY_HASH_NOT_SET;
