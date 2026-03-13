@@ -34,8 +34,6 @@ import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -44,41 +42,30 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 @Test(groups = "broker")
-public class NullValueTest extends BrokerTestBase {
+public class NullValueTest extends SharedPulsarBaseTest {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    @DataProvider(name = "topics")
-    public static Object[][] topics() {
+    @DataProvider(name = "partitions")
+    public static Object[][] partitions() {
         return new Object[][]{
-                {"persistent://prop/ns-abc/null-value-test-0", 1},
-                {"persistent://prop/ns-abc/null-value-test-1", 3},
+                {1},
+                {3},
         };
     }
 
-    @Test(dataProvider = "topics")
-    public void nullValueBytesSchemaTest(String topic, int partitions)
+    @Test(dataProvider = "partitions")
+    public void nullValueBytesSchemaTest(int partitions)
             throws PulsarClientException, PulsarAdminException {
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
-        Producer producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
         @Cleanup
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();
@@ -93,7 +80,7 @@ public class NullValueTest extends BrokerTestBase {
         }
 
         for (int i = 0; i < numMessage; i++) {
-            Message message = consumer.receive();
+            Message<byte[]> message = consumer.receive();
             if (i % 2 == 0) {
                 Assert.assertNotNull(message.getData());
                 Assert.assertNotNull(message.getValue());
@@ -114,7 +101,7 @@ public class NullValueTest extends BrokerTestBase {
         }
 
         for (int i = 0; i < numMessage; i++) {
-            CompletableFuture<Message> completableFuture = consumer.receiveAsync();
+            CompletableFuture<Message<byte[]>> completableFuture = consumer.receiveAsync();
             final int index = i;
             completableFuture.whenComplete((message, throwable) -> {
                 Assert.assertNull(throwable);
@@ -133,12 +120,12 @@ public class NullValueTest extends BrokerTestBase {
                 }
             });
         }
-
     }
 
-    @Test(dataProvider = "topics")
-    public void nullValueBooleanSchemaTest(String topic, int partitions)
+    @Test(dataProvider = "partitions")
+    public void nullValueBooleanSchemaTest(int partitions)
             throws PulsarClientException, PulsarAdminException {
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
@@ -163,12 +150,12 @@ public class NullValueTest extends BrokerTestBase {
             Assert.assertNull(message.getValue());
             Assert.assertNull(message.getData());
         }
-
     }
 
-    @Test(dataProvider = "topics")
-    public void keyValueNullInlineTest(String topic, int partitions)
+    @Test(dataProvider = "partitions")
+    public void keyValueNullInlineTest(int partitions)
             throws PulsarClientException, PulsarAdminException {
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
@@ -198,11 +185,11 @@ public class NullValueTest extends BrokerTestBase {
             message = consumer.receive();
             keyValue = message.getValue();
             Assert.assertNull(keyValue.getKey());
-            Assert.assertEquals("test", keyValue.getValue());
+            Assert.assertEquals(keyValue.getValue(), "test");
 
             message = consumer.receive();
             keyValue = message.getValue();
-            Assert.assertEquals("test", keyValue.getKey());
+            Assert.assertEquals(keyValue.getKey(), "test");
             Assert.assertNull(keyValue.getValue());
 
             message = consumer.receive();
@@ -210,12 +197,12 @@ public class NullValueTest extends BrokerTestBase {
             Assert.assertNull(keyValue.getKey());
             Assert.assertNull(keyValue.getValue());
         }
-
     }
 
-    @Test(dataProvider = "topics")
-    public void keyValueNullSeparatedTest(String topic, int partitions)
+    @Test(dataProvider = "partitions")
+    public void keyValueNullSeparatedTest(int partitions)
             throws PulsarClientException, PulsarAdminException {
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, partitions);
 
         @Cleanup
@@ -252,11 +239,11 @@ public class NullValueTest extends BrokerTestBase {
             message = consumer.receive();
             keyValue = message.getValue();
             Assert.assertNull(keyValue.getKey());
-            Assert.assertEquals("test", keyValue.getValue());
+            Assert.assertEquals(keyValue.getValue(), "test");
 
             message = consumer.receive();
             keyValue = message.getValue();
-            Assert.assertEquals("test", keyValue.getKey());
+            Assert.assertEquals(keyValue.getKey(), "test");
             Assert.assertNull(keyValue.getValue());
 
             message = consumer.receive();
@@ -264,7 +251,5 @@ public class NullValueTest extends BrokerTestBase {
             Assert.assertNull(keyValue.getKey());
             Assert.assertNull(keyValue.getValue());
         }
-
     }
-
 }
