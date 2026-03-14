@@ -29,10 +29,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@Slf4j
 public class ConnectionTimeoutTest {
 
     @Test
@@ -41,12 +43,15 @@ public class ConnectionTimeoutTest {
         // create a dummy server and fill the backlog of the server so that it won't respond
         // so that the client timeout can be tested with this server
         try (ServerSocket serverSocket = new ServerSocket(0, backlogSize, InetAddress.getByName("localhost"))) {
-            CountDownLatch latch = new CountDownLatch(backlogSize + 1);
+
+            // We to just leave 1 task pending, otherwise we don't have a chance to attemp to connect the Pulsar client
+            CountDownLatch latch = new CountDownLatch(backlogSize);
             List<Thread> threads = new ArrayList<>();
             for (int i = 0; i < backlogSize + 1; i++) {
                 Thread connectThread = new Thread(() -> {
                     try (Socket socket = new Socket()) {
                         socket.connect(serverSocket.getLocalSocketAddress());
+                        log.info("Connected to {}", socket.getRemoteSocketAddress());
                         latch.countDown();
                         Thread.sleep(10000L);
                     } catch (IOException e) {
