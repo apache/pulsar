@@ -231,6 +231,8 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         assertTrue(offloaderStats.getReadOffloadBytes(topic) > 0);
         assertTrue(offloaderStats.getReadOffloadDataLatency(topic).count > 0);
         assertTrue(offloaderStats.getReadOffloadIndexLatency(topic).count > 0);
+        assertTrue(offloaderStats.getOffloadExecutorQueueLatency(topic).count > 0);
+        assertTrue(offloaderStats.getReadOffloadExecutorQueueLatency(topic).count > 0);
     }
 
     @Test
