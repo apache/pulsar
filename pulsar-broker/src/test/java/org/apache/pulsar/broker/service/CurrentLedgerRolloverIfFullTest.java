@@ -30,28 +30,14 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        baseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
-    }
+public class CurrentLedgerRolloverIfFullTest extends SharedPulsarBaseTest {
 
     @Test
     public void testCurrentLedgerRolloverIfFull() throws Exception {
-        final String topicName = "persistent://prop/ns-abc/CurrentLedgerRolloverIfFullTest";
+        final String topicName = newTopicName();
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -65,9 +51,9 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
                 .subscriptionName("CurrentLedgerRolloverIfFullTest-subscriber-name")
                 .subscribe();
 
-        Topic topicRef = pulsar.getBrokerService().getTopicReference(topicName).get();
+        Topic topicRef = getTopicReference(topicName).get();
         Assert.assertNotNull(topicRef);
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic persistentTopic = (PersistentTopic) getTopic(topicName, true).get().get();
 
         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);

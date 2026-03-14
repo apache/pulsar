@@ -148,13 +148,13 @@ public class SharedPulsarCluster {
 
         // Reduce thread pool sizes for faster startup (fewer threads to create)
         config.setNumIOThreads(2);
-        config.setNumOrderedExecutorThreads(1);
+        config.setNumOrderedExecutorThreads(2);
         config.setNumHttpServerThreads(4);
-        config.setBookkeeperClientNumWorkerThreads(1);
+        config.setBookkeeperClientNumWorkerThreads(2);
         config.setBookkeeperClientNumIoThreads(2);
         config.setNumCacheExecutorThreadPoolSize(1);
-        config.setManagedLedgerNumSchedulerThreads(1);
-        config.setTopicOrderedExecutorThreadNum(2);
+        config.setManagedLedgerNumSchedulerThreads(2);
+        config.setTopicOrderedExecutorThreadNum(4);
 
         // Disable the load balancer — single-broker cluster doesn't need it
         config.setLoadBalancerEnabled(false);

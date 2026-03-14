@@ -23,32 +23,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class BrokerServiceBundlesCacheInvalidationTest extends BrokerTestBase {
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class BrokerServiceBundlesCacheInvalidationTest extends SharedPulsarBaseTest {
 
     @Test
     public void testRecreateNamespace() throws Exception {
-        String namespace = "prop/test-" + System.nanoTime();
-        String topic = namespace + "/my-topic";
-
-        // First create namespace with 20 bundles
-        admin.namespaces().createNamespace(namespace, 20);
+        String namespace = getNamespace();
+        String topic = "persistent://" + namespace + "/my-topic";
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
@@ -59,7 +42,8 @@ public class BrokerServiceBundlesCacheInvalidationTest extends BrokerTestBase {
 
         // Delete and recreate with 32 bundles
         admin.topics().delete(topic);
-        deleteNamespaceWithRetry(namespace, false);
+        admin.namespaces().deleteNamespace(namespace, true);
+
         admin.namespaces().createNamespace(namespace, 32);
 
         BundlesData bundlesData = admin.namespaces().getBundles(namespace);

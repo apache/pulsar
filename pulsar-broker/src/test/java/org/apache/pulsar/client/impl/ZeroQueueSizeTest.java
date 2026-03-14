@@ -34,8 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -53,26 +52,12 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class ZeroQueueSizeTest extends BrokerTestBase {
+public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
     private static final Logger log = LoggerFactory.getLogger(ZeroQueueSizeTest.class);
     private final int totalMessages = 10;
-
-    @BeforeClass
-    @Override
-    public void setup() throws Exception {
-        baseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
-    }
 
     @Test
     public void validQueueSizeConfig() {
@@ -86,9 +71,8 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
     public void zeroQueueSizeReceiveAsyncInCompatibility() throws PulsarClientException {
-        String key = "zeroQueueSizeReceiveAsyncInCompatibility";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(0).subscribe();
@@ -97,9 +81,8 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test(expectedExceptions = PulsarClientException.class)
     public void zeroQueueSizePartitionedTopicInCompatibility() throws PulsarClientException, PulsarAdminException {
-        String key = "zeroQueueSizePartitionedTopicInCompatibility";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
         int numberOfPartitions = 3;
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
@@ -107,12 +90,9 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test
     public void zeroQueueSizeNormalConsumer() throws PulsarClientException {
-        String key = "nonZeroQueueSizeNormalConsumer";
-
-        // 1. Config
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
 
         // 2. Create Producer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -144,12 +124,9 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test
     public void zeroQueueSizeConsumerListener() throws Exception {
-        String key = "zeroQueueSizeConsumerListener";
-
-        // 1. Config
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
 
         // 2. Create Producer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -188,12 +165,9 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test
     public void zeroQueueSizeSharedSubscription() throws PulsarClientException {
-        String key = "zeroQueueSizeSharedSubscription";
-
-        // 1. Config
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
 
         // 2. Create Producer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -229,12 +203,9 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test
     public void zeroQueueSizeFailoverSubscription() throws PulsarClientException {
-        String key = "zeroQueueSizeFailoverSubscription";
-
-        // 1. Config
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
 
         // 2. Create Producer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -288,12 +259,13 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     public void testFailedZeroQueueSizeBatchMessage() throws PulsarClientException {
 
         int batchMessageDelayMs = 100;
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://prop/ns-abc/topic1")
+        String topicName = newTopicName();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
                 .subscribe();
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
-            .topic("persistent://prop/ns-abc/topic1")
+            .topic(topicName)
             .messageRoutingMode(MessageRoutingMode.SinglePartition);
 
         if (batchMessageDelayMs != 0) {
@@ -324,7 +296,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test
     public void testZeroQueueSizeMessageRedelivery() throws PulsarClientException {
-        final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedelivery";
+        final String topic = newTopicName();
         Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
             .topic(topic)
             .receiverQueueSize(0)
@@ -356,7 +328,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test
     public void testZeroQueueSizeMessageRedeliveryForListener() throws Exception {
-        final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedeliveryForListener";
+        final String topic = newTopicName();
         final int messages = 10;
         final CountDownLatch latch = new CountDownLatch(messages * 2);
         Set<Integer> receivedMessages = new HashSet<>();
@@ -394,7 +366,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     @Test
     public void testZeroQueueSizeMessageRedeliveryForAsyncReceive()
             throws PulsarClientException, ExecutionException, InterruptedException {
-        final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedeliveryForAsyncReceive";
+        final String topic = newTopicName();
         Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
             .topic(topic)
             .receiverQueueSize(0)
@@ -431,8 +403,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testZeroQueueGetExceptionWhenReceiveBatchMessage() throws PulsarClientException {
 
-        final String topic = BrokerTestUtil.newUniqueName(
-                "persistent://prop/ns-abc/testZeroQueueGetExceptionWhenReceiveBatchMessage-");
+        final String topic = newTopicName();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
                 .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
                 .subscribe();
@@ -465,7 +436,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testPauseAndResume() throws Exception {
-        final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume";
+        final String topicName = newTopicName();
         final String subName = "sub";
 
         AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(1));
@@ -501,7 +472,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testPauseAndResumeWithUnloading() throws Exception {
-        final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume-with-unloading";
+        final String topicName = newTopicName();
         final String subName = "sub";
 
         AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(1));
@@ -540,7 +511,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testPauseAndResumeNoReconnection() throws Exception {
-        final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume-no-reconnection";
+        final String topicName = newTopicName();
         final String subName = "sub";
 
         final Object object = new Object();
@@ -589,12 +560,9 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testZeroQueueSizeConsumerWithPayloadProcessorReceiveBatchMessage() throws Exception {
-        String key = "payloadProcessorReceiveBatchMessage";
-
-        // 1. Config
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String messagePredicate = "my-message-" + key + "-";
+        final String topicName = newTopicName();
+        final String subscriptionName = "my-ex-subscription";
+        final String messagePredicate = "my-message-";
 
         // 2. Create Producer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)

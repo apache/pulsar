@@ -26,16 +26,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.client.api.ClientBuilder;
+import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
@@ -45,39 +43,13 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.tests.EnumValuesDataProvider;
-import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class MessageChecksumTest extends BrokerTestBase {
+public class MessageChecksumTest extends SharedPulsarBaseTest {
     private static final Logger log = LoggerFactory.getLogger(MessageChecksumTest.class);
-
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        baseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
-    }
-
-    @Override
-    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-        // disable connection pooling
-        clientBuilder.connectionsPerBroker(0);
-    }
-
-    @Override
-    protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
-        return PulsarTestClient.create(clientBuilder);
-    }
 
     // Enum parameter used to describe the 2 different scenarios in the
     // testChecksumCompatibilityInMixedVersionBrokerCluster test case
@@ -114,30 +86,30 @@ public class MessageChecksumTest extends BrokerTestBase {
     @Test(dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
     public void testChecksumCompatibilityInMixedVersionBrokerCluster(MixedVersionScenario mixedVersionScenario)
             throws Exception {
-        // GIVEN
-        final String topicName =
-                "persistent://prop/ns-abc/testChecksumBackwardsCompatibilityWithOldBrokerWithoutChecksumHandling";
+        final String topicName = newTopicName();
+
+        // Create a PulsarTestClient with connection pooling disabled
+        @Cleanup
+        PulsarTestClient pulsarTestClient = (PulsarTestClient) PulsarTestClient.create(
+                PulsarClient.builder()
+                        .serviceUrl(getBrokerServiceUrl())
+                        .connectionsPerBroker(0));
 
         if (mixedVersionScenario == MixedVersionScenario.CONNECTED_TO_OLD_THEN_NEW_VERSION) {
             // Given, the client thinks it's connected to a broker that doesn't support message checksums
-            makeClientAssumeThatItsConnectedToBrokerWithoutChecksumSupport();
+            pulsarTestClient.setOverrideRemoteEndpointProtocolVersion(ProtocolVersion.v5.getValue());
         }
 
-        PulsarTestClient pulsarTestClient = (PulsarTestClient) pulsarClient;
-
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarTestClient.newProducer()
                 .topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarTestClient.newConsumer()
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .subscribe();
-
-        // inject a CountDownLatch to the pending message callback of the PulsarTestClient
-        CountDownLatch messageSendingProcessedLatch = new CountDownLatch(2);
 
         // WHEN
         // a message is sent, it should succeed
@@ -169,10 +141,10 @@ public class MessageChecksumTest extends BrokerTestBase {
 
         if (mixedVersionScenario == MixedVersionScenario.CONNECTED_TO_NEW_THEN_OLD_VERSION) {
             // Given, the client thinks it's connected to a broker that doesn't support message checksums
-            makeClientAssumeThatItsConnectedToBrokerWithoutChecksumSupport();
+            pulsarTestClient.setOverrideRemoteEndpointProtocolVersion(ProtocolVersion.v5.getValue());
         } else {
             // Reset the overriding set in the beginning
-            resetOverridingConnectedBrokerVersion();
+            pulsarTestClient.setOverrideRemoteEndpointProtocolVersion(0);
         }
 
         // And
@@ -199,28 +171,11 @@ public class MessageChecksumTest extends BrokerTestBase {
         assertEquals(new String(msg.getData()), "message-3");
     }
 
-    private void makeClientAssumeThatItsConnectedToBrokerWithoutChecksumSupport() {
-        // make the client think that the connected broker is of version which doesn't support checksum validation
-        ((PulsarTestClient) pulsarClient).setOverrideRemoteEndpointProtocolVersion(ProtocolVersion.v5.getValue());
-    }
-
-    private void resetOverridingConnectedBrokerVersion() {
-        // reset the override and use the actual protocol version
-        ((PulsarTestClient) pulsarClient).setOverrideRemoteEndpointProtocolVersion(0);
-    }
-
-    private void waitUntilMessageIsPendingWithCalculatedChecksum(ProducerImpl<?> producer) {
-        // wait until the message is in the pending queue
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(producer.getPendingQueueSize(), 1);
-        });
-    }
-
     @Test
     public void testTamperingMessageIsDetected() throws Exception {
         // GIVEN
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic("persistent://prop/ns-abc/testTamperingMessageIsDetected")
+                .topic(newTopicName())
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();

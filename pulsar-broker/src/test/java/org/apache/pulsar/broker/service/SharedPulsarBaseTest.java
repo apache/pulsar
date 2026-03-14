@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -50,13 +52,13 @@ public abstract class SharedPulsarBaseTest {
     protected PulsarAdmin admin;
     protected PulsarClient pulsarClient;
 
-    private String namespace;
+    private final List<String> namespaces = new ArrayList<>();
 
     /**
      * Returns the unique namespace assigned to the current test method.
      */
     protected String getNamespace() {
-        return namespace;
+        return namespaces.get(0);
     }
 
     /**
@@ -133,21 +135,15 @@ public abstract class SharedPulsarBaseTest {
      */
     @BeforeMethod(alwaysRun = true)
     public void setupSharedTest() throws Exception {
-        String nsName = "test-" + UUID.randomUUID().toString().substring(0, 8);
-        String ns = SharedPulsarCluster.TENANT_NAME + "/" + nsName;
-        namespace = ns;
-        admin.namespaces().createNamespace(ns, Set.of(SharedPulsarCluster.CLUSTER_NAME));
-        log.info("Created test namespace: {}", ns);
+        createNewNamespace();
     }
 
     /**
-     * Force-deletes the namespace created by {@link #setupSharedTest()}, including all topics in it.
+     * Force-deletes all namespaces created during the test method.
      */
     @AfterMethod(alwaysRun = true)
     public void cleanupSharedTest() throws Exception {
-        String ns = namespace;
-        if (ns != null) {
-            namespace = null;
+        for (String ns : namespaces) {
             try {
                 admin.namespaces().deleteNamespace(ns, true);
                 log.info("Deleted test namespace: {}", ns);
@@ -155,12 +151,25 @@ public abstract class SharedPulsarBaseTest {
                 log.warn("Failed to delete namespace {}: {}", ns, e.getMessage());
             }
         }
+        namespaces.clear();
+    }
+
+    /**
+     * Creates a new namespace under the shared tenant and registers it for automatic cleanup.
+     */
+    protected String createNewNamespace() throws Exception {
+        String nsName = "test-" + UUID.randomUUID().toString().substring(0, 8);
+        String ns = SharedPulsarCluster.TENANT_NAME + "/" + nsName;
+        admin.namespaces().createNamespace(ns, Set.of(SharedPulsarCluster.CLUSTER_NAME));
+        namespaces.add(ns);
+        log.info("Created test namespace: {}", ns);
+        return ns;
     }
 
     /**
      * Generates a unique persistent topic name within the current test namespace.
      */
     protected String newTopicName() {
-        return "persistent://" + namespace + "/topic-" + UUID.randomUUID().toString().substring(0, 8);
+        return "persistent://" + getNamespace() + "/topic-" + UUID.randomUUID().toString().substring(0, 8);
     }
 }
