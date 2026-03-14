@@ -38,6 +38,7 @@ import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStatsDisable;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.net.BookieId;
@@ -115,7 +116,8 @@ public class BlobStoreBackedReadHandleImplTest {
                     OffloadIndexEntryImpl.of(pair.getLeft(), 0, pair.getRight(), 0));
         }
         // Build obj.
-        return Pair.of(new BlobStoreBackedReadHandleImpl(ledgerId, mockIndex, inputStream, executor, offsetsCache),
+        return Pair.of(new BlobStoreBackedReadHandleImpl(ledgerId, mockIndex, inputStream, executor, offsetsCache,
+                        LedgerOffloaderStatsDisable.INSTANCE, null),
                 data);
     }
 
