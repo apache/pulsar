@@ -1740,6 +1740,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "Timeout in seconds for initializing the topic policies cache from the system topic. "
+                    + "If the initialization does not complete within this time, it will be retried up to "
+                    + "topicPoliciesCacheInitMaxRetries times. Set to 0 to disable the timeout (not recommended). "
+                    + "Default is 300 seconds (5 minutes)."
+    )
+    private long topicPoliciesCacheInitTimeoutSeconds = 300;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Maximum number of retries for initializing the topic policies cache after a timeout. "
+                    + "After all retries are exhausted, the namespace bundles will be unloaded from this broker "
+                    + "so that they can be reassigned to a different broker. Default is 3."
+    )
+    private int topicPoliciesCacheInitMaxRetries = 3;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "List of interceptors for entry metadata.")
     private Set<String> brokerEntryMetadataInterceptors = new HashSet<>();
 
