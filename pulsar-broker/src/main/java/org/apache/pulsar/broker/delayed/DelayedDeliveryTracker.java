@@ -57,6 +57,11 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     long getBufferMemoryUsage();
 
     /**
+     * Get the delivery timestamp of the last delayed message.
+     */
+    long getLastDelayedMessageTimestamp();
+
+    /**
      * Get a set of position of messages that have already reached the delivery time.
      */
     NavigableSet<Position> getScheduledMessages(int maxMessages);
@@ -104,6 +109,11 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
 
         @Override
         public long getBufferMemoryUsage() {
+            return 0;
+        }
+
+        @Override
+        public long getLastDelayedMessageTimestamp() {
             return 0;
         }
 

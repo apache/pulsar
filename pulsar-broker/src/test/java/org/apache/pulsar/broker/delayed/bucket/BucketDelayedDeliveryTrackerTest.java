@@ -189,6 +189,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         }
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 100);
+        assertEquals(tracker.getLastDelayedMessageTimestamp(), 100 * 10);
 
         clockTime.set(1 * 10);
 
@@ -206,6 +207,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         });
 
         tracker.addMessage(101, 101, 101 * 10);
+        assertEquals(tracker.getLastDelayedMessageTimestamp(), 101 * 10);
 
         tracker.close();
 
@@ -216,6 +218,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertFalse(tracker2.containsMessage(101, 101));
         assertEquals(tracker2.getNumberOfDelayedMessages(), 70);
+        // Verify lastDelayedMessageTimestamp is correctly recovered from snapshot
+        // Messages 31-100 remain, so the max timestamp should be 100 * 10 = 1000
+        assertEquals(tracker2.getLastDelayedMessageTimestamp(), 100 * 10);
 
         clockTime.set(100 * 10);
 
@@ -453,6 +458,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
       assertEquals(tracker.getNumberOfDelayedMessages(), 1001);
       assertTrue(tracker.getImmutableBuckets().asMapOfRanges().size() > 0);
       assertEquals(tracker.getLastMutableBucket().size(), 1);
+      assertTrue(tracker.getLastDelayedMessageTimestamp() > 0);
 
       tracker.clear().get(1, TimeUnit.MINUTES);
 
@@ -460,7 +466,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
       assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
       assertEquals(tracker.getLastMutableBucket().size(), 0);
       assertEquals(tracker.getSharedBucketPriorityQueue().size(), 0);
-
+      assertEquals(tracker.getLastDelayedMessageTimestamp(), 0);
       tracker.close();
     }
 }

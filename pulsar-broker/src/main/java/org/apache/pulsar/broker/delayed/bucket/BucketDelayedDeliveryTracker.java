@@ -94,6 +94,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final AtomicLong numberDelayedMessages = new AtomicLong(0);
 
+    private final AtomicLong lastDelayedMessageTimestamp = new AtomicLong(0);
+
     // Thread safety locks
     private final StampedLock stampedLock = new StampedLock();
 
@@ -235,10 +237,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         MutableLong numberDelayedMessages = new MutableLong(0);
         immutableBucketMap.values().forEach(bucket -> {
             numberDelayedMessages.add(bucket.numberBucketDelayedMessages);
+            updateLastTimestamp(bucket.getLastScheduleTimestamp());
         });
 
-        log.info("[{}] Recover delayed message index bucket snapshot finish, buckets: {}, numberDelayedMessages: {}",
-                dispatcher.getName(), immutableBucketMap.size(), numberDelayedMessages.getValue());
+        log.info("[{}] Recover delayed message index bucket snapshot finish, buckets: {}, "
+                        + "numberDelayedMessages: {}, lastDelayedMessageTimestamp: {}",
+                dispatcher.getName(), immutableBucketMap.size(), numberDelayedMessages.getValue(),
+                lastDelayedMessageTimestamp.get());
 
         return numberDelayedMessages.getValue();
     }
@@ -406,6 +411,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         numberDelayedMessages.incrementAndGet();
+        updateLastTimestamp(deliverAt);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
@@ -616,6 +622,23 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
+    public long getLastDelayedMessageTimestamp() {
+        if (numberDelayedMessages.get() == 0) {
+            return 0;
+        }
+        return lastDelayedMessageTimestamp.get();
+    }
+
+    private void updateLastTimestamp(long timestamp) {
+        long current;
+        while ((current = lastDelayedMessageTimestamp.get()) < timestamp) {
+            if (lastDelayedMessageTimestamp.compareAndSet(current, timestamp)) {
+                break;
+            }
+        }
+    }
+
+    @Override
     public synchronized NavigableSet<Position> getScheduledMessages(int maxMessages) {
         if (!checkPendingLoadDone()) {
             if (log.isDebugEnabled()) {
@@ -750,6 +773,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         lastMutableBucket.clear();
         snapshotSegmentLastIndexMap.clear();
         numberDelayedMessages.set(0);
+        lastDelayedMessageTimestamp.set(0);
         return future;
     }
 

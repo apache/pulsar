@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -49,6 +50,10 @@ class ImmutableBucket extends Bucket {
 
     @Setter
     List<Long> firstScheduleTimestamps = new ArrayList<>();
+
+    @Getter
+    @Setter
+    private long lastScheduleTimestamp = 0;
 
     ImmutableBucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
                     BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
@@ -99,6 +104,12 @@ class ImmutableBucket extends Bucket {
                         List<Long> firstScheduleTimestamps = metadataList.stream().map(
                                 SnapshotSegmentMetadata::getMinScheduleTimestamp).toList();
                         this.setFirstScheduleTimestamps(firstScheduleTimestamps);
+
+                        long lastTimestamp = metadataList.stream()
+                                .mapToLong(SnapshotSegmentMetadata::getMaxScheduleTimestamp)
+                                .max()
+                                .orElse(0L);
+                        this.setLastScheduleTimestamp(lastTimestamp);
 
                         return nextSnapshotEntryIndex + 1;
                     });

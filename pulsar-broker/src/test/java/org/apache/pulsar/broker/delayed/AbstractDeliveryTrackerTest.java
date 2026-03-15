@@ -78,6 +78,7 @@ public abstract class AbstractDeliveryTrackerTest {
 
         assertFalse(tracker.hasMessageAvailable());
         assertEquals(tracker.getNumberOfDelayedMessages(), 5);
+        assertEquals(tracker.getLastDelayedMessageTimestamp(), 50);
 
         assertEquals(tracker.getScheduledMessages(10), Collections.emptySet());
 

@@ -256,6 +256,14 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     @Override
+    public long getLastDelayedMessageTimestamp() {
+        if (delayedMessageMap.isEmpty()) {
+            return 0;
+        }
+        return delayedMessageMap.lastLongKey();
+    }
+
+    @Override
     public void close() {
         super.close();
     }
