@@ -33,9 +33,9 @@ public class SimpleCache<K, V> {
     private final long timeoutMs;
 
     @RequiredArgsConstructor
-    private class ExpirableValue<V> {
+    public class ExpirableValue<V> {
 
-        private final V value;
+        public final V value;
         private final Consumer<V> expireCallback;
         private long deadlineMs;
 
@@ -48,7 +48,7 @@ public class SimpleCache<K, V> {
             }
         }
 
-        void updateDeadline() {
+        public void updateDeadline() {
             deadlineMs = System.currentTimeMillis() + timeoutMs;
         }
 
@@ -72,17 +72,22 @@ public class SimpleCache<K, V> {
         }, frequencyMs, frequencyMs, TimeUnit.MILLISECONDS);
     }
 
-    public synchronized V get(final K key, final Supplier<V> valueSupplier, final Consumer<V> expireCallback) {
+    public synchronized ExpirableValue<V> getWithCacheInfo(final K key, final Supplier<V> valueSupplier,
+                                                           final Consumer<V> expireCallback) {
         final var value = cache.get(key);
         if (value != null) {
             value.updateDeadline();
-            return value.value;
+            return value;
         }
 
         final var newValue = new ExpirableValue<>(valueSupplier.get(), expireCallback);
         newValue.updateDeadline();
         cache.put(key, newValue);
-        return newValue.value;
+        return newValue;
+    }
+
+    public synchronized V get(final K key, final Supplier<V> valueSupplier, final Consumer<V> expireCallback) {
+        return getWithCacheInfo(key, valueSupplier, expireCallback).value;
     }
 
     public void remove(final K key) {
