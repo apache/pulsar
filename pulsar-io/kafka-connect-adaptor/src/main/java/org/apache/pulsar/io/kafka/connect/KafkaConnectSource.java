@@ -23,6 +23,7 @@ import com.google.common.cache.CacheBuilder;
 import io.confluent.connect.avro.AvroData;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -240,6 +241,20 @@ public class KafkaConnectSource extends AbstractKafkaConnectSource<KeyValue<byte
                 .map(e -> e.getKey() + "=" + e.getValue())
                 .collect(Collectors.joining(",")));
             this.partitionIndex = Optional.ofNullable(srcRecord.kafkaPartition());
+
+            // Propagate Kafka Connect record headers as Pulsar message properties.
+            if (srcRecord.headers() != null && !srcRecord.headers().isEmpty()) {
+                Map<String, String> headerProperties = new HashMap<>();
+                for (var h : srcRecord.headers()) {
+                    Object val = h.value();
+                    if (val != null) {
+                        headerProperties.put(h.key(), val instanceof byte[]
+                                ? Base64.getEncoder().encodeToString((byte[]) val)
+                                : val.toString());
+                    }
+                }
+                this.properties = Collections.unmodifiableMap(headerProperties);
+            }
         }
 
         @Override
