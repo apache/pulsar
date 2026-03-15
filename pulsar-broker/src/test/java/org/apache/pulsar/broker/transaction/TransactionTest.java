@@ -123,6 +123,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
@@ -134,6 +135,7 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessagesImpl;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -146,6 +148,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
@@ -1939,6 +1942,36 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(messages, List.of("V2", "V3"));
     }
 
+    @Test
+    public void testRawReaderWithTransactionMarker() throws Exception {
+        var namespace = "tnx/ns-read-marker";
+        var topic = "persistent://" + namespace + "/test_transaction_topic" + UUID.randomUUID();
+        var sub = "sub";
+        admin.namespaces().createNamespace(namespace);
+
+        @Cleanup
+        Producer<String> producer = this.pulsarClient.newProducer(Schema.STRING)
+            .topic(topic)
+            .create();
+
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value("message-1").send();
+        txn.commit().get();
+
+        ConsumerConfigurationData configurationData = new ConsumerConfigurationData();
+        configurationData.setEnableReadingMarkerMessages(true);
+        configurationData.getTopicNames().add(topic);
+        configurationData.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
+        configurationData.setSubscriptionName(sub);
+
+        RawReader reader = (RawReader) RawReader.create(pulsarClient, configurationData, true, true).get();
+        var message1 = reader.readNextAsync().get();
+        var message2 = reader.readNextAsync().get();
+        var metadata = Commands.parseMessageMetadata(message2.getHeadersAndPayload());
+        assertTrue(metadata.hasMarkerType());
+
+        reader.closeAsync().get();
+    }
 
     @Test
     public void testReadCommittedWithCompaction() throws Exception{
