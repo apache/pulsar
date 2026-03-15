@@ -412,6 +412,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         }
     };
 
+    public boolean closeIfNotInitiated() {
+        return STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSED);
+    }
+
     public void recycle() {
         ml = null;
         ledger = null;

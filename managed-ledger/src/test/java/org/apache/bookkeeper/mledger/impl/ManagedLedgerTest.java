@@ -764,6 +764,93 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         fail("Should have thrown an exception in the above line");
     }
 
+    @Test(timeOut = 30000)
+    public void testCloseManagedLedgerAfterRollover() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setMaxCacheSize(0);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        ManagedLedgerImpl realLedger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+        ManagedLedgerImpl ledger = Mockito.spy(realLedger);
+        AtomicBoolean onlyOnce = new AtomicBoolean(false);
+        when(ledger.currentLedgerIsFull()).thenAnswer(invocation -> onlyOnce.compareAndSet(false, true));
+        OpAddEntry realOp = OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean());
+        OpAddEntry op = spy(realOp);
+        CountDownLatch createLatch = new CountDownLatch(1);
+        CountDownLatch closeLatch = new CountDownLatch(1);
+        doAnswer(invocationOnMock -> {
+            // Simulate that before the rollover is completed, new write requests arrive,
+            // and after these write requests are added to pendingAddEntries, the ledger is closed.
+            log.info("before add, ledger state:{}", ledger.state);
+            for (int i = 0; i < 10; ++i) {
+                ledger.internalAsyncAddEntry(OpAddEntry.createNoRetainBuffer(ledger,
+                        ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean()));
+            }
+            ledger.asyncClose(new CloseCallback() {
+                @Override
+                public void closeComplete(Object ctx) {
+                    log.info("closeComplete finished, ledger state:{}", ledger.state);
+                    closeLatch.countDown();
+                }
+
+                @Override
+                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                    log.info("closeFailed, ex:{}, state:{}", exception.getMessage(), ledger.state);
+                    closeLatch.countDown();
+                }
+            }, null);
+            log.info("after add, ledger state:{}", ledger.state);
+            return invocationOnMock.callRealMethod();
+        }).when(ledger).asyncCreateLedger(any(), any(), any(), any(), any());
+        doAnswer(invocationOnMock -> {
+            Object o = invocationOnMock.callRealMethod();
+            log.info("createComplete finished, state:{}", ledger.state);
+            ledger.executor.execute(createLatch::countDown);
+            return o;
+        }).when(ledger).createComplete(anyInt(), any(), any());
+        ledger.internalAsyncAddEntry(op);
+        createLatch.await();
+        closeLatch.await();
+        Assert.assertEquals(ledger.pendingAddEntries.size(), 0);
+    }
+
+    @Test(timeOut = 20000)
+    public void testFencedManagedLedgerAfterAdd() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl realLedger = (ManagedLedgerImpl) factory1.open("my_test_ledger");
+        ManagedLedgerImpl ledger = spy(realLedger);
+
+        int sendNum = 10;
+        CountDownLatch sendLatch = new CountDownLatch(sendNum);
+        CountDownLatch fencedLatch = new CountDownLatch(1);
+        doAnswer(invocationOnMock -> {
+            for (int i = 0; i < sendNum; ++i) {
+                stopBookKeeper();
+                stopMetadataStore();
+                ledger.internalAsyncAddEntry(OpAddEntry.createNoRetainBuffer(ledger,
+                    ByteBufAllocator.DEFAULT.buffer(128), new AddEntryCallback() {
+                    @Override
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                        sendLatch.countDown();
+                    }
+
+                    @Override
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        sendLatch.countDown();
+                    }
+                }, null, new AtomicBoolean()));
+            }
+            Object o = invocationOnMock.callRealMethod();
+            fencedLatch.countDown();
+            return o;
+        }).when(ledger).setFenced();
+        ledger.setFenced();
+        fencedLatch.await();
+        sendLatch.await();
+        assertEquals(ledger.pendingAddEntries.size(), 0);
+    }
+
     @Test(timeOut = 20000)
     public void deleteAndReopen() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
