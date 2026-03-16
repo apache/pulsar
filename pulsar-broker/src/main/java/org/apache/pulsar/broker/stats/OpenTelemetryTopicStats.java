@@ -395,20 +395,16 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
     }
 
     private void recordMetricsForTopic(Topic topic) {
-        var topicAttributes = topic.getTopicAttributes();
-        var topicMetricAttributes = topicAttributes.getCommonAttributes();
         PersistentTopic persistentTopic = null;
         PersistentTopicAttributes.MetricAttributes persistentMetricAttributes = null;
-        if (topic instanceof PersistentTopic pt) {
-            persistentTopic = pt;
-            persistentMetricAttributes = pt.getTopicAttributes().resolveMetricAttributes();
-            topicMetricAttributes = persistentMetricAttributes.getCommonAttributes();
-        }
-        final var attributes = topicMetricAttributes;
-        final var currentPersistentTopic = persistentTopic;
-        final var persistentAttributes = persistentMetricAttributes;
 
         if (topic instanceof AbstractTopic abstractTopic) {
+            var attributes = topic.getTopicAttributes().getCommonAttributes();
+            if (topic instanceof PersistentTopic pt) {
+                persistentTopic = pt;
+                persistentMetricAttributes = pt.getTopicAttributes().resolveMetricAttributes();
+                attributes = persistentMetricAttributes.getResolvedCommonAttributes();
+            }
             subscriptionCounter.record(abstractTopic.getSubscriptions().size(), attributes);
             producerCounter.record(abstractTopic.getProducers().size(), attributes);
             consumerCounter.record(abstractTopic.getNumberOfConsumers(), attributes);
@@ -423,10 +419,13 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
             // Omitted: consumerMsgAckCounter
         }
 
-        if (currentPersistentTopic != null) {
-            var persistentTopicMetrics = currentPersistentTopic.getPersistentTopicMetrics();
-            var managedLedger = currentPersistentTopic.getManagedLedger();
-            var managedLedgerStats = currentPersistentTopic.getManagedLedger().getStats();
+        if (persistentTopic != null) {
+            final var attributes = persistentMetricAttributes.getResolvedCommonAttributes();
+            final var persistentAttributes = persistentMetricAttributes;
+            final var currentPersistentTopic = persistentTopic;
+            var persistentTopicMetrics = persistentTopic.getPersistentTopicMetrics();
+            var managedLedger = persistentTopic.getManagedLedger();
+            var managedLedgerStats = persistentTopic.getManagedLedger().getStats();
             storageCounter.record(managedLedgerStats.getStoredMessagesSize(), attributes);
             storageLogicalCounter.record(managedLedgerStats.getStoredMessagesLogicalSize(), attributes);
             storageBacklogCounter.record(managedLedger.getEstimatedBacklogSize(), attributes);
@@ -448,7 +447,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
             backlogEvictionCounter.record(backlogQuotaMetrics.getTimeBasedBacklogQuotaExceededEvictionCount(),
                 persistentAttributes.getTimeBasedQuotaAttributes());
 
-            var txnBuffer = currentPersistentTopic.getTransactionBuffer();
+            var txnBuffer = persistentTopic.getTransactionBuffer();
             transactionCounter.record(txnBuffer.getOngoingTxnCount(),
                 persistentAttributes.getTransactionActiveAttributes());
             transactionCounter.record(txnBuffer.getCommittedTxnCount(),

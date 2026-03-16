@@ -32,7 +32,7 @@ public class PersistentTopicAttributes extends TopicAttributes {
     @Getter
     public static class MetricAttributes {
         private final Attributes customAttributes;
-        private final Attributes commonAttributes;
+        private final Attributes resolvedCommonAttributes;
         private final Attributes timeBasedQuotaAttributes;
         private final Attributes sizeBasedQuotaAttributes;
         private final Attributes compactionSuccessAttributes;
@@ -46,7 +46,7 @@ public class PersistentTopicAttributes extends TopicAttributes {
         private final Attributes transactionBufferClientAbortFailedAttributes;
 
         private MetricAttributes(Attributes customAttributes,
-                                 Attributes commonAttributes,
+                                 Attributes resolvedCommonAttributes,
                                  Attributes timeBasedQuotaAttributes,
                                  Attributes sizeBasedQuotaAttributes,
                                  Attributes compactionSuccessAttributes,
@@ -59,7 +59,7 @@ public class PersistentTopicAttributes extends TopicAttributes {
                                  Attributes transactionBufferClientAbortSucceededAttributes,
                                  Attributes transactionBufferClientAbortFailedAttributes) {
             this.customAttributes = customAttributes;
-            this.commonAttributes = commonAttributes;
+            this.resolvedCommonAttributes = resolvedCommonAttributes;
             this.timeBasedQuotaAttributes = timeBasedQuotaAttributes;
             this.sizeBasedQuotaAttributes = sizeBasedQuotaAttributes;
             this.compactionSuccessAttributes = compactionSuccessAttributes;
