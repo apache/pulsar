@@ -71,6 +71,7 @@ import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -1845,17 +1846,14 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalClearNamespaceBundleBacklogAsync(String bundleRange,
                                                                                boolean authoritative) {
-        checkNotNull(bundleRange, "BundleRange should not be null");
+        if (bundleRange == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "BundleRange should not be null"));
+        }
 
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CLEAR_BACKLOG)
                 .thenCompose(__ -> {
-                    if (namespaceName.isGlobal()) {
-                        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
-                    }
-                    return validateClusterOwnershipAsync(namespaceName.getCluster())
-                            .thenCompose(unused -> validateClusterForTenantAsync(namespaceName.getTenant(),
-                                    namespaceName.getCluster()));
+                    // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                    return validateGlobalNamespaceOwnershipAsync(namespaceName);
                 })
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies ->
@@ -1870,7 +1868,9 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalClearNamespaceBacklogForSubscriptionAsync(String subscription,
                                                                                         boolean authoritative) {
-        checkNotNull(subscription, "Subscription should not be null");
+        if (subscription == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Subscription should not be null"));
+        }
 
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CLEAR_BACKLOG)
                 .thenCompose(__ -> pulsar().getNamespaceService().getNamespaceBundleFactory()
@@ -1896,18 +1896,17 @@ public abstract class NamespacesBase extends AdminResource {
     protected CompletableFuture<Void> internalClearNamespaceBundleBacklogForSubscriptionAsync(String subscription,
                                                                                               String bundleRange,
                                                                                               boolean authoritative) {
-        checkNotNull(subscription, "Subscription should not be null");
-        checkNotNull(bundleRange, "BundleRange should not be null");
+        if (subscription == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Subscription should not be null"));
+        }
+        if (bundleRange == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "BundleRange should not be null"));
+        }
 
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CLEAR_BACKLOG)
                 .thenCompose(__ -> {
-                    if (namespaceName.isGlobal()) {
-                        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
-                    }
-                    return validateClusterOwnershipAsync(namespaceName.getCluster())
-                            .thenCompose(unused -> validateClusterForTenantAsync(namespaceName.getTenant(),
-                                    namespaceName.getCluster()));
+                    // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                    return validateGlobalNamespaceOwnershipAsync(namespaceName);
                 })
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies ->
@@ -1923,7 +1922,9 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalUnsubscribeNamespaceAsync(String subscription,
                                                                         boolean authoritative) {
-        checkNotNull(subscription, "Subscription should not be null");
+        if (subscription == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Subscription should not be null"));
+        }
 
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.UNSUBSCRIBE)
                 .thenCompose(__ -> pulsar().getNamespaceService().getNamespaceBundleFactory()
@@ -1946,8 +1947,12 @@ public abstract class NamespacesBase extends AdminResource {
     @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalUnsubscribeNamespaceBundleAsync(String subscription, String bundleRange,
                                                                               boolean authoritative) {
-        checkNotNull(subscription, "Subscription should not be null");
-        checkNotNull(bundleRange, "BundleRange should not be null");
+        if (subscription == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Subscription should not be null"));
+        }
+        if (bundleRange == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "BundleRange should not be null"));
+        }
 
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.UNSUBSCRIBE)
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
@@ -2039,8 +2044,14 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetNamespaceAntiAffinityGroupAsync(String antiAffinityGroup) {
-        checkNotNull(antiAffinityGroup, "Anti-affinity group should not be null");
-        checkNotBlank(antiAffinityGroup, "Anti-affinity group can't be empty");
+        if (antiAffinityGroup == null) {
+            return FutureUtil.failedFuture(
+                    new RestException(Status.BAD_REQUEST, "Anti-affinity group should not be null"));
+        }
+        if (antiAffinityGroup.isEmpty()) {
+            return FutureUtil.failedFuture(
+                    new RestException(Status.PRECONDITION_FAILED, "Anti-affinity group can't be empty"));
+        }
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync()).thenCompose(
                         __ -> getDefaultBundleDataAsync().thenCompose(
@@ -2078,10 +2089,20 @@ public abstract class NamespacesBase extends AdminResource {
     protected CompletableFuture<List<String>> internalGetAntiAffinityNamespacesAsync(String cluster,
                                                                                      String antiAffinityGroup,
                                                                                      String tenant) {
-        checkNotNull(cluster, "Cluster should not be null");
-        checkNotNull(antiAffinityGroup, "Anti-affinity group should not be null");
-        checkNotNull(tenant, "Tenant should not be null");
-        checkNotBlank(antiAffinityGroup, "Anti-affinity group can't be empty");
+        if (cluster == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Cluster should not be null"));
+        }
+        if (antiAffinityGroup == null) {
+            return FutureUtil.failedFuture(
+                    new RestException(Status.BAD_REQUEST, "Anti-affinity group should not be null"));
+        }
+        if (tenant == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Tenant should not be null"));
+        }
+        if (antiAffinityGroup.isEmpty()) {
+            return FutureUtil.failedFuture(
+                    new RestException(Status.PRECONDITION_FAILED, "Anti-affinity group can't be empty"));
+        }
 
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ)
                 .thenCompose(__ -> validateClusterExistsAsync(cluster))
