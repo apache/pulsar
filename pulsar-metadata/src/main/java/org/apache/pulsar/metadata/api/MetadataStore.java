@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
@@ -264,6 +265,26 @@ public interface MetadataStore extends AutoCloseable {
     default <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
                                                   MetadataCacheConfig cacheConfig) {
         return getMetadataCache(serde, cacheConfig);
+    }
+
+    /**
+     * Find all records matching a secondary index.
+     *
+     * <p>On stores that support secondary indexes natively (e.g. Oxia), this uses the index
+     * efficiently. On stores that don't (e.g. ZooKeeper), it falls back to listing all children
+     * under {@code scanPathPrefix}, fetching each record, and applying {@code fallbackFilter}.
+     *
+     * @param scanPathPrefix path prefix for fallback scan (used by stores without native index support)
+     * @param indexName      the secondary index name
+     * @param secondaryKey   the secondary key to look up
+     * @param fallbackFilter predicate to filter results during fallback scan; ignored by native implementations
+     * @return list of matching {@link GetResult} entries
+     */
+    default CompletableFuture<List<GetResult>> findByIndex(
+            String scanPathPrefix, String indexName, String secondaryKey,
+            Predicate<GetResult> fallbackFilter) {
+        return CompletableFuture.failedFuture(
+                new MetadataStoreException("Secondary index queries not supported by this store"));
     }
 
     /**

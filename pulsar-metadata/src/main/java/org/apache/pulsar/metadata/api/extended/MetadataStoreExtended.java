@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata.api.extended;
 
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -66,6 +67,25 @@ public interface MetadataStoreExtended extends MetadataStore {
      */
     CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
             EnumSet<CreateOption> options);
+
+    /**
+     * Put a new value for a given key with secondary index associations.
+     *
+     * <p>Secondary indexes are hints: stores that don't support them simply ignore them
+     * and delegate to the regular {@link #put(String, byte[], Optional, EnumSet)} method.
+     *
+     * @param path              the path of the key
+     * @param value             the value to store
+     * @param expectedVersion   if present, the version will have to match for the operation to succeed
+     * @param options           a set of {@link CreateOption} to use if the key-value pair is being created
+     * @param secondaryIndexes  secondary indexes to associate with this record (index name to secondary key)
+     * @throws BadVersionException if the expected version doesn't match the actual version
+     * @return a future to track the async request
+     */
+    default CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
+            EnumSet<CreateOption> options, Map<String, String> secondaryIndexes) {
+        return put(path, value, expectedVersion, options);
+    }
 
     /**
      * Register a session listener that will get notified of changes in status of the current session.

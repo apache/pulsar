@@ -23,6 +23,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -32,6 +33,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.migration.MigrationPhase;
@@ -292,6 +294,41 @@ public class DualMetadataStore implements MetadataStoreExtended {
     @Override
     public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
         return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
+    }
+
+    @Override
+    public CompletableFuture<List<GetResult>> findByIndex(
+            String scanPathPrefix, String indexName, String secondaryKey,
+            Predicate<GetResult> fallbackFilter) {
+        return switch (migrationState.getPhase()) {
+            case NOT_STARTED, PREPARATION, COPYING, FAILED ->
+                    sourceStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter);
+            case COMPLETED ->
+                    targetStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter);
+        };
+    }
+
+    @Override
+    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
+                                       EnumSet<CreateOption> options, Map<String, String> secondaryIndexes) {
+        switch (migrationState.getPhase()) {
+            case NOT_STARTED, FAILED -> {
+                if (options.contains(CreateOption.Ephemeral)) {
+                    localEphemeralPaths.add(path);
+                }
+                pendingSourceWrites.incrementAndGet();
+                var future = sourceStore.put(path, value, expectedVersion, options, secondaryIndexes);
+                future.whenComplete((result, e) -> pendingSourceWrites.decrementAndGet());
+                return future;
+            }
+            case PREPARATION, COPYING -> {
+                return CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
+            }
+            case COMPLETED -> {
+                return targetStore.put(path, value, expectedVersion, options, secondaryIndexes);
+            }
+            default -> throw new IllegalStateException("Invalid phase " + migrationState.getPhase());
+        }
     }
 
     @Override
