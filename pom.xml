@@ -297,7 +297,6 @@ flexible messaging model and an intuitive client API.</description>
     <spring.version>6.2.12</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
-    <jetcd.version>0.7.7</jetcd.version>
     <oxia.version>0.7.4</oxia.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
@@ -1081,56 +1080,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.carrotsearch</groupId>
         <artifactId>hppc</artifactId>
         <version>${hppc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.etcd</groupId>
-        <artifactId>jetcd-core</artifactId>
-        <version>${jetcd.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>io.etcd</groupId>
-        <artifactId>jetcd-test</artifactId>
-        <version>${jetcd.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>io.grpc</groupId>
-            <artifactId>grpc-netty</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.etcd</groupId>
-            <artifactId>jetcd-core</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.etcd</groupId>
-            <artifactId>jetcd-api</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.vertx</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>${project.groupId}</groupId>
-        <artifactId>jetcd-core-shaded</artifactId>
-        <version>${project.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>io.etcd</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.vertx</groupId>
-            <artifactId>*</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
 
       <dependency>
@@ -2645,7 +2594,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-client-messagecrypto-bc</module>
 
         <module>pulsar-metadata</module>
-        <module>jetcd-core-shaded</module>
+
         <module>jclouds-shaded</module>
         <module>pulsar-client-dependencies-minimized</module>
 
@@ -2713,7 +2662,7 @@ flexible messaging model and an intuitive client API.</description>
         <!-- all these modules should be put at the end in this exact sequence -->
         <module>distribution</module>
         <module>pulsar-metadata</module>
-        <module>jetcd-core-shaded</module>
+
         <module>pulsar-client-dependencies-minimized</module>
         <!-- package management releated modules (begin) -->
         <module>pulsar-package-management</module>

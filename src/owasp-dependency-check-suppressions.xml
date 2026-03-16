@@ -241,22 +241,6 @@
         <cve>CVE-2021-42550</cve>
     </suppress>
 
-    <suppress>
-        <notes>Ignore etdc CVEs in jetcd</notes>
-        <filePath regex="true">.*jetcd.*</filePath>
-        <cpe>cpe:/a:etcd:etcd</cpe>
-    </suppress>
-    <suppress>
-        <notes>Ignore etdc CVEs in jetcd</notes>
-        <filePath regex="true">.*jetcd.*</filePath>
-        <cpe>cpe:/a:redhat:etcd</cpe>
-    </suppress>
-    <suppress>
-        <notes>Ignore grpc CVEs in jetcd</notes>
-        <filePath regex="true">.*jetcd-grpc.*</filePath>
-        <cpe>cpe:/a:grpc:grpc</cpe>
-    </suppress>
-
     <!-- bouncycastle misdetections -->
     <suppress>
         <notes><![CDATA[

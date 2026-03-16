@@ -473,7 +473,6 @@ The Apache Software License, Version 2.0
     - io.opencensus-opencensus-contrib-http-util-0.28.0.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
-    - dev.failsafe-failsafe-3.3.2.jar
   * Byte Buddy
     - net.bytebuddy-byte-buddy-1.17.7.jar
   * zt-zip
@@ -523,7 +522,6 @@ The Apache Software License, Version 2.0
     - com.google.http-client-google-http-client-1.41.0.jar
     - com.google.auto.value-auto-value-annotations-1.11.0.jar
     - com.google.re2j-re2j-1.8.jar
-  * Jetcd - shaded
   * IPAddress
     - com.github.seancfoley-ipaddress-5.5.0.jar
   * RxJava

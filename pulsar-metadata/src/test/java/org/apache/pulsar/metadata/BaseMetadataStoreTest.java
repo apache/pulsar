@@ -20,11 +20,8 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import io.etcd.jetcd.launcher.EtcdCluster;
-import io.etcd.jetcd.test.EtcdClusterExtension;
 import io.oxia.testcontainers.OxiaContainer;
 import java.io.File;
-import java.net.URI;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
@@ -32,7 +29,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -47,11 +43,10 @@ import org.testng.annotations.DataProvider;
 public abstract class BaseMetadataStoreTest extends TestRetrySupport {
     // to debug specific implementations, set the TEST_METADATA_PROVIDERS environment variable
     // or temporarily hard code this value in the test class before running tests in the IDE
-    // supported values are ZooKeeper,Memory,RocksDB,Etcd,Oxia,MockZooKeeper
+    // supported values are ZooKeeper,Memory,RocksDB,Oxia,MockZooKeeper
     private static final String TEST_METADATA_PROVIDERS = System.getenv("TEST_METADATA_PROVIDERS");
     private static String originalMetadatastoreProvidersPropertyValue;
     protected TestZKServer zks;
-    protected EtcdCluster etcdCluster;
     protected OxiaContainer oxiaServer;
     private String mockZkUrl;
     // reference to keep the MockZooKeeper instance alive in MockZookeeperMetadataStoreProvider
@@ -90,11 +85,6 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         if (zks != null) {
             zks.close();
             zks = null;
-        }
-
-        if (etcdCluster != null) {
-            etcdCluster.close();
-            etcdCluster = null;
         }
 
         if (oxiaServer != null) {
@@ -140,7 +130,6 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
                 {"ZooKeeper", providerUrlSupplier(() -> zksConnectionString)},
                 {"Memory", providerUrlSupplier(() -> memoryConnectionString)},
                 {"RocksDB", providerUrlSupplier(() -> rocksdbConnectionString)},
-                {"Etcd", providerUrlSupplier(() -> "etcd:" + getEtcdClusterConnectString(), "etcd:...")},
                 {"Oxia", providerUrlSupplier(() -> "oxia://" + getOxiaServerConnectString(), "oxia://...")},
                 {"MockZooKeeper", providerUrlSupplier(() -> mockZkUrl)},
         };
@@ -148,7 +137,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
 
     @DataProvider(name = "distributedImpl")
     public Object[][] distributedImplementations() {
-        return filterImplementations("ZooKeeper", "Etcd", "Oxia");
+        return filterImplementations("ZooKeeper", "Oxia");
     }
 
     @DataProvider(name = "zkImpls")
@@ -172,18 +161,6 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
             oxiaServer.start();
         }
         return oxiaServer.getServiceAddress();
-    }
-
-    private synchronized String getEtcdClusterConnectString() {
-        if (!running) {
-            return null;
-        }
-        if (etcdCluster == null) {
-            etcdCluster = EtcdClusterExtension.builder().withClusterName("test").withNodes(1).withSsl(false).build()
-                    .cluster();
-            etcdCluster.start();
-        }
-        return etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
     }
 
     private static Supplier<String> providerUrlSupplier(Supplier<String> supplier) {
