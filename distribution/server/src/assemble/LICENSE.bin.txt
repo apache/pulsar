@@ -293,33 +293,33 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-lang3-3.19.0.jar
     - org.apache.commons-commons-text-1.14.0.jar
  * Netty
-    - io.netty-netty-buffer-4.1.130.Final.jar
-    - io.netty-netty-codec-4.1.130.Final.jar
-    - io.netty-netty-codec-dns-4.1.130.Final.jar
-    - io.netty-netty-codec-http-4.1.130.Final.jar
-    - io.netty-netty-codec-http2-4.1.130.Final.jar
-    - io.netty-netty-codec-socks-4.1.130.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.130.Final.jar
-    - io.netty-netty-common-4.1.130.Final.jar
-    - io.netty-netty-handler-4.1.130.Final.jar
-    - io.netty-netty-handler-proxy-4.1.130.Final.jar
-    - io.netty-netty-resolver-4.1.130.Final.jar
-    - io.netty-netty-resolver-dns-4.1.130.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.1.130.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.130.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.130.Final-osx-x86_64.jar
-    - io.netty-netty-transport-4.1.130.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.130.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.130.Final-linux-aarch_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.130.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-unix-common-4.1.130.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-linux-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-osx-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-osx-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.74.Final-windows-x86_64.jar
-    - io.netty-netty-tcnative-classes-2.0.74.Final.jar
+    - io.netty-netty-buffer-4.1.131.Final.jar
+    - io.netty-netty-codec-4.1.131.Final.jar
+    - io.netty-netty-codec-dns-4.1.131.Final.jar
+    - io.netty-netty-codec-http-4.1.131.Final.jar
+    - io.netty-netty-codec-http2-4.1.131.Final.jar
+    - io.netty-netty-codec-socks-4.1.131.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.131.Final.jar
+    - io.netty-netty-common-4.1.131.Final.jar
+    - io.netty-netty-handler-4.1.131.Final.jar
+    - io.netty-netty-handler-proxy-4.1.131.Final.jar
+    - io.netty-netty-resolver-4.1.131.Final.jar
+    - io.netty-netty-resolver-dns-4.1.131.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.1.131.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.131.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.1.131.Final-osx-x86_64.jar
+    - io.netty-netty-transport-4.1.131.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.131.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.131.Final-linux-aarch_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.131.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-unix-common-4.1.131.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.75.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.75.Final-linux-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.75.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.75.Final-osx-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.75.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.75.Final-windows-x86_64.jar
+    - io.netty-netty-tcnative-classes-2.0.75.Final.jar
     - io.netty.incubator-netty-incubator-transport-classes-io_uring-0.0.26.Final.jar
     - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.26.Final-linux-x86_64.jar
     - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.26.Final-linux-aarch_64.jar
@@ -418,17 +418,16 @@ The Apache Software License, Version 2.0
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.45.0.jar
  * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
  * OkHttp3
-     - com.squareup.okhttp3-logging-interceptor-4.9.3.jar
-     - com.squareup.okhttp3-okhttp-4.9.3.jar
+     - com.squareup.okhttp3-logging-interceptor-5.3.1.jar
+     - com.squareup.okhttp3-okhttp-5.3.1.jar
+     - com.squareup.okhttp3-okhttp-jvm-5.3.1.jar
  * Okio
-     - com.squareup.okio-okio-3.4.0.jar
-     - com.squareup.okio-okio-jvm-3.4.0.jar
+     - com.squareup.okio-okio-3.16.3.jar
+     - com.squareup.okio-okio-jvm-3.16.3.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * Kotlin Standard Lib
      - org.jetbrains.kotlin-kotlin-stdlib-1.8.20.jar
      - org.jetbrains.kotlin-kotlin-stdlib-common-1.8.20.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk7-1.8.20.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.8.20.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
     - io.grpc-grpc-all-1.75.0.jar
