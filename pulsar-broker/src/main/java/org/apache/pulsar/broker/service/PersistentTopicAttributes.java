@@ -29,6 +29,51 @@ import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 @Getter
 public class PersistentTopicAttributes extends TopicAttributes {
 
+    @Getter
+    public static class MetricAttributes {
+        private final Attributes customAttributes;
+        private final Attributes commonAttributes;
+        private final Attributes timeBasedQuotaAttributes;
+        private final Attributes sizeBasedQuotaAttributes;
+        private final Attributes compactionSuccessAttributes;
+        private final Attributes compactionFailureAttributes;
+        private final Attributes transactionActiveAttributes;
+        private final Attributes transactionCommittedAttributes;
+        private final Attributes transactionAbortedAttributes;
+        private final Attributes transactionBufferClientCommitSucceededAttributes;
+        private final Attributes transactionBufferClientCommitFailedAttributes;
+        private final Attributes transactionBufferClientAbortSucceededAttributes;
+        private final Attributes transactionBufferClientAbortFailedAttributes;
+
+        private MetricAttributes(Attributes customAttributes,
+                                 Attributes commonAttributes,
+                                 Attributes timeBasedQuotaAttributes,
+                                 Attributes sizeBasedQuotaAttributes,
+                                 Attributes compactionSuccessAttributes,
+                                 Attributes compactionFailureAttributes,
+                                 Attributes transactionActiveAttributes,
+                                 Attributes transactionCommittedAttributes,
+                                 Attributes transactionAbortedAttributes,
+                                 Attributes transactionBufferClientCommitSucceededAttributes,
+                                 Attributes transactionBufferClientCommitFailedAttributes,
+                                 Attributes transactionBufferClientAbortSucceededAttributes,
+                                 Attributes transactionBufferClientAbortFailedAttributes) {
+            this.customAttributes = customAttributes;
+            this.commonAttributes = commonAttributes;
+            this.timeBasedQuotaAttributes = timeBasedQuotaAttributes;
+            this.sizeBasedQuotaAttributes = sizeBasedQuotaAttributes;
+            this.compactionSuccessAttributes = compactionSuccessAttributes;
+            this.compactionFailureAttributes = compactionFailureAttributes;
+            this.transactionActiveAttributes = transactionActiveAttributes;
+            this.transactionCommittedAttributes = transactionCommittedAttributes;
+            this.transactionAbortedAttributes = transactionAbortedAttributes;
+            this.transactionBufferClientCommitSucceededAttributes = transactionBufferClientCommitSucceededAttributes;
+            this.transactionBufferClientCommitFailedAttributes = transactionBufferClientCommitFailedAttributes;
+            this.transactionBufferClientAbortSucceededAttributes = transactionBufferClientAbortSucceededAttributes;
+            this.transactionBufferClientAbortFailedAttributes = transactionBufferClientAbortFailedAttributes;
+        }
+    }
+
     private final TopicName topicName;
     private final PulsarService pulsar;
 
@@ -163,5 +208,27 @@ public class PersistentTopicAttributes extends TopicAttributes {
                 .putAll(baseAttributes)
                 .putAll(customAttributes)
                 .build();
+    }
+
+    /**
+     * Resolve all topic metric attributes for the current scrape cycle.
+     * The returned snapshot keeps the dynamic custom labels explicit while avoiding repeated merges.
+     */
+    public MetricAttributes resolveMetricAttributes() {
+        var customAttributes = getCustomAttributes();
+        return new MetricAttributes(
+                customAttributes,
+                buildAttributesWithCustomLabels(commonAttributes, customAttributes),
+                buildAttributesWithCustomLabels(timeBasedQuotaAttributes, customAttributes),
+                buildAttributesWithCustomLabels(sizeBasedQuotaAttributes, customAttributes),
+                buildAttributesWithCustomLabels(compactionSuccessAttributes, customAttributes),
+                buildAttributesWithCustomLabels(compactionFailureAttributes, customAttributes),
+                buildAttributesWithCustomLabels(transactionActiveAttributes, customAttributes),
+                buildAttributesWithCustomLabels(transactionCommittedAttributes, customAttributes),
+                buildAttributesWithCustomLabels(transactionAbortedAttributes, customAttributes),
+                buildAttributesWithCustomLabels(transactionBufferClientCommitSucceededAttributes, customAttributes),
+                buildAttributesWithCustomLabels(transactionBufferClientCommitFailedAttributes, customAttributes),
+                buildAttributesWithCustomLabels(transactionBufferClientAbortSucceededAttributes, customAttributes),
+                buildAttributesWithCustomLabels(transactionBufferClientAbortFailedAttributes, customAttributes));
     }
 }

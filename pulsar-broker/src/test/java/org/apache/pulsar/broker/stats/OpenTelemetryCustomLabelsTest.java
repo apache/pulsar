@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class OpenTelemetryCustomLabelsTest extends BrokerTestBase {
 
-    private static final Set<String> ALLOWED_CUSTOM_METRIC_LABEL_KEYS = Set.of("__SLA_TIER", "APP_OWNER");
+    private static final Set<String> ALLOWED_CUSTOM_METRIC_LABEL_KEYS = Set.of("SLA_TIER", "APP_OWNER");
 
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -120,12 +120,12 @@ public class OpenTelemetryCustomLabelsTest extends BrokerTestBase {
         // Wait for labels to be set
         Awaitility.await().untilAsserted(() -> {
             var retrievedLabels1 = admin.topics().getProperties(topic1);
-            assertThat(retrievedLabels1.get("sla_tier")).isEqualTo("gold");
-            assertThat(retrievedLabels1.get("app_owner")).isEqualTo("team-a");
+            assertThat(retrievedLabels1.get("SLA_TIER")).isEqualTo("gold");
+            assertThat(retrievedLabels1.get("APP_OWNER")).isEqualTo("team-a");
 
             var retrievedLabels2 = admin.topics().getProperties(topic2);
-            assertThat(retrievedLabels2.get("sla_tier")).isEqualTo("platinum");
-            assertThat(retrievedLabels2.get("app_owner")).isEqualTo("team-b");
+            assertThat(retrievedLabels2.get("SLA_TIER")).isEqualTo("platinum");
+            assertThat(retrievedLabels2.get("APP_OWNER")).isEqualTo("team-b");
         });
 
         // Collect metrics and verify custom labels are present
@@ -151,14 +151,19 @@ public class OpenTelemetryCustomLabelsTest extends BrokerTestBase {
             .put("app_owner", "team-b")
             .build();
 
-        // Verify metrics contain custom labels for topic1
+        // Verify shared topic metrics contain custom labels for topic1
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_IN_COUNTER, attributesTopic1, 5);
         assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.PRODUCER_COUNTER, attributesTopic1, 1);
+
+        // Verify persistent-topic metrics contain custom labels for topic1
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_COUNTER, attributesTopic1,
+            actual -> assertThat(actual).isPositive());
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_OUT_COUNTER, attributesTopic1, 5);
 
         // Verify metrics contain custom labels for topic2 (partitioned topic)
         // For partitioned topics, metrics are reported per partition
         boolean foundTopic2Metrics = metrics.stream()
-            .filter(metric -> metric.getName().equals(OpenTelemetryTopicStats.MESSAGE_IN_COUNTER))
+            .filter(metric -> metric.getName().equals(OpenTelemetryTopicStats.STORAGE_COUNTER))
             .flatMap(metric -> metric.getLongSumData().getPoints().stream())
             .anyMatch(point -> {
                 var attrs = point.getAttributes();
@@ -189,7 +194,7 @@ public class OpenTelemetryCustomLabelsTest extends BrokerTestBase {
         // Wait for labels to be set
         Awaitility.await().untilAsserted(() -> {
             var retrievedLabels = admin.topics().getProperties(topic);
-            assertThat(retrievedLabels.get("sla_tier")).isEqualTo("gold");
+            assertThat(retrievedLabels.get("SLA_TIER")).isEqualTo("gold");
         });
 
         // Temporarily disable custom labels
@@ -207,13 +212,17 @@ public class OpenTelemetryCustomLabelsTest extends BrokerTestBase {
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
                 .build();
 
-            // Verify metrics do NOT contain custom labels
+            // Verify shared topic metrics do NOT contain custom labels
             assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.MESSAGE_IN_COUNTER, attributesWithoutCustomLabels,
                 1);
 
+            // Verify persistent-topic metrics do NOT contain custom labels
+            assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.STORAGE_COUNTER, attributesWithoutCustomLabels,
+                actual -> assertThat(actual).isPositive());
+
             // Verify no metrics contain the custom label
             boolean foundCustomLabel = metrics.stream()
-                .filter(metric -> metric.getName().equals(OpenTelemetryTopicStats.MESSAGE_IN_COUNTER))
+                .filter(metric -> metric.getName().equals(OpenTelemetryTopicStats.STORAGE_COUNTER))
                 .flatMap(metric -> metric.getLongSumData().getPoints().stream())
                 .anyMatch(point -> point.getAttributes()
                     .get(io.opentelemetry.api.common.AttributeKey.stringKey("sla_tier")) != null);

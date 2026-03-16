@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.PersistentTopicAttributes;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -394,7 +396,17 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
 
     private void recordMetricsForTopic(Topic topic) {
         var topicAttributes = topic.getTopicAttributes();
-        var attributes = topicAttributes.getCommonAttributes();
+        var topicMetricAttributes = topicAttributes.getCommonAttributes();
+        PersistentTopic persistentTopic = null;
+        PersistentTopicAttributes.MetricAttributes persistentMetricAttributes = null;
+        if (topic instanceof PersistentTopic pt) {
+            persistentTopic = pt;
+            persistentMetricAttributes = pt.getTopicAttributes().resolveMetricAttributes();
+            topicMetricAttributes = persistentMetricAttributes.getCommonAttributes();
+        }
+        final var attributes = topicMetricAttributes;
+        final var currentPersistentTopic = persistentTopic;
+        final var persistentAttributes = persistentMetricAttributes;
 
         if (topic instanceof AbstractTopic abstractTopic) {
             subscriptionCounter.record(abstractTopic.getSubscriptions().size(), attributes);
@@ -411,89 +423,72 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
             // Omitted: consumerMsgAckCounter
         }
 
-        if (topic instanceof PersistentTopic persistentTopic) {
-            var persistentTopicMetrics = persistentTopic.getPersistentTopicMetrics();
-
-            var persistentTopicAttributes = persistentTopic.getTopicAttributes();
-            // For persistent topics, get custom attributes once and reuse
-            var customLabels = persistentTopicAttributes.getCustomAttributes();
-            var attributesWithCustomLabels = persistentTopicAttributes
-                .buildAttributesWithCustomLabels(attributes, customLabels);
-            var managedLedger = persistentTopic.getManagedLedger();
-            var managedLedgerStats = persistentTopic.getManagedLedger().getStats();
-            storageCounter.record(managedLedgerStats.getStoredMessagesSize(), attributesWithCustomLabels);
-            storageLogicalCounter.record(managedLedgerStats.getStoredMessagesLogicalSize(), attributesWithCustomLabels);
-            storageBacklogCounter.record(managedLedger.getEstimatedBacklogSize(), attributesWithCustomLabels);
-            storageOffloadedCounter.record(managedLedger.getOffloadedSize(), attributesWithCustomLabels);
-            storageInCounter.record(managedLedgerStats.getReadEntriesSucceededTotal(), attributesWithCustomLabels);
-            storageOutCounter.record(managedLedgerStats.getAddEntrySucceedTotal(), attributesWithCustomLabels);
+        if (currentPersistentTopic != null) {
+            var persistentTopicMetrics = currentPersistentTopic.getPersistentTopicMetrics();
+            var managedLedger = currentPersistentTopic.getManagedLedger();
+            var managedLedgerStats = currentPersistentTopic.getManagedLedger().getStats();
+            storageCounter.record(managedLedgerStats.getStoredMessagesSize(), attributes);
+            storageLogicalCounter.record(managedLedgerStats.getStoredMessagesLogicalSize(), attributes);
+            storageBacklogCounter.record(managedLedger.getEstimatedBacklogSize(), attributes);
+            storageOffloadedCounter.record(managedLedger.getOffloadedSize(), attributes);
+            storageInCounter.record(managedLedgerStats.getReadEntriesSucceededTotal(), attributes);
+            storageOutCounter.record(managedLedgerStats.getAddEntrySucceedTotal(), attributes);
 
             backlogQuotaLimitSize.record(
                 topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
-                attributesWithCustomLabels);
+                attributes);
             backlogQuotaLimitTime.record(
                 topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime(),
-                attributesWithCustomLabels);
+                attributes);
             backlogQuotaAge.record(topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(),
-                attributesWithCustomLabels);
+                attributes);
             var backlogQuotaMetrics = persistentTopicMetrics.getBacklogQuotaMetrics();
             backlogEvictionCounter.record(backlogQuotaMetrics.getSizeBasedBacklogQuotaExceededEvictionCount(),
-                persistentTopicAttributes.buildAttributesWithCustomLabels(
-                    persistentTopicAttributes.getSizeBasedQuotaAttributes(), customLabels));
+                persistentAttributes.getSizeBasedQuotaAttributes());
             backlogEvictionCounter.record(backlogQuotaMetrics.getTimeBasedBacklogQuotaExceededEvictionCount(),
-                persistentTopicAttributes.buildAttributesWithCustomLabels(
-                    persistentTopicAttributes.getTimeBasedQuotaAttributes(), customLabels));
+                persistentAttributes.getTimeBasedQuotaAttributes());
 
-            var txnBuffer = persistentTopic.getTransactionBuffer();
+            var txnBuffer = currentPersistentTopic.getTransactionBuffer();
             transactionCounter.record(txnBuffer.getOngoingTxnCount(),
-                persistentTopicAttributes.buildAttributesWithCustomLabels(
-                    persistentTopicAttributes.getTransactionActiveAttributes(), customLabels));
+                persistentAttributes.getTransactionActiveAttributes());
             transactionCounter.record(txnBuffer.getCommittedTxnCount(),
-                persistentTopicAttributes.buildAttributesWithCustomLabels(
-                    persistentTopicAttributes.getTransactionCommittedAttributes(), customLabels));
+                persistentAttributes.getTransactionCommittedAttributes());
             transactionCounter.record(txnBuffer.getAbortedTxnCount(),
-                persistentTopicAttributes.buildAttributesWithCustomLabels(
-                    persistentTopicAttributes.getTransactionAbortedAttributes(), customLabels));
+                persistentAttributes.getTransactionAbortedAttributes());
 
             var txnBufferClientMetrics = persistentTopicMetrics.getTransactionBufferClientMetrics();
             transactionBufferClientOperationCounter.record(txnBufferClientMetrics.getCommitSucceededCount().sum(),
-                persistentTopicAttributes.buildAttributesWithCustomLabels(
-                    persistentTopicAttributes.getTransactionBufferClientCommitSucceededAttributes(), customLabels));
+                persistentAttributes.getTransactionBufferClientCommitSucceededAttributes());
             transactionBufferClientOperationCounter.record(txnBufferClientMetrics.getCommitFailedCount().sum(),
-                persistentTopicAttributes.buildAttributesWithCustomLabels(
-                    persistentTopicAttributes.getTransactionBufferClientCommitFailedAttributes(), customLabels));
+                persistentAttributes.getTransactionBufferClientCommitFailedAttributes());
             transactionBufferClientOperationCounter.record(txnBufferClientMetrics.getAbortSucceededCount().sum(),
-                persistentTopicAttributes.buildAttributesWithCustomLabels(
-                    persistentTopicAttributes.getTransactionBufferClientAbortSucceededAttributes(), customLabels));
+                persistentAttributes.getTransactionBufferClientAbortSucceededAttributes());
             transactionBufferClientOperationCounter.record(txnBufferClientMetrics.getAbortFailedCount().sum(),
-                persistentTopicAttributes.buildAttributesWithCustomLabels(
-                    persistentTopicAttributes.getTransactionBufferClientAbortFailedAttributes(), customLabels));
+                persistentAttributes.getTransactionBufferClientAbortFailedAttributes());
 
             Optional.ofNullable(pulsar.getNullableCompactor())
                 .map(Compactor::getStats)
                 .flatMap(compactorMXBean -> compactorMXBean.getCompactionRecordForTopic(topic.getName()))
                 .ifPresent(compactionRecord -> {
                     compactionRemovedCounter.record(compactionRecord.getCompactionRemovedEventCount(),
-                        attributesWithCustomLabels);
+                        attributes);
                     compactionOperationCounter.record(compactionRecord.getCompactionSucceedCount(),
-                        persistentTopicAttributes.buildAttributesWithCustomLabels(
-                            persistentTopicAttributes.getCompactionSuccessAttributes(), customLabels));
+                        persistentAttributes.getCompactionSuccessAttributes());
                     compactionOperationCounter.record(compactionRecord.getCompactionFailedCount(),
-                        persistentTopicAttributes.buildAttributesWithCustomLabels(
-                            persistentTopicAttributes.getCompactionFailureAttributes(), customLabels));
+                        persistentAttributes.getCompactionFailureAttributes());
                     compactionDurationSeconds.record(MetricsUtil.convertToSeconds(
                             compactionRecord.getCompactionDurationTimeInMills(), TimeUnit.MILLISECONDS),
-                        attributesWithCustomLabels);
+                        attributes);
                     compactionBytesInCounter.record(compactionRecord.getCompactionReadBytes(),
-                        attributesWithCustomLabels);
+                        attributes);
                     compactionBytesOutCounter.record(compactionRecord.getCompactionWriteBytes(),
-                        attributesWithCustomLabels);
+                        attributes);
 
-                    persistentTopic.getCompactedTopicContext().map(CompactedTopicContext::getLedger)
+                    currentPersistentTopic.getCompactedTopicContext().map(CompactedTopicContext::getLedger)
                         .ifPresent(ledger -> {
                             compactionEntriesCounter.record(ledger.getLastAddConfirmed() + 1,
-                                attributesWithCustomLabels);
-                            compactionBytesCounter.record(ledger.getLength(), attributesWithCustomLabels);
+                                attributes);
+                            compactionBytesCounter.record(ledger.getLength(), attributes);
                         });
                 });
 
@@ -502,7 +497,7 @@ public class OpenTelemetryTopicStats implements AutoCloseable {
                 .filter(Objects::nonNull)
                 .mapToLong(Dispatcher::getNumberOfDelayedMessages)
                 .sum();
-            delayedSubscriptionCounter.record(delayedMessages, attributesWithCustomLabels);
+            delayedSubscriptionCounter.record(delayedMessages, attributes);
         }
     }
 }
