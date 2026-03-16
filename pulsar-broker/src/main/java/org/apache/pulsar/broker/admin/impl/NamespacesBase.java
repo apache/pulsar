@@ -2048,7 +2048,7 @@ public abstract class NamespacesBase extends AdminResource {
             return FutureUtil.failedFuture(
                     new RestException(Status.BAD_REQUEST, "Anti-affinity group should not be null"));
         }
-        if (antiAffinityGroup.isEmpty()) {
+        if (StringUtils.isBlank(antiAffinityGroup)) {
             return FutureUtil.failedFuture(
                     new RestException(Status.PRECONDITION_FAILED, "Anti-affinity group can't be empty"));
         }
@@ -2099,7 +2099,7 @@ public abstract class NamespacesBase extends AdminResource {
         if (tenant == null) {
             return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Tenant should not be null"));
         }
-        if (antiAffinityGroup.isEmpty()) {
+        if (StringUtils.isBlank(antiAffinityGroup)) {
             return FutureUtil.failedFuture(
                     new RestException(Status.PRECONDITION_FAILED, "Anti-affinity group can't be empty"));
         }
