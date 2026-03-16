@@ -71,6 +71,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
         }
     }
 
+    @Override
     public long getIndex() {
         long index = -1;
 
