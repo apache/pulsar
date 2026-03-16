@@ -288,7 +288,6 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
 
     public abstract AbstractKafkaSourceRecord<T> processSourceRecord(SourceRecord srcRecord);
 
-    private static final Map<String, String> PROPERTIES = Collections.emptyMap();
     private static final Optional<Long> RECORD_SEQUENCE = Optional.empty();
 
     public abstract class AbstractKafkaSourceRecord<T> implements Record {
@@ -331,9 +330,11 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
             return RECORD_SEQUENCE;
         }
 
+        Map<String, String> properties = Collections.emptyMap();
+
         @Override
         public Map<String, String> getProperties() {
-            return PROPERTIES;
+            return properties;
         }
 
         public boolean isEmpty() {
