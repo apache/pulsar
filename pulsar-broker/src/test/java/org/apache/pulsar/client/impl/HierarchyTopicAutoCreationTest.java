@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.List;
-import java.util.UUID;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -40,9 +39,7 @@ public class HierarchyTopicAutoCreationTest extends SharedPulsarBaseTest {
     @Test(invocationCount = 3)
     @SneakyThrows
     public void testPartitionedTopicAutoCreation() {
-        // Create namespace
-        final String namespace = "public/testPartitionedTopicAutoCreation";
-        admin.namespaces().createNamespace(namespace);
+        final String namespace = getNamespace();
         // Set policies
         final AutoTopicCreationOverride expectedPolicies = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
@@ -66,7 +63,7 @@ public class HierarchyTopicAutoCreationTest extends SharedPulsarBaseTest {
         t1.start();
 
         // trigger auto-creation
-        final String topicName = "persistent://" + namespace + "/test-" + UUID.randomUUID();
+        final String topicName = newTopicName();
         @Cleanup final Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
                 .create();
@@ -76,7 +73,8 @@ public class HierarchyTopicAutoCreationTest extends SharedPulsarBaseTest {
                 TopicName.get(topicName).getPartition(0).toString()); // expect partitioned topic
 
         // double-check policies
-        final AutoTopicCreationOverride actualPolicies2 = admin.namespaces().getAutoTopicCreation(namespace);
+        final AutoTopicCreationOverride actualPolicies2 = admin.namespaces()
+                .getAutoTopicCreation(namespace);
         Assert.assertEquals(actualPolicies2, expectedPolicies);
     }
 }
