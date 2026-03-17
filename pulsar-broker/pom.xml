@@ -659,7 +659,7 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>com.github.splunk.lightproto</groupId>
+        <groupId>io.streamnative.lightproto</groupId>
         <artifactId>lightproto-maven-plugin</artifactId>
         <version>${lightproto-maven-plugin.version}</version>
         <configuration>
@@ -668,6 +668,9 @@
             <source>${project.basedir}/src/main/proto/ResourceUsage.proto</source>
             <source>${project.basedir}/src/main/proto/DelayedMessageIndexBucketSegment.proto</source>
           </sources>
+          <extraProtoPaths>
+            <extraProtoPath>${pulsar.basedir}</extraProtoPath>
+          </extraProtoPaths>
           <targetSourcesSubDir>generated-sources/lightproto/java</targetSourcesSubDir>
           <targetTestSourcesSubDir>generated-sources/lightproto/java</targetTestSourcesSubDir>
         </configuration>

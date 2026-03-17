@@ -324,7 +324,7 @@
       </plugin>
 
       <plugin>
-        <groupId>com.github.splunk.lightproto</groupId>
+        <groupId>io.streamnative.lightproto</groupId>
         <artifactId>lightproto-maven-plugin</artifactId>
         <version>${lightproto-maven-plugin.version}</version>
         <executions>
