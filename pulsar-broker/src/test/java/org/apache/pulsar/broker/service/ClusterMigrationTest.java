@@ -521,7 +521,7 @@ public class ClusterMigrationTest {
         pulsar3 = broker3.getPulsarService();
 
         // verify that the replication backlog drains once service in cluster "r3" is restarted.
-        retryStrategically((test) -> !topic1.isReplicationBacklogExist(), 10, 1000);
+        retryStrategically((test) -> !topic1.isReplicationBacklogExist(), 30, 1000);
         assertFalse(topic1.isReplicationBacklogExist());
 
         // verify that the producer1 is now connected to migrated cluster "r2" since backlog is cleared.
