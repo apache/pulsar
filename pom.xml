@@ -363,7 +363,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone.version>2.45.0</errorprone.version>
     <errorprone-slf4j.version>0.1.29</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
-    <lightproto-maven-plugin.version>0.6.1</lightproto-maven-plugin.version>
+    <lightproto-maven-plugin.version>0.6.2</lightproto-maven-plugin.version>
     <build-helper-maven-plugin.version>3.6.0</build-helper-maven-plugin.version>
     <dependency-check-maven.version>12.1.0</dependency-check-maven.version>
     <roaringbitmap.version>1.6.9</roaringbitmap.version>
