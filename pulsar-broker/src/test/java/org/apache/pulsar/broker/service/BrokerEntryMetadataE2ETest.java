@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +29,7 @@ import javax.ws.rs.NotFoundException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
