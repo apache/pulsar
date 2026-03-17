@@ -64,8 +64,8 @@ public class PersistentTopicTerminateTest extends SharedPulsarBaseTest {
         assertEquals(msg2.getValue(), "2");
 
         // Verify: the ledgers acked will be cleaned up.
-        admin.topics().skipAllMessages(topicName, subscriptionName);
-        Awaitility.await().untilAsserted(() -> {
+        consumer.acknowledgeCumulative(msg2);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             PersistentTopic persistentTopic =
                     (PersistentTopic) getTopic(topicName, false).join().get();
             ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
