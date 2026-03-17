@@ -92,14 +92,16 @@ docker.debug-info
 examples/flink/src/main/java/org/apache/flink/avro/generated
 pulsar-flink/src/test/java/org/apache/flink/avro/generated
 pulsar-client/src/test/java/org/apache/pulsar/client/avro/generated
-/build/
 
 test-reports/
 
 # Gradle
 .gradle/
-build/
+**/build/
 buildSrc/build/
+# Allow CI build scripts in the top-level build/ directory
+!/build/
+/build/*/
 !gradle/wrapper/gradle-wrapper.jar
 
 # Gradle Enterprise / Develocity (legacy Maven)
