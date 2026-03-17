@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
@@ -137,8 +137,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         //3. Delete the ledgers and then verify the date.
         Field ledgersField = ManagedLedgerImpl.class.getDeclaredField("ledgers");
         ledgersField.setAccessible(true);
-        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers =
-                (NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>)
+        NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers =
+                (NavigableMap<Long, ManagedLedgerInfo.LedgerInfo>)
                         ledgersField.get(persistentTopic.getManagedLedger());
         ledgers.forEach((k, v) -> {
             ledgers.remove(k);

@@ -56,7 +56,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -878,8 +878,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_AllTimestampsLessThanTarget() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(1500).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(1500));
         Position lastConfirmedEntry = PositionFactory.create(2, 9);
 
         long targetTimestamp = 2000;
@@ -895,9 +895,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_LastTimestampIsZero() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(1500).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(1500));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(3, 5);
 
         long targetTimestamp = 2000;
@@ -913,9 +913,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_LastTimestampIsZeroWithNoEntries() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(1500).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(1500));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(2, 9);
 
         long targetTimestamp = 2000;
@@ -932,8 +932,8 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_AllTimestampsGreaterThanTarget() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(3000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(4000).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(3000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(4000));
         Position lastConfirmedEntry = PositionFactory.create(2, 9);
 
         long targetTimestamp = 2000;
@@ -949,9 +949,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_MixedTimestamps() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(3000));
         Position lastConfirmedEntry = PositionFactory.create(3, 9);
 
         long targetTimestamp = 2500;
@@ -968,10 +968,10 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_TimestampAtBoundary() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(3000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
         Position lastConfirmedEntry = PositionFactory.create(4, 9);
 
         long targetTimestamp = 3000;
@@ -990,11 +990,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_ClockSkew() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(2010).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(2010));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(5).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(5, 5);
 
         long targetTimestamp = 2009;
@@ -1011,11 +1011,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_ClockSkewCase2() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(3000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(5).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(5, 5);
 
         long targetTimestamp = 2995;
@@ -1032,11 +1032,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_ClockSkewCase3() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(3000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(3000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(5).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(5, 5);
 
         long targetTimestamp = 3005;
@@ -1053,11 +1053,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_FeatureDisabledWithNegativeClockSkew() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(2).setEntries(10).setTimestamp(2000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(3).setEntries(10).setTimestamp(2010).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(4).setEntries(10).setTimestamp(4000).build());
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(5).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(2).setEntries(10).setTimestamp(2000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(3).setEntries(10).setTimestamp(2010));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(4).setEntries(10).setTimestamp(4000));
+        ledgerInfos.add(new LedgerInfo().setLedgerId(5).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(5, 5);
 
         long targetTimestamp = 2009;
@@ -1072,7 +1072,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_SingleLedger() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setTimestamp(0).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setTimestamp(0));
         Position lastConfirmedEntry = PositionFactory.create(1, 5);
 
         long targetTimestamp = 2500;
@@ -1087,7 +1087,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     @Test
     public void testGetFindPositionRange_SingleClosedLedger() {
         List<LedgerInfo> ledgerInfos = new ArrayList<>();
-        ledgerInfos.add(LedgerInfo.newBuilder().setLedgerId(1).setEntries(10).setTimestamp(1000).build());
+        ledgerInfos.add(new LedgerInfo().setLedgerId(1).setEntries(10).setTimestamp(1000));
         Position lastConfirmedEntry = PositionFactory.create(1, 9);
 
         long targetTimestamp = 2500;

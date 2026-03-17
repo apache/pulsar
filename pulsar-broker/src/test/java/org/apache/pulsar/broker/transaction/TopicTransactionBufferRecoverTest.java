@@ -51,7 +51,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -461,8 +461,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     PersistentTopic persistentTopic = (PersistentTopic) topic.get();
                     var field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
                     field.setAccessible(true);
-                    NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers =
-                            (NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>)
+                    NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers =
+                            (NavigableMap<Long, ManagedLedgerInfo.LedgerInfo>)
                                     field.get(persistentTopic.getManagedLedger());
 
                     ledgers.remove(((MessageIdImpl) messageId1).getLedgerId());

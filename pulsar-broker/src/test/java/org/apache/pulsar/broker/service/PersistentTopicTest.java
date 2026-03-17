@@ -2372,7 +2372,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         Position lastPosition = PositionFactory.create(1, 0);
         when(ledgerMock.getLastConfirmedEntry()).thenReturn(lastPosition);
         when(ledgerMock.getLedgersInfo()).thenReturn(new java.util.TreeMap<>(Map.of(1L,
-                mock(org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo.class))));
+                mock(org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo.class))));
 
         // Mock the last entry to return a timestamp
         Entry entryMock = mock(Entry.class);

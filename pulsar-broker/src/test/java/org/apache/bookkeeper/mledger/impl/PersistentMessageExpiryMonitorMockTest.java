@@ -33,7 +33,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -99,13 +99,12 @@ public class PersistentMessageExpiryMonitorMockTest {
         );
 
         // Setup ledger info with expired ledger
-        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfo = new TreeMap<>();
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo expiredLedger =
-            MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder()
+        NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgerInfo = new TreeMap<>();
+        ManagedLedgerInfo.LedgerInfo expiredLedger =
+            new ManagedLedgerInfo.LedgerInfo()
                 .setLedgerId(2)
                 .setEntries(60)
-                .setTimestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(10))  // 10 seconds old
-                .build();
+                .setTimestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(10));  // 10 seconds old
         ledgerInfo.put(2L, expiredLedger);
 
         when(mockManagedLedger.getLedgersInfo()).thenReturn(ledgerInfo);
