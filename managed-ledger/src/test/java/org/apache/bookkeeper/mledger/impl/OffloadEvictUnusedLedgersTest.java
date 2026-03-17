@@ -66,7 +66,7 @@ public class OffloadEvictUnusedLedgersTest extends MockedBookKeeperTestCase {
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 3);
         assertEquals(ledger.getLedgersInfoAsList().stream()
-                            .filter(e -> e.getOffloadContext().getComplete())
+                            .filter(e -> e.getOffloadContext().isComplete())
                             .map(e -> e.getLedgerId()).collect(Collectors.toSet()),
                             offloader.offloadedLedgers());
 

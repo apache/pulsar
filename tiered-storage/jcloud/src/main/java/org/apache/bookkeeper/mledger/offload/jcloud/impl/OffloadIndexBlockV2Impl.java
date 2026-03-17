@@ -37,7 +37,7 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock.IndexInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
@@ -217,7 +217,9 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
     }
 
     private static LedgerInfo parseLedgerInfo(byte[] bytes) throws IOException {
-        return LedgerInfo.newBuilder().mergeFrom(bytes).build();
+        LedgerInfo ledgerInfo = new LedgerInfo();
+        ledgerInfo.parseFrom(bytes);
+        return ledgerInfo;
     }
 
     private OffloadIndexBlockV2 fromStream(DataInputStream dis) throws IOException {

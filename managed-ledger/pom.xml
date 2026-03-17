@@ -43,10 +43,6 @@
     </dependency>
 
 
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
-    </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
@@ -168,18 +164,13 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-        <version>${protobuf-maven-plugin.version}</version>
-        <configuration>
-          <protocArtifact>com.google.protobuf:protoc:${protoc3.version}:exe:${os.detected.classifier}</protocArtifact>
-          <checkStaleness>true</checkStaleness>
-        </configuration>
+        <groupId>io.streamnative.lightproto</groupId>
+        <artifactId>lightproto-maven-plugin</artifactId>
+        <version>${lightproto-maven-plugin.version}</version>
         <executions>
           <execution>
-            <phase>generate-sources</phase>
             <goals>
-              <goal>compile</goal>
+              <goal>generate</goal>
             </goals>
           </execution>
         </executions>

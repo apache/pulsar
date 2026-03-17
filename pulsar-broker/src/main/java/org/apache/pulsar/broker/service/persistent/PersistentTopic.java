@@ -88,6 +88,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -3953,7 +3954,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return new EstimateTimeBasedBacklogQuotaCheckResult(false, null);
         }
 
-        org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
+        ManagedLedgerInfo.LedgerInfo
                 markDeletePositionLedgerInfo = ledger.getLedgerInfo(markDeletePosition.getLedgerId()).get();
 
         // If markDeletePositionLedgerInfo is null (ledger no longer exists due to retention/cleanup),
@@ -3964,7 +3965,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             markDeletePosition = nextValidPosition;
         }
 
-        org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo positionToCheckLedgerInfo =
+        ManagedLedgerInfo.LedgerInfo positionToCheckLedgerInfo =
                 markDeletePositionLedgerInfo;
 
         // if the mark-delete position is the last entry it means all entries for

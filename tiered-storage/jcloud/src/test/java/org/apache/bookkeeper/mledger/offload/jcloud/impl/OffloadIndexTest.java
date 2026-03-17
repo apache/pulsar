@@ -38,7 +38,7 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.testng.annotations.Test;
@@ -109,7 +109,7 @@ public class OffloadIndexTest {
         metadataCustom.put("key1", "value1".getBytes(UTF_8));
         metadataCustom.put("key7", "value7".getBytes(UTF_8));
 
-        return LedgerInfo.newBuilder().setLedgerId(id).setEntries(5001).setSize(10000).build();
+        return new LedgerInfo().setLedgerId(id).setEntries(5001).setSize(10000);
     }
 
     // prepare metadata, then use builder to build a OffloadIndexBlockImpl

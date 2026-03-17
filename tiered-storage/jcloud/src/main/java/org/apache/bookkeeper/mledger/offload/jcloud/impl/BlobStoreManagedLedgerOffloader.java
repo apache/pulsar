@@ -62,7 +62,9 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.OffloadContext;
+import org.apache.bookkeeper.mledger.proto.OffloadSegment;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -452,17 +454,16 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             streamingParts.add(blobStore.uploadMultipartPart(streamingMpu, partId, partPayload));
             streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
             streamingIndexBuilder.addBlock(blockLedgerId, beginEntryId, partId, blockSize);
-            final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ml.getLedgerInfo(blockLedgerId).get();
-            final MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder ledgerInfoBuilder =
-                    MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder();
+            final LedgerInfo ledgerInfo = ml.getLedgerInfo(blockLedgerId).get();
+            final LedgerInfo ledgerInfoCopy = new LedgerInfo();
             if (ledgerInfo != null) {
-                ledgerInfoBuilder.mergeFrom(ledgerInfo);
+                ledgerInfoCopy.copyFrom(ledgerInfo);
             }
-            if (ledgerInfoBuilder.getEntries() == 0) {
+            if (!ledgerInfoCopy.hasEntries() || ledgerInfoCopy.getEntries() == 0) {
                 //ledger unclosed, use last entry id of the block
-                ledgerInfoBuilder.setEntries(payloadStream.getEndEntryId() + 1);
+                ledgerInfoCopy.setEntries(payloadStream.getEndEntryId() + 1);
             }
-            streamingIndexBuilder.addLedgerMeta(blockLedgerId, ledgerInfoBuilder.build());
+            streamingIndexBuilder.addLedgerMeta(blockLedgerId, ledgerInfoCopy);
             log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
                     config.getBucket(), streamingDataBlockKey, partId, streamingMpu.id());
         } catch (Throwable e) {
@@ -584,21 +585,21 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     }
 
     @Override
-    public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, MLDataFormats.OffloadContext ledgerContext,
+    public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, OffloadContext ledgerContext,
                                                        Map<String, String> offloadDriverMetadata) {
         BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
         String readBucket = bsKey.getBucket();
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
-        final List<MLDataFormats.OffloadSegment> offloadSegmentList = ledgerContext.getOffloadSegmentList();
         List<String> keys = Lists.newLinkedList();
         List<String> indexKeys = Lists.newLinkedList();
-        offloadSegmentList.forEach(seg -> {
+        for (int i = 0; i < ledgerContext.getOffloadSegmentsCount(); i++) {
+            OffloadSegment seg = ledgerContext.getOffloadSegmentAt(i);
             final UUID uuid = new UUID(seg.getUidMsb(), seg.getUidLsb());
             final String key = uuid.toString();
             final String indexKey = DataBlockUtils.indexBlockOffloadKey(uuid);
             keys.add(key);
             indexKeys.add(indexKey);
-        });
+        }
 
         readExecutor.chooseThread(ledgerId).execute(() -> {
             try {

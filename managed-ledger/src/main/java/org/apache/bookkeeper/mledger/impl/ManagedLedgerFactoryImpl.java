@@ -26,7 +26,6 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
@@ -72,11 +71,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo.PositionInfo;
 import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
 import org.apache.bookkeeper.mledger.OpenTelemetryManagedLedgerCacheStats;
 import org.apache.bookkeeper.mledger.Position;
@@ -90,10 +86,14 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
+import org.apache.bookkeeper.mledger.proto.KeyValue;
+import org.apache.bookkeeper.mledger.proto.LongProperty;
+import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.MessageRange;
+import org.apache.bookkeeper.mledger.proto.OffloadContext;
+import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.stats.NullStatsLogger;
@@ -741,16 +741,17 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public ManagedLedgerInfo getManagedLedgerInfo(String name) throws InterruptedException, ManagedLedgerException {
+    public org.apache.bookkeeper.mledger.ManagedLedgerInfo getManagedLedgerInfo(String name)
+            throws InterruptedException, ManagedLedgerException {
         class Result {
-            ManagedLedgerInfo info = null;
+            org.apache.bookkeeper.mledger.ManagedLedgerInfo info = null;
             ManagedLedgerException e = null;
         }
         final Result r = new Result();
         final CountDownLatch latch = new CountDownLatch(1);
         asyncGetManagedLedgerInfo(name, new ManagedLedgerInfoCallback() {
             @Override
-            public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
+            public void getInfoComplete(org.apache.bookkeeper.mledger.ManagedLedgerInfo info, Object ctx) {
                 r.info = info;
                 latch.countDown();
             }
@@ -773,17 +774,18 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @Override
     public void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx) {
         store.getManagedLedgerInfo(name, false /* createIfMissing */,
-                new MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+                new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
-            public void operationComplete(MLDataFormats.ManagedLedgerInfo pbInfo, Stat stat) {
-                ManagedLedgerInfo info = new ManagedLedgerInfo();
+            public void operationComplete(ManagedLedgerInfo pbInfo, Stat stat) {
+                org.apache.bookkeeper.mledger.ManagedLedgerInfo info =
+                        new org.apache.bookkeeper.mledger.ManagedLedgerInfo();
                 info.version = stat.getVersion();
                 info.creationDate = DateFormatter.format(stat.getCreationTimestamp());
                 info.modificationDate = DateFormatter.format(stat.getModificationTimestamp());
 
-                info.ledgers = new ArrayList<>(pbInfo.getLedgerInfoCount());
+                info.ledgers = new ArrayList<>(pbInfo.getLedgerInfosCount());
                 if (pbInfo.hasTerminatedPosition()) {
-                    info.terminatedPosition = new PositionInfo();
+                    info.terminatedPosition = new org.apache.bookkeeper.mledger.ManagedLedgerInfo.PositionInfo();
                     info.terminatedPosition.ledgerId = pbInfo.getTerminatedPosition().getLedgerId();
                     info.terminatedPosition.entryId = pbInfo.getTerminatedPosition().getEntryId();
                 }
@@ -791,21 +793,22 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 if (pbInfo.getPropertiesCount() > 0) {
                     info.properties = new TreeMap();
                     for (int i = 0; i < pbInfo.getPropertiesCount(); i++) {
-                        MLDataFormats.KeyValue property = pbInfo.getProperties(i);
+                        KeyValue property = pbInfo.getPropertyAt(i);
                         info.properties.put(property.getKey(), property.getValue());
                     }
                 }
 
-                for (int i = 0; i < pbInfo.getLedgerInfoCount(); i++) {
-                    MLDataFormats.ManagedLedgerInfo.LedgerInfo pbLedgerInfo = pbInfo.getLedgerInfo(i);
-                    LedgerInfo ledgerInfo = new LedgerInfo();
+                for (int i = 0; i < pbInfo.getLedgerInfosCount(); i++) {
+                    LedgerInfo pbLedgerInfo = pbInfo.getLedgerInfoAt(i);
+                    org.apache.bookkeeper.mledger.ManagedLedgerInfo.LedgerInfo ledgerInfo =
+                            new org.apache.bookkeeper.mledger.ManagedLedgerInfo.LedgerInfo();
                     ledgerInfo.ledgerId = pbLedgerInfo.getLedgerId();
                     ledgerInfo.entries = pbLedgerInfo.hasEntries() ? pbLedgerInfo.getEntries() : null;
                     ledgerInfo.size = pbLedgerInfo.hasSize() ? pbLedgerInfo.getSize() : null;
                     ledgerInfo.timestamp = pbLedgerInfo.hasTimestamp() ? pbLedgerInfo.getTimestamp() : null;
                     ledgerInfo.isOffloaded = pbLedgerInfo.hasOffloadContext();
                     if (pbLedgerInfo.hasOffloadContext()) {
-                        MLDataFormats.OffloadContext offloadContext = pbLedgerInfo.getOffloadContext();
+                        OffloadContext offloadContext = pbLedgerInfo.getOffloadContext();
                         UUID uuid = new UUID(offloadContext.getUidMsb(), offloadContext.getUidLsb());
                         ledgerInfo.offloadedContextUuid = uuid.toString();
                     }
@@ -823,7 +826,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             CompletableFuture<Void> cursorFuture = new CompletableFuture<>();
                             cursorsFutures.add(cursorFuture);
                             store.asyncGetCursorInfo(name, cursorName,
-                                    new MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
+                                    new MetaStoreCallback<ManagedCursorInfo>() {
                                         @Override
                                         public void operationComplete(ManagedCursorInfo pbCursorInfo, Stat stat) {
                                             CursorInfo cursorInfo = new CursorInfo();
@@ -835,7 +838,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                             cursorInfo.cursorsLedgerId = pbCursorInfo.getCursorsLedgerId();
 
                                             if (pbCursorInfo.hasMarkDeleteLedgerId()) {
-                                                cursorInfo.markDelete = new PositionInfo();
+                                                cursorInfo.markDelete =
+                                                        new org.apache.bookkeeper.mledger.ManagedLedgerInfo
+                                                                .PositionInfo();
                                                 cursorInfo.markDelete.ledgerId = pbCursorInfo.getMarkDeleteLedgerId();
                                                 cursorInfo.markDelete.entryId = pbCursorInfo.getMarkDeleteEntryId();
                                             }
@@ -843,7 +848,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                             if (pbCursorInfo.getPropertiesCount() > 0) {
                                                 cursorInfo.properties = new TreeMap();
                                                 for (int i = 0; i < pbCursorInfo.getPropertiesCount(); i++) {
-                                                    LongProperty property = pbCursorInfo.getProperties(i);
+                                                    LongProperty property = pbCursorInfo.getPropertyAt(i);
                                                     cursorInfo.properties.put(property.getName(), property.getValue());
                                                 }
                                             }
@@ -852,7 +857,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                 cursorInfo.individualDeletedMessages = new ArrayList<>();
                                                 for (int i = 0; i < pbCursorInfo
                                                         .getIndividualDeletedMessagesCount(); i++) {
-                                                    MessageRange range = pbCursorInfo.getIndividualDeletedMessages(i);
+                                                    MessageRange range =
+                                                            pbCursorInfo.getIndividualDeletedMessageAt(i);
                                                     MessageRangeInfo rangeInfo = new MessageRangeInfo();
                                                     rangeInfo.from.ledgerId = range.getLowerEndpoint().getLedgerId();
                                                     rangeInfo.from.entryId = range.getLowerEndpoint().getEntryId();
@@ -963,7 +969,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         // Read the managed ledger metadata from store
         asyncGetManagedLedgerInfo(managedLedgerName, new ManagedLedgerInfoCallback() {
             @Override
-            public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
+            public void getInfoComplete(org.apache.bookkeeper.mledger.ManagedLedgerInfo info, Object ctx) {
                 getBookKeeper().thenCompose(bk -> {
                     // First delete all cursors resources
                     List<CompletableFuture<Void>> futures = info.cursors.entrySet().stream()
@@ -985,17 +991,19 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }, ctx);
     }
 
-    private void deleteManagedLedgerData(BookKeeper bkc, String managedLedgerName, ManagedLedgerInfo info,
+    private void deleteManagedLedgerData(BookKeeper bkc, String managedLedgerName,
+                                         org.apache.bookkeeper.mledger.ManagedLedgerInfo info,
                                          CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
                                          DeleteLedgerCallback callback, Object ctx) {
-        final CompletableFuture<Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>>
+        final CompletableFuture<Map<Long, LedgerInfo>>
                 ledgerInfosFuture = new CompletableFuture<>();
         store.getManagedLedgerInfo(managedLedgerName, false, null,
                 new MetaStoreCallback<>() {
                     @Override
-                    public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
-                        Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> infos = new HashMap<>();
-                        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : mlInfo.getLedgerInfoList()) {
+                    public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
+                        Map<Long, LedgerInfo> infos = new HashMap<>();
+                        for (int i = 0; i < mlInfo.getLedgerInfosCount(); i++) {
+                            LedgerInfo ls = mlInfo.getLedgerInfoAt(i);
                             infos.put(ls.getLedgerId(), ls);
                         }
                         ledgerInfosFuture.complete(infos);
@@ -1016,22 +1024,23 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                 .thenCombine(ledgerInfosFuture, Pair::of)
                                 .thenCompose(pair -> {
                             ManagedLedgerConfig mlConfig =  pair.getLeft();
-                            Map<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfos = pair.getRight();
+                            Map<Long, LedgerInfo> ledgerInfos = pair.getRight();
 
                             if (mlConfig == null || ledgerInfos == null) {
                                 return CompletableFuture.completedFuture(null);
                             }
 
-                            MLDataFormats.ManagedLedgerInfo.LedgerInfo ls = ledgerInfos.get(li.ledgerId);
+                            LedgerInfo ls = ledgerInfos.get(li.ledgerId);
 
                             if (ls.getOffloadContext().hasUidMsb()) {
-                                MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder newInfoBuilder = ls.toBuilder();
-                                newInfoBuilder.getOffloadContextBuilder().setBookkeeperDeleted(true);
+                                LedgerInfo newInfo = new LedgerInfo();
+                                newInfo.copyFrom(ls);
+                                newInfo.setOffloadContext().setBookkeeperDeleted(true);
                                 String driverName = OffloadUtils.getOffloadDriverName(ls,
                                         mlConfig.getLedgerOffloader().getOffloadDriverName());
                                 Map<String, String> driverMetadata = OffloadUtils.getOffloadDriverMetadata(ls,
                                         mlConfig.getLedgerOffloader().getOffloadDriverMetadata());
-                                OffloadUtils.setOffloadDriverMetadata(newInfoBuilder, driverName, driverMetadata);
+                                OffloadUtils.setOffloadDriverMetadata(newInfo, driverName, driverMetadata);
 
                                 UUID uuid = new UUID(ls.getOffloadContext().getUidMsb(),
                                         ls.getOffloadContext().getUidLsb());
@@ -1181,9 +1190,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         long totalSize = 0;
         BookKeeper.DigestType digestType = (BookKeeper.DigestType) ((List) ctx).get(0);
         byte[] password = (byte[]) ((List) ctx).get(1);
-        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers =
+        NavigableMap<Long, LedgerInfo> ledgers =
                 getManagedLedgersInfo(topicName, accurate, digestType, password);
-        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : ledgers.values()) {
+        for (LedgerInfo ls : ledgers.values()) {
             numberOfEntries += ls.getEntries();
             totalSize += ls.getSize();
             if (accurate) {
@@ -1201,20 +1210,21 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         offlineTopicStats.statGeneratedAt.setTime(System.currentTimeMillis());
     }
 
-    private NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> getManagedLedgersInfo(
+    private NavigableMap<Long, LedgerInfo> getManagedLedgersInfo(
             final TopicName topicName, boolean accurate, BookKeeper.DigestType digestType, byte[] password)
             throws Exception {
-        final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
+        final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
 
         String managedLedgerName = topicName.getPersistenceNamingEncoding();
         MetaStore store = getMetaStore();
 
         final CountDownLatch mlMetaCounter = new CountDownLatch(1);
         store.getManagedLedgerInfo(managedLedgerName, false /* createIfMissing */,
-                new MetaStore.MetaStoreCallback<MLDataFormats.ManagedLedgerInfo>() {
+                new MetaStore.MetaStoreCallback<ManagedLedgerInfo>() {
                     @Override
-                    public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
-                        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : mlInfo.getLedgerInfoList()) {
+                    public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
+                        for (int i = 0; i < mlInfo.getLedgerInfosCount(); i++) {
+                            LedgerInfo ls = mlInfo.getLedgerInfoAt(i);
                             ledgers.put(ls.getLedgerId(), ls);
                         }
 
@@ -1227,12 +1237,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                             BKException.getMessage(rc));
                                 }
                                 if (rc == BKException.Code.OK) {
-                                    MLDataFormats.ManagedLedgerInfo.LedgerInfo info =
-                                            MLDataFormats.ManagedLedgerInfo.LedgerInfo
-                                                    .newBuilder().setLedgerId(id)
+                                    LedgerInfo info =
+                                            new LedgerInfo()
+                                                    .setLedgerId(id)
                                                     .setEntries(lh.getLastAddConfirmed() + 1)
-                                                    .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis())
-                                                    .build();
+                                                    .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis());
                                     ledgers.put(id, info);
                                     mlMetaCounter.countDown();
                                 } else if (Errors.isNoSuchLedgerExistsException(rc)) {
@@ -1281,7 +1290,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     public void calculateCursorBacklogs(final TopicName topicName,
-                                         final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers,
+                                         final NavigableMap<Long, LedgerInfo> ledgers,
                                          final PersistentOfflineTopicStats offlineTopicStats, boolean accurate,
                                         BookKeeper.DigestType digestType, byte[] password) throws Exception {
         if (ledgers.isEmpty()) {
@@ -1294,7 +1303,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         final long errorInReadingCursor = -1;
         final var ledgerRetryMap = new ConcurrentHashMap<String, Long>();
 
-        final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ledgers.lastEntry().getValue();
+        final LedgerInfo ledgerInfo = ledgers.lastEntry().getValue();
         final Position lastLedgerPosition =
                 PositionFactory.create(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);
         if (log.isDebugEnabled()) {
@@ -1369,10 +1378,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                                 lh.getId());
                                     } else {
                                         LedgerEntry entry = seq.nextElement();
-                                        MLDataFormats.PositionInfo positionInfo;
+                                        PositionInfo positionInfo;
                                         try {
-                                            positionInfo = MLDataFormats.PositionInfo.parseFrom(entry.getEntry());
-                                        } catch (InvalidProtocolBufferException e) {
+                                            positionInfo = new PositionInfo();
+                                            positionInfo.parseFrom(entry.getEntry());
+                                        } catch (Exception e) {
                                             log.warn(
                                                     "[{}] Error reading position from metadata ledger {} for cursor "
                                                             + "{}: {}", managedLedgerName, ledgerId, cursorName, e);
@@ -1408,9 +1418,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     }; // end of cursor meta read callback
 
                     store.asyncGetCursorInfo(managedLedgerName, cursorName,
-                            new MetaStore.MetaStoreCallback<MLDataFormats.ManagedCursorInfo>() {
+                            new MetaStore.MetaStoreCallback<ManagedCursorInfo>() {
                                 @Override
-                                public void operationComplete(MLDataFormats.ManagedCursorInfo info,
+                                public void operationComplete(ManagedCursorInfo info,
                                                               Stat stat) {
                                     long cursorLedgerId = info.getCursorsLedgerId();
                                     if (log.isDebugEnabled()) {
@@ -1501,7 +1511,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     // need a better way than to duplicate the functionality below from ML
     private long getNumberOfEntries(Range<Position> range,
-                                    NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers) {
+                                    NavigableMap<Long, LedgerInfo> ledgers) {
         Position fromPosition = range.lowerEndpoint();
         boolean fromIncluded = range.lowerBoundType() == BoundType.CLOSED;
         Position toPosition = range.upperEndpoint();
@@ -1521,14 +1531,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             count += toIncluded ? 1 : 0;
 
             // 2. Add the entries in the ledger pointed by fromPosition
-            MLDataFormats.ManagedLedgerInfo.LedgerInfo li = ledgers.get(fromPosition.getLedgerId());
+            LedgerInfo li = ledgers.get(fromPosition.getLedgerId());
             if (li != null) {
                 count += li.getEntries() - (fromPosition.getEntryId() + 1);
                 count += fromIncluded ? 1 : 0;
             }
 
             // 3. Add the whole ledgers entries in between
-            for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ls : ledgers
+            for (LedgerInfo ls : ledgers
                     .subMap(fromPosition.getLedgerId(), false, toPosition.getLedgerId(), false).values()) {
                 count += ls.getEntries();
             }
@@ -1549,7 +1559,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 if (log.isDebugEnabled()) {
                     log.debug(" Read entry {} from ledger {} for cursor {}", lastEntry, ledgerId, cursorName);
                 }
-                MLDataFormats.PositionInfo positionInfo = MLDataFormats.PositionInfo.parseFrom(ledgerEntry.getEntry());
+                PositionInfo positionInfo = new PositionInfo();
+                positionInfo.parseFrom(ledgerEntry.getEntry());
                 lastAckedMessagePosition =
                         PositionFactory.create(positionInfo.getLedgerId(), positionInfo.getEntryId());
                 if (log.isDebugEnabled()) {

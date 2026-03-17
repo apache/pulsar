@@ -36,7 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -116,11 +116,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         }
         ManagedLedger managedLedger = cursor.getManagedLedger();
         Position deletedPosition = cursor.getMarkDeletedPosition();
-        SortedMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfoSortedMap =
+        SortedMap<Long, ManagedLedgerInfo.LedgerInfo> ledgerInfoSortedMap =
                 managedLedger.getLedgersInfo().subMap(deletedPosition.getLedgerId(), true,
                         managedLedger.getLedgersInfo().lastKey(), true);
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo info = null;
-        for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgerInfoSortedMap.values()) {
+        ManagedLedgerInfo.LedgerInfo info = null;
+        for (ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgerInfoSortedMap.values()) {
             if (!ledgerInfo.hasTimestamp() || ledgerInfo.getTimestamp() == 0L
                     || !MessageImpl.isEntryExpired(messageTTLInSeconds, ledgerInfo.getTimestamp())) {
                 break;
@@ -144,7 +144,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         ManagedLedger managedLedger = cursor.getManagedLedger();
         if (managedLedger instanceof ManagedLedgerImpl ml) {
             // Confirm the position is valid.
-            Optional<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfoOptional =
+            Optional<ManagedLedgerInfo.LedgerInfo> ledgerInfoOptional =
                     ml.getOptionalLedgerInfo(messagePosition.getLedgerId());
             if (ledgerInfoOptional.isPresent()) {
                 if (messagePosition.getEntryId() >= 0

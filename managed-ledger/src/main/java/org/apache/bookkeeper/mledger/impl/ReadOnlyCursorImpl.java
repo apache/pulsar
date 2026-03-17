@@ -26,7 +26,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 
 @Slf4j
 public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCursor {
@@ -67,7 +67,7 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
         callback.closeComplete(ctx);
     }
 
-    public MLDataFormats.ManagedLedgerInfo.LedgerInfo getCurrentLedgerInfo() {
+    public ManagedLedgerInfo.LedgerInfo getCurrentLedgerInfo() {
         return this.ledger.getLedgersInfo().get(this.readPosition.getLedgerId());
     }
 

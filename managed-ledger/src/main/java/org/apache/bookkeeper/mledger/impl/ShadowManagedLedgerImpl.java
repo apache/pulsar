@@ -38,8 +38,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.NestedPositionInfo;
 import org.apache.pulsar.metadata.api.Stat;
 
 /**
@@ -80,7 +81,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         );
         store.getManagedLedgerInfo(sourceMLName, false, null, new MetaStore.MetaStoreCallback<>() {
             @Override
-            public void operationComplete(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
+            public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Source ML info:{}", name, sourceMLName, mlInfo);
                 }
@@ -90,7 +91,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                     return;
                 }
                 sourceLedgersStat = stat;
-                if (mlInfo.getLedgerInfoCount() == 0) {
+                if (mlInfo.getLedgerInfosCount() == 0) {
                     // Small chance here, since shadow topic is created after source topic exists.
                     log.warn("[{}] Source topic ledger list is empty! source={},mlInfo={},stat={}", name, sourceMLName,
                             mlInfo, stat);
@@ -99,14 +100,15 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 }
 
                 if (mlInfo.hasTerminatedPosition()) {
-                    MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+                    NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
                     lastConfirmedEntry =
                             PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
                     log.info("[{}][{}] Recovering managed ledger terminated at {}", name, sourceMLName,
                             lastConfirmedEntry);
                 }
 
-                for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
+                for (int i = 0; i < mlInfo.getLedgerInfosCount(); i++) {
+                    LedgerInfo ls = mlInfo.getLedgerInfoAt(i);
                     ledgers.put(ls.getLedgerId(), ls);
                 }
 
@@ -119,11 +121,11 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                     }
                     if (rc == BKException.Code.OK) {
                         LedgerInfo info =
-                                LedgerInfo.newBuilder()
+                                new LedgerInfo()
                                         .setLedgerId(lastLedgerId)
                                         .setEntries(lh.getLastAddConfirmed() + 1)
                                         .setSize(lh.getLength())
-                                        .setTimestamp(clock.millis()).build();
+                                        .setTimestamp(clock.millis());
                         ledgers.put(lastLedgerId, info);
 
                         //Always consider the last ledger is opened in source.
@@ -271,7 +273,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
      * 2. old ledgers deleted.
      * 3. old ledger offload info updated (including ledger deleted from bookie by offloader)
      */
-    private synchronized void processSourceManagedLedgerInfo(MLDataFormats.ManagedLedgerInfo mlInfo, Stat stat) {
+    private synchronized void processSourceManagedLedgerInfo(ManagedLedgerInfo mlInfo, Stat stat) {
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] new SourceManagedLedgerInfo:{}, prevStat={},stat={}", name, sourceMLName, mlInfo,
@@ -285,14 +287,15 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         sourceLedgersStat = stat;
 
         if (mlInfo.hasTerminatedPosition()) {
-            MLDataFormats.NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
+            NestedPositionInfo terminatedPosition = mlInfo.getTerminatedPosition();
             lastConfirmedEntry =
                     PositionFactory.create(terminatedPosition.getLedgerId(), terminatedPosition.getEntryId());
             log.info("[{}][{}] Process managed ledger terminated at {}", name, sourceMLName, lastConfirmedEntry);
         }
 
         TreeMap<Long, LedgerInfo> newLedgerInfos = new TreeMap<>();
-        for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
+        for (int i = 0; i < mlInfo.getLedgerInfosCount(); i++) {
+            LedgerInfo ls = mlInfo.getLedgerInfoAt(i);
             newLedgerInfos.put(ls.getLedgerId(), ls);
         }
 
@@ -308,9 +311,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                         log.info("[{}] Old ledger info updated in source,ledgerId={}", name, ledgerId);
                         // ledger deleted from bookkeeper by offloader.
                         if (ledgerInfo.hasOffloadContext()
-                                && ledgerInfo.getOffloadContext().getBookkeeperDeleted()
+                                && ledgerInfo.getOffloadContext().isBookkeeperDeleted()
                                 && (!oldLedgerInfo.hasOffloadContext() || !oldLedgerInfo.getOffloadContext()
-                                .getBookkeeperDeleted())) {
+                                .isBookkeeperDeleted())) {
                             log.info("[{}] Old ledger removed from bookkeeper by offloader in source,ledgerId={}", name,
                                     ledgerId);
                             invalidateReadHandle(ledgerId);
@@ -332,11 +335,11 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                             log.debug("[{}] Opened new source ledger {}", name, lastLedgerId);
                         }
                         if (rc == BKException.Code.OK) {
-                            LedgerInfo info = LedgerInfo.newBuilder()
+                            LedgerInfo info = new LedgerInfo()
                                     .setLedgerId(lastLedgerId)
                                     .setEntries(lh.getLastAddConfirmed() + 1)
                                     .setSize(lh.getLength())
-                                    .setTimestamp(clock.millis()).build();
+                                    .setTimestamp(clock.millis());
                             ledgers.put(lastLedgerId, info);
                             currentLedger = lh;
                             currentLedgerEntries = 0;

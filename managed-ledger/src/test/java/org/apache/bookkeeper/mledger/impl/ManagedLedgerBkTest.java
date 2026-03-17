@@ -59,7 +59,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
@@ -804,11 +804,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         // Verify: the config affects.
         long cursorLedgerLac = cursor1.cursorLedger.getLastAddConfirmed();
         LedgerEntry ledgerEntry = cursor1.cursorLedger.readEntries(cursorLedgerLac, cursorLedgerLac).nextElement();
-        MLDataFormats.PositionInfo positionInfo = MLDataFormats.PositionInfo.parseFrom(ledgerEntry.getEntry());
+        PositionInfo positionInfo = new PositionInfo();
+        positionInfo.parseFrom(ledgerEntry.getEntry());
         if (enable) {
-            assertNotEquals(positionInfo.getIndividualDeletedMessageRangesList().size(), 0);
+            assertNotEquals(positionInfo.getIndividualDeletedMessageRangesCount(), 0);
         } else {
-            assertEquals(positionInfo.getIndividualDeletedMessageRangesList().size(), 0);
+            assertEquals(positionInfo.getIndividualDeletedMessageRangesCount(), 0);
         }
 
         // cleanup

@@ -44,7 +44,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -77,11 +78,11 @@ public class ManagedLedgerFactoryShutdownTest {
                 throw new IllegalArgumentException("Path is null.");
             }
             if (path.endsWith(ledgerName)) { // ledger
-                MLDataFormats.ManagedLedgerInfo.Builder mli = MLDataFormats.ManagedLedgerInfo.newBuilder()
-                        .addLedgerInfo(0, MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder()
-                                .setLedgerId(0)
-                                .setEntries(0)
-                                .setTimestamp(System.currentTimeMillis()));
+                ManagedLedgerInfo mli = new ManagedLedgerInfo();
+                mli.addLedgerInfo()
+                        .setLedgerId(0)
+                        .setEntries(0)
+                        .setTimestamp(System.currentTimeMillis());
                 Stat stat = new Stat(path, version, createTimeMillis, createTimeMillis, false, false);
                 return CompletableFuture.supplyAsync(() -> {
                     try {
@@ -89,14 +90,13 @@ public class ManagedLedgerFactoryShutdownTest {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    MLDataFormats.ManagedLedgerInfo managedLedgerInfo = mli.build();
-                    log.info("metadataStore.get({}) returned,managedLedgerInfo={},stat={}", path, managedLedgerInfo,
+                    log.info("metadataStore.get({}) returned,managedLedgerInfo={},stat={}", path, mli,
                             stat);
-                    return Optional.of(new GetResult(managedLedgerInfo.toByteArray(), stat));
+                    return Optional.of(new GetResult(mli.toByteArray(), stat));
                 });
 
             } else if (path.contains(ledgerName)) { // cursor
-                MLDataFormats.ManagedCursorInfo.Builder mci = MLDataFormats.ManagedCursorInfo.newBuilder()
+                ManagedCursorInfo mci = new ManagedCursorInfo()
                         .setCursorsLedgerId(-1)
                         .setMarkDeleteLedgerId(0)
                         .setMarkDeleteLedgerId(-1);
@@ -107,10 +107,9 @@ public class ManagedLedgerFactoryShutdownTest {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    MLDataFormats.ManagedCursorInfo managedCursorInfo = mci.build();
-                    log.info("metadataStore.get({}) returned:managedCursorInfo={},stat={}", path, managedCursorInfo,
+                    log.info("metadataStore.get({}) returned:managedCursorInfo={},stat={}", path, mci,
                             stat);
-                    return Optional.of(new GetResult(managedCursorInfo.toByteArray(), stat));
+                    return Optional.of(new GetResult(mci.toByteArray(), stat));
                 });
 
             } else {

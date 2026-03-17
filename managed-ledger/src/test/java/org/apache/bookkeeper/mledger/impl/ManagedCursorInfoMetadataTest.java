@@ -22,11 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -51,43 +49,39 @@ public class ManagedCursorInfoMetadataTest {
         };
     }
 
-    private MLDataFormats.ManagedCursorInfo.Builder generateManagedCursorInfo(long ledgerId, int positionNumber) {
-        MLDataFormats.ManagedCursorInfo.Builder builder = MLDataFormats.ManagedCursorInfo.newBuilder();
+    private ManagedCursorInfo generateManagedCursorInfo(long ledgerId, int positionNumber) {
+        ManagedCursorInfo cursorInfo = new ManagedCursorInfo();
 
-        builder.setCursorsLedgerId(ledgerId);
-        builder.setMarkDeleteLedgerId(ledgerId);
+        cursorInfo.setCursorsLedgerId(ledgerId);
+        cursorInfo.setMarkDeleteLedgerId(ledgerId);
 
-        List<MLDataFormats.BatchedEntryDeletionIndexInfo> batchedEntryDeletionIndexInfos = new ArrayList<>();
         for (int i = 0; i < positionNumber; i++) {
-            MLDataFormats.NestedPositionInfo nestedPositionInfo = MLDataFormats.NestedPositionInfo.newBuilder()
-                    .setEntryId(i).setLedgerId(i).build();
-            MLDataFormats.BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = MLDataFormats
-                    .BatchedEntryDeletionIndexInfo.newBuilder().setPosition(nestedPositionInfo).build();
-            batchedEntryDeletionIndexInfos.add(batchedEntryDeletionIndexInfo);
+            cursorInfo.addBatchedEntryDeletionIndexInfo()
+                    .setPosition()
+                    .setEntryId(i)
+                    .setLedgerId(i);
         }
-        builder.addAllBatchedEntryDeletionIndexInfo(batchedEntryDeletionIndexInfos);
 
-        return builder;
+        return cursorInfo;
     }
 
     @Test(dataProvider = "compressionTypeProvider")
-    public void testEncodeAndDecode(String compressionType) throws IOException {
+    public void testEncodeAndDecode(String compressionType) throws Exception {
         long ledgerId = 10000;
-        MLDataFormats.ManagedCursorInfo.Builder builder = generateManagedCursorInfo(ledgerId, 1000);
+        ManagedCursorInfo managedCursorInfo = generateManagedCursorInfo(ledgerId, 1000);
         MetaStoreImpl metaStore;
         if (INVALID_TYPE.equals(compressionType)) {
             IllegalArgumentException compressionTypeEx = expectThrows(IllegalArgumentException.class, () -> {
                 new MetaStoreImpl(null, null, null, new MetadataCompressionConfig(compressionType));
             });
             assertEquals(compressionTypeEx.getMessage(),
-                    "No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType."
+                    "No enum constant org.apache.bookkeeper.mledger.proto.CompressionType."
                             + compressionType);
             return;
         } else {
             metaStore = new MetaStoreImpl(null, null, null, new MetadataCompressionConfig(compressionType));
         }
 
-        MLDataFormats.ManagedCursorInfo managedCursorInfo = builder.build();
         byte[] compressionBytes = metaStore.compressCursorInfo(managedCursorInfo);
         log.info("[{}] Uncompressed data size: {}, compressed data size: {}",
                 compressionType, managedCursorInfo.getSerializedSize(), compressionBytes.length);
@@ -96,8 +90,8 @@ public class ManagedCursorInfoMetadataTest {
         }
 
         // parse compression data and unCompression data, check their results.
-        MLDataFormats.ManagedCursorInfo info1 = metaStore.parseManagedCursorInfo(compressionBytes);
-        MLDataFormats.ManagedCursorInfo info2 = metaStore.parseManagedCursorInfo(managedCursorInfo.toByteArray());
+        ManagedCursorInfo info1 = metaStore.parseManagedCursorInfo(compressionBytes);
+        ManagedCursorInfo info2 = metaStore.parseManagedCursorInfo(managedCursorInfo.toByteArray());
         assertEquals(info1, info2);
     }
 
@@ -107,11 +101,11 @@ public class ManagedCursorInfoMetadataTest {
 
         long ledgerId = 10000;
         // should not compress
-        MLDataFormats.ManagedCursorInfo smallInfo = generateManagedCursorInfo(ledgerId, 1).build();
+        ManagedCursorInfo smallInfo = generateManagedCursorInfo(ledgerId, 1);
         assertTrue(smallInfo.getSerializedSize() < compressThreshold);
 
         // should compress
-        MLDataFormats.ManagedCursorInfo bigInfo = generateManagedCursorInfo(ledgerId, 1000).build();
+        ManagedCursorInfo bigInfo = generateManagedCursorInfo(ledgerId, 1000);
         assertTrue(bigInfo.getSerializedSize() > compressThreshold);
 
         MetaStoreImpl metaStore;
@@ -121,7 +115,7 @@ public class ManagedCursorInfoMetadataTest {
                         new MetadataCompressionConfig(compressionType, compressThreshold));
             });
             assertEquals(compressionTypeEx.getMessage(),
-                    "No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType."
+                    "No enum constant org.apache.bookkeeper.mledger.proto.CompressionType."
                             + compressionType);
             return;
         } else {

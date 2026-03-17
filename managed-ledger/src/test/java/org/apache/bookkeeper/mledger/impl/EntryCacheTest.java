@@ -48,7 +48,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.Test;
 
@@ -64,7 +64,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         when(ml.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
         when(ml.getConfig()).thenReturn(new ManagedLedgerConfig());
         when(ml.getOptionalLedgerInfo(0L)).thenReturn(Optional.of(mock(
-                MLDataFormats.ManagedLedgerInfo.LedgerInfo.class)));
+                ManagedLedgerInfo.LedgerInfo.class)));
     }
 
     @Test(timeOut = 5000)

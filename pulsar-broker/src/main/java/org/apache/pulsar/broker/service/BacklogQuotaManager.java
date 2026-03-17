@@ -30,7 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -227,7 +227,7 @@ public class BacklogQuotaManager {
                         log.debug("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
                             slowestConsumer.getName(), oldestPosition, slowestConsumer.getReadPosition());
                     }
-                    MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo =
+                    ManagedLedgerInfo.LedgerInfo ledgerInfo =
                         mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
                     if (ledgerInfo == null) {
                         long ledgerId = mLedger.getLedgersInfo().ceilingKey(oldestPosition.getLedgerId() + 1);

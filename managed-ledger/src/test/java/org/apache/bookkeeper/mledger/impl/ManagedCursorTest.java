@@ -113,9 +113,9 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -3634,8 +3634,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 lh.asyncReadEntries(lastEntry, lastEntry, (rc1, lh1, seq, ctx1) -> {
                     try {
                         LedgerEntry entry = seq.nextElement();
-                        PositionInfo positionInfo;
-                        positionInfo = PositionInfo.parseFrom(entry.getEntry());
+                        PositionInfo positionInfo = new PositionInfo();
+                        positionInfo.parseFrom(entry.getEntry());
                         c1.recoverIndividualDeletedMessages(positionInfo);
                         individualDeletedMessagesCount.set(c1.getIndividuallyDeletedMessagesSet().asRanges().size());
                     } catch (Exception e) {
@@ -3895,9 +3895,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         MetaStore mockMetaStore = mock(MetaStore.class);
         doAnswer(new Answer<Object>() {
             public Object answer(InvocationOnMock invocation) {
-                ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(cursorsLedgerId)
+                ManagedCursorInfo info = new ManagedCursorInfo().setCursorsLedgerId(cursorsLedgerId)
                         .setMarkDeleteLedgerId(markDeleteLedgerId).setMarkDeleteEntryId(markDeleteEntryId)
-                        .setLastActive(0L).build();
+                        .setLastActive(0L);
                 Stat stat = mock(Stat.class);
                 MetaStoreCallback<ManagedCursorInfo> callback = (MetaStoreCallback<ManagedCursorInfo>) invocation
                         .getArguments()[2];
@@ -3956,12 +3956,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Trigger the lastConfirmedEntry to move forward
         ml.addEntry(new byte[1]);
 
-        ManagedCursorInfo info = ManagedCursorInfo.newBuilder()
+        ManagedCursorInfo info = new ManagedCursorInfo()
                 .setCursorsLedgerId(c.getCursorLedger())
                 .setMarkDeleteLedgerId(markDeleteBeforeRecover.getLedgerId())
                 .setMarkDeleteEntryId(markDeleteBeforeRecover.getEntryId())
-                .setLastActive(0L)
-                .build();
+                .setLastActive(0L);
 
         CountDownLatch latch = new CountDownLatch(1);
         AtomicBoolean failed = new AtomicBoolean(false);
@@ -4023,12 +4022,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final Position markDeleteBeforeRecover = c.getMarkDeletedPosition();
         final Position readPositionBeforeRecover = c.getReadPosition();
 
-        ManagedCursorInfo info = ManagedCursorInfo.newBuilder()
+        ManagedCursorInfo info = new ManagedCursorInfo()
                 .setCursorsLedgerId(c.getCursorLedger())
                 .setMarkDeleteLedgerId(markDeleteBeforeRecover.getLedgerId())
                 .setMarkDeleteEntryId(markDeleteBeforeRecover.getEntryId())
-                .setLastActive(0L)
-                .build();
+                .setLastActive(0L);
 
         CountDownLatch latch = new CountDownLatch(1);
         AtomicBoolean failed = new AtomicBoolean(false);
@@ -4666,7 +4664,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Field field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
 
-        ((ConcurrentSkipListMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>) field.get(ledger))
+        ((ConcurrentSkipListMap<Long, ManagedLedgerInfo.LedgerInfo>) field.get(ledger))
                 .remove(position.getLedgerId());
         field = ManagedCursorImpl.class.getDeclaredField("markDeletePosition");
         field.setAccessible(true);
@@ -5657,8 +5655,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             ml.addEntry(new byte[]{1, 2, 3, 4});
         }
         long ledger3 = ml.getCurrentLedger().getId();
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo1 = ml.getLedgersInfo().get(ledger1);
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo2 = ml.getLedgersInfo().get(ledger2);
+        ManagedLedgerInfo.LedgerInfo ledgerInfo1 = ml.getLedgersInfo().get(ledger1);
+        ManagedLedgerInfo.LedgerInfo ledgerInfo2 = ml.getLedgersInfo().get(ledger2);
         long average1 = ledgerInfo1.getSize() / ledgerInfo1.getEntries() + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
         long average2 = ledgerInfo2.getSize() / ledgerInfo2.getEntries() + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
         long average3 = ml.getCurrentLedgerSize() / ml.getCurrentLedgerEntries() + BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
@@ -5766,7 +5764,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry-1".getBytes(Encoding));
         long invalidLedger = -1L;
         bk.setErrorCodeMap(invalidLedger, BKException.Code.BookieHandleNotAvailableException);
-        ManagedCursorInfo info = ManagedCursorInfo.newBuilder().setCursorsLedgerId(invalidLedger).build();
+        ManagedCursorInfo info = new ManagedCursorInfo().setCursorsLedgerId(invalidLedger);
         CountDownLatch latch = new CountDownLatch(1);
         MutableBoolean recovered = new MutableBoolean(false);
         VoidCallback callback = new VoidCallback() {

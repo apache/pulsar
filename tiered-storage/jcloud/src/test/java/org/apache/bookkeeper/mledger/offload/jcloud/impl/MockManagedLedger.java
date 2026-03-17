@@ -36,7 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
@@ -359,13 +359,13 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
-        final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
+        final LedgerInfo build = new LedgerInfo().setLedgerId(ledgerId).setSize(100).setEntries(20);
         return CompletableFuture.completedFuture(build);
     }
 
     @Override
     public Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId) {
-        final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
+        final LedgerInfo build = new LedgerInfo().setLedgerId(ledgerId).setSize(100).setEntries(20);
         return Optional.of(build);
     }
 
