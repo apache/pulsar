@@ -412,9 +412,13 @@ public class OffloadPoliciesTest {
         }
 
         private Class<?> getClass(String name) {
-            String file = name.replace('.', File.separatorChar) + ".class";
-            Path targetPath = Paths.get(getClass().getClassLoader().getResource(".").getPath()).getParent();
-            file = Paths.get(targetPath.toString(), "classes", file).toString();
+            // Find the class file on disk using the parent classloader's resource resolution
+            String resourceName = name.replace('.', '/') + ".class";
+            java.net.URL classUrl = getParent().getResource(resourceName);
+            if (classUrl == null) {
+                return null;
+            }
+            String file = classUrl.getPath();
             byte[] byteArr = null;
             try {
                 byteArr = loadClassData(file);

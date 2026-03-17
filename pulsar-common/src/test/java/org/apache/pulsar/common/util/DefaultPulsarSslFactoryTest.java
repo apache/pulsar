@@ -23,6 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import com.google.common.io.Resources;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.OpenSslEngine;
 import java.io.File;
 import java.util.Arrays;
@@ -142,6 +143,9 @@ public class DefaultPulsarSslFactoryTest {
 
     @Test
     public void sslEngineCreationWithEnabledProtocolsAndCiphersForOpenSSLTest() throws Exception {
+        if (!OpenSsl.isAvailable()) {
+            throw new org.testng.SkipException("OpenSSL native library not available on this platform");
+        }
         Set<String> ciphers = new HashSet<>();
         ciphers.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
         ciphers.add("TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256");
@@ -200,8 +204,11 @@ public class DefaultPulsarSslFactoryTest {
         assert(!sslEngine.getUseClientMode());
     }
 
-    @Test
+    @Test(enabled = true)
     public void sslContextCreationAsOpenSslTlsProvider() throws Exception {
+        if (!OpenSsl.isAvailable()) {
+            throw new org.testng.SkipException("OpenSSL native library not available on this platform");
+        }
         PulsarSslConfiguration pulsarSslConfiguration = PulsarSslConfiguration.builder()
                 .tlsProvider("OPENSSL")
                 .tlsCertificateFilePath(CERT_FILE_PATH)

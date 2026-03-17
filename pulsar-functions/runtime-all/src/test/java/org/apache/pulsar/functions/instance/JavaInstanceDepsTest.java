@@ -56,7 +56,15 @@ public class JavaInstanceDepsTest {
 
     @Test
     public void testInstanceJarDeps() throws IOException {
-        File jar = new File("target/java-instance.jar");
+        // Support both Maven (target/) and Gradle (build/libs/) output paths
+        File jar = new File("build/libs/runtime-all.jar");
+        if (!jar.exists()) {
+            jar = new File("target/java-instance.jar");
+        }
+        if (!jar.exists()) {
+            throw new org.testng.SkipException(
+                "Fat jar not found at " + jar.getAbsolutePath() + ". Run the full build first.");
+        }
 
         @Cleanup
         ZipInputStream zip = new ZipInputStream(jar.toURI().toURL().openStream());

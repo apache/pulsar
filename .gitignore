@@ -3,6 +3,7 @@ status.html
 test-output
 test-results
 dependency-reduced-pom.xml
+target/
 logs
 /data
 packages-storage
@@ -95,9 +96,14 @@ pulsar-client/src/test/java/org/apache/pulsar/client/avro/generated
 
 test-reports/
 
-# Gradle Enterprise
+# Gradle
+.gradle/
+build/
+buildSrc/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Gradle Enterprise / Develocity (legacy Maven)
 .mvn/.gradle-enterprise/
-# Gradle Develocity
 .mvn/.develocity/
 .vscode
 effective-pom.xml

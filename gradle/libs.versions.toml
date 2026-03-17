@@ -1,0 +1,464 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[versions]
+# Java
+java = "17"
+
+# Core dependencies
+bookkeeper = "4.17.3"
+zookeeper = "3.9.4"
+netty = "4.1.131.Final"
+netty-iouring = "0.0.26.Final"
+jackson = "2.18.6"
+grpc = "1.75.0"
+protobuf3 = "3.25.5"
+slf4j = "2.0.17"
+log4j2 = "2.25.3"
+guava = "33.4.8-jre"
+lombok = "1.18.42"
+
+# Apache Commons
+commons-compress = "1.28.0"
+commons-cli = "1.11.0"
+commons-text = "1.14.0"
+commons-lang3 = "3.19.0"
+commons-io = "2.21.0"
+commons-codec = "1.20.0"
+commons-logging = "1.3.5"
+commons-collections4 = "4.5.0"
+commons-beanutils = "1.11.0"
+commons-configuration2 = "2.12.0"
+
+# Server / Web
+jetty = "12.1.5"
+jetty9 = "9.4.58.v20250814"
+jersey = "2.42"
+jakarta-ws-rs-api = "2.1.6"
+jakarta-annotation-api = "1.3.5"
+jakarta-activation = "1.2.2"
+jakarta-xml-bind = "2.3.3"
+jakarta-validation = "2.0.2"
+javax-servlet-api = "3.1.0"
+jaxb-api = "2.3.1"
+swagger = "1.6.2"
+
+# Security / Auth
+athenz = "1.10.62"
+conscrypt = "2.5.2"
+bouncycastle-bcprov-jdk18on = "1.78.1"
+bouncycastle-bcpkix-jdk18on = "1.81"
+bouncycastle-bcutil-jdk18on = "1.81"
+bouncycastle-bcprov-ext-jdk18on = "1.78.1"
+bouncycastle-bcpkix-fips = "2.0.10"
+bouncycastle-bc-fips = "2.0.1"
+jsonwebtoken = "0.13.0"
+jose4j = "0.9.6"
+nimbus-jose-jwt = "9.37.4"
+
+# Data formats / serialization
+avro = "1.12.0"
+gson = "2.13.2"
+snakeyaml = "2.0"
+jettison = "1.5.4"
+woodstox = "5.4.0"
+
+# Metrics / Observability
+prometheus = "0.16.0"
+prometheus-jmx = "0.16.1"
+dropwizardmetrics = "4.1.12.1"
+opentelemetry = "1.56.0"
+opentelemetry-instrumentation = "2.21.0"
+opentelemetry-semconv = "1.37.0"
+opencensus = "0.28.0"
+
+# Networking / HTTP
+asynchttpclient = "2.12.4"
+okhttp3 = "5.3.1"
+okio = "3.16.3"
+apache-http-client = "4.5.13"
+apache-httpcomponents = "4.4.15"
+netty-reactive-streams = "2.0.6"
+vertx = "4.5.24"
+dnsjava3 = "3.6.2"
+
+# Storage / DB
+rocksdb = "7.9.2"
+sqlite-jdbc = "3.47.1.0"
+postgresql-jdbc = "42.7.7"
+clickhouse-jdbc = "0.4.6"
+mariadb-jdbc = "3.5.5"
+openmldb-jdbc = "0.4.4-hotfix1"
+
+# Cloud / distributed
+aws-sdk = "1.12.788"
+aws-sdk2 = "2.32.28"
+jclouds = "2.6.0"
+hadoop3 = "3.4.2"
+hbase = "2.6.3-hadoop3"
+jetcd = "0.7.7"
+oxia = "0.7.2"
+kubernetesclient = "23.0.0"
+confluent = "7.9.2"
+
+# Caching / Collections
+caffeine = "3.2.3"
+fastutil = "8.5.16"
+jctools = "4.0.5"
+hppc = "0.9.1"
+roaringbitmap = "1.6.9"
+
+# Utility
+picocli = "4.7.5"
+reflections = "0.10.2"
+typetools = "0.5.0"
+byte-buddy = "1.17.7"
+zt-zip = "1.17"
+re2j = "1.8"
+completable-futures = "0.3.6"
+failsafe = "3.3.2"
+jna = "5.18.1"
+java-semver = "0.9.0"
+jline = "2.14.6"
+jline3 = "3.21.0"
+snappy = "1.1.10.8"
+aircompressor = "2.0.3"
+hdrHistogram = "2.1.9"
+sketches = "0.8.3"
+ant = "1.10.12"
+seancfoley-ipaddress = "5.5.0"
+disruptor = "3.4.3"
+cron-utils = "9.1.6"
+guice = "5.1.0"
+oshi = "6.4.0"
+checkerframework = "3.33.0"
+kotlin-stdlib = "1.8.20"
+joda = "2.10.10"
+json-smart = "2.5.2"
+lz4java = "1.10.3"
+jsr305 = "3.0.2"
+perfmark = "0.26.0"
+zstd-jni = "1.5.7-3"
+mina-core = "2.1.10"
+google-http-client = "1.41.0"
+j2objc-annotations = "1.3"
+
+# Messaging connectors
+kafka-client = "3.9.1"
+rabbitmq-client = "5.28.0"
+hbc-core = "2.2.0"
+cassandra = "3.11.2"
+aerospike-client = "4.5.0"
+nsq-client = "1.0"
+debezium = "3.2.5.Final"
+debezium-mysql = "9.4.0"
+opensearch = "2.19.4"
+elasticsearch-java = "8.15.3"
+spring = "6.2.12"
+
+# Test
+testng = "7.7.1"
+mockito = "5.19.0"
+hamcrest = "2.2"
+awaitility = "4.2.0"
+assertj-core = "3.27.7"
+testcontainers = "1.21.4"
+docker-java = "3.7.0"
+restassured = "5.4.0"
+kerby = "1.1.1"
+javassist = "3.25.0-GA"
+skyscreamer = "1.5.0"
+objenesis = "3.3"
+wiremock = "2.33.2"
+consolecaptor = "1.0.3"
+system-lambda = "1.2.1"
+
+# Build / Code quality
+puppycrawl-checkstyle = "10.14.2"
+spotbugs = "4.9.6"
+errorprone = "2.45.0"
+errorprone-slf4j = "0.1.29"
+lightproto = "0.4"
+
+# Plugin versions
+shadow = "8.3.5"
+protobuf-plugin = "0.9.4"
+docker-maven = "0.45.1"
+
+[libraries]
+# BOMs (imported as platforms)
+netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
+jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
+grpc-bom = { module = "io.grpc:grpc-bom", version.ref = "grpc" }
+slf4j-bom = { module = "org.slf4j:slf4j-bom", version.ref = "slf4j" }
+log4j-bom = { module = "org.apache.logging.log4j:log4j-bom", version.ref = "log4j2" }
+mockito-bom = { module = "org.mockito:mockito-bom", version.ref = "mockito" }
+prometheus-bom = { module = "io.prometheus:simpleclient_bom", version.ref = "prometheus" }
+jjwt-bom = { module = "io.jsonwebtoken:jjwt-bom", version.ref = "jsonwebtoken" }
+
+# Netty
+netty-handler = { module = "io.netty:netty-handler" }
+netty-buffer = { module = "io.netty:netty-buffer" }
+netty-common = { module = "io.netty:netty-common" }
+netty-codec = { module = "io.netty:netty-codec" }
+netty-codec-http = { module = "io.netty:netty-codec-http" }
+netty-codec-http2 = { module = "io.netty:netty-codec-http2" }
+netty-codec-socks = { module = "io.netty:netty-codec-socks" }
+netty-codec-haproxy = { module = "io.netty:netty-codec-haproxy" }
+netty-handler-proxy = { module = "io.netty:netty-handler-proxy" }
+netty-resolver-dns = { module = "io.netty:netty-resolver-dns" }
+netty-resolver-dns-native-macos-osx-aarch64 = { module = "io.netty:netty-resolver-dns-native-macos", version.ref = "netty" }
+netty-resolver-dns-native-macos-osx-x8664 = { module = "io.netty:netty-resolver-dns-native-macos", version.ref = "netty" }
+netty-transport = { module = "io.netty:netty-transport" }
+netty-transport-native-epoll = { module = "io.netty:netty-transport-native-epoll" }
+netty-transport-native-unix-common = { module = "io.netty:netty-transport-native-unix-common" }
+netty-tcnative-boringssl-static = { module = "io.netty:netty-tcnative-boringssl-static" }
+netty-incubator-transport-classes-io-uring = { module = "io.netty.incubator:netty-incubator-transport-classes-io_uring", version.ref = "netty-iouring" }
+netty-incubator-transport-native-io-uring = { module = "io.netty.incubator:netty-incubator-transport-native-io_uring", version.ref = "netty-iouring" }
+
+# Jackson
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+jackson-core = { module = "com.fasterxml.jackson.core:jackson-core" }
+jackson-module-parameter-names = { module = "com.fasterxml.jackson.module:jackson-module-parameter-names" }
+jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310" }
+jackson-datatype-jdk8 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jdk8" }
+jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml" }
+jackson-module-jsonSchema = { module = "com.fasterxml.jackson.module:jackson-module-jsonSchema" }
+
+# gRPC
+grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded" }
+grpc-stub = { module = "io.grpc:grpc-stub" }
+grpc-protobuf = { module = "io.grpc:grpc-protobuf" }
+grpc-api = { module = "io.grpc:grpc-api" }
+grpc-util = { module = "io.grpc:grpc-util", version = "1.60.0" }
+
+# Protobuf
+protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf3" }
+protoc = { module = "com.google.protobuf:protoc", version.ref = "protobuf3" }
+
+# Logging
+slf4j-api = { module = "org.slf4j:slf4j-api" }
+jcl-over-slf4j = { module = "org.slf4j:jcl-over-slf4j" }
+log4j-api = { module = "org.apache.logging.log4j:log4j-api" }
+log4j-core = { module = "org.apache.logging.log4j:log4j-core" }
+log4j-slf4j2-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl" }
+
+# BookKeeper
+bookkeeper-server = { module = "org.apache.bookkeeper:bookkeeper-server", version.ref = "bookkeeper" }
+bookkeeper-common = { module = "org.apache.bookkeeper:bookkeeper-common", version.ref = "bookkeeper" }
+bookkeeper-common-allocator = { module = "org.apache.bookkeeper:bookkeeper-common-allocator", version.ref = "bookkeeper" }
+bookkeeper-stats-api = { module = "org.apache.bookkeeper.stats:bookkeeper-stats-api", version.ref = "bookkeeper" }
+bookkeeper-tools-framework = { module = "org.apache.bookkeeper:bookkeeper-tools-framework", version.ref = "bookkeeper" }
+bookkeeper-cpu-affinity = { module = "org.apache.bookkeeper:cpu-affinity", version.ref = "bookkeeper" }
+bookkeeper-circe-checksum = { module = "org.apache.bookkeeper:circe-checksum", version.ref = "bookkeeper" }
+bookkeeper-datasketches-metrics-provider = { module = "org.apache.bookkeeper.stats:datasketches-metrics-provider", version.ref = "bookkeeper" }
+bookkeeper-stream-storage-java-client = { module = "org.apache.bookkeeper:stream-storage-java-client", version.ref = "bookkeeper" }
+bookkeeper-stream-storage-server = { module = "org.apache.bookkeeper:stream-storage-server", version.ref = "bookkeeper" }
+
+# ZooKeeper
+zookeeper = { module = "org.apache.zookeeper:zookeeper", version.ref = "zookeeper" }
+zookeeper-jute = { module = "org.apache.zookeeper:zookeeper-jute", version.ref = "zookeeper" }
+
+# Curator
+curator-recipes = { module = "org.apache.curator:curator-recipes" }
+
+# Google
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+guice = { module = "com.google.inject:guice", version.ref = "guice" }
+guice-assistedinject = { module = "com.google.inject.extensions:guice-assistedinject", version.ref = "guice" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+re2j = { module = "com.google.re2j:re2j", version.ref = "re2j" }
+google-http-client = { module = "com.google.http-client:google-http-client", version.ref = "google-http-client" }
+jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
+j2objc-annotations = { module = "com.google.j2objc:j2objc-annotations", version.ref = "j2objc-annotations" }
+perfmark-api = { module = "io.perfmark:perfmark-api", version.ref = "perfmark" }
+
+# Commons
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commons-compress" }
+commons-cli = { module = "commons-cli:commons-cli", version.ref = "commons-cli" }
+commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
+commons-io = { module = "commons-io:commons-io", version.ref = "commons-io" }
+commons-codec = { module = "commons-codec:commons-codec", version.ref = "commons-codec" }
+commons-logging = { module = "commons-logging:commons-logging", version.ref = "commons-logging" }
+commons-collections4 = { module = "org.apache.commons:commons-collections4", version.ref = "commons-collections4" }
+commons-beanutils = { module = "commons-beanutils:commons-beanutils", version.ref = "commons-beanutils" }
+commons-configuration2 = { module = "org.apache.commons:commons-configuration2", version.ref = "commons-configuration2" }
+
+# Jetty
+jetty-server = { module = "org.eclipse.jetty:jetty-server", version.ref = "jetty" }
+jetty-compression-server = { module = "org.eclipse.jetty.compression:jetty-compression-server", version.ref = "jetty" }
+jetty-compression-gzip = { module = "org.eclipse.jetty.compression:jetty-compression-gzip", version.ref = "jetty" }
+jetty-ee8-servlet = { module = "org.eclipse.jetty.ee8:jetty-ee8-servlet", version.ref = "jetty" }
+
+# Jersey
+jersey-server = { module = "org.glassfish.jersey.core:jersey-server", version.ref = "jersey" }
+
+# Jakarta
+jakarta-ws-rs-api = { module = "jakarta.ws.rs:jakarta.ws.rs-api", version.ref = "jakarta-ws-rs-api" }
+jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version.ref = "jakarta-annotation-api" }
+
+# Security
+conscrypt-openjdk-uber = { module = "org.conscrypt:conscrypt-openjdk-uber", version.ref = "conscrypt" }
+bcprov-jdk18on = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle-bcprov-jdk18on" }
+bcpkix-jdk18on = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle-bcpkix-jdk18on" }
+bcutil-jdk18on = { module = "org.bouncycastle:bcutil-jdk18on", version.ref = "bouncycastle-bcutil-jdk18on" }
+bcprov-ext-jdk18on = { module = "org.bouncycastle:bcprov-ext-jdk18on", version.ref = "bouncycastle-bcprov-ext-jdk18on" }
+bcpkix-fips = { module = "org.bouncycastle:bcpkix-fips", version.ref = "bouncycastle-bcpkix-fips" }
+bc-fips = { module = "org.bouncycastle:bc-fips", version.ref = "bouncycastle-bc-fips" }
+jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl" }
+jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson" }
+jose4j = { module = "org.bitbucket.b_c:jose4j", version.ref = "jose4j" }
+nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus-jose-jwt" }
+
+# Athenz
+athenz-zts-java-client-core = { module = "com.yahoo.athenz:athenz-zts-java-client-core", version.ref = "athenz" }
+athenz-zpe-java-client = { module = "com.yahoo.athenz:athenz-zpe-java-client", version.ref = "athenz" }
+athenz-cert-refresher = { module = "com.yahoo.athenz:athenz-cert-refresher", version.ref = "athenz" }
+athenz-auth-core = { module = "com.yahoo.athenz:athenz-auth-core", version.ref = "athenz" }
+
+# Metrics
+simpleclient = { module = "io.prometheus:simpleclient" }
+simpleclient-caffeine = { module = "io.prometheus:simpleclient_caffeine" }
+simpleclient-hotspot = { module = "io.prometheus:simpleclient_hotspot" }
+simpleclient-httpserver = { module = "io.prometheus:simpleclient_httpserver" }
+simpleclient-servlet = { module = "io.prometheus:simpleclient_servlet" }
+simpleclient-common = { module = "io.prometheus:simpleclient_common" }
+prometheus-jmx-collector = { module = "io.prometheus.jmx:collector", version.ref = "prometheus-jmx" }
+dropwizard-metrics-core = { module = "io.dropwizard.metrics:metrics-core", version.ref = "dropwizardmetrics" }
+dropwizard-metrics-graphite = { module = "io.dropwizard.metrics:metrics-graphite", version.ref = "dropwizardmetrics" }
+dropwizard-metrics-jvm = { module = "io.dropwizard.metrics:metrics-jvm", version.ref = "dropwizardmetrics" }
+
+# OpenTelemetry
+opentelemetry-api = { module = "io.opentelemetry:opentelemetry-api", version.ref = "opentelemetry" }
+opentelemetry-api-incubator = { module = "io.opentelemetry:opentelemetry-api-incubator", version = "1.56.0-alpha" }
+opentelemetry-sdk = { module = "io.opentelemetry:opentelemetry-sdk", version.ref = "opentelemetry" }
+opentelemetry-sdk-testing = { module = "io.opentelemetry:opentelemetry-sdk-testing", version.ref = "opentelemetry" }
+opentelemetry-semconv = { module = "io.opentelemetry.semconv:opentelemetry-semconv", version.ref = "opentelemetry-semconv" }
+opentelemetry-instrumentation-resources = { module = "io.opentelemetry.instrumentation:opentelemetry-resources", version = "2.21.0-alpha" }
+
+# Data / Caching
+caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
+fastutil = { module = "it.unimi.dsi:fastutil", version.ref = "fastutil" }
+jctools-core = { module = "org.jctools:jctools-core", version.ref = "jctools" }
+hppc = { module = "com.carrotsearch:hppc", version.ref = "hppc" }
+roaringbitmap = { module = "org.roaringbitmap:RoaringBitmap", version.ref = "roaringbitmap" }
+rocksdbjni = { module = "org.rocksdb:rocksdbjni", version.ref = "rocksdb" }
+hdrHistogram = { module = "org.hdrhistogram:HdrHistogram", version.ref = "hdrHistogram" }
+
+# Serialization
+avro = { module = "org.apache.avro:avro", version.ref = "avro" }
+avro-protobuf = { module = "org.apache.avro:avro-protobuf", version.ref = "avro" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
+jettison = { module = "org.codehaus.jettison:jettison", version.ref = "jettison" }
+woodstox-core = { module = "com.fasterxml.woodstox:woodstox-core", version.ref = "woodstox" }
+
+# HTTP / Networking
+async-http-client = { module = "org.asynchttpclient:async-http-client", version.ref = "asynchttpclient" }
+okhttp3 = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp3" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
+netty-reactive-streams = { module = "com.typesafe.netty:netty-reactive-streams", version.ref = "netty-reactive-streams" }
+
+# Vertx
+vertx-core = { module = "io.vertx:vertx-core", version.ref = "vertx" }
+vertx-web = { module = "io.vertx:vertx-web", version.ref = "vertx" }
+vertx-grpc = { module = "io.vertx:vertx-grpc", version.ref = "vertx" }
+
+# Cloud
+jetcd-core = { module = "io.etcd:jetcd-core", version.ref = "jetcd" }
+jetcd-test = { module = "io.etcd:jetcd-test", version.ref = "jetcd" }
+oxia-client = { module = "io.github.oxia-db:oxia-client", version.ref = "oxia" }
+oxia-testcontainers = { module = "io.github.oxia-db:oxia-testcontainers", version.ref = "oxia" }
+
+# Swagger
+swagger-core = { module = "io.swagger:swagger-core", version.ref = "swagger" }
+swagger-annotations = { module = "io.swagger:swagger-annotations", version.ref = "swagger" }
+
+# CLI
+picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
+picocli-shell-jline3 = { module = "info.picocli:picocli-shell-jline3", version.ref = "picocli" }
+jline = { module = "jline:jline", version.ref = "jline" }
+jline3 = { module = "org.jline:jline", version.ref = "jline3" }
+
+# Utility
+reflections = { module = "org.reflections:reflections", version.ref = "reflections" }
+typetools = { module = "net.jodah:typetools", version.ref = "typetools" }
+byte-buddy = { module = "net.bytebuddy:byte-buddy", version.ref = "byte-buddy" }
+zt-zip = { module = "org.zeroturnaround:zt-zip", version.ref = "zt-zip" }
+completable-futures = { module = "com.spotify:completable-futures", version.ref = "completable-futures" }
+failsafe = { module = "dev.failsafe:failsafe", version.ref = "failsafe" }
+jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+jna-platform = { module = "net.java.dev.jna:jna-platform", version.ref = "jna" }
+java-semver = { module = "com.github.zafarkhaja:java-semver", version.ref = "java-semver" }
+snappy-java = { module = "org.xerial.snappy:snappy-java", version.ref = "snappy" }
+aircompressor = { module = "io.airlift:aircompressor", version.ref = "aircompressor" }
+cron-utils = { module = "com.cronutils:cron-utils", version.ref = "cron-utils" }
+ant = { module = "org.apache.ant:ant", version.ref = "ant" }
+ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "seancfoley-ipaddress" }
+disruptor = { module = "com.lmax:disruptor", version.ref = "disruptor" }
+sketches-core = { module = "com.yahoo.datasketches:sketches-core", version.ref = "sketches" }
+oshi = { module = "com.github.oshi:oshi-core", version.ref = "oshi" }
+json-smart = { module = "net.minidev:json-smart", version.ref = "json-smart" }
+spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs" }
+jspecify = { module = "org.jspecify:jspecify", version = "0.3.0" }
+joda-time = { module = "joda-time:joda-time", version.ref = "joda" }
+
+# Docker / Containers
+docker-java-core = { module = "com.github.docker-java:docker-java-core", version.ref = "docker-java" }
+docker-java-api = { module = "com.github.docker-java:docker-java-api", version.ref = "docker-java" }
+docker-java-transport-zerodep = { module = "com.github.docker-java:docker-java-transport-zerodep", version.ref = "docker-java" }
+
+# Kubernetes
+kubernetes-client = { module = "io.kubernetes:client-java", version.ref = "kubernetesclient" }
+
+# Servlet
+javax-servlet-api = { module = "javax.servlet:javax.servlet-api", version.ref = "javax-servlet-api" }
+
+# Test
+testng = { module = "org.testng:testng", version.ref = "testng" }
+mockito-core = { module = "org.mockito:mockito-core" }
+mockito-inline = { module = "org.mockito:mockito-inline" }
+hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
+awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj-core" }
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+restassured = { module = "io.rest-assured:rest-assured", version.ref = "restassured" }
+system-lambda = { module = "com.github.stefanbirkner:system-lambda", version.ref = "system-lambda" }
+jsonassert = { module = "org.skyscreamer:jsonassert", version.ref = "skyscreamer" }
+consolecaptor = { module = "io.github.hakky54:consolecaptor", version.ref = "consolecaptor" }
+wiremock = { module = "com.github.tomakehurst:wiremock-jre8", version.ref = "wiremock" }
+zstd-jni = { module = "com.github.luben:zstd-jni", version.ref = "zstd-jni" }
+lz4-java = { module = "at.yawk.lz4:lz4-java", version.ref = "lz4java" }
+
+# Lombok
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+
+# Kafka
+kafka-client = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka-client" }
+
+# Debezium
+debezium-core = { module = "io.debezium:debezium-core", version.ref = "debezium" }
+debezium-connector-mysql = { module = "io.debezium:debezium-connector-mysql", version.ref = "debezium" }
+debezium-connector-postgres = { module = "io.debezium:debezium-connector-postgres", version.ref = "debezium" }
+debezium-connector-mongodb = { module = "io.debezium:debezium-connector-mongodb", version.ref = "debezium" }
+debezium-connector-oracle = { module = "io.debezium:debezium-connector-oracle", version.ref = "debezium" }
+debezium-connector-sqlserver = { module = "io.debezium:debezium-connector-sqlserver", version.ref = "debezium" }
+
+[plugins]
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+protobuf = { id = "com.google.protobuf", version.ref = "protobuf-plugin" }

@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util.netty;
 
 import static org.testng.Assert.assertThrows;
 import com.google.common.io.Resources;
+import io.netty.handler.ssl.OpenSsl;
 import io.netty.handler.ssl.SslProvider;
 import java.util.HashSet;
 import java.util.Set;
@@ -127,6 +128,9 @@ public class SslContextTest {
     @Test(dataProvider = "caCertSslContextDataProvider")
     public void testServerCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws Exception {
+        if (sslProvider == SslProvider.OPENSSL && !OpenSsl.isAvailable()) {
+            throw new org.testng.SkipException("OpenSSL native library not available on this platform");
+        }
         try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
             PulsarSslConfiguration.PulsarSslConfigurationBuilder builder = PulsarSslConfiguration.builder()
                     .tlsTrustCertsFilePath(CA_CERT_PATH)
@@ -141,7 +145,8 @@ public class SslContextTest {
             pulsarSslFactory.initialize(pulsarSslConfiguration);
 
             if (ciphers != null) {
-                if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
+                if (sslProvider == SslProvider.OPENSSL
+                        || (sslProvider == null && OpenSsl.isAvailable())) {
                     assertThrows(SSLException.class, pulsarSslFactory::createInternalSslContext);
                     return;
                 }
@@ -153,6 +158,9 @@ public class SslContextTest {
     @Test(dataProvider = "caCertSslContextDataProvider")
     public void testClientCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws Exception {
+        if (sslProvider == SslProvider.OPENSSL && !OpenSsl.isAvailable()) {
+            throw new org.testng.SkipException("OpenSSL native library not available on this platform");
+        }
         try (PulsarSslFactory pulsarSslFactory = new DefaultPulsarSslFactory()) {
             PulsarSslConfiguration.PulsarSslConfigurationBuilder builder = PulsarSslConfiguration.builder()
                     .allowInsecureConnection(true)
@@ -164,7 +172,8 @@ public class SslContextTest {
             PulsarSslConfiguration pulsarSslConfiguration = builder.build();
             pulsarSslFactory.initialize(pulsarSslConfiguration);
             if (ciphers != null) {
-                if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
+                if (sslProvider == SslProvider.OPENSSL
+                        || (sslProvider == null && OpenSsl.isAvailable())) {
                     assertThrows(SSLException.class, pulsarSslFactory::createInternalSslContext);
                     return;
                 }

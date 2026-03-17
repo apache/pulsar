@@ -84,7 +84,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MAVEN_OPTS: -Xss1500k -Xmx2048m -XX:+UnlockDiagnosticVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:GCLockerRetryAllocationCount=100 -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+  GRADLE_OPTS: -Xss1500k -Xmx2048m -XX:+UnlockDiagnosticVMOptions -XX:+IgnoreUnrecognizedVMOptions -XX:GCLockerRetryAllocationCount=100
   # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
@@ -240,7 +240,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
@@ -252,14 +252,14 @@ jobs:
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Check source code license headers
-        run: mvn -B -T 8 -ntp initialize apache-rat:check license:check
+        run: ./gradlew rat --no-daemon
 
       - name: Check source code style
-        run: mvn -B -T 8 -ntp initialize checkstyle:check
+        run: ./gradlew checkstyle --no-daemon
 
       - name: Build core-modules
         run: |
-          mvn -B -T 1C -ntp -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true -Drat.skip=true -Dcheckstyle.skip=true
+          ./gradlew build -x test --no-daemon --parallel
 
       - name: Check binary licenses
         run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
@@ -365,7 +365,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
@@ -486,7 +486,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
@@ -576,7 +576,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
@@ -603,7 +603,7 @@ jobs:
       - name: Build java-test-image ${{ matrix.base.type }} docker image - ${{ matrix.platform }}
         run: |
           # build docker image
-          DOCKER_CLI_EXPERIMENTAL=enabled mvn -B -am -pl docker/pulsar,tests/docker-images/java-test-image install -Pcore-modules,-main,integrationTests,docker \
+          DOCKER_CLI_EXPERIMENTAL=enabled ./gradlew :docker:build -Pdocker -PintegrationTests --no-daemon \
           -Ddocker.platforms=${{ matrix.platform }} ${{ matrix.base.additional_build_args }} \
           -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true \
           -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
@@ -709,7 +709,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
@@ -843,7 +843,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
@@ -964,7 +964,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
@@ -988,7 +988,7 @@ jobs:
         run: |
           # build docker image
           # include building of Connectors, Offloaders and server distros
-          DOCKER_CLI_EXPERIMENTAL=enabled mvn -B -am -pl distribution/io,distribution/offloaders,distribution/server,distribution/shell,tests/docker-images/latest-version-image install \
+          DOCKER_CLI_EXPERIMENTAL=enabled ./gradlew :distribution:server:assembleDist :distribution:shell:assembleDist :distribution:io:collectNars :distribution:offloaders:collectOffloaders --no-daemon \
           -Pmain,docker -Dmaven.test.skip=true ${{ matrix.base.additional_build_args }} \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
@@ -1118,7 +1118,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
@@ -1247,7 +1247,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
@@ -1353,7 +1353,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
@@ -1490,7 +1490,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-all-
@@ -1502,7 +1502,7 @@ jobs:
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: build package
-        run: mvn -B clean package -DskipTests -T 1C -ntp
+        run: ./gradlew build -x test --no-daemon --parallel
 
   codeql:
     name: Run CodeQL Analysis
@@ -1543,7 +1543,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
@@ -1562,7 +1562,7 @@ jobs:
 
       - name: Build Java code
         run: |
-          mvn -B -ntp -Pcore-modules,-main install -DskipTests -Dlicense.skip=true -Drat.skip=true -Dcheckstyle.skip=true
+          ./gradlew build -x test --no-daemon --parallel
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
@@ -1600,7 +1600,7 @@ jobs:
         with:
           path: |
             ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
+            !~/.gradle/caches/modules-2/files-2.1/org.apache.pulsar
           key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
@@ -1648,7 +1648,7 @@ jobs:
       - name: trigger dependency check
         if: ${{ steps.restore-owasp-dependency-check-data.outputs.cache-matched-key }}
         run: |
-          mvn -B -ntp verify -PskipDocker,skip-all,owasp-dependency-check -Dcheckstyle.skip=true -DskipTests \
+          ./gradlew dependencyCheckAnalyze --no-daemon \
             -pl '!distribution/server,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/hbase,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
 
       - name: Upload report
