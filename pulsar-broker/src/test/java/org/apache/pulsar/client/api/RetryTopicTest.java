@@ -30,14 +30,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.Data;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.reflect.Nullable;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -914,7 +912,8 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         // don't enforce schema validation
         admin.namespaces().setSchemaValidationEnforced(getNamespace(), false);
         // set schema compatibility strategy to always compatible
-        admin.namespaces().setSchemaCompatibilityStrategy(getNamespace(), SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin.namespaces()
+                .setSchemaCompatibilityStrategy(getNamespace(), SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         Schema<Payload> schema = Schema.AVRO(Payload.class);
         Schema<PayloadIncompatible> schemaIncompatible = Schema.AVRO(
