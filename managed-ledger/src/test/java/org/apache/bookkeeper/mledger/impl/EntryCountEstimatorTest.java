@@ -236,7 +236,8 @@ public class EntryCountEstimatorTest {
         long secondLastLedgerId = ledgersInfo.lowerKey(lastLedgerId);
         ManagedLedgerInfo.LedgerInfo secondLastLedgerInfo = ledgersInfo.get(secondLastLedgerId);
         // make the second last ledger empty
-        ledgersInfo.put(secondLastLedgerId, new ManagedLedgerInfo.LedgerInfo().copyFrom(secondLastLedgerInfo).setEntries(0).setSize(0));
+        ledgersInfo.put(secondLastLedgerId,
+                new ManagedLedgerInfo.LedgerInfo().copyFrom(secondLastLedgerInfo).setEntries(0).setSize(0));
         lastLedgerTotalEntries = 0;
         lastLedgerTotalSize = 0;
         long expectedEntries = 50;
