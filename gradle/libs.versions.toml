@@ -111,7 +111,7 @@ jclouds = "2.6.0"
 hadoop3 = "3.4.2"
 hbase = "2.6.3-hadoop3"
 jetcd = "0.7.7"
-oxia = "0.7.2"
+oxia = "0.7.4"
 kubernetesclient = "23.0.0"
 confluent = "7.9.2"
 

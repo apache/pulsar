@@ -25,6 +25,8 @@ description = "Pulsar Client Admin API"
 
 dependencies {
     api(project(":pulsar-client-api"))
+    implementation(platform(libs.jackson.bom))
+    implementation("com.fasterxml.jackson.core:jackson-annotations")
     implementation(libs.slf4j.api)
     testImplementation(project(":buildtools"))
 }
