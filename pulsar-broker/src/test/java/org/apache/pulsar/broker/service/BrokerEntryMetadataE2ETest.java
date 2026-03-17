@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
