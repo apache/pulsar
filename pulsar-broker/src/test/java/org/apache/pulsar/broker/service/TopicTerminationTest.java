@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderListener;
@@ -98,9 +99,17 @@ public class TopicTerminationTest extends SharedPulsarBaseTest {
         }
     }
 
+    @Test(groups = "broker")
     public void testCreatingProducerTasksCleanupWhenOnTerminatedTopic() throws Exception {
         String topicName = newTopicName();
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+        // Use a dedicated PulsarClient so that the timer is not shared with other tests.
+        // The original test asserted timer.pendingTimeouts() == 0, which is unreliable
+        // when using the shared pulsarClient because other tests' producers/consumers
+        // may leave pending timeouts in the shared HashedWheelTimer.
+        @Cleanup
+        PulsarClient client = newPulsarClient();
+
+        Producer<byte[]> producer = client.newProducer().topic(topicName)
                 .enableBatching(false)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
@@ -114,12 +123,12 @@ public class TopicTerminationTest extends SharedPulsarBaseTest {
         producer.close();
 
         try {
-            pulsarClient.newProducer().topic(topicName).create();
+            client.newProducer().topic(topicName).create();
             fail("Should have thrown exception");
         } catch (PulsarClientException.TopicTerminatedException e) {
             // Expected
         }
-        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) pulsarClient).timer();
+        HashedWheelTimer timer = (HashedWheelTimer) ((PulsarClientImpl) client).timer();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(timer.pendingTimeouts(), 0));
     }
 
