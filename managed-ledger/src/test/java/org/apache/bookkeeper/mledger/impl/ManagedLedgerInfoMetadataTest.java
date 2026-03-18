@@ -116,14 +116,14 @@ public class ManagedLedgerInfoMetadataTest {
         // parse compression data and unCompression data, check their results.
         ManagedLedgerInfo info1 = metaStore.parseManagedLedgerInfo(compressionBytes);
         ManagedLedgerInfo info2 = metaStore.parseManagedLedgerInfo(managedLedgerInfo.toByteArray());
-        Assert.assertEquals(info1, info2);
+        Assert.assertEquals(info1.toByteArray(), info2.toByteArray());
     }
 
     @Test
     public void testParseEmptyData() throws Exception {
         MetaStoreImpl metaStore = new MetaStoreImpl(null, null);
         ManagedLedgerInfo managedLedgerInfo = metaStore.parseManagedLedgerInfo(new byte[0]);
-        Assert.assertEquals(managedLedgerInfo.toString(), "");
+        Assert.assertEquals(managedLedgerInfo.toByteArray(), new byte[0]);
     }
 
     @Test(dataProvider = "compressionTypeProvider")

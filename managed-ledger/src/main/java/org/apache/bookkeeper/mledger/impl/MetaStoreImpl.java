@@ -470,6 +470,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 try {
                     ManagedLedgerInfo info = new ManagedLedgerInfo();
                     info.parseFrom(uncompressed, uncompressed.readableBytes());
+                    info.materialize();
                     return info;
                 } finally {
                     uncompressed.release();
