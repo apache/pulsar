@@ -74,9 +74,31 @@ public interface ManagedCursor {
 
     /**
      * Update the last active time of the cursor.
+     * @Deprecated call {@link #updateLastActive(boolean)} instead/
+     */
+    @Deprecated
+    void updateLastActive();
+
+    /**
+     * Update the last active time of the cursor.
+     * @param active when update latest active time, the subscription is not active(in other words, all consumers are
+     *              unregistered), please set the value to "false".
      *
      */
-    void updateLastActive();
+    default CompletableFuture<Void> updateLastActive(boolean active) {
+        updateLastActive();
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Get the last active time or inactive time of the cursor.
+     *
+     * @return If the value is negative, it indicates the last inactive time and has not been active since then.
+     *     If the value is positive, it indicates the last active time (the last time delete was called, markDelete).
+     */
+    default long getLastActiveOrInActive() {
+        return getLastActive();
+    }
 
     /**
      * Return any properties that were associated with the last stored position.
