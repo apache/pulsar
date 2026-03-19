@@ -187,5 +187,11 @@
         </plugins>
       </build>
     </profile>
+    <profile>
+      <id>docker-wolfi</id>
+      <properties>
+        <docker.golang.image>golang:1.24</docker.golang.image>
+      </properties>
+    </profile>
   </profiles>
 </project>
