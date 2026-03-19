@@ -219,8 +219,14 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
         }
         //consumed ledger should be cleaned
         admin.topics().trimTopic(partitionedTopic);
+        // After trimming, the managed ledger should have at most 2 ledgers remaining:
+        // - The ledger containing the last confirmed entry (cannot be trimmed)
+        // - Possibly an empty active ledger if the last write caused a rollover
+        //   (when maxEntriesPerLedger is reached, a new empty ledger is created)
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1));
+                Assert.assertTrue(managedLedger.getLedgersInfoAsList().size() <= 2,
+                        "Expected at most 2 ledgers after trim, but found "
+                                + managedLedger.getLedgersInfoAsList().size()));
 
     }
 
