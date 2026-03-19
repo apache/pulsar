@@ -40,7 +40,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * An implementation of the {@link KubernetesManifestCustomizer} that allows
@@ -105,7 +105,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     }
 
     @Override
-    public String customizeNamespace(Function.FunctionDetails funcDetails, String currentNamespace) {
+    public String customizeNamespace(FunctionDetails funcDetails, String currentNamespace) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);
         opts = mergeRuntimeOpts(runtimeOpts, opts);
         if (!StringUtils.isEmpty(opts.getJobNamespace())) {
@@ -116,7 +116,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     }
 
     @Override
-    public String customizeName(Function.FunctionDetails funcDetails, String currentName) {
+    public String customizeName(FunctionDetails funcDetails, String currentName) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);
         opts = mergeRuntimeOpts(runtimeOpts, opts);
         if (!StringUtils.isEmpty(opts.getJobName())) {
@@ -127,7 +127,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     }
 
     @Override
-    public V1Service customizeService(Function.FunctionDetails funcDetails, V1Service service) {
+    public V1Service customizeService(FunctionDetails funcDetails, V1Service service) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);
         opts = mergeRuntimeOpts(runtimeOpts, opts);
         service.setMetadata(updateMeta(opts, service.getMetadata()));
@@ -135,7 +135,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     }
 
     @Override
-    public V1StatefulSet customizeStatefulSet(Function.FunctionDetails funcDetails, V1StatefulSet statefulSet) {
+    public V1StatefulSet customizeStatefulSet(FunctionDetails funcDetails, V1StatefulSet statefulSet) {
         RuntimeOpts opts = mergeRuntimeOpts(runtimeOpts, getOptsFromDetails(funcDetails));
         statefulSet.setMetadata(updateMeta(opts, statefulSet.getMetadata()));
         V1PodTemplateSpec pt = statefulSet.getSpec().getTemplate();
@@ -170,7 +170,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         }
     }
 
-    private RuntimeOpts getOptsFromDetails(Function.FunctionDetails funcDetails) {
+    private RuntimeOpts getOptsFromDetails(FunctionDetails funcDetails) {
         String customRuntimeOptions = funcDetails.getCustomRuntimeOptions();
         RuntimeOpts opts = new Gson().fromJson(customRuntimeOptions, RuntimeOpts.class);
         // ensure that we always have at least the default

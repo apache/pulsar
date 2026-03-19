@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
@@ -57,9 +56,11 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails.ComponentType;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.FunctionState;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -684,13 +685,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
             log.info("Received assignment delete: {}", msg.getKey());
             deleteAssignment(msg.getKey());
         } else {
-            Assignment assignment;
-            try {
-                assignment = Assignment.parseFrom(msg.getData());
-            } catch (IOException e) {
-                log.error("[{}] Received bad assignment update at message {}", msg.getMessageId(), e);
-                throw new RuntimeException(e);
-            }
+            Assignment assignment = new Assignment();
+            assignment.parseFrom(msg.getData());
             log.info("Received assignment update: {}", assignment);
             processAssignment(assignment);
         }
@@ -807,7 +803,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
     public synchronized void deleteAssignment(String fullyQualifiedInstanceId) {
         FunctionRuntimeInfo functionRuntimeInfo = get_FunctionRuntimeInfo(fullyQualifiedInstanceId);
         if (functionRuntimeInfo != null) {
-            Function.FunctionDetails functionDetails = functionRuntimeInfo
+            FunctionDetails functionDetails = functionRuntimeInfo
                     .getFunctionInstance().getFunctionMetaData().getFunctionDetails();
 
             // check if this is part of a function delete operation or update operation
@@ -961,22 +957,28 @@ public class FunctionRuntimeManager implements AutoCloseable {
 
     private boolean needsStart(Assignment assignment) {
         boolean toStart = false;
-        Function.FunctionMetaData functionMetaData = assignment.getInstance().getFunctionMetaData();
-        if (functionMetaData.getInstanceStatesMap() == null || functionMetaData.getInstanceStatesMap().isEmpty()) {
+        FunctionMetaData functionMetaData = assignment.getInstance().getFunctionMetaData();
+        if (functionMetaData.getInstanceStatesCount() == 0) {
             toStart = true;
         } else {
             if (assignment.getInstance().getInstanceId() < 0) {
                 // for externally managed functions, insert the start only if there is atleast one
                 // instance that needs to be started
-                for (Function.FunctionState state : functionMetaData.getInstanceStatesMap().values()) {
-                    if (state == Function.FunctionState.RUNNING) {
-                        toStart = true;
-                        break;
+                final boolean[] found = {false};
+                functionMetaData.forEachInstanceStates((key, state) -> {
+                    if (state == FunctionState.RUNNING) {
+                        found[0] = true;
                     }
-                }
+                });
+                toStart = found[0];
             } else {
-                if (functionMetaData.getInstanceStatesOrDefault(assignment.getInstance().getInstanceId(),
-                        Function.FunctionState.RUNNING) == Function.FunctionState.RUNNING) {
+                FunctionState state;
+                try {
+                    state = functionMetaData.getInstanceStates(assignment.getInstance().getInstanceId());
+                } catch (IllegalArgumentException e) {
+                    state = FunctionState.RUNNING;
+                }
+                if (state == FunctionState.RUNNING) {
                     toStart = true;
                 }
             }

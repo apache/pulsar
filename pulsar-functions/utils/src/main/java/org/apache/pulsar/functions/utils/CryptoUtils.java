@@ -24,44 +24,46 @@ import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.CryptoSpec;
 
 public final class CryptoUtils {
 
-    public static Function.CryptoSpec convert(CryptoConfig config) {
-        Function.CryptoSpec.Builder bldr = Function.CryptoSpec.newBuilder()
+    public static CryptoSpec convert(CryptoConfig config) {
+        CryptoSpec cryptoSpec = new CryptoSpec()
                 .setCryptoKeyReaderClassName(config.getCryptoKeyReaderClassName());
 
         if (config.getCryptoKeyReaderConfig() != null) {
             Type type = new TypeToken<Map<String, Object>>() {
             }.getType();
             String readerConfigString = new Gson().toJson(config.getCryptoKeyReaderConfig(), type);
-            bldr.setCryptoKeyReaderConfig(readerConfigString);
+            cryptoSpec.setCryptoKeyReaderConfig(readerConfigString);
         }
 
         if (config.getEncryptionKeys() != null && config.getEncryptionKeys().length > 0) {
-            bldr.addAllProducerEncryptionKeyName(Arrays.asList(config.getEncryptionKeys()));
+            cryptoSpec.addAllProducerEncryptionKeyNames(Arrays.asList(config.getEncryptionKeys()));
         }
 
         if (config.getProducerCryptoFailureAction() != null) {
-            bldr.setProducerCryptoFailureAction(getProtoFailureAction(config.getProducerCryptoFailureAction()));
+            cryptoSpec.setProducerCryptoFailureAction(getProtoFailureAction(config.getProducerCryptoFailureAction()));
         }
 
         if (config.getConsumerCryptoFailureAction() != null) {
-            bldr.setConsumerCryptoFailureAction(getProtoFailureAction(config.getConsumerCryptoFailureAction()));
+            cryptoSpec.setConsumerCryptoFailureAction(getProtoFailureAction(config.getConsumerCryptoFailureAction()));
         }
 
-        return bldr.build();
+        return cryptoSpec;
     }
 
-    public static CryptoConfig convertFromSpec(Function.CryptoSpec spec) {
+    public static CryptoConfig convertFromSpec(CryptoSpec spec) {
         if (spec == null || isEmpty(spec.getCryptoKeyReaderClassName())) {
             return null;
         }
@@ -72,11 +74,16 @@ public final class CryptoUtils {
         }.getType();
         Map<String, Object> cryptoReaderConfig = new Gson().fromJson(spec.getCryptoKeyReaderConfig(), type);
 
+        List<String> keyNames = new ArrayList<>();
+        for (int i = 0; i < spec.getProducerEncryptionKeyNamesCount(); i++) {
+            keyNames.add(spec.getProducerEncryptionKeyNameAt(i));
+        }
+
         bldr.cryptoKeyReaderClassName(spec.getCryptoKeyReaderClassName())
                 .cryptoKeyReaderConfig(cryptoReaderConfig)
                 .consumerCryptoFailureAction(getConsumerCryptoFailureAction(spec.getConsumerCryptoFailureAction()))
                 .producerCryptoFailureAction(getProducerCryptoFailureAction(spec.getProducerCryptoFailureAction()))
-                .encryptionKeys(spec.getProducerEncryptionKeyNameList().toArray(new String[0]));
+                .encryptionKeys(keyNames.toArray(new String[0]));
 
         return bldr.build();
     }
@@ -101,7 +108,7 @@ public final class CryptoUtils {
         }
     }
 
-    public static ProducerCryptoFailureAction getProducerCryptoFailureAction(Function.CryptoSpec.FailureAction action) {
+    public static ProducerCryptoFailureAction getProducerCryptoFailureAction(CryptoSpec.FailureAction action) {
         switch (action) {
             case FAIL:
                 return ProducerCryptoFailureAction.FAIL;
@@ -109,11 +116,11 @@ public final class CryptoUtils {
                 return ProducerCryptoFailureAction.SEND;
             default:
                 throw new RuntimeException(
-                        "Unknown producer protobuf failure action " + action.getValueDescriptor().getName());
+                        "Unknown producer protobuf failure action " + action.name());
         }
     }
 
-    public static ConsumerCryptoFailureAction getConsumerCryptoFailureAction(Function.CryptoSpec.FailureAction action) {
+    public static ConsumerCryptoFailureAction getConsumerCryptoFailureAction(CryptoSpec.FailureAction action) {
         switch (action) {
             case FAIL:
                 return ConsumerCryptoFailureAction.FAIL;
@@ -123,29 +130,29 @@ public final class CryptoUtils {
                 return ConsumerCryptoFailureAction.CONSUME;
             default:
                 throw new RuntimeException(
-                        "Unknown consumer protobuf failure action " + action.getValueDescriptor().getName());
+                        "Unknown consumer protobuf failure action " + action.name());
         }
     }
 
-    public static Function.CryptoSpec.FailureAction getProtoFailureAction(ProducerCryptoFailureAction action) {
+    public static CryptoSpec.FailureAction getProtoFailureAction(ProducerCryptoFailureAction action) {
         switch (action) {
             case FAIL:
-                return Function.CryptoSpec.FailureAction.FAIL;
+                return CryptoSpec.FailureAction.FAIL;
             case SEND:
-                return Function.CryptoSpec.FailureAction.SEND;
+                return CryptoSpec.FailureAction.SEND;
             default:
                 throw new RuntimeException("Unknown producer crypto failure action " + action);
         }
     }
 
-    public static Function.CryptoSpec.FailureAction getProtoFailureAction(ConsumerCryptoFailureAction action) {
+    public static CryptoSpec.FailureAction getProtoFailureAction(ConsumerCryptoFailureAction action) {
         switch (action) {
             case FAIL:
-                return Function.CryptoSpec.FailureAction.FAIL;
+                return CryptoSpec.FailureAction.FAIL;
             case DISCARD:
-                return Function.CryptoSpec.FailureAction.DISCARD;
+                return CryptoSpec.FailureAction.DISCARD;
             case CONSUME:
-                return Function.CryptoSpec.FailureAction.CONSUME;
+                return CryptoSpec.FailureAction.CONSUME;
             default:
                 throw new RuntimeException("Unknown consumer crypto failure action " + action);
         }
