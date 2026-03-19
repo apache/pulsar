@@ -38,6 +38,8 @@ public class PersistentTopicTerminateTest extends SharedPulsarBaseTest {
     public void testRecoverAfterTerminate() throws Exception {
         final String topicName = newTopicName();
         final String subscriptionName = "s1";
+        // Disable dedup so that the pulsar.dedup cursor doesn't prevent ledger trimming.
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
 
@@ -64,7 +66,8 @@ public class PersistentTopicTerminateTest extends SharedPulsarBaseTest {
         assertEquals(msg2.getValue(), "2");
 
         // Verify: the ledgers acked will be cleaned up.
-        consumer.acknowledgeCumulative(msg2);
+        consumer.close();
+        admin.topics().skipAllMessages(topicName, subscriptionName);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             PersistentTopic persistentTopic =
                     (PersistentTopic) getTopic(topicName, false).join().get();
@@ -76,7 +79,6 @@ public class PersistentTopicTerminateTest extends SharedPulsarBaseTest {
         });
 
         // Cleanup.
-        consumer.close();
         admin.topics().delete(topicName, false);
     }
 }
