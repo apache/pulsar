@@ -1283,7 +1283,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
         CompletableFuture<Consumer> existingConsumerFuture =
                 consumers.putIfAbsent(consumerId, consumerFuture);
-        isAuthorizedFuture.thenApply(isAuthorized -> {
+        isAuthorizedFuture.thenApplyAsync(isAuthorized -> {
             if (isAuthorized) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Client is authorized to subscribe with role {}",
@@ -1415,7 +1415,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         }
                                     });
                         })
-                        .thenAccept(consumer -> {
+                        .thenAcceptAsync(consumer -> {
                             if (consumer.checkAndApplyTopicMigration()) {
                                 log.info("[{}] Disconnecting consumer {} on migrated subscription on topic {} / {}",
                                         remoteAddress, consumerId, subscriptionName, topicName);
@@ -1449,8 +1449,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 consumers.remove(consumerId, consumerFuture);
                             }
 
-                        })
-                        .exceptionally(exception -> {
+                        }, ctx.executor())
+                        .exceptionallyAsync(exception -> {
                             if (exception.getCause() instanceof ConsumerBusyException) {
                                 if (log.isDebugEnabled()) {
                                     log.debug(
@@ -1498,7 +1498,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                             return null;
 
-                        });
+                        }, ctx.executor());
             } else {
                 String msg = "Client is not authorized to subscribe";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
@@ -1506,12 +1506,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
             return null;
-        }).exceptionally(ex -> {
+        }, ctx.executor()).exceptionallyAsync(ex -> {
             logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
             consumers.remove(consumerId, consumerFuture);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
-        });
+        }, ctx.executor());
     }
 
     private SchemaData getSchema(Schema protocolSchema) {
@@ -1567,7 +1567,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             (canProduce, canSubscribe) -> canProduce && canSubscribe);
         }
 
-        isAuthorizedFuture.thenApply(isAuthorized -> {
+        isAuthorizedFuture.thenApplyAsync(isAuthorized -> {
             if (!isAuthorized) {
                 String msg = "Client is not authorized to Produce";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
@@ -1614,7 +1614,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         topicName, producerId, producerName, schema == null ? "absent" : "present");
             }
 
-            service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
+            service.getOrCreateTopic(topicName.toString()).thenComposeAsync((Topic topic) -> {
                 // Check max producer limitation to avoid unnecessary ops wasting resources. For example: the new
                 // producer reached max producer limitation, but pulsar did schema check first, it would waste CPU
                 if (((AbstractTopic) topic).isProducersExceeded(producerName)) {
@@ -1630,7 +1630,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         topic.checkBacklogQuotaExceeded(producerName, BacklogQuotaType.destination_storage),
                         topic.checkBacklogQuotaExceeded(producerName, BacklogQuotaType.message_age));
 
-                backlogQuotaCheckFuture.thenRun(() -> {
+                backlogQuotaCheckFuture.thenRunAsync(() -> {
                     // Check whether the producer will publish encrypted messages or not
                     if ((topic.isEncryptionRequired() || encryptionRequireOnProducer)
                             && !isEncrypted
@@ -1648,7 +1648,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                     CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
 
-                    schemaVersionFuture.exceptionally(exception -> {
+                    schemaVersionFuture.exceptionallyAsync(exception -> {
                         if (producerFuture.completeExceptionally(exception)) {
                             String message = exception.getMessage();
                             if (exception.getCause() != null) {
@@ -1672,9 +1672,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         }
                         producers.remove(producerId, producerFuture);
                         return null;
-                    });
+                    }, ctx.executor());
 
-                    schemaVersionFuture.thenAccept(schemaVersion -> {
+                    schemaVersionFuture.thenAcceptAsync(schemaVersion -> {
                         CompletionStage<Subscription> createInitSubFuture;
                         if (!Strings.isNullOrEmpty(initialSubscriptionName)
                                 && topic.isPersistent()
@@ -1694,7 +1694,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             createInitSubFuture = CompletableFuture.completedFuture(null);
                         }
 
-                        createInitSubFuture.whenComplete((sub, ex) -> {
+                        createInitSubFuture.whenCompleteAsync((sub, ex) -> {
                             if (ex != null) {
                                 final Throwable rc = FutureUtil.unwrapCompletionException(ex);
                                 if (rc instanceof BrokerServiceException.NotAllowedException) {
@@ -1722,11 +1722,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
                                     metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
                                     producerAccessMode, topicEpoch, supportsPartialProducer, producerFuture);
-                        });
-                    });
-                });
+                        }, ctx.executor());
+                    }, ctx.executor());
+                }, ctx.executor());
                 return backlogQuotaCheckFuture;
-            }).exceptionally(exception -> {
+            }, ctx.executor()).exceptionallyAsync(exception -> {
                 Throwable cause = exception.getCause();
                 if (cause instanceof BrokerServiceException.TopicBacklogQuotaExceededException) {
                     BrokerServiceException.TopicBacklogQuotaExceededException tbqe =
@@ -1785,13 +1785,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
                 producers.remove(producerId, producerFuture);
                 return null;
-            });
+            }, ctx.executor());
             return null;
-        }).exceptionally(ex -> {
+        }, ctx.executor()).exceptionallyAsync(ex -> {
             logAuthException(remoteAddress, "producer", getPrincipal(), Optional.of(topicName), ex);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
-        });
+        }, ctx.executor());
     }
 
     private void buildProducerAndAddTopic(Topic topic, long producerId, String producerName, long requestId,
@@ -1805,7 +1805,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
                 userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer);
 
-        topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
+        topic.addProducer(producer, producerQueuedFuture).thenAcceptAsync(newTopicEpoch -> {
             if (isActive()) {
                 if (producerFuture.complete(producer)) {
                     log.info("[{}] Created new producer: {}, role: {}", remoteAddress, producer, getPrincipal());
@@ -1838,7 +1838,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
 
             producers.remove(producerId, producerFuture);
-        }).exceptionallyAsync(ex -> {
+        }, ctx.executor()).exceptionallyAsync(ex -> {
             if (ex.getCause() instanceof BrokerServiceException.TopicMigratedException) {
                 Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar(), topic.getName());
                 if (clusterURL.isPresent()) {
@@ -1881,7 +1881,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return null;
         }, ctx.executor());
 
-        producerQueuedFuture.thenRun(() -> {
+        producerQueuedFuture.thenRunAsync(() -> {
             // If the producer is queued waiting, we will get an immediate notification
             // that we need to pass to client
             if (isActive()) {
@@ -1894,7 +1894,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             producerCreated(this, producer, metadata);
                 }
             }
-        });
+        }, ctx.executor());
     }
     @Override
     protected void handleSend(CommandSend send, ByteBuf headersAndPayload) {
@@ -2224,7 +2224,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         log.info("[{}][{}] Closing producer on cnx {}. producerId={}",
                  producer.getTopic(), producer.getProducerName(), remoteAddress, producerId);
 
-        producer.close(true).thenAccept(v -> {
+        producer.close(true).thenAcceptAsync(v -> {
             log.info("[{}][{}] Closed producer on cnx {}. producerId={}",
                      producer.getTopic(), producer.getProducerName(),
                      remoteAddress, producerId);
@@ -2233,7 +2233,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (brokerInterceptor != null) {
                 brokerInterceptor.producerClosed(this, producer, producer.getMetadata());
             }
-        });
+        }, ctx.executor());
     }
 
     @Override
@@ -3423,11 +3423,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         CompletableFuture<Producer> future = producers.get(producerId);
         if (future != null) {
-            future.whenComplete((producer2, exception) -> {
+            future.whenCompleteAsync((producer2, exception) -> {
                     if (exception != null || producer2 == producer) {
                         producers.remove(producerId, future);
                     }
-                });
+                }, ctx.executor());
         }
     }
 
@@ -3438,11 +3438,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         CompletableFuture<Consumer> future = consumers.get(consumerId);
         if (future != null) {
-            future.whenComplete((consumer2, exception) -> {
+            future.whenCompleteAsync((consumer2, exception) -> {
                     if (exception != null || consumer2 == consumer) {
                         consumers.remove(consumerId, future);
                     }
-                });
+                }, ctx.executor());
         }
     }
 
