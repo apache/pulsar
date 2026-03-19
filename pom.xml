@@ -234,7 +234,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.5.0</aerospike-client.version>
-    <kafka-client.version>3.9.1</kafka-client.version>
+    <kafka-client.version>4.1.1</kafka-client.version>
     <rabbitmq-client.version>5.28.0</rabbitmq-client.version>
     <aws-sdk.version>1.12.788</aws-sdk.version>
     <aws-sdk2.version>2.32.28</aws-sdk2.version>
@@ -243,14 +243,14 @@ flexible messaging model and an intuitive client API.</description>
     <jclouds.version>2.6.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.47.1.0</sqlite-jdbc.version>
-    <postgresql-jdbc.version>42.7.7</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.7.10</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>3.5.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <json-smart.version>2.5.2</json-smart.version>
     <opensearch.version>2.19.4</opensearch.version>
     <elasticsearch-java.version>8.15.3</elasticsearch-java.version>
-    <debezium.version>3.2.5.Final</debezium.version>
+    <debezium.version>3.4.2.Final</debezium.version>
     <debezium.postgresql.version>${postgresql-jdbc.version}</debezium.postgresql.version>
     <debezium.mysql.version>9.4.0</debezium.mysql.version>
     <jsonwebtoken.version>0.13.0</jsonwebtoken.version>
@@ -261,7 +261,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbase.version>2.6.3-hadoop3</hbase.version>
     <guava.version>33.4.8-jre</guava.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
-    <confluent.version>7.9.2</confluent.version>
+    <confluent.version>8.1.1</confluent.version>
     <aircompressor.version>2.0.3</aircompressor.version>
     <asynchttpclient.version>2.12.4</asynchttpclient.version>
     <commons-lang3.version>3.19.0</commons-lang3.version>

@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
@@ -247,6 +248,16 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBuilder.clone().consumerName("consumer-1").subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("consumer-2").subscribe();
+
+        // Wait for failover consumer assignment to settle so consumer-1 is the active consumer
+        Awaitility.await().untilAsserted(() -> {
+            Subscription sub = topicRef.getSubscription(subscriptionName);
+            assertNotNull(sub);
+            AbstractDispatcherSingleActiveConsumer dispatcher =
+                    (AbstractDispatcherSingleActiveConsumer) sub.getDispatcher();
+            assertEquals(dispatcher.getConsumers().size(), 2);
+            assertEquals(dispatcher.getActiveConsumer().consumerName(), "consumer-1");
+        });
 
         // 3. Producer publishes messages
         for (int i = 0; i < totalMessages; i++) {

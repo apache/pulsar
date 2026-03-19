@@ -83,37 +83,26 @@ public class DebeziumMySqlSourceTester extends SourceTester<DebeziumMySQLContain
 
     @Override
     public void prepareInsertEvent() throws Exception {
-        this.debeziumMySqlContainer.execCmd(
-                "/bin/bash", "-c",
-                "mysql -h 127.0.0.1 -u root -pdebezium -e 'SELECT * FROM inventory.products'");
-        this.debeziumMySqlContainer.execCmd(
-                "/bin/bash", "-c",
-                "mysql -h 127.0.0.1 -u root -pdebezium "
-                        + "-e \"INSERT INTO inventory.products(name, description, weight) "
-                        + "values('test-debezium', 'This is description', 2.0)\"");
+        executeSql("SELECT * FROM inventory.products");
+        executeSql("INSERT INTO inventory.products(name, description, weight) "
+                + "values('test-debezium', 'This is description', 2.0)");
+    }
+
+    private void executeSql(String sqlStatement) throws Exception {
+        this.debeziumMySqlContainer.execCmd("mysql", "-u", "root", "-pdebezium", "-e", sqlStatement);
     }
 
     @Override
     public void prepareUpdateEvent() throws Exception {
-        this.debeziumMySqlContainer.execCmd(
-                "/bin/bash", "-c",
-                "mysql -h 127.0.0.1 -u root -pdebezium "
-                        + "-e \"UPDATE inventory.products set description='update description', weight=10 "
-                        + "WHERE name='test-debezium'\"");
+        executeSql("UPDATE inventory.products set description='update description', weight=10 "
+                + "WHERE name='test-debezium'");
     }
 
     @Override
     public void prepareDeleteEvent() throws Exception {
-        this.debeziumMySqlContainer.execCmd(
-                "/bin/bash", "-c",
-                "mysql -h 127.0.0.1 -u root -pdebezium -e 'SELECT * FROM inventory.products'");
-        this.debeziumMySqlContainer.execCmd(
-                "/bin/bash", "-c",
-                "mysql -h 127.0.0.1 -u root -pdebezium "
-                        + "-e \"DELETE FROM inventory.products WHERE name='test-debezium'\"");
-        this.debeziumMySqlContainer.execCmd(
-                "/bin/bash", "-c",
-                "mysql -h 127.0.0.1 -u root -pdebezium -e 'SELECT * FROM inventory.products'");
+        executeSql("SELECT * FROM inventory.products");
+        executeSql("DELETE FROM inventory.products WHERE name='test-debezium'");
+        executeSql("SELECT * FROM inventory.products");
     }
 
 

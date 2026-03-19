@@ -23,6 +23,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
@@ -63,8 +64,46 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
 
     @Override
     public void prepareSource() throws Exception {
+        waitForMongoDbReady();
         this.debeziumMongoDbContainer.execCmd("bash", "-c", "/usr/local/bin/init-inventory.sh");
-        log.info("debezium mongodb server already contains preconfigured data.");
+        waitForReplicaSetPrimary();
+    }
+
+    private void waitForMongoDbReady() throws Exception {
+        log.info("Waiting for MongoDB to be ready...");
+        for (int i = 0; i < 50; i++) {
+            try {
+                ContainerExecResult result = this.debeziumMongoDbContainer.execCmd(
+                        "/bin/bash", "-c",
+                        "mongosh --quiet --eval \"db.adminCommand('ping').ok\" localhost:27017 | grep 1");
+                if (result.getExitCode() == 0) {
+                    log.info("MongoDB ready after {} seconds", i);
+                    return;
+                }
+            } catch (Exception e) {
+                log.debug("MongoDB readiness check attempt {} failed: {}", i + 1, e.getMessage());
+            }
+            Thread.sleep(1000);
+        }
+        throw new RuntimeException("MongoDB not ready after 50 seconds");
+    }
+
+    private void waitForReplicaSetPrimary() throws Exception {
+        log.info("Waiting for MongoDB replica set primary to be ready...");
+        for (int i = 0; i < 60; i++) {
+            try {
+                ContainerExecResult result = this.debeziumMongoDbContainer.execCmd("/bin/bash", "-c",
+                        "mongosh --quiet --eval 'db.hello().isWritablePrimary' localhost:27017");
+                if (result.getStdout().trim().contains("true")) {
+                    log.info("MongoDB replica set primary ready after {} seconds", i);
+                    return;
+                }
+            } catch (Exception e) {
+                log.debug("MongoDB primary check attempt {} failed: {}", i + 1, e.getMessage());
+            }
+            Thread.sleep(1000);
+        }
+        throw new RuntimeException("MongoDB replica set primary not ready after 60 seconds");
     }
 
     @Override
