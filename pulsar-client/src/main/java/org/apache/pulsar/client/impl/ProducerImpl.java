@@ -1935,6 +1935,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     if (Commands.peerSupportJsonSchemaAvroFormat(cnx.getRemoteEndpointProtocolVersion())) {
                         schemaInfo = schema.getSchemaInfo();
                     } else if (schema instanceof JSONSchema) {
+                        // Deprecated (PIP-464): This backward-compatible path sends old Jackson JsonSchema
+                        // format to brokers below protocol v13 (Pulsar < 2.1). Scheduled for removal in a
+                        // future major release.
                         JSONSchema jsonSchema = (JSONSchema) schema;
                         schemaInfo = jsonSchema.getBackwardsCompatibleJsonSchemaInfo();
                     } else {
