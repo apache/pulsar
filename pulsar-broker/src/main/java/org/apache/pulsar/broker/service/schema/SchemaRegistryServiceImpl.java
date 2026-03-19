@@ -21,15 +21,12 @@ package org.apache.pulsar.broker.service.schema;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
-import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE;
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FORWARD_TRANSITIVE;
 import static org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy.FULL_TRANSITIVE;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,7 +46,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
-import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
+import org.apache.pulsar.broker.service.schema.proto.SchemaInfo;
 import org.apache.pulsar.broker.service.schema.validator.StructSchemaDataValidator;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -218,15 +215,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         }
                         return checkCompatibilityFuture.thenCompose(v -> {
                             byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
-                            SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
+                            SchemaInfo info = new SchemaInfo()
                                     .setType(Functions.convertFromDomainType(schema.getType()))
-                                    .setSchema(ByteString.copyFrom(schema.getData()))
+                                    .setSchema(schema.getData())
                                     .setSchemaId(schemaId)
                                     .setUser(schema.getUser())
                                     .setDeleted(false)
-                                    .setTimestamp(clock.millis())
-                                    .addAllProps(toPairs(schema.getProps()))
-                                    .build();
+                                    .setTimestamp(clock.millis());
+                            Functions.addProps(info, schema.getProps());
 
                             start.setValue(this.clock.millis());
                             return CompletableFuture.completedFuture(Pair.of(info.toByteArray(), context));
@@ -342,15 +338,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         this.stats.close();
     }
 
-    private SchemaRegistryFormat.SchemaInfo deleted(String schemaId, String user) {
-        return SchemaRegistryFormat.SchemaInfo.newBuilder()
+    private SchemaInfo deleted(String schemaId, String user) {
+        return new SchemaInfo()
             .setSchemaId(schemaId)
-            .setType(SchemaRegistryFormat.SchemaInfo.SchemaType.NONE)
-            .setSchema(ByteString.EMPTY)
+            .setType(SchemaInfo.SchemaType.NONE)
+            .setSchema(new byte[0])
             .setUser(user)
             .setDeleted(true)
-            .setTimestamp(clock.millis())
-            .build();
+            .setTimestamp(clock.millis());
     }
 
     private void checkCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,
@@ -602,60 +597,58 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     }
 
     interface Functions {
-        static SchemaType convertToDomainType(SchemaRegistryFormat.SchemaInfo.SchemaType type) {
-            if (type.getNumber() < 0) {
+        static SchemaType convertToDomainType(SchemaInfo.SchemaType type) {
+            if (type.getValue() < 0) {
                 return SchemaType.NONE;
             } else {
                 // the value of type in `SchemaType` is always 1 less than the value of type `SchemaInfo.SchemaType`
-                return SchemaType.valueOf(type.getNumber() - 1);
+                return SchemaType.valueOf(type.getValue() - 1);
             }
         }
 
-        static SchemaRegistryFormat.SchemaInfo.SchemaType convertFromDomainType(SchemaType type) {
+        static SchemaInfo.SchemaType convertFromDomainType(SchemaType type) {
             if (type.getValue() < 0) {
-                return SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
+                return SchemaInfo.SchemaType.NONE;
             } else {
-                return SchemaRegistryFormat.SchemaInfo.SchemaType.valueOf(type.getValue() + 1);
+                return SchemaInfo.SchemaType.valueOf(type.getValue() + 1);
             }
         }
 
-        static Map<String, String> toMap(List<SchemaRegistryFormat.SchemaInfo.KeyValuePair> pairs) {
+        static Map<String, String> toMap(SchemaInfo info) {
             Map<String, String> map = new HashMap<>();
-            for (SchemaRegistryFormat.SchemaInfo.KeyValuePair pair : pairs) {
+            for (int i = 0; i < info.getPropsCount(); i++) {
+                SchemaInfo.KeyValuePair pair = info.getPropAt(i);
                 map.put(pair.getKey(), pair.getValue());
             }
             return map;
         }
 
-        static List<SchemaRegistryFormat.SchemaInfo.KeyValuePair> toPairs(Map<String, String> map) {
-            if (isNull(map)) {
-                return Collections.emptyList();
+        static void addProps(SchemaInfo info, Map<String, String> map) {
+            if (map != null) {
+                for (Map.Entry<String, String> entry : map.entrySet()) {
+                    info.addProp().setKey(entry.getKey()).setValue(entry.getValue());
+                }
             }
-            List<SchemaRegistryFormat.SchemaInfo.KeyValuePair> pairs = new ArrayList<>(map.size());
-            for (Map.Entry<String, String> entry : map.entrySet()) {
-                SchemaRegistryFormat.SchemaInfo.KeyValuePair.Builder builder =
-                    SchemaRegistryFormat.SchemaInfo.KeyValuePair.newBuilder();
-                pairs.add(builder.setKey(entry.getKey()).setValue(entry.getValue()).build());
-            }
-            return pairs;
         }
 
-        static SchemaData schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info) {
+        static SchemaData schemaInfoToSchema(SchemaInfo info) {
             return SchemaData.builder()
                 .user(info.getUser())
                 .type(convertToDomainType(info.getType()))
-                .data(info.getSchema().toByteArray())
+                .data(info.getSchema())
                 .timestamp(info.getTimestamp())
-                .isDeleted(info.getDeleted())
-                .props(toMap(info.getPropsList()))
+                .isDeleted(info.isDeleted())
+                .props(toMap(info))
                 .build();
         }
 
-        static CompletableFuture<SchemaRegistryFormat.SchemaInfo> bytesToSchemaInfo(byte[] bytes) {
-            CompletableFuture<SchemaRegistryFormat.SchemaInfo> future;
+        static CompletableFuture<SchemaInfo> bytesToSchemaInfo(byte[] bytes) {
+            CompletableFuture<SchemaInfo> future;
             try {
-                future = completedFuture(SchemaRegistryFormat.SchemaInfo.parseFrom(bytes));
-            } catch (InvalidProtocolBufferException e) {
+                SchemaInfo info = new SchemaInfo();
+                info.parseFrom(bytes);
+                future = completedFuture(info);
+            } catch (Exception e) {
                 future = new CompletableFuture<>();
                 future.completeExceptionally(e);
             }

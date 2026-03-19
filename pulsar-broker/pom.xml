@@ -642,17 +642,11 @@
           <!--suppress UnresolvedMavenProperty -->
           <protocArtifact>com.google.protobuf:protoc:${protoc3.version}:exe:${os.detected.classifier}</protocArtifact>
           <checkStaleness>true</checkStaleness>
-          <excludes>
-            <exclude>**/ResourceUsage.proto</exclude>
-            <exclude>**/TransactionPendingAck.proto</exclude>
-            <exclude>**/DelayedMessageIndexBucketSegment.proto</exclude>
-          </excludes>
         </configuration>
         <executions>
           <execution>
             <phase>generate-sources</phase>
             <goals>
-              <goal>compile</goal>
               <goal>test-compile</goal>
             </goals>
           </execution>
@@ -667,6 +661,9 @@
             <source>${project.basedir}/src/main/proto/TransactionPendingAck.proto</source>
             <source>${project.basedir}/src/main/proto/ResourceUsage.proto</source>
             <source>${project.basedir}/src/main/proto/DelayedMessageIndexBucketSegment.proto</source>
+            <source>${project.basedir}/src/main/proto/DelayedMessageIndexBucketMetadata.proto</source>
+            <source>${project.basedir}/src/main/proto/SchemaStorageFormat.proto</source>
+            <source>${project.basedir}/src/main/proto/SchemaRegistryFormat.proto</source>
           </sources>
           <extraProtoPaths>
             <extraProtoPath>${pulsar.basedir}</extraProtoPath>

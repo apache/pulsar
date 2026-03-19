@@ -2133,7 +2133,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> {
             assertEquals(c1.getReadPosition().getEntryId(), 0);
         });
-        assertEquals(c1.getMarkDeletedPosition(), pos);
+        // The mark-delete position can be advanced beyond `pos` by TrimConsumedLedgers
+        // which runs asynchronously and may move it to the next ledger's -1 position.
+        assertTrue(c1.getMarkDeletedPosition().compareTo(pos) >= 0);
     }
 
     @Test(timeOut = 20000, dataProvider = "useOpenRangeSet")

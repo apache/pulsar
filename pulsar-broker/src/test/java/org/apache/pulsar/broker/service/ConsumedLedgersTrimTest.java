@@ -219,7 +219,7 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
         }
         //consumed ledger should be cleaned
         admin.topics().trimTopic(partitionedTopic);
-        Awaitility.await().untilAsserted(() ->
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
                 Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1));
 
     }

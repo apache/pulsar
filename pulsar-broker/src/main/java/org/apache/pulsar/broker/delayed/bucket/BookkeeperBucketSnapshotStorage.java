@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
@@ -139,9 +138,9 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         ByteBuf entryBuffer = null;
         try {
             entryBuffer = ledgerEntry.getEntryBuffer();
-            return SnapshotMetadata.parseFrom(entryBuffer.nioBuffer());
-        } catch (InvalidProtocolBufferException e) {
-            throw new BucketSnapshotSerializationException(e);
+            SnapshotMetadata metadata = new SnapshotMetadata();
+            metadata.parseFrom(entryBuffer, entryBuffer.readableBytes());
+            return metadata;
         } finally {
             if (entryBuffer != null) {
                 entryBuffer.release();

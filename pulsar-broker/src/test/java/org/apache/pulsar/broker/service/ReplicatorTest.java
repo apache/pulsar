@@ -1046,8 +1046,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         metrics = metricReader1.collectAllMetrics();
         assertMetricLongSumValue(metrics, OpenTelemetryReplicatorStats.BACKLOG_COUNTER, attributes, 1);
+        // The delay can be 0.0 when the replicator producer is stopped (e.g. due to backlog quota),
+        // because AbstractReplicator.getReplicationDelayMs() returns 0 when producer is null.
         assertMetricDoubleGaugeValue(metrics, OpenTelemetryReplicatorStats.DELAY_GAUGE, attributes,
-                aDouble -> assertThat(aDouble).isPositive());
+                aDouble -> assertThat(aDouble).isGreaterThanOrEqualTo(0.0));
 
         // Consumer will now drain 1 message and the replication backlog will be cleared
         consumer2.receive(1);

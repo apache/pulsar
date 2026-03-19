@@ -2381,7 +2381,10 @@ public class ServerCnxTest {
             assertEquals(((CommandError) response).getRequestId(), 5);
 
             // We should receive response for 1st producer, since it was not cancelled by the close
-            Awaitility.await().untilAsserted(() -> assertFalse(channel.outboundMessages().isEmpty()));
+            Awaitility.await().untilAsserted(() -> {
+                channel.runPendingTasks();
+                assertFalse(channel.outboundMessages().isEmpty());
+            });
 
             assertTrue(channel.isActive());
             response = getResponse();
@@ -2889,6 +2892,8 @@ public class ServerCnxTest {
         final long sleepTimeMs = 10;
         final long iterations = TimeUnit.SECONDS.toMillis(10) / sleepTimeMs;
         for (int i = 0; i < iterations; i++) {
+            // Execute tasks submitted to ctx.executor() via thenAcceptAsync/thenRunAsync etc.
+            channel.runPendingTasks();
             if (!channel.outboundMessages().isEmpty()) {
                 Object outObject = channel.outboundMessages().remove();
                 Object cmd = clientChannelHelper.getCommand(outObject);

@@ -58,10 +58,9 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
+import org.apache.pulsar.broker.service.schema.SchemaLocator;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
-import org.apache.pulsar.broker.service.schema.SchemaStorageFormat;
-import org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -1418,17 +1417,19 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer.close();
 
         // (2) Delete schema ledger
-        MetadataCache<SchemaStorageFormat.SchemaLocator> locatorEntryCache = pulsar.getLocalMetadataStore()
-                .getMetadataCache(new MetadataSerde<SchemaStorageFormat.SchemaLocator>() {
+        MetadataCache<SchemaLocator> locatorEntryCache = pulsar.getLocalMetadataStore()
+                .getMetadataCache(new MetadataSerde<SchemaLocator>() {
                     @Override
-                    public byte[] serialize(String path, SchemaStorageFormat.SchemaLocator value) {
+                    public byte[] serialize(String path, SchemaLocator value) {
                         return value.toByteArray();
                     }
 
                     @Override
-                    public SchemaStorageFormat.SchemaLocator deserialize(String path, byte[] content, Stat stat)
+                    public SchemaLocator deserialize(String path, byte[] content, Stat stat)
                             throws IOException {
-                        return SchemaStorageFormat.SchemaLocator.parseFrom(content);
+                        SchemaLocator loc = new SchemaLocator();
+                        loc.parseFrom(content);
+                        return loc;
                     }
                 });
         String path = "/schemas/public/" + namespace + "/test-multi-version-schema-one";

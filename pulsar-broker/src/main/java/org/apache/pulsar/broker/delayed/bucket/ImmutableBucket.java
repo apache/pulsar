@@ -33,8 +33,8 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
-import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.roaringbitmap.InvalidRoaringFormat;
 import org.roaringbitmap.RoaringBitmap;
@@ -84,20 +84,23 @@ class ImmutableBucket extends Bucket {
                         }
                     }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
                     .thenApply(snapshotMetadata -> {
-                        List<SnapshotSegmentMetadata> metadataList =
-                                snapshotMetadata.getMetadataListList();
+                        int metadataListSize = snapshotMetadata.getMetadataListCount();
 
                         // Skip all already reach schedule time snapshot segments
                         int nextSnapshotEntryIndex = 0;
-                        while (nextSnapshotEntryIndex < metadataList.size()
-                                && metadataList.get(nextSnapshotEntryIndex).getMaxScheduleTimestamp() <= cutoffTime) {
+                        while (nextSnapshotEntryIndex < metadataListSize
+                                && snapshotMetadata.getMetadataAt(nextSnapshotEntryIndex)
+                                        .getMaxScheduleTimestamp() <= cutoffTime) {
                             nextSnapshotEntryIndex++;
                         }
 
-                        this.setLastSegmentEntryId(metadataList.size());
-                        this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, metadataList);
-                        List<Long> firstScheduleTimestamps = metadataList.stream().map(
-                                SnapshotSegmentMetadata::getMinScheduleTimestamp).toList();
+                        this.setLastSegmentEntryId(metadataListSize);
+                        this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, snapshotMetadata);
+                        List<Long> firstScheduleTimestamps = new ArrayList<>();
+                        for (int i = 0; i < metadataListSize; i++) {
+                            firstScheduleTimestamps.add(
+                                    snapshotMetadata.getMetadataAt(i).getMinScheduleTimestamp());
+                        }
                         this.setFirstScheduleTimestamps(firstScheduleTimestamps);
 
                         return nextSnapshotEntryIndex + 1;
@@ -142,16 +145,14 @@ class ImmutableBucket extends Bucket {
      * @throws InvalidRoaringFormat invalid bitmap serialization format
      */
     private void recoverDelayedIndexBitMapAndNumber(int startSnapshotIndex,
-                                                    List<SnapshotSegmentMetadata> segmentMetaList) {
+                                                    SnapshotMetadata snapshotMetadata) {
         delayedIndexBitMap.clear(); // cleanup dirty bm
         final var numberMessages = new MutableLong(0);
-        for (int i = startSnapshotIndex; i < segmentMetaList.size(); i++) {
-            for (final var entry : segmentMetaList.get(i).getDelayedIndexBitMapMap().entrySet()) {
-                final var ledgerId = entry.getKey();
-                final var bs = entry.getValue();
+        for (int i = startSnapshotIndex; i < snapshotMetadata.getMetadataListCount(); i++) {
+            snapshotMetadata.getMetadataAt(i).forEachDelayedIndexBitMap((ledgerId, bs) -> {
                 final var sbm = new RoaringBitmap();
                 try {
-                    sbm.deserialize(bs.asReadOnlyByteBuffer());
+                    sbm.deserialize(java.nio.ByteBuffer.wrap(bs));
                 } catch (IOException e) {
                     throw new InvalidRoaringFormat(e.getMessage());
                 }
@@ -163,7 +164,7 @@ class ImmutableBucket extends Bucket {
                     bm.or(sbm);
                     return bm;
                 });
-            }
+            });
         }
         // optimize bm
         delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);

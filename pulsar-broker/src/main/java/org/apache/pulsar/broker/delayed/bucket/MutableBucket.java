@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.google.protobuf.UnsafeByteOperations;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -78,7 +77,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
         Map<Long, RoaringBitmap> bitMap = new HashMap<>();
         SnapshotSegment snapshotSegment = new SnapshotSegment();
-        SnapshotSegmentMetadata.Builder segmentMetadataBuilder = SnapshotSegmentMetadata.newBuilder();
+        SnapshotSegmentMetadata segmentMetadata = new SnapshotSegmentMetadata();
 
         List<Long> firstScheduleTimestamps = new ArrayList<>();
         long currentTimestampUpperLimit = 0;
@@ -113,8 +112,8 @@ class MutableBucket extends Bucket implements AutoCloseable {
             if (delayedIndexQueue.isEmpty() || delayedIndexQueue.peekTimestamp() > currentTimestampUpperLimit
                     || (maxIndexesPerBucketSnapshotSegment != -1
                     && snapshotSegment.getIndexesCount() >= maxIndexesPerBucketSnapshotSegment)) {
-                segmentMetadataBuilder.setMaxScheduleTimestamp(timestamp);
-                segmentMetadataBuilder.setMinScheduleTimestamp(currentFirstTimestamp);
+                segmentMetadata.setMaxScheduleTimestamp(timestamp);
+                segmentMetadata.setMinScheduleTimestamp(currentFirstTimestamp);
                 currentTimestampUpperLimit = 0;
 
                 Iterator<Map.Entry<Long, RoaringBitmap>> iterator = bitMap.entrySet().iterator();
@@ -126,7 +125,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
                     ByteBuffer byteBuffer = ByteBuffer.allocate(bm.serializedSizeInBytes());
                     bm.serialize(byteBuffer);
                     byteBuffer.flip();
-                    segmentMetadataBuilder.putDelayedIndexBitMap(lId, UnsafeByteOperations.unsafeWrap(byteBuffer));
+                    segmentMetadata.putDelayedIndexBitMap(lId, byteBuffer.array());
                     immutableBucketBitMap.compute(lId, (__, bm0) -> {
                         if (bm0 == null) {
                             return bm;
@@ -137,8 +136,8 @@ class MutableBucket extends Bucket implements AutoCloseable {
                     iterator.remove();
                 }
 
-                segmentMetadataList.add(segmentMetadataBuilder.build());
-                segmentMetadataBuilder.clear();
+                segmentMetadataList.add(segmentMetadata);
+                segmentMetadata = new SnapshotSegmentMetadata();
 
                 bucketSnapshotSegments.add(snapshotSegment);
                 snapshotSegment = new SnapshotSegment();
@@ -149,9 +148,10 @@ class MutableBucket extends Bucket implements AutoCloseable {
         immutableBucketBitMap.values().forEach(RoaringBitmap::runOptimize);
         this.delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
 
-        SnapshotMetadata bucketSnapshotMetadata = SnapshotMetadata.newBuilder()
-                .addAllMetadataList(segmentMetadataList)
-                .build();
+        SnapshotMetadata bucketSnapshotMetadata = new SnapshotMetadata();
+        for (SnapshotSegmentMetadata sm : segmentMetadataList) {
+            bucketSnapshotMetadata.addMetadata().copyFrom(sm);
+        }
 
         final int lastSegmentEntryId = segmentMetadataList.size();
 

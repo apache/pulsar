@@ -1943,6 +1943,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         pulsarTestContext.getConfig().setManagedLedgerCursorBackloggedThreshold(backloggedThreshold);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_backlog_ledger");
+        // Disable cache eviction by expected read count so that checkBackloggedCursors
+        // actually deactivates cursors based on backlog threshold.
+        ledger.getConfig().setCacheEvictionByExpectedReadCount(false);
         PersistentTopic topic = new PersistentTopic(successTopicName, ledger, brokerService);
 
         // STEP1: prepare cursors

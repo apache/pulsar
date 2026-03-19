@@ -237,20 +237,28 @@ public class ShadowTopicTest extends SharedPulsarBaseTest {
             producer.send(content + i);
         }
 
+        // Unload the source topic to trigger a ledger rollover. The ShadowManagedLedgerImpl
+        // reads entries from the source's BookKeeper ledgers via metadata watch. Without the
+        // shadow replicator enabled, it can only discover entries in closed ledgers (the
+        // metadata for open ledgers shows entries=0). Unloading forces the current ledger
+        // to close so the shadow topic can see all entries.
+        admin.topics().unload(sourceTopic);
+
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
-        // disable shadow replicator
-        // admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
         @Cleanup Consumer<String> consumer =
                 pulsarClient.newConsumer(Schema.STRING).topic(shadowTopic).subscriptionName("sub")
                         .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                         .subscribe();
 
-        Message<String> msg = consumer.receive();
+        Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(msg, "Should have received a message from shadow topic");
         Assert.assertEquals(msg.getMessageId(), id);
         Assert.assertEquals(msg.getValue(), content);
 
         for (int i = 0; i < 10; i++) {
-            Assert.assertEquals(consumer.receive().getValue(), content + i);
+            msg = consumer.receive(10, TimeUnit.SECONDS);
+            Assert.assertNotNull(msg, "Should have received message " + i + " from shadow topic");
+            Assert.assertEquals(msg.getValue(), content + i);
         }
     }
 }

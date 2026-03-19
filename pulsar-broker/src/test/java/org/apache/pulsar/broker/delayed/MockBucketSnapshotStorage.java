@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -117,12 +116,9 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
         }
         return CompletableFuture.supplyAsync(() -> {
             ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(0);
-            SnapshotMetadata snapshotMetadata;
-            try {
-                snapshotMetadata = SnapshotMetadata.parseFrom(byteBuf.nioBuffer());
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+            SnapshotMetadata snapshotMetadata = new SnapshotMetadata();
+            ByteBuf slice = byteBuf.slice();
+            snapshotMetadata.parseFrom(slice, slice.readableBytes());
             return snapshotMetadata;
         }, executorService);
     }
