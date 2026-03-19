@@ -84,6 +84,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
     protected final String metadataStoreName;
     private final OrderedExecutor serDesExecutor;
+    @Getter
     private final ExecutorService eventExecutor;
     private final ScheduledExecutorService schedulerExecutor;
     private final AsyncLoadingCache<String, List<String>> childrenCache;

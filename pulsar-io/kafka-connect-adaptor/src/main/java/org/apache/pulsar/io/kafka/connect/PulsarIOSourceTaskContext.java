@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.kafka.connect;
 
 import java.util.Map;
+import org.apache.kafka.common.metrics.PluginMetrics;
 import org.apache.kafka.connect.source.SourceTaskContext;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 
@@ -40,5 +41,10 @@ class PulsarIOSourceTaskContext implements SourceTaskContext {
     @Override
     public OffsetStorageReader offsetStorageReader() {
         return reader;
+    }
+
+    @Override
+    public PluginMetrics pluginMetrics() {
+        return null;
     }
 }

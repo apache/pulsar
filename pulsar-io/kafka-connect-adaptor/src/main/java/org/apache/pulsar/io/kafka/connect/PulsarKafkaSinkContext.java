@@ -19,6 +19,7 @@
 package org.apache.pulsar.io.kafka.connect;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.common.metrics.PluginMetrics;
 import org.apache.kafka.connect.connector.ConnectorContext;
 
 @Slf4j
@@ -32,5 +33,10 @@ public class PulsarKafkaSinkContext implements ConnectorContext {
     @Override
     public void raiseError(Exception e) {
         throw new UnsupportedOperationException("not implemented", e);
+    }
+
+    @Override
+    public PluginMetrics pluginMetrics() {
+        return null;
     }
 }

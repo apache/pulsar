@@ -58,9 +58,9 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.Transferable;
+import org.testcontainers.kafka.ConfluentKafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -75,7 +75,7 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
-    public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "7.8.2");
+    public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "8.1.1");
 
     private static final String SOURCE_TYPE = "kafka";
 
@@ -126,7 +126,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         );
     }
 
-    private class EnhancedKafkaContainer extends KafkaContainer {
+    private class EnhancedKafkaContainer extends ConfluentKafkaContainer {
 
         public EnhancedKafkaContainer(DockerImageName dockerImageName) {
             super(dockerImageName);
@@ -138,7 +138,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
             // because we want the Kafka Broker to advertise itself
             // with the docker network address
             // otherwise the Kafka Schema Registry won't work
-            return "PLAINTEXT://" + kafkaContainerName + ":9093";
+            return kafkaContainerName + ":9093";
         }
 
     }
@@ -146,7 +146,6 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     protected EnhancedKafkaContainer createKafkaContainer(PulsarCluster cluster) {
         return (EnhancedKafkaContainer) new EnhancedKafkaContainer(
                 DockerImageName.parse("confluentinc/cp-kafka:" + CONFLUENT_PLATFORM_VERSION))
-                .withEmbeddedZookeeper()
                 .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
                         .withName(kafkaContainerName)
                 );
@@ -380,7 +379,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         // and execute it
         String bashFileTemplate = "echo '" + payload + "' "
                 + "| /usr/bin/kafka-avro-console-producer "
-                + "--broker-list " + getBootstrapServersOnDockerNetwork() + " "
+                + "--bootstrap-server " + getBootstrapServersOnDockerNetwork() + " "
                 + "--property 'value.schema=" + schemaDef + "' "
                 + "--property schema.registry.url=" + getRegistryAddressInDockerNetwork() + " "
                 + "--topic " + kafkaTopicName;

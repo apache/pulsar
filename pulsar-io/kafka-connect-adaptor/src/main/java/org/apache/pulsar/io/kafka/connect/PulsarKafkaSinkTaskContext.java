@@ -37,6 +37,7 @@ import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.metrics.PluginMetrics;
 import org.apache.kafka.connect.sink.SinkTaskContext;
 import org.apache.kafka.connect.storage.OffsetBackingStore;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -231,6 +232,11 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     @Override
     public void requestCommit() {
         log.warn("requestCommit() is called but is not supported currently.");
+    }
+
+    @Override
+    public PluginMetrics pluginMetrics() {
+        return null;
     }
 
     public void flushOffsets(Map<TopicPartition, OffsetAndMetadata> offsets) throws Exception {

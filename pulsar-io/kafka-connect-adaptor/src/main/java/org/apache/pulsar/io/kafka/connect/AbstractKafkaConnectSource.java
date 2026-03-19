@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import io.confluent.connect.avro.AvroConverter;
 import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
-import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
+import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -105,11 +105,11 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
 
         if (keyConverter instanceof AvroConverter) {
             keyConverter = new AvroConverter(new MockSchemaRegistryClient());
-            config.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock");
+            config.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock");
         }
         if (valueConverter instanceof AvroConverter) {
             valueConverter = new AvroConverter(new MockSchemaRegistryClient());
-            config.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock");
+            config.put(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, "mock");
         }
         keyConverter.configure(config, true);
         valueConverter.configure(config, false);

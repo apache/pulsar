@@ -21,20 +21,16 @@ package org.apache.pulsar.tests.integration.io.sources;
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.ImmutableMap;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.testcontainers.containers.Container.ExecResult;
-import org.testcontainers.containers.KafkaContainer;
+import org.testcontainers.kafka.KafkaContainer;
 
 /**
  * A tester for testing kafka source.
@@ -48,14 +44,12 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
 
     private KafkaContainer kafkaContainer;
 
-    private KafkaConsumer<String, String> kafkaConsumer;
-
     public KafkaSourceTester(String containerName) {
         super(SOURCE_TYPE);
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
         this.kafkaTopicName = "kafka_source_topic_" + suffix;
 
-        sourceConfig.put("bootstrapServers", containerName + ":9092");
+        sourceConfig.put("bootstrapServers", containerName + ":9093");
         sourceConfig.put("groupId", "test-source-group");
         sourceConfig.put("fetchMinBytes", 1L);
         sourceConfig.put("autoCommitIntervalMs", 10L);
@@ -73,10 +67,10 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
     @Override
     public void prepareSource() throws Exception {
         ExecResult execResult = kafkaContainer.execInContainer(
-            "/usr/bin/kafka-topics",
+            "/opt/kafka/bin/kafka-topics.sh",
             "--create",
             "--bootstrap-server",
-            "localhost:9092",
+            "localhost:9093",
             "--partitions",
             "1",
             "--replication-factor",
@@ -86,17 +80,6 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
         assertTrue(
             execResult.getStdout().contains("Created topic"),
             execResult.getStdout());
-
-        kafkaConsumer = new KafkaConsumer<>(
-            ImmutableMap.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
-                ConsumerConfig.GROUP_ID_CONFIG, "source-test-" + randomName(8),
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"
-            ),
-            new StringDeserializer(),
-            new StringDeserializer()
-        );
-        kafkaConsumer.subscribe(Arrays.asList(kafkaTopicName));
         log.info("Successfully subscribe to kafka topic {}", kafkaTopicName);
     }
 
@@ -145,9 +128,6 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
 
     @Override
     public void close() throws Exception {
-        if (kafkaConsumer != null) {
-            kafkaConsumer.close();
-            kafkaConsumer = null;
-        }
+
     }
 }
