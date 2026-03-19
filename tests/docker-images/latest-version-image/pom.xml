@@ -30,6 +30,9 @@
   <name>Apache Pulsar :: Tests :: Docker Images :: Latest Version Testing</name>
   <packaging>pom</packaging>
 
+  <properties>
+    <docker.golang.image>golang:1.24-alpine</docker.golang.image>
+  </properties>
   <profiles>
     <profile>
       <id>docker</id>
@@ -182,6 +185,12 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>docker-wolfi</id>
+      <properties>
+        <docker.golang.image>golang:1.24</docker.golang.image>
+      </properties>
     </profile>
   </profiles>
 </project>
