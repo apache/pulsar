@@ -676,7 +676,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         Predicate<String> topicNameFilter = t -> TopicName.get(t).getNamespace().equals(ns);
         String systemTopic = "persistent://" + ns + "/__change_events";
         admin1.namespaces().createNamespace(ns);
-        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1)), false);
+        admin1.namespaces().setNamespaceReplicationClusters(ns, new HashSet<>(Arrays.asList(cluster1)));
         Awaitility.await().untilAsserted(() -> {
             assertEquals(admin1.namespaces().getNamespaceReplicationClusters(ns).size(), 1);
             assertEquals(admin2.namespaces().getNamespaceReplicationClusters(ns).size(), 1);
@@ -723,7 +723,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // Set topic auto-creation rule to "partitions: 2".
         final String tp = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp");
         final Set<String> clusters = new HashSet<>(Arrays.asList(cluster1, cluster2));
-        admin1.namespaces().setNamespaceReplicationClusters(ns, clusters, true);
+        admin1.namespaces().setNamespaceReplicationClusters(ns, clusters);
         AutoTopicCreationOverride autoTopicCreation2 =
                 AutoTopicCreationOverrideImpl.builder().allowAutoTopicCreation(true)
                         .topicType("partitioned").defaultNumPartitions(2).build();
