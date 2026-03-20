@@ -90,6 +90,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         extractTopicName(request);
     }
 
+    @SuppressWarnings("deprecation")
     protected boolean checkAuth(JettyServerUpgradeResponse response) {
         String authRole = "<none>";
         String authMethodName = request.getHeader(PULSAR_AUTH_METHOD_NAME);

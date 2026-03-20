@@ -152,6 +152,7 @@ public class InstanceUtils {
         return properties;
     }
 
+    @SuppressWarnings("deprecation")
     public static ClientBuilder createPulsarClientBuilder(String pulsarServiceUrl,
                                                           AuthenticationConfig authConfig,
                                                           Optional<Long> memoryLimit) throws PulsarClientException {

@@ -51,6 +51,7 @@ public class AuthenticationBasic implements Authentication, EncodedAuthenticatio
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void configure(Map<String, String> authParams) {
         configure(new Gson().toJson(authParams));

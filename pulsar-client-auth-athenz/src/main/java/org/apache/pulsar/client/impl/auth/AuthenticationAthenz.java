@@ -95,6 +95,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         return "athenz";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         Lock readLock = cachedRoleTokenLock.readLock();

@@ -170,6 +170,7 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
         return injectMetadataStoreInMetadataCache(store.getMetadataCache(typeRef, cacheConfig));
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
                                                  MetadataCacheConfig cacheConfig) {

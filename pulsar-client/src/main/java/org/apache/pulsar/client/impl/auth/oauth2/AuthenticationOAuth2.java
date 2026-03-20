@@ -235,6 +235,7 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
      * @return The authentication data identifying this client that will be sent to the broker
      * @throws PulsarClientException
      */
+    @SuppressWarnings("deprecation")
     @Override
     public synchronized AuthenticationDataProvider getAuthData() throws PulsarClientException {
         if (isClosed) {

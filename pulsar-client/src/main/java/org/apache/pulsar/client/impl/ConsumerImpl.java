@@ -789,6 +789,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return result;
     }
 
+    @SuppressWarnings("deprecation")
     private SortedMap<String, String> getPropertiesMap(Message<?> message,
                                                        String originMessageIdStr,
                                                        String originTopicNameStr) {
@@ -2421,7 +2422,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         .topic(this.deadLetterPolicy.getDeadLetterTopic())
                                         .producerName(
                                                 String.format("%s-%s-%s-%s-DLQ", this.topicName, this.subscription,
-                                                        this.consumerName, RandomStringUtils.randomAlphanumeric(5)))
+                                                        this.consumerName,
+                                                        RandomStringUtils.insecure().nextAlphanumeric(5)))
                                         .blockIfQueueFull(false)
                                         .enableBatching(false)
                                         .enableChunking(true);

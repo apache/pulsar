@@ -127,6 +127,7 @@ public class ProxyServiceStarter {
         this(args, null, false);
     }
 
+    @SuppressWarnings("deprecation")
     public ProxyServiceStarter(String[] args, Consumer<ProxyConfiguration> proxyConfigurationCustomizer,
                                boolean embeddedMode) throws Exception {
         this.embeddedMode = embeddedMode;

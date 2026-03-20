@@ -302,6 +302,7 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public synchronized void stop() {
         if (running.compareAndSet(true, false)) {
             this.notify();

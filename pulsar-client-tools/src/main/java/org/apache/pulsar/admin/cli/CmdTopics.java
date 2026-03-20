@@ -91,6 +91,7 @@ import picocli.CommandLine.Parameters;
 
 @Getter
 @Command(description = "Operations on persistent topics")
+@SuppressWarnings("deprecation")
 public class CmdTopics extends CmdBase {
     private final CmdTopics.PartitionedLookup partitionedLookup;
     private final CmdTopics.DeleteCmd deleteCmd;

@@ -254,7 +254,11 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
         String secretId;
         secretId = existingFunctionAuthData.map(functionAuthData -> new String(functionAuthData.getData()))
-                .orElseGet(() -> RandomStringUtils.random(5, true, true).toLowerCase());
+                .orElseGet(() -> {
+                    @SuppressWarnings("deprecation")
+                    String id = RandomStringUtils.random(5, true, true).toLowerCase();
+                    return id;
+                });
 
         String token;
         try {
@@ -298,6 +302,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
+                    @SuppressWarnings("deprecation")
                     String id = RandomStringUtils.random(5, true, true).toLowerCase();
                     V1Secret v1Secret = new V1Secret()
                             .metadata(new V1ObjectMeta().name(secretName))
@@ -358,6 +363,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
+                    @SuppressWarnings("deprecation")
                     String id = RandomStringUtils.random(5, true, true).toLowerCase();
                     V1Secret v1Secret = new V1Secret()
                             .metadata(new V1ObjectMeta().name(getSecretName(id)))

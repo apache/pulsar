@@ -324,11 +324,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // increment number of records received from source
                 stats.incrTotalReceived();
 
-                if (instanceConfig.getFunctionDetails().getProcessingGuarantees() == org.apache.pulsar.functions
-                        .proto.Function.ProcessingGuarantees.ATMOST_ONCE) {
-                    if (instanceConfig.getFunctionDetails().getAutoAck()) {
-                        currentRecord.ack();
-                    }
+                @SuppressWarnings("deprecation")
+                boolean atMostOnceAutoAck = instanceConfig.getFunctionDetails().getProcessingGuarantees()
+                        == org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATMOST_ONCE
+                        && instanceConfig.getFunctionDetails().getAutoAck();
+                if (atMostOnceAutoAck) {
+                    currentRecord.ack();
                 }
 
                 JavaExecutionResult result;
@@ -420,7 +421,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     @VisibleForTesting
-    void handleResult(Record srcRecord, JavaExecutionResult result) throws Exception {
+    @SuppressWarnings("deprecation")
+    void handleResult(Record<?> srcRecord, JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             Throwable t = result.getUserException();
             log.warn("Encountered exception when processing message {}",
@@ -773,6 +775,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         context.updateLoggers();
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
     private void setupInput(ContextImpl contextImpl) throws Exception {
 
         SourceSpec sourceSpec = this.instanceConfig.getFunctionDetails().getSource();

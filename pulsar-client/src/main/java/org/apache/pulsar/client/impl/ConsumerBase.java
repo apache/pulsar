@@ -137,7 +137,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.subscription = conf.getSubscriptionName();
         this.conf = conf;
         this.consumerName =
-                conf.getConsumerName() == null ? RandomStringUtils.randomAlphanumeric(5) : conf.getConsumerName();
+                conf.getConsumerName() == null ? RandomStringUtils.insecure().nextAlphanumeric(5)
+                        : conf.getConsumerName();
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
         this.decryptFailListener = conf.getDecryptFailListener();

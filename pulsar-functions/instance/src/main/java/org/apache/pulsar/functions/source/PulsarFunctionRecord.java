@@ -85,6 +85,7 @@ public class PulsarFunctionRecord<T> implements Record<T> {
         return record.getProperties();
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void ack() {
         Function.ProcessingGuarantees processingGuarantees = functionConfig.getProcessingGuarantees();

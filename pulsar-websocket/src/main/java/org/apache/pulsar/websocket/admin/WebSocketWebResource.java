@@ -65,6 +65,7 @@ public class WebSocketWebResource {
      *
      * @return the web service caller identification
      */
+    @SuppressWarnings("deprecation")
     public String clientAppId() {
         if (isBlank(clientId)) {
             try {
