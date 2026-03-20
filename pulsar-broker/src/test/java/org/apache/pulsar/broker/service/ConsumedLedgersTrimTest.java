@@ -189,7 +189,6 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(partitionedTopic)
                 .enableBatching(false)
-                .producerName("producer-name")
                 .create();
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopic)
@@ -218,16 +217,19 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
             consumer.acknowledge(msg);
         }
         //consumed ledger should be cleaned
-        admin.topics().trimTopic(partitionedTopic);
         // After trimming, the managed ledger should have at most 2 ledgers remaining:
         // - The ledger containing the last confirmed entry (cannot be trimmed)
         // - Possibly an empty active ledger if the last write caused a rollover
-        //   (when maxEntriesPerLedger is reached, a new empty ledger is created)
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertTrue(managedLedger.getLedgersInfoAsList().size() <= 2,
-                        "Expected at most 2 ledgers after trim, but found "
-                                + managedLedger.getLedgersInfoAsList().size()));
-
+        //   (with maxEntriesPerLedger=2, if partition-0 receives an even number of
+        //   messages, the last ledger is full and a new empty active ledger is created)
+        // Re-trigger trim inside the loop because trimConsumedLedgersInBackground() is async
+        // and the mark-delete position may not have been persisted yet on the first call.
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+            managedLedger.trimConsumedLedgersInBackground(CompletableFuture.completedFuture(null));
+            Assert.assertTrue(managedLedger.getLedgersInfoAsList().size() <= 2,
+                    "Expected at most 2 ledgers after trim, but found "
+                            + managedLedger.getLedgersInfoAsList().size());
+        });
     }
 
     @Test

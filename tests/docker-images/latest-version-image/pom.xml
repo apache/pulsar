@@ -31,7 +31,7 @@
   <packaging>pom</packaging>
 
   <properties>
-    <docker.golang.image>golang:1.23-alpine</docker.golang.image>
+    <docker.golang.image>golang:1.24-alpine</docker.golang.image>
   </properties>
 
   <profiles>
@@ -195,7 +195,7 @@
     <profile>
       <id>docker-wolfi</id>
       <properties>
-        <docker.golang.image>golang:1.23</docker.golang.image>
+        <docker.golang.image>golang:1.24</docker.golang.image>
       </properties>
     </profile>
   </profiles>

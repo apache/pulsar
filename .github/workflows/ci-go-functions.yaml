@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        go-version: ['1.23']
+        go-version: ['1.24']
 
     steps:
       - name: Check out code into the Go module directory
