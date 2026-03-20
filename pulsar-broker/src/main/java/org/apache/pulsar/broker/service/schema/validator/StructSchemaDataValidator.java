@@ -24,6 +24,7 @@ import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import java.io.IOException;
 import org.apache.avro.NameValidator;
 import org.apache.avro.Schema;
+import org.apache.avro.AvroTypeException;
 import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -68,7 +69,7 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
             if (SchemaType.AVRO.equals(schemaData.getType())) {
                 checkAvroSchemaTypeSupported(schema);
             }
-        } catch (SchemaParseException e) {
+        } catch (SchemaParseException | AvroTypeException e) {
             if (schemaData.getType() == SchemaType.JSON && allowLegacyJacksonFormat) {
                 // For backward compatibility with pre-2.1 schemas: try Jackson JsonSchema parsing.
                 // This fallback is only enabled when schemaJsonAllowLegacyJacksonFormat=true (PIP-464).
