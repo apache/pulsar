@@ -243,6 +243,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private final Object dispatchRateLimiterLock = new Object();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
+    private final Object subscribeRateLimiterLock = new Object();
     @Getter
     private final long backloggedCursorThresholdEntries;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
@@ -674,7 +675,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public void updateSubscribeRateLimiter() {
         SubscribeRate subscribeRate = getSubscribeRate();
-        synchronized (subscribeRateLimiter) {
+        synchronized (subscribeRateLimiterLock) {
             if (isSubscribeRateEnabled(subscribeRate)) {
                 if (subscribeRateLimiter.isPresent()) {
                     this.subscribeRateLimiter.get().onSubscribeRateUpdate(subscribeRate);
