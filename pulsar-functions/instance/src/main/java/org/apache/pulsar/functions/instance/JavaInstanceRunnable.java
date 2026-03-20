@@ -141,7 +141,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Record<?> currentRecord;
 
+    @SuppressWarnings("rawtypes")
     private Source source;
+    @SuppressWarnings("rawtypes")
     private Sink sink;
 
     private final SecretsProvider secretsProvider;
@@ -451,6 +453,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         stats.processTimeEnd(result.getStartTime());
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(componentClassLoader);

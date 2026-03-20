@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -140,9 +141,15 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
             // find or create bk-client in cache for a specific ensemblePlacementPolicy
             return bkEnsemblePolicyToBkClientMap.get(ensemblePlacementPolicyConfig,
-                    (config, executor) -> bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
-                            Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass()),
-                            ensemblePlacementPolicyConfig.getProperties(), statsLogger));
+                    (config, executor) -> {
+                        @SuppressWarnings("unchecked")
+                        Class<? extends EnsemblePlacementPolicy> policyClass =
+                                (Class<? extends EnsemblePlacementPolicy>)
+                                        ensemblePlacementPolicyConfig.getPolicyClass();
+                        return bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
+                                Optional.ofNullable(policyClass),
+                                ensemblePlacementPolicyConfig.getProperties(), statsLogger);
+                    });
         };
 
         try {

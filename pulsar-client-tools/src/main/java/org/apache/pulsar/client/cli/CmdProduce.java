@@ -195,7 +195,10 @@ public class CmdProduce extends AbstractCmd {
         for (String m : stringMessages) {
             if (schema.getSchemaInfo().getType() == SchemaType.AVRO) {
                 // JSON TO AVRO
-                org.apache.avro.Schema avroSchema = ((Optional<org.apache.avro.Schema>) schema.getNativeSchema()).get();
+                @SuppressWarnings("unchecked")
+                Optional<org.apache.avro.Schema> nativeSchema =
+                        (Optional<org.apache.avro.Schema>) (Optional<?>) schema.getNativeSchema();
+                org.apache.avro.Schema avroSchema = nativeSchema.get();
                 byte[] encoded = jsonToAvro(m, avroSchema);
                 messageBodies.add(encoded);
             } else {
