@@ -56,11 +56,15 @@ public class PrometheusMetricsProviderConfigTest {
     public void testValidConfig() throws MetricsProviderLifeCycleException {
         CollectorRegistry.defaultRegistry.clear();
         PrometheusMetricsProvider provider = new PrometheusMetricsProvider();
-        Properties configuration = new Properties();
-        configuration.setProperty("httpHost", "0.0.0.0");
-        configuration.setProperty("httpPort", "0");
-        provider.configure(configuration);
-        provider.start();
+        try {
+            Properties configuration = new Properties();
+            configuration.setProperty("httpHost", "0.0.0.0");
+            configuration.setProperty("httpPort", "0");
+            provider.configure(configuration);
+            provider.start();
+        } finally {
+            provider.stop();
+        }
     }
 
 }

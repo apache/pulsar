@@ -96,12 +96,12 @@ public class RackAwareTest extends BkEnsemblesTestBase {
     @Override
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
-        super.cleanup();
-
         for (ServerTester t : servers) {
             t.shutdown();
         }
         servers.clear();
+
+        super.cleanup();
     }
 
     @Test

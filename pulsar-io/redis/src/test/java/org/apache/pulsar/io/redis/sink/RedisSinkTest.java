@@ -70,13 +70,16 @@ public class RedisSinkTest {
         SinkContext sinkContext = Mockito.mock(SinkContext.class);
         sink.open(configs, sinkContext);
 
-        // write should success.
-        sink.write(record);
-        log.info("executed write");
+        try {
+            // write should success.
+            sink.write(record);
+            log.info("executed write");
 
-        // sleep to wait backend flush complete
-        Thread.sleep(1000);
-
+            // sleep to wait backend flush complete
+            Thread.sleep(1000);
+        } finally {
+            sink.close();
+        }
     }
 
     private Record<byte[]> build(String topic, String key, String value) {

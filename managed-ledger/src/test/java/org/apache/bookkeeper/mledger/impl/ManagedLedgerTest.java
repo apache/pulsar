@@ -4445,6 +4445,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testNonDurableCursorCreateForInactiveLedger() throws Exception {
         String mlName = "testLedgerInfoMetaCorrectIfAddEntryTimeOut";
         BookKeeper spyBookKeeper = spy(bkc);
+        @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, spyBookKeeper);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         initManagedLedgerConfig(config);
@@ -4498,6 +4499,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testNoOrphanScheduledTasksAfterCloseML() throws Exception {
         String mlName = UUID.randomUUID().toString();
+        @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         initManagedLedgerConfig(config);

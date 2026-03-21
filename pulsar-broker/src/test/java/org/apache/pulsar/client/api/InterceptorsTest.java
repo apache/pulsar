@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,8 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.RandomUtils;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
@@ -45,28 +43,13 @@ import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class InterceptorsTest extends ProducerConsumerBase {
+public class InterceptorsTest extends SharedPulsarBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(InterceptorsTest.class);
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
 
     @DataProvider(name = "receiverQueueSize")
     public Object[][] getReceiverQueueSize() {
@@ -81,18 +64,16 @@ public class InterceptorsTest extends ProducerConsumerBase {
         return new Object[][] {{ 0 }, { 3 }};
     }
 
-    @DataProvider(name = "topics")
-    public Object[][] getTopics() {
-        return new Object[][] {{ List.of("persistent://my-property/my-ns/my-topic") },
-                { List.of("persistent://my-property/my-ns/my-topic", "persistent://my-property/my-ns/my-topic1") }};
+    @DataProvider(name = "topicCount")
+    public Object[][] getTopicCount() {
+        return new Object[][] {{ 1 }, { 2 }};
     }
 
     @Test
     public void testProducerInterceptor() throws Exception {
         Map<MessageId, List<String>> ackCallback = new HashMap<>();
 
-        String ns = "my-property/my-ns" + RandomUtils.nextInt(999, 1999);
-        admin.namespaces().createNamespace(ns, Sets.newHashSet("test"));
+        String ns = getNamespace();
         admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         abstract class BaseInterceptor implements
@@ -164,6 +145,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerInterceptorsWithExceptions() throws PulsarClientException {
+        final String topicName = newTopicName();
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
             public void close() {
@@ -182,7 +164,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
         };
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-            .topic("persistent://my-property/my-ns/my-topic")
+            .topic(topicName)
             .intercept(interceptor)
             .create();
 
@@ -193,6 +175,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerInterceptorsWithErrors() throws PulsarClientException {
+        final String topicName = newTopicName();
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
             public void close() {
@@ -211,7 +194,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
         };
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .intercept(interceptor)
                 .create();
 
@@ -222,6 +205,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testProducerInterceptorAccessMessageData() throws PulsarClientException {
+        final String topicName = newTopicName();
         List<String> messageDataInBeforeSend = Collections.synchronizedList(new ArrayList<>());
         List<String> messageDataOnSendAcknowledgement = Collections.synchronizedList(new ArrayList<>());
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<>() {
@@ -243,7 +227,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         };
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .intercept(interceptor)
                 .create();
 
@@ -264,6 +248,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testConsumerInterceptorWithErrors() throws PulsarClientException {
+        final String topicName = newTopicName();
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
             public void close() {
@@ -296,7 +281,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
         };
         Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic-exception")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription-ack-timeout")
@@ -304,14 +289,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .subscribe();
 
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic-exception")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription-negative")
                 .subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic-exception")
+                .topic(topicName)
                 .create();
 
         producer.newMessage().value("Hello Pulsar!").send();
@@ -337,6 +322,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "receiverQueueSize")
     public void testConsumerInterceptorWithSingleTopicSubscribe(Integer receiverQueueSize) throws Exception {
+        final String topicName = newTopicName();
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
             public void close() {
@@ -372,7 +358,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         };
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
@@ -380,7 +366,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .enableBatching(false)
                 .create();
 
@@ -413,7 +399,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         final CompletableFuture<Message<String>> future = new CompletableFuture<>();
         consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
@@ -446,6 +432,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testConsumerInterceptorWithMultiTopicSubscribe() throws PulsarClientException {
+        final String topicName = newTopicName();
+        final String topicName1 = newTopicName();
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
@@ -482,15 +470,15 @@ public class InterceptorsTest extends ProducerConsumerBase {
         };
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .create();
 
         Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic1")
+                .topic(topicName1)
                 .create();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic", "persistent://my-property/my-ns/my-topic1")
+                .topic(topicName, topicName1)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
@@ -527,7 +515,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         AtomicInteger beforeConsumeCount = new AtomicInteger(0);
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(lookupUrl.toString())
+                .serviceUrl(getBrokerServiceUrl())
                 .listenerThreads(1)
                 .build();
 
@@ -560,7 +548,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
         };
 
-        final String topicName = "persistent://my-property/my-ns/my-topic";
+        final String topicName = newTopicName();
 
         if (partitions > 0) {
             admin.topics().createPartitionedTopic(topicName, partitions);
@@ -584,7 +572,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .subscribe();
 
         Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .create();
 
         final int messages = 10;
@@ -602,6 +590,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testConsumerInterceptorWithPatternTopicSubscribe() throws PulsarClientException {
+        final String topicName = newTopicName();
+        final String topicName1 = newTopicName();
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
@@ -638,15 +628,15 @@ public class InterceptorsTest extends ProducerConsumerBase {
         };
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .create();
 
         Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic1")
+                .topic(topicName1)
                 .create();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topicsPattern("persistent://my-property/my-ns/my-.*")
+                .topicsPattern("persistent://" + getNamespace() + "/.*")
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
@@ -674,6 +664,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testConsumerInterceptorForAcknowledgeCumulative() throws PulsarClientException {
+        final String topicName = newTopicName();
 
         List<MessageId> ackHolder = new ArrayList<>();
 
@@ -715,14 +706,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
         };
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Failover)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
                 .subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .create();
 
         for (int i = 0; i < 100; i++) {
@@ -748,9 +739,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(dataProvider = "topics")
-    public void testConsumerInterceptorForNegativeAcksSend(List<String> topics)
+    @Test(dataProvider = "topicCount")
+    public void testConsumerInterceptorForNegativeAcksSend(int topicCount)
             throws PulsarClientException, InterruptedException {
+        List<String> topics = new ArrayList<>();
+        for (int i = 0; i < topicCount; i++) {
+            topics.add(newTopicName());
+        }
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
 
@@ -820,9 +815,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(dataProvider = "topics")
-    public void testConsumerInterceptorForAckTimeoutSend(List<String> topics) throws PulsarClientException,
+    @Test(dataProvider = "topicCount")
+    public void testConsumerInterceptorForAckTimeoutSend(int topicCount) throws PulsarClientException,
             InterruptedException {
+        List<String> topics = new ArrayList<>();
+        for (int i = 0; i < topicCount; i++) {
+            topics.add(newTopicName());
+        }
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
 
@@ -890,7 +889,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test(timeOut = 1000 * 30, dataProvider = "topicPartition")
     public void testReaderInterceptor(int topicPartition) throws Exception {
-        String topic = "reader-interceptor-" + topicPartition + "-" + RandomStringUtils.randomAlphabetic(5);
+        String topic = newTopicName();
         if (topicPartition > 0) {
             admin.topics().createPartitionedTopic(topic, topicPartition);
         }
@@ -999,7 +998,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
     @Test(dataProvider = "topicPartition")
     public void testConsumerInterceptorForOnArrive(int topicPartition) throws PulsarClientException,
             InterruptedException, PulsarAdminException {
-        String topicName = "persistent://my-property/my-ns/on-arrive";
+        String topicName = newTopicName();
         if (topicPartition > 0) {
             admin.topics().createPartitionedTopic(topicName, topicPartition);
         }

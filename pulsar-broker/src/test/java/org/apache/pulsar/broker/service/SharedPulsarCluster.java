@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
+import org.apache.pulsar.tests.ThreadLeakDetectorListener;
 
 /**
  * JVM-wide singleton that manages a lightweight Pulsar cluster for integration tests.
@@ -145,6 +146,7 @@ public class SharedPulsarCluster {
         config.setForceDeleteNamespaceAllowed(true);
         config.setForceDeleteTenantAllowed(true);
         config.setBrokerDeleteInactiveTopicsEnabled(false);
+        config.setBrokerDeduplicationEnabled(true);
 
         // Reduce thread pool sizes for faster startup (fewer threads to create)
         config.setNumIOThreads(2);
@@ -185,6 +187,10 @@ public class SharedPulsarCluster {
 
         log.info("SharedPulsarCluster started. broker={} web={}",
                 pulsarService.getBrokerServiceUrl(), pulsarService.getWebServiceAddress());
+
+        // Reset the thread leak detector baseline so that threads created by
+        // this shared cluster are not reported as leaks of the first test class
+        ThreadLeakDetectorListener.resetCapturedThreads();
     }
 
     private void close() throws Exception {

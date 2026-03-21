@@ -28,43 +28,25 @@ import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 
 @Slf4j
 @Test(groups = "broker-api")
-public class ConsumerDecryptFailListenerTest extends ProducerConsumerBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ConsumerDecryptFailListenerTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 10000)
     public void testDecryptFailListenerException() {
-        final String topic = BrokerTestUtil.newUniqueName(
-                "persistent://my-property/my-ns/testReaderBuildExceptionsWithSetReaderDecryptFailure"
-        );
+        final String topic = newTopicName();
         // should throw exception if decryptFailListener is set without setting a messageListener
         assertThatThrownBy(
                 () -> pulsarClient.newConsumer().topic(topic)
@@ -93,9 +75,7 @@ public class ConsumerDecryptFailListenerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 20000)
     public void testDecryptFailListenerBehaviorWithConsumerImpl() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName(
-                "persistent://my-property/my-ns/testDecryptFailListenerBehaviorWithConsumerImpl"
-        );
+        final String topic = newTopicName();
         admin.topics().createNonPartitionedTopic(topic);
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
                 .decryptFailListener(((reader, msg) -> {
@@ -125,9 +105,7 @@ public class ConsumerDecryptFailListenerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 20000)
     public void testDecryptFailListenerBehaviorWithMultiConsumerImpl() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName(
-                "persistent://my-property/my-ns/testDecryptFailListenerBehaviorWithMultiConsumerImpl"
-        );
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 3);
         MultiTopicsConsumerImpl<byte[]> consumer1 = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
                 .topic(topic)
@@ -159,9 +137,7 @@ public class ConsumerDecryptFailListenerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testDecryptFailListenerReceiveMessage() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName(
-                "persistent://my-property/my-ns/testDecryptFailListenerReceiveMessage"
-        );
+        final String topic = newTopicName();
         admin.topics().createNonPartitionedTopic(topic);
         int totalMessages = 10;
         CountDownLatch countDownLatch = new CountDownLatch(10);
@@ -199,9 +175,7 @@ public class ConsumerDecryptFailListenerTest extends ProducerConsumerBase {
      */
     @Test(timeOut = 30000)
     public void testBothDecryptFailListenerAndMessageListenerReceiveMessage() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName(
-                "persistent://my-property/my-ns/testBothDecryptFailListenerAndMessageListenerReceiveMessage"
-        );
+        final String topic = newTopicName();
         int totalMessages = 10;
         CountDownLatch decryptSuccessCount = new CountDownLatch(5);
         CountDownLatch decryptFailCount = new CountDownLatch(5);

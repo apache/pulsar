@@ -762,6 +762,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (state.equals(Owned) && isTargetBroker(data.dstBroker())) {
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
+        } else if (state.equals(Assigning) && isTargetBroker(data.dstBroker())) {
+            // If this broker is the assignment target and the Assigning event was published before this
+            // broker's channel finished starting (e.g., after a restart), handle it now so ownership
+            // is resolved immediately rather than waiting for the ownership monitor (up to 60s).
+            handleAssignEvent(serviceUnit, data);
         }
     }
 

@@ -144,6 +144,9 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
 
     @Override
     public void close() {
+        if (scheduledExecutor != null) {
+            scheduledExecutor.shutdownNow();
+        }
         if (kinesisProducer != null) {
             kinesisProducer.flush();
             kinesisProducer.destroy();

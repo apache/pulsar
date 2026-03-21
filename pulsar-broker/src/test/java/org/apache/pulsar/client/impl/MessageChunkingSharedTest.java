@@ -35,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
@@ -43,39 +44,23 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-impl")
-public class MessageChunkingSharedTest extends ProducerConsumerBase {
+public class MessageChunkingSharedTest extends SharedPulsarBaseTest {
 
     private static final int MAX_MESSAGE_SIZE = 100;
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
     @Test
     public void testSingleConsumer() throws Exception {
-        final String topic = "my-property/my-ns/test-single-consumer";
+        final String topic = newTopicName();
         @Cleanup final Producer<String> producer = createProducer(topic);
         @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -108,7 +93,7 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiConsumers() throws Exception {
-        final String topic = "my-property/my-ns/test-multi-consumers";
+        final String topic = newTopicName();
         @Cleanup final Producer<String> producer = createProducer(topic);
         final ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -148,7 +133,7 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
 
     @Test
     public void testInterleavedChunks() throws Exception {
-        final String topic = "persistent://my-property/my-ns/test-interleaved-chunks";
+        final String topic = newTopicName();
         final ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName("sub")
@@ -158,8 +143,7 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
                         (consumer, msg) -> receivedUuidList1.add(msg.getProducerName() + "-" + msg.getSequenceId()))
                 .consumerName("consumer-1")
                 .subscribe();
-        final PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopicIfExists(topic).get().orElse(null);
+        final PersistentTopic persistentTopic = (PersistentTopic) getTopicIfExists(topic).get().orElse(null);
         assertNotNull(persistentTopic);
         // send: A-0, A-1-0-3, A-1-1-3, B-0, B-1-0-2
         sendNonChunk(persistentTopic, "A", 0);
@@ -196,7 +180,7 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
     // Issue #25220
     @Test
     public void testNegativeAckChunkedMessage() throws Exception {
-        final String topic = "persistent://my-property/my-ns/test-negative-acknowledge-with-chunk";
+        final String topic = newTopicName();
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)

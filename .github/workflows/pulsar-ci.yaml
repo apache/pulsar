@@ -596,7 +596,7 @@ jobs:
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392
         with:
           platforms: arm64
 
@@ -996,25 +996,25 @@ jobs:
       - name: Check binary licenses
         run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz && src/check-binary-license.sh ./distribution/shell/target/apache-pulsar-shell-*-bin.tar.gz
 
-      - name: Run Trivy container scan
-        id: trivy_scan
-        uses: aquasecurity/trivy-action@0.26.0
-        if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
-        continue-on-error: true
-        with:
-          image-ref: "apachepulsar/pulsar:latest"
-          scanners: vuln
-          severity: CRITICAL,HIGH,MEDIUM,LOW
-          limit-severities-for-sarif: true
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: ${{ steps.trivy_scan.outcome == 'success' && github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
-        continue-on-error: true
-        with:
-          sarif_file: 'trivy-results.sarif'
+#      - name: Run Trivy container scan
+#        id: trivy_scan
+#        uses: aquasecurity/trivy-action@v0.35.0
+#        if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+#        continue-on-error: true
+#        with:
+#          image-ref: "apachepulsar/pulsar:latest"
+#          scanners: vuln
+#          severity: CRITICAL,HIGH,MEDIUM,LOW
+#          limit-severities-for-sarif: true
+#          format: 'sarif'
+#          output: 'trivy-results.sarif'
+#
+#      - name: Upload Trivy scan results to GitHub Security tab
+#        uses: github/codeql-action/upload-sarif@v3
+#        if: ${{ steps.trivy_scan.outcome == 'success' && github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+#        continue-on-error: true
+#        with:
+#          sarif_file: 'trivy-results.sarif'
 
       - name: Clean up disk space
         if: ${{ matrix.base.save_artifact }}

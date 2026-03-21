@@ -130,7 +130,7 @@ public class ClientDeduplicationFailureTest {
         log.info("--- Shutting down ---");
         if (pulsarClient != null) {
             pulsarClient.close();
-            pulsar = null;
+            pulsarClient = null;
         }
         if (admin != null) {
             admin.close();

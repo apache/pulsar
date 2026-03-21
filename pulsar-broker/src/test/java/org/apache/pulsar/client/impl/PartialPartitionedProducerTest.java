@@ -25,36 +25,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerAccessMode;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-impl")
-public class PartialPartitionedProducerTest extends ProducerConsumerBase {
-    @Override
-    @BeforeClass
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterClass(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
 
     @Test
     public void testPtWithSinglePartition() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-with-single-routing");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
@@ -74,7 +59,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
     @Test
     public void testPtWithPartialPartition() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-with-partial-routing");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
@@ -96,7 +81,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
     // AddPartitionTest
     @Test
     public void testPtLazyLoading() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-lazily");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
@@ -128,7 +113,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
     @Test
     public void testPtLoadingNotSharedMode() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-not-shared-mode");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         @Cleanup
@@ -162,7 +147,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
     // AddPartitionAndLimitTest
     @Test
     public void testPtUpdateWithPartialPartition() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-update-with-partial-routing");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
 
         final Field field = PartitionedProducerImpl.class.getDeclaredField("topicMetadata");
@@ -214,7 +199,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
 
     @Test
     public void testPtUpdateNotSharedMode() throws Throwable {
-        final String topic = BrokerTestUtil.newUniqueName("pt-update-not-shared");
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 2);
 
         final Field field = PartitionedProducerImpl.class.getDeclaredField("topicMetadata");
