@@ -19,14 +19,17 @@
 package org.apache.pulsar.client.impl.auth.oauth2;
 
 import java.net.URL;
-import java.time.Clock;
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 
 /**
  * Factory class that allows to create {@link Authentication} instances
  * for OAuth 2.0 authentication methods.
+ *
+ * <p>Use {@link #clientCredentialsBuilder()} to build an {@link Authentication} object
+ * for the client credentials flow, with optional early token refresh support.
  */
 public final class AuthenticationFactoryOAuth2 {
 
@@ -37,7 +40,9 @@ public final class AuthenticationFactoryOAuth2 {
      * @param credentialsUrl the credentials URL
      * @param audience       An optional field. The audience identifier used by some Identity Providers, like Auth0.
      * @return an Authentication object
+     * @deprecated use {@link #clientCredentialsBuilder()}, instead.
      */
+    @Deprecated
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience) {
         return clientCredentials(issuerUrl, credentialsUrl, audience, null);
     }
@@ -55,7 +60,9 @@ public final class AuthenticationFactoryOAuth2 {
      *                       and each string adds an additional access range to the requested scope.
      *                       From here: https://datatracker.ietf.org/doc/html/rfc6749#section-4.4.2
      * @return an Authentication object
+     * @deprecated use {@link #clientCredentialsBuilder()}, instead.
      */
+    @Deprecated
     public static Authentication clientCredentials(URL issuerUrl, URL credentialsUrl, String audience, String scope) {
         return clientCredentialsBuilder().issuerUrl(issuerUrl).credentialsUrl(credentialsUrl).audience(audience)
                 .scope(scope).build();
@@ -91,6 +98,8 @@ public final class AuthenticationFactoryOAuth2 {
         private Duration readTimeout;
         private String trustCertsFilePath;
         private String wellKnownMetadataPath;
+        private double earlyTokenRefreshPercent = AuthenticationOAuth2.EARLY_TOKEN_REFRESH_PERCENT_DEFAULT;
+        private ScheduledExecutorService scheduler;
 
         private ClientCredentialsBuilder() {
         }
@@ -120,7 +129,7 @@ public final class AuthenticationFactoryOAuth2 {
         /**
          * Optional audience identifier used by some Identity Providers, like Auth0.
          *
-         * @param audience the audiance
+         * @param audience the audience
          * @return the builder
          */
         public ClientCredentialsBuilder audience(String audience) {
@@ -188,7 +197,41 @@ public final class AuthenticationFactoryOAuth2 {
         }
 
         /**
-         * Authenticate with client credentials.
+         * The fraction of the token's {@code expires_in} time at which the client starts attempting
+         * a background refresh. Must be greater than 0. Values &ge; 1 disable early refresh (the default).
+         *
+         * <p>For example, {@code 0.8} means the client will attempt to refresh after 80% of the
+         * token lifetime has elapsed, leaving a 20% buffer to tolerate a temporary OAuth server
+         * outage while the existing token is still valid. During an outage the client keeps retrying
+         * in the background with exponential backoff, continuing to serve requests with the current
+         * token until it actually expires.
+         *
+         * @param earlyTokenRefreshPercent fractional value in (0, 1) to enable, or &ge; 1 to disable
+         * @return the builder
+         */
+        public ClientCredentialsBuilder earlyTokenRefreshPercent(double earlyTokenRefreshPercent) {
+            if (earlyTokenRefreshPercent <= 0) {
+                throw new IllegalArgumentException("earlyTokenRefreshPercent must be greater than 0.");
+            }
+            this.earlyTokenRefreshPercent = earlyTokenRefreshPercent;
+            return this;
+        }
+
+        /**
+         * Optional scheduler for background token refresh tasks. If not set and early refresh is
+         * enabled, a shared internal daemon-thread scheduler is used automatically.
+         * {@link AuthenticationOAuth2} will never shut down a caller-supplied scheduler.
+         *
+         * @param scheduler the scheduler to use for background token refresh
+         * @return the builder
+         */
+        public ClientCredentialsBuilder scheduler(ScheduledExecutorService scheduler) {
+            this.scheduler = scheduler;
+            return this;
+        }
+
+        /**
+         * Builds the {@link Authentication} object.
          *
          * @return an Authentication object
          */
@@ -203,7 +246,7 @@ public final class AuthenticationFactoryOAuth2 {
                     .trustCertsFilePath(trustCertsFilePath)
                     .wellKnownMetadataPath(wellKnownMetadataPath)
                     .build();
-            return new AuthenticationOAuth2(flow, Clock.systemDefaultZone());
+            return new AuthenticationOAuth2(flow, earlyTokenRefreshPercent, scheduler);
         }
 
     }
