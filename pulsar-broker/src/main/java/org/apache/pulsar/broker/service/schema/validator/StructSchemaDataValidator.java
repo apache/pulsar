@@ -22,10 +22,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import java.io.IOException;
-import org.apache.avro.AvroTypeException;
 import org.apache.avro.NameValidator;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -69,7 +67,11 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
             if (SchemaType.AVRO.equals(schemaData.getType())) {
                 checkAvroSchemaTypeSupported(schema);
             }
-        } catch (SchemaParseException | AvroTypeException e) {
+        } catch (InvalidSchemaDataException invalidSchemaDataException) {
+            throw invalidSchemaDataException;
+        } catch (Exception e) {
+            // Avro 1.12.0 may throw NullPointerException (not SchemaParseException) for
+            // non-Avro schemas, so the legacy fallback must be in the general catch block.
             if (schemaData.getType() == SchemaType.JSON && allowLegacyJacksonFormat) {
                 // For backward compatibility with pre-2.1 schemas: try Jackson JsonSchema parsing.
                 // This fallback is only enabled when schemaJsonAllowLegacyJacksonFormat=true (PIP-464).
@@ -81,10 +83,6 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
             } else {
                 throwInvalidSchemaDataException(schemaData, e);
             }
-        } catch (InvalidSchemaDataException invalidSchemaDataException) {
-            throw invalidSchemaDataException;
-        } catch (Exception e) {
-            throwInvalidSchemaDataException(schemaData, e);
         }
     }
 
