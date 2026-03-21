@@ -1318,12 +1318,19 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 ? "SystemTopicToMetadataStoreSyncer" : "MetadataStoreToSystemTopicSyncer";
         pulsar.getAdminClient().brokers()
                 .updateDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer", syncerTyp);
+        // Wait for the dynamic config to propagate to both brokers before triggering
+        // leader transitions. Without this, the leader callback may see the old config
+        // and skip activating the syncer.
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(pulsar1.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
         makeSecondaryAsLeader();
         makePrimaryAsLeader();
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+        Awaitility.await()
                 .untilAsserted(() -> assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS)
+        Awaitility.await()
                 .untilAsserted(() -> assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
         ServiceConfiguration defaultConf = getDefaultConf();
@@ -1503,11 +1510,16 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
 
         pulsar.getAdminClient().brokers()
                 .deleteDynamicConfiguration("loadBalancerServiceUnitTableViewSyncer");
+        // Wait for config deletion to propagate before leader transition
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar1.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
         makeSecondaryAsLeader();
-        Awaitility.waitAtMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .untilAsserted(() -> assertFalse(primaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
-        Awaitility.waitAtMost(5, TimeUnit.SECONDS)
+        Awaitility.await()
                 .untilAsserted(() -> assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
     }

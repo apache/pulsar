@@ -306,7 +306,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
             ledger.entries.clear();
             ledger.totalLengthCounter.set(0);
         }
-        scheduler.shutdown();
+        scheduler.shutdownNow();
         ledgers.clear();
     }
 

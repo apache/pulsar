@@ -70,6 +70,10 @@ public class ClientInterruptTest extends ProducerConsumerBase {
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        if (client != null) {
+            client.close();
+            client = null;
+        }
         super.internalCleanup();
     }
 
