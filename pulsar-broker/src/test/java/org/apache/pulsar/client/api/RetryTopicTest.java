@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -588,23 +589,34 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
 
         final int maxRedeliveryCount = 2;
 
-        int sendMessages = 100;
+        final int sendMessages = 100;
+        final int totalMessages = sendMessages * 2;
+        final String subscriptionName = "my-subscription";
+        // Use an explicit DLQ topic name since the auto-generated name depends on the
+        // alphabetical ordering of the topics in the TreeSet, which is unpredictable
+        // with random topic names.
+        final String dlqTopic = newTopicName() + "-DLQ";
 
         // subscribe to the original topics before publish
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic1, topic2)
-                .subscriptionName("my-subscription")
+                .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .enableRetry(true)
-                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .deadLetterTopic(dlqTopic)
+                        .build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        // subscribe to the DLQ topics before consuming original topics
+        // subscribe to the DLQ topic before consuming original topics.
+        @Cleanup
         Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic1 + "-my-subscription-DLQ")
-                .subscriptionName("my-subscription")
+                .topic(dlqTopic)
+                .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
@@ -621,34 +633,34 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
             producer2.send(String.format("Hello Pulsar [%d]", i).getBytes());
         }
 
-        sendMessages = sendMessages * 2;
-
         producer1.close();
         producer2.close();
 
         int totalReceived = 0;
         do {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(30, TimeUnit.SECONDS);
+            assertNotNull(message, "Expected more messages, received " + totalReceived);
             log.info("consumer received message : {} {} - total = {}",
                 message.getMessageId(), new String(message.getData()), ++totalReceived);
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
-        } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
+        } while (totalReceived < totalMessages * (maxRedeliveryCount + 1));
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer.receive();
+            Message message = deadLetterConsumer.receive(30, TimeUnit.SECONDS);
+            assertNotNull(message, "Expected more DLQ messages, received " + totalInDeadLetter);
             log.info("dead letter consumer received message : {} {}", message.getMessageId(),
                     new String(message.getData()));
             deadLetterConsumer.acknowledge(message);
             totalInDeadLetter++;
-        } while (totalInDeadLetter < sendMessages);
+        } while (totalInDeadLetter < totalMessages);
 
-        deadLetterConsumer.close();
         consumer.close();
 
+        @Cleanup
         Consumer<byte[]> checkConsumer = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic1, topic2)
-                .subscriptionName("my-subscription")
+                .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
@@ -659,8 +671,6 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
                     new String(checkMessage.getData()));
         }
         assertNull(checkMessage);
-
-        checkConsumer.close();
     }
 
     @Test
