@@ -18,11 +18,8 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import java.io.IOException;
 import java.time.Clock;
 import java.util.Map;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.impl.AuthenticationUtil;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 
 /**
@@ -43,28 +40,11 @@ public class AuthenticationOAuth2StandardAuthzServer extends AuthenticationOAuth
     }
 
     @Override
-    public void configure(String encodedAuthParamString) {
-        if (StringUtils.isBlank(encodedAuthParamString)) {
-            throw new IllegalArgumentException("No authentication parameters were provided");
-        }
-        Map<String, String> params;
-        try {
-            params = AuthenticationUtil.configureFromJsonString(encodedAuthParamString);
-        } catch (IOException e) {
-            throw new IllegalArgumentException("Malformed authentication parameters", e);
-        }
-
+    protected Map<String, String> parseAuthParameters(String encodedAuthParamString) {
+        Map<String, String> params = super.parseAuthParameters(encodedAuthParamString);
         // Always set the OAuth 2.0 standard metadata path
         params.put(FlowBase.CONFIG_PARAM_WELL_KNOWN_METADATA_PATH,
                 DefaultMetadataResolver.OAUTH_WELL_KNOWN_METADATA_PATH);
-
-        String type = params.getOrDefault(CONFIG_PARAM_TYPE, TYPE_CLIENT_CREDENTIALS);
-        switch(type) {
-            case TYPE_CLIENT_CREDENTIALS:
-                this.flow = ClientCredentialsFlow.fromParameters(params);
-                break;
-            default:
-                throw new IllegalArgumentException("Unsupported authentication type: " + type);
-        }
+        return params;
     }
 }
