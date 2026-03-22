@@ -1155,9 +1155,11 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testNotChangeMaxReadPositionCountWhenCheckIfNoSnapshot() throws Exception {
+        final String topic = NAMESPACE1 + "/changeMaxReadPositionCount" + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService()
-                .getTopic(NAMESPACE1 + "/changeMaxReadPositionCount" + UUID.randomUUID(), true)
+                .getTopic(topic, true)
                 .get().get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
