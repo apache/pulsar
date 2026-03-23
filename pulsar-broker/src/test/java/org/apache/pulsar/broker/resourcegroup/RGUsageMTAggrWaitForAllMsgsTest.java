@@ -25,14 +25,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupUsageStatsType;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.SharedPulsarCluster;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -866,7 +865,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
 
     // Initial set up for transport manager and cluster creation.
     private void prepareForOps() throws Exception {
-        SharedPulsarCluster.get().getPulsarService().getConfiguration().setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
+        SharedPulsarCluster.get().getPulsarService().getConfiguration()
+                .setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
         SharedPulsarCluster.get().getPulsarService().getConfiguration().setAllowAutoTopicCreation(true);
         // Cluster already created by SharedPulsarCluster
     }

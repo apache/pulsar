@@ -23,17 +23,16 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupUsageStatsType;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -41,7 +40,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.awaitility.Awaitility;
@@ -176,7 +174,8 @@ public class ResourceGroupUsageAggregationTest extends SharedPulsarBaseTest {
 
         consumer.close();
         // cleanup the topic data.
-        CompletableFuture<Optional<Topic>> topicFuture = SharedPulsarCluster.get().getPulsarService().getBrokerService().getTopics().remove(topicString);
+        CompletableFuture<Optional<Topic>> topicFuture =
+                SharedPulsarCluster.get().getPulsarService().getBrokerService().getTopics().remove(topicString);
         if (topicFuture != null) {
             Optional<Topic> optTopic = topicFuture.join();
             if (optTopic.isPresent()) {
@@ -266,7 +265,8 @@ public class ResourceGroupUsageAggregationTest extends SharedPulsarBaseTest {
 
     // Initial set up for transport manager and producer/consumer clusters/tenants/namespaces/topics.
     private void prepareData() throws Exception {
-        SharedPulsarCluster.get().getPulsarService().getConfiguration().setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
+        SharedPulsarCluster.get().getPulsarService().getConfiguration()
+                .setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
 
         SharedPulsarCluster.get().getPulsarService().getConfiguration().setAllowAutoTopicCreation(true);
 

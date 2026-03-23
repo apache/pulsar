@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -753,7 +752,8 @@ public class DispatcherBlockConsumerTest extends SharedPulsarBaseTest {
             // client must receive number of messages = maxUnAckPerbroker rather all produced messages
             assertNotEquals(messages1.size(), totalProducedMsgs);
             @Cleanup
-            PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(getBrokerServiceUrl()).build(); // Creates new client connection
+            PulsarClient newPulsarClient = PulsarClient.builder()
+                    .serviceUrl(getBrokerServiceUrl()).build(); // Creates new client connection
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
             ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) newPulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
@@ -959,7 +959,8 @@ public class DispatcherBlockConsumerTest extends SharedPulsarBaseTest {
             assertNotEquals(messages1.size(), totalProducedMsgs);
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
             @Cleanup
-            PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(getBrokerServiceUrl()).build(); // Creates new client connection
+            PulsarClient newPulsarClient = PulsarClient.builder()
+                    .serviceUrl(getBrokerServiceUrl()).build(); // Creates new client connection
             ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) newPulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
                     .subscriptionType(SubscriptionType.Shared).subscribe();
