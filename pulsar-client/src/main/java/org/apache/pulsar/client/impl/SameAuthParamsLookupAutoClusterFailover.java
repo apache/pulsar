@@ -143,6 +143,11 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         for (int i = currentPulsarServiceIndex + 1; i < pulsarServiceUrlArray.length; i++) {
             if (probeAvailable(i)) {
                 return i;
+            } else {
+                // Mark the service as Failed to prevent a spurious recovery to it
+                // after we failover to a higher-indexed service.
+                pulsarServiceStateArray[i] = PulsarServiceState.Failed;
+                checkCounterArray[i].setValue(0);
             }
         }
         return -1;
