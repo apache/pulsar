@@ -126,10 +126,13 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         }
 
         long timestamp = trimLowerBit(deliverAt, timestampPrecisionBitCnt);
-        delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
-                .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap())
-                .add(entryId);
-        delayedMessagesCount.incrementAndGet();
+        Roaring64Bitmap roaring64Bitmap = delayedMessageMap
+                .computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
+                .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap());
+        if (!roaring64Bitmap.contains(entryId)) {
+            roaring64Bitmap.addLong(entryId);
+            delayedMessagesCount.incrementAndGet();
+        }
 
         updateTimer();
 
@@ -200,7 +203,12 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                     delayedMessagesCount.addAndGet(-n);
                     n = 0;
                 }
-                if (n <= 0) {
+                if (n == 0) {
+                    break;
+                } else if (n < 0) {
+                    // should not go into this situation
+                    log.error("[{}] Delayed message tracker getScheduledMessages should not < 0, number is: {}",
+                            dispatcher.getName(), n);
                     break;
                 }
             }
