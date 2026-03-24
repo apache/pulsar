@@ -19,8 +19,11 @@
 package org.apache.pulsar.io.jdbc;
 
 import java.sql.Array;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -803,6 +806,48 @@ public class PostgresJdbcAutoSchemaSink extends BaseJdbcAutoSchemaSink {
                                 + ". This indicates a bug in the array type inference logic. "
                                 + "Supported types are: integer, "
                                 + "bigint, text, boolean, numeric, real, float8, timestamp.");
+        }
+    }
+
+    /**
+     * PostgreSQL supports Date, Timestamp, Timestamptz, and Time types.
+     * <p>
+     * Inputs are converted to the appropriate datetime type.
+     * </p>
+     * <p>
+     * <strong>Implementation Guidelines:</strong>
+     * <ul>
+     * <li>If the value is a Timestamp or Timestamp with time zone, it is converted to a Timestamp</li>
+     * <li>If the value is a Date, it is converted to a Date</li>
+     * <li>If the value is a Time, it is converted to a Time</li>
+     * </ul>
+     * </p>
+     *
+     * @param statement     the PreparedStatement (not used)
+     * @param index         the parameter index (not used)
+     * @param value         the value (not used)
+     * @param targetSqlType the target SQL type (not used)
+     * @return false as SQLite doesn't support datetime
+     * @throws Exception if conversion or binding fails
+     */
+    @Override
+    protected boolean handleDateTime(PreparedStatement statement, int index, Object value, String targetSqlType)
+            throws Exception {
+        if (targetSqlType == null) {
+            return false;
+        }
+        switch (targetSqlType) {
+            case "Timestamp":
+                statement.setTimestamp(index, (Timestamp) value);
+                return true;
+            case "Date":
+                statement.setDate(index, (Date) value);
+                return true;
+            case "Time":
+                statement.setTime(index, (Time) value);
+                return true;
+            default:
+                return false;
         }
     }
 }

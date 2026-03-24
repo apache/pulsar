@@ -17,6 +17,7 @@
  * under the License.
  */
 package org.apache.pulsar.io.jdbc;
+
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doThrow;
