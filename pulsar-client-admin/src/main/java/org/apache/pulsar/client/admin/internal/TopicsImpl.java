@@ -339,6 +339,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         return createPartitionedTopicAsync(topic, numPartitions, false, properties);
     }
 
+    @SuppressWarnings("unchecked")
     public CompletableFuture<Void> createPartitionedTopicAsync(
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
@@ -1277,6 +1278,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 TransactionIsolationLevel.READ_UNCOMMITTED);
     }
 
+    @SuppressWarnings("unchecked")
     private List<Message<byte[]>> getMessagesFromHttpResponse(
             String topic, Response response, boolean showServerMarker,
             TransactionIsolationLevel transactionIsolationLevel) throws Exception {
@@ -1488,6 +1490,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private List<Message<byte[]>> getIndividualMsgsFromBatch(String topic, String msgId, byte[] data,
                                  Map<String, String> properties, MessageMetadata msgMetadataBuilder,
                                                              BrokerEntryMetadata brokerEntryMetadata) {
@@ -1583,6 +1586,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         return sync(() -> analyzeSubscriptionBacklogAsync(topic, subscriptionName, startPosition, terminatePredicate));
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
                                                                                 String subscriptionName,

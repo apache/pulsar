@@ -25,6 +25,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 
+@SuppressWarnings("unchecked")
 public class PulsarMetadataStateStoreProviderImpl implements StateStoreProvider {
 
     private static final String METADATA_URL = "METADATA_URL";
