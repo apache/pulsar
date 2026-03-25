@@ -27,6 +27,9 @@ import io.opentelemetry.api.common.Attributes;
  */
 public class ProducerMetrics {
 
+    // Used for tests
+    public static final ProducerMetrics NOOP = new ProducerMetrics(InstrumentProvider.NOOP, null);
+
     private final LatencyHistogram sendLatencyHistogram;
     private final LatencyHistogram rpcLatencyHistogram;
     private final Counter publishedBytesCounter;
