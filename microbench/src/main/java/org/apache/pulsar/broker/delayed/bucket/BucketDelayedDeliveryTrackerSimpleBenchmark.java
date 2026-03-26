@@ -40,8 +40,7 @@ import org.openjdk.jmh.annotations.Warmup;
  * Simplified JMH Benchmarks for BucketDelayedDeliveryTracker thread safety improvements.
  * This benchmark focuses on the core StampedLock optimistic read performance without
  * complex dependencies on the full BucketDelayedDeliveryTracker implementation.
- * Run with: mvn exec:java -Dexec.mainClass="org.openjdk.jmh.Main"
- *           -Dexec.args="BucketDelayedDeliveryTrackerSimpleBenchmark"
+ * Run with: java -jar microbench/build/libs/microbenchmarks.jar BucketDelayedDeliveryTrackerSimpleBenchmark
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)

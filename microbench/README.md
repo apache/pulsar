@@ -28,17 +28,11 @@ This module contains microbenchmarks for Apache Pulsar.
 The benchmarks are written using [JMH](http://openjdk.java.net/projects/code-tools/jmh/). To compile & run the benchmarks, use the following command:
 
 ```bash
-# Compile everything for creating the shaded microbenchmarks.jar file
-mvn -Pcore-modules,microbench,-main -T 1C clean package
+# Compile everything including the shaded microbenchmarks jar
+./gradlew :microbench:shadowJar
 
 # run the benchmarks using the standalone shaded jar in any environment
-java -jar microbench/target/microbenchmarks.jar
-```
-
-For fast recompiling of the benchmarks (without compiling Pulsar modules) and creating the shaded jar, you can use the following command:
-
-```bash
-mvn -Pmicrobench -pl microbench clean package
+java -jar microbench/build/libs/microbenchmarks.jar
 ```
 
 ### Running specific benchmarks
@@ -46,25 +40,25 @@ mvn -Pmicrobench -pl microbench clean package
 Display help:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar -h
+java -jar microbench/build/libs/microbenchmarks.jar -h
 ```
 
 Listing all benchmarks:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar -l
+java -jar microbench/build/libs/microbenchmarks.jar -l
 ```
 
 Running specific benchmarks:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar ".*BenchmarkName.*"
+java -jar microbench/build/libs/microbenchmarks.jar ".*BenchmarkName.*"
 ```
 
 Running specific benchmarks with machine-readable output and saving the output to a file:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar -rf json -rff jmh-result-$(date +%s).json ".*BenchmarkName.*" | tee jmh-result-$(date +%s).txt
+java -jar microbench/build/libs/microbenchmarks.jar -rf json -rff jmh-result-$(date +%s).json ".*BenchmarkName.*" | tee jmh-result-$(date +%s).txt
 ```
 
 The `jmh-result-*.json` file can be used to visualize the results using [JMH Visualizer](https://jmh.morethan.io/).
@@ -72,7 +66,7 @@ The `jmh-result-*.json` file can be used to visualize the results using [JMH Vis
 Checking what benchmarks match the pattern:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar ".*BenchmarkName.*" -lp
+java -jar microbench/build/libs/microbenchmarks.jar ".*BenchmarkName.*" -lp
 ```
 
 Profiling benchmarks with [async-profiler](https://github.com/async-profiler/async-profiler):
@@ -81,7 +75,7 @@ Profiling benchmarks with [async-profiler](https://github.com/async-profiler/asy
 # example of profiling with async-profiler
 # download async-profiler from https://github.com/async-profiler/async-profiler/releases
 LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.dylib
-java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*BenchmarkName.*"
+java -jar microbench/build/libs/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*BenchmarkName.*"
 ```
 
 When profiling on Mac OS, you might need to add `\;event=itimer` to the `-prof` argument since it's the only [async profiler CPU sampling engine that supports Mac OS](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md#summary). The default value for `event` is `cpu`.
@@ -89,5 +83,5 @@ When profiling on Mac OS, you might need to add `\;event=itimer` to the `-prof` 
 It's possible to add options to the async-profiler that aren't supported by the JMH async-profiler plugin. This can be done by adding `rawCommand` option to the `-prof` argument. This example shows how to add `all` (new in Async Profiler 4.1), `jfrsync` (record JFR events such as garbage collection) and `cstack=vmx` options.
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=jfr\;dir=profile-results\;rawCommand=all,jfrsync,cstack=vmx ".*BenchmarkName.*"
+java -jar microbench/build/libs/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=jfr\;dir=profile-results\;rawCommand=all,jfrsync,cstack=vmx ".*BenchmarkName.*"
 ```
