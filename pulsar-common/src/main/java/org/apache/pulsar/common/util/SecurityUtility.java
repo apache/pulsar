@@ -52,7 +52,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
@@ -83,10 +82,7 @@ public class SecurityUtility {
     public static final String BC_NON_FIPS_PROVIDER_CLASS = "org.bouncycastle.jce.provider.BouncyCastleProvider";
     public static final String CONSCRYPT_PROVIDER_CLASS = "org.conscrypt.OpenSSLProvider";
     public static final Provider CONSCRYPT_PROVIDER = loadConscryptProvider();
-    private static final List<KeyFactory> KEY_FACTORIES = Arrays.asList(
-            createKeyFactory("RSA"),
-            createKeyFactory("EC")
-    );
+    private static final List<String> KEY_FACTORY_ALGORITHMS = List.of("RSA", "EC");
 
     // Security.getProvider("BC") / Security.getProvider("BCFIPS").
     // also used to get Factories. e.g. CertificateFactory.getInstance("X.509", "BCFIPS")
@@ -521,12 +517,12 @@ public class SecurityUtility {
                 sb.append(currentLine);
             }
             final KeySpec keySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(sb.toString()));
-            final List<String> failedAlgorithm = new ArrayList<>(KEY_FACTORIES.size());
-            for (KeyFactory kf : KEY_FACTORIES) {
+            final List<String> failedAlgorithm = new ArrayList<>(KEY_FACTORY_ALGORITHMS.size());
+            for (String algorithm : KEY_FACTORY_ALGORITHMS) {
                 try {
-                    return kf.generatePrivate(keySpec);
-                } catch (InvalidKeySpecException ex) {
-                    failedAlgorithm.add(kf.getAlgorithm());
+                    return KeyFactory.getInstance(algorithm).generatePrivate(keySpec);
+                } catch (InvalidKeySpecException | NoSuchAlgorithmException ex) {
+                    failedAlgorithm.add(algorithm);
                 }
             }
             throw new KeyManagementException("The private key algorithm is not supported. attempted: "
@@ -596,11 +592,4 @@ public class SecurityUtility {
         return provider;
     }
 
-    private static KeyFactory createKeyFactory(String algorithm) {
-        try {
-            return KeyFactory.getInstance(algorithm);
-        } catch (Exception e) {
-            throw new IllegalArgumentException(String.format("Illegal key factory algorithm " + algorithm), e);
-        }
-    }
 }
