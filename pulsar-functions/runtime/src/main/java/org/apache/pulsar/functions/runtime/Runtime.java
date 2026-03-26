@@ -20,7 +20,8 @@ package org.apache.pulsar.functions.runtime;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.FunctionStatus;
+import org.apache.pulsar.functions.proto.MetricsData;
 
 /**
  * A function container is an environment for invoking functions.
@@ -45,13 +46,13 @@ public interface Runtime {
 
     Throwable getDeathException();
 
-    CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus(int instanceId);
+    CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId);
 
-    CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
+    CompletableFuture<MetricsData> getAndResetMetrics();
 
     CompletableFuture<Void> resetMetrics();
 
-    CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId);
+    CompletableFuture<MetricsData> getMetrics(int instanceId);
 
     String getPrometheusMetrics() throws IOException;
 }

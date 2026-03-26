@@ -27,8 +27,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Function.Instance;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.Instance;
 
 @Slf4j
 public class RoundRobinScheduler implements IScheduler {
@@ -52,8 +52,9 @@ public class RoundRobinScheduler implements IScheduler {
 
         for (Instance unassignedFunctionInstance : unassignedFunctionInstances) {
             String workerId = findNextWorker(workerIdToAssignment);
-            Assignment newAssignment = Assignment.newBuilder().setInstance(unassignedFunctionInstance)
-                    .setWorkerId(workerId).build();
+            Assignment newAssignment = new Assignment();
+            newAssignment.setInstance().copyFrom(unassignedFunctionInstance);
+            newAssignment.setWorkerId(workerId);
             workerIdToAssignment.get(workerId).add(newAssignment.getInstance());
             newAssignments.add(newAssignment);
         }
@@ -110,10 +111,9 @@ public class RoundRobinScheduler implements IScheduler {
             Queue<Instance> dest = (Queue) workerToAssignmentMap.get(leastAssignmentsWorkerId);
 
             Instance instance = src.poll();
-            Assignment newAssignment = Assignment.newBuilder()
-                    .setInstance(instance)
-                    .setWorkerId(leastAssignmentsWorkerId)
-                    .build();
+            Assignment newAssignment = new Assignment();
+            newAssignment.setInstance().copyFrom(instance);
+            newAssignment.setWorkerId(leastAssignmentsWorkerId);
             newAssignments.add(newAssignment);
 
             dest.add(instance);
