@@ -99,10 +99,10 @@ if [ $? == 0 ]; then
 fi
 
 # exclude tests jar
-BUILT_JAR=`ls $BK_HOME/target/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1`
+BUILT_JAR=`ls $BK_HOME/build/libs/bookkeeper-server-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? != 0 ] && [ ! -e "$BOOKIE_JAR" ]; then
     echo "\nCouldn't find bookkeeper jar.";
-    echo "Make sure you've run 'mvn package'\n";
+    echo "Make sure you've run './gradlew assemble'\n";
     exit 1;
 elif [ -e "$BUILT_JAR" ]; then
     BOOKIE_JAR=$BUILT_JAR
@@ -134,21 +134,13 @@ These variable can also be set in conf/bkenv.sh
 EOF
 }
 
-add_maven_deps_to_classpath() {
-    MVN="mvn"
-    if [ "$MAVEN_HOME" != "" ]; then
-	MVN=${MAVEN_HOME}/bin/mvn
-    fi
-
-    # Need to generate classpath from maven pom. This is costly so generate it
-    # and cache it. Save the file into our target dir so a mvn clean will get
-    # clean it up and force us create a new one.
-    f="${BK_HOME}/distribution/server/target/classpath.txt"
+add_gradle_deps_to_classpath() {
+    f="${BK_HOME}/distribution/server/build/classpath.txt"
     if [ ! -f "${f}" ]
     then
     (
       cd "${BK_HOME}"
-      ${MVN} -pl distribution/server generate-sources &> /dev/null
+      ./gradlew :distribution:pulsar-server-distribution:exportClasspath --no-configuration-cache -q 2> /dev/null
     )
     fi
     BOOKIE_CLASSPATH=${CLASSPATH}:`cat "${f}"`
@@ -159,7 +151,7 @@ if [ -d "$BK_HOME/lib" ]; then
 	BOOKIE_CLASSPATH=$BOOKIE_CLASSPATH:$i
     done
 else
-    add_maven_deps_to_classpath
+    add_gradle_deps_to_classpath
 fi
 
 # if no args specified, show usage

@@ -207,3 +207,16 @@ val shellDistZip by tasks.registering(Zip::class) {
 tasks.named("assemble") {
     dependsOn(shellDistTar, shellDistZip)
 }
+
+// Export the runtime classpath to a file for bin/ scripts to use
+// when running Pulsar CLI tools from a development build
+val exportClasspath by tasks.registering {
+    val outputFile = layout.buildDirectory.file("classpath.txt")
+    outputs.file(outputFile)
+    doLast {
+        outputFile.get().asFile.apply {
+            parentFile.mkdirs()
+            writeText(distLib.asPath)
+        }
+    }
+}

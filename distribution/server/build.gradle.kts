@@ -318,3 +318,16 @@ val serverDistTar by tasks.registering(Tar::class) {
 tasks.named("assemble") {
     dependsOn(serverDistTar)
 }
+
+// Export the runtime classpath to a file for bin/ scripts to use
+// when running Pulsar from a development build (without lib/ directory)
+val exportClasspath by tasks.registering {
+    val outputFile = layout.buildDirectory.file("classpath.txt")
+    outputs.file(outputFile)
+    doLast {
+        outputFile.get().asFile.apply {
+            parentFile.mkdirs()
+            writeText(distLib.asPath)
+        }
+    }
+}

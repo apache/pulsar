@@ -159,10 +159,10 @@ if [ $? == 0 ]; then
 fi
 
 # exclude tests jar
-BUILT_JAR=`ls $PULSAR_HOME/pulsar-broker/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+BUILT_JAR=`ls $PULSAR_HOME/pulsar-broker/build/libs/pulsar-broker-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then
     echo "\nCouldn't find pulsar jar.";
-    echo "Make sure you've run 'mvn package'\n";
+    echo "Make sure you've run './gradlew assemble'\n";
     exit 1;
 elif [ -e "$BUILT_JAR" ]; then
     PULSAR_JAR=$BUILT_JAR
@@ -175,10 +175,10 @@ fi
 # find the java instance location
 if [ ! -f "${JAVA_INSTANCE_JAR}" ]; then
     # didn't find a released jar, then search the built jar
-    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime-all/target/java-instance.jar"
+    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime-all/build/libs/java-instance.jar"
     if [ -z "${BUILT_JAVA_INSTANCE_JAR}" ]; then
         echo "\nCouldn't find pulsar-functions java instance jar.";
-        echo "Make sure you've run 'mvn package'\n";
+        echo "Make sure you've run './gradlew assemble'\n";
         exit 1;
     fi
     JAVA_INSTANCE_JAR=${BUILT_JAVA_INSTANCE_JAR}
@@ -187,30 +187,23 @@ fi
 # find the python instance location
 if [ ! -f "${PY_INSTANCE_FILE}" ]; then
     # didn't find a released python instance, then search the built python instance
-    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/instance/target/python-instance/python_instance_main.py"
+    BUILT_PY_INSTANCE_FILE="${FUNCTIONS_HOME}/instance/build/python-instance/python_instance_main.py"
     if [ -z "${BUILT_PY_INSTANCE_FILE}" ]; then
         echo "\nCouldn't find pulsar-functions python instance.";
-        echo "Make sure you've run 'mvn package'\n";
+        echo "Make sure you've run './gradlew assemble'\n";
         exit 1;
     fi
     PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
 fi
 
-add_maven_deps_to_classpath() {
-    MVN="mvn"
-    if [ "$MAVEN_HOME" != "" ]; then
-	    MVN=${MAVEN_HOME}/bin/mvn
-    fi
-
-    # Need to generate classpath from maven pom. This is costly so generate it
-    # and cache it. Save the file into our target dir so a mvn clean will get
-    # clean it up and force us create a new one.
-    f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
+add_gradle_deps_to_classpath() {
+    # Generate classpath from Gradle. Cache it for subsequent runs.
+    f="${PULSAR_HOME}/distribution/server/build/classpath.txt"
     if [ ! -f "${f}" ]
     then
     (
       cd "${PULSAR_HOME}"
-      ${MVN} -pl distribution/server generate-sources &> /dev/null
+      ./gradlew :distribution:pulsar-server-distribution:exportClasspath --no-configuration-cache -q 2> /dev/null
     )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
@@ -219,7 +212,7 @@ add_maven_deps_to_classpath() {
 if [ -d "$PULSAR_HOME/lib" ]; then
 	  PULSAR_CLASSPATH=$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*
 else
-    add_maven_deps_to_classpath
+    add_gradle_deps_to_classpath
 fi
 
 if [ -z "$PULSAR_WORKER_CONF" ]; then
