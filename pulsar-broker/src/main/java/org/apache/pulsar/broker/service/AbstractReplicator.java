@@ -78,7 +78,6 @@ public abstract class AbstractReplicator implements Replicator {
     protected static final AtomicReferenceFieldUpdater<AbstractReplicator, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(AbstractReplicator.class, State.class, "state");
     @VisibleForTesting
-    @Getter
     protected volatile State state = State.Disconnected;
 
     private volatile Attributes attributes = null;

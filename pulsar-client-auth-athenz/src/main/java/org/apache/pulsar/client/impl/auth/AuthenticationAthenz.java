@@ -230,7 +230,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
                         privateKey, keyId);
                 ztsClient = new ZTSClient(ztsUrl, ztsProxyUrl, tenantDomain, tenantService, siaProvider);
             }
-            ztsClient.setPrefetchAutoEnable(this.autoPrefetchEnabled);
+            ZTSClient.setPrefetchAutoEnable(this.autoPrefetchEnabled);
         }
         return ztsClient;
     }

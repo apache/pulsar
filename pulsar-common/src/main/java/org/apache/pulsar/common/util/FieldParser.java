@@ -96,6 +96,7 @@ public final class FieldParser {
 
         if (to.isEnum()) {
             // Converting string to enum
+            @SuppressWarnings("deprecation") // No replacement API available in Jackson 2.x
             EnumResolver r = EnumResolver.constructUsingToString(
                 ObjectMapperFactory.getMapper().getObjectMapper().getDeserializationConfig(), to);
             T value = (T) r.findEnum((String) from);

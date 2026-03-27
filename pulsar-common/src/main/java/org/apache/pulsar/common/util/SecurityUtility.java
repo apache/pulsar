@@ -325,7 +325,7 @@ public class SecurityUtility {
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
 
         SslContextBuilder builder =
-                SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates).sslProvider(sslProvider);
+                SslContextBuilder.forServer(privateKey, certificates).sslProvider(sslProvider);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
         if (StringUtils.isNotBlank(trustCertsFilePath)) {
@@ -548,7 +548,7 @@ public class SecurityUtility {
 
     private static void setupKeyManager(SslContextBuilder builder, PrivateKey privateKey,
             X509Certificate[] certificates) {
-        builder.keyManager(privateKey, (X509Certificate[]) certificates);
+        builder.keyManager(privateKey, certificates);
     }
 
     private static void setupCiphers(SslContextBuilder builder, Set<String> ciphers) {

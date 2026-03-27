@@ -3507,7 +3507,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 case Code.NoSuchLedgerExistsException:
                 case Code.NoSuchLedgerExistsOnMetadataServerException:
                     log.warn("[{}] Ledger {} not found when deleting it", name, ls.getLedgerId());
-                    // Continue anyway
+                    // falls through
 
                 case BKException.Code.OK:
                     if (ledgersToDelete.decrementAndGet() == 0) {
@@ -3766,6 +3766,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     };
 
     static class OffloadConflict extends ManagedLedgerException {
+        private static final long serialVersionUID = 1L;
+
         OffloadConflict(String msg) {
             super(msg);
         }

@@ -721,7 +721,7 @@ public abstract class PulsarWebResource {
                                             .port(webUrl.get().getPort())
                                             .replaceQueryParam("authoritative", newAuthoritative);
                                     if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
-                                        uriBuilder.replaceQueryParam("destinationBroker", null);
+                                        uriBuilder.replaceQueryParam("destinationBroker", (Object[]) null);
                                     }
                                     URI redirect = uriBuilder.build();
                                     log.debug("{} is not a service unit owned", bundle);

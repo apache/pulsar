@@ -39,6 +39,7 @@ public class PulsarMetadataBookieDriver extends AbstractMetadataDriver implement
         // cause <clinit> to be invoked
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
     protected void initialize(AbstractConfiguration serverConfiguration) throws MetadataException {
         super.initialize(serverConfiguration);

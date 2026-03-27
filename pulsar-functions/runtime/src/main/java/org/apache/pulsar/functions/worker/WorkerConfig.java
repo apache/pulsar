@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
@@ -910,6 +911,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     @Deprecated
     @Data
+    @EqualsAndHashCode(callSuper = false)
     /**
      * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
@@ -926,6 +928,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     @Deprecated
     @Data
+    @EqualsAndHashCode(callSuper = false)
     /**
      * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
@@ -942,6 +945,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     @Deprecated
     @Data
+    @EqualsAndHashCode(callSuper = false)
     /**
      * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use

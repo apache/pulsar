@@ -266,7 +266,7 @@ public class LookupProxyHandler {
                     log.warn("[{}] failed to get Partitioned metadata : {}", topicName,
                         t.getMessage(), t);
                     PulsarClientException pce = PulsarClientException.unwrap(t);
-                    writeAndFlush(Commands.newLookupErrorResponse(clientCnx.revertClientExToErrorCode(pce),
+                    writeAndFlush(Commands.newLookupErrorResponse(ClientCnx.revertClientExToErrorCode(pce),
                             t.getMessage(), clientRequestId));
                 } else {
                     writeAndFlush(

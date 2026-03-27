@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TraceableMessageId;
 
 public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId, TraceableMessageId {
+    private static final long serialVersionUID = 1L;
 
     private final String ownerTopic;
     private final MessageIdAdv msgId;

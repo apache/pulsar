@@ -36,6 +36,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.JSON;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Container;
@@ -459,7 +460,7 @@ public class KubernetesRuntime implements Runtime {
 
     private void submitService() throws Exception {
         final V1Service service = createService();
-        log.info("Submitting the following service to k8 {}", coreClient.getApiClient().getJSON().serialize(service));
+        log.info("Submitting the following service to k8 {}", JSON.serialize(service));
 
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
 
@@ -547,7 +548,7 @@ public class KubernetesRuntime implements Runtime {
                                     Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
         }
 
-        log.info("Submitting the following spec to k8 {}", appsClient.getApiClient().getJSON().serialize(statefulSet));
+        log.info("Submitting the following spec to k8 {}", JSON.serialize(statefulSet));
 
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
 

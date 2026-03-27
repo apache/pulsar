@@ -164,6 +164,8 @@ public abstract class BaseGenerateDocumentation implements Callable<Integer> {
     }
 
     protected static class CategoryComparator implements Comparator<Pair<Field, FieldContextWrapper>>, Serializable {
+        private static final long serialVersionUID = 1L;
+
         @Override
         public int compare(Pair<Field, FieldContextWrapper> o1, Pair<Field, FieldContextWrapper> o2) {
             FieldContextWrapper o1Context = o1.getValue();
