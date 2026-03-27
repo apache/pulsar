@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.common.util.collections;
 
-plugins {
-    id("pulsar.client-shade-conventions")
-}
-
-dependencies {
-    implementation(project(":pulsar-client-api"))
-    implementation(project(":pulsar-client-original"))
-    implementation(project(":pulsar-client-messagecrypto-bc"))
+/**
+ * A consumer that accepts a primitive long key and an object value.
+ */
+@FunctionalInterface
+public interface LongObjConsumer<V> {
+    void accept(long key, V value);
 }

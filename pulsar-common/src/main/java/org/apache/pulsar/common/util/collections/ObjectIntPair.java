@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.common.util.collections;
 
-plugins {
-    id("pulsar.client-shade-conventions")
-}
-
-dependencies {
-    implementation(project(":pulsar-client-api"))
-    implementation(project(":pulsar-client-original"))
-    implementation(project(":pulsar-client-messagecrypto-bc"))
+/**
+ * An immutable pair of an object and an int value.
+ */
+public record ObjectIntPair<T>(T left, int rightInt) {
+    public static <T> ObjectIntPair<T> of(T left, int right) {
+        return new ObjectIntPair<>(left, right);
+    }
 }
