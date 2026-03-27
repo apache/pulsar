@@ -23,7 +23,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * This class serves as a copy of of io.codearte.jfairy.producer.person.Person
+ * This class serves as a copy of io.codearte.jfairy.producer.person.Person.
  * because io.codearte.jfairy.producer.person.Person does not
  * have default constructors needed to deserialize POJOs
  */

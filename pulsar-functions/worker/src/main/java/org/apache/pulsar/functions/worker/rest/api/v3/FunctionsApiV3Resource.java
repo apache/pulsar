@@ -348,7 +348,7 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
     }
 
     /**
-     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}
+     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}.
      */
     @GET
     @Path("/connectors")
