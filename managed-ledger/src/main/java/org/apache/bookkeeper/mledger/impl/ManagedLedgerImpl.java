@@ -3488,7 +3488,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    @SuppressWarnings("checkstyle:fallthrough")
+    @SuppressWarnings({"checkstyle:fallthrough", "fallthrough"})
     private void deleteAllLedgers(DeleteLedgerCallback callback, Object ctx) {
         List<LedgerInfo> ledgers = Lists.newArrayList(ManagedLedgerImpl.this.ledgers.values());
         AtomicInteger ledgersToDelete = new AtomicInteger(ledgers.size());
@@ -3507,8 +3507,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 case Code.NoSuchLedgerExistsException:
                 case Code.NoSuchLedgerExistsOnMetadataServerException:
                     log.warn("[{}] Ledger {} not found when deleting it", name, ls.getLedgerId());
-                    // Continue anyway
-
+                    // fall through
                 case BKException.Code.OK:
                     if (ledgersToDelete.decrementAndGet() == 0) {
                         // All ledgers deleted, now remove ML metadata

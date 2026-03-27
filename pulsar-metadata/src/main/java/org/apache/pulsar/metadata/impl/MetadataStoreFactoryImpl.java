@@ -62,6 +62,7 @@ public class MetadataStoreFactoryImpl {
         return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
     }
 
+    @SuppressWarnings("auxiliaryclass")
     static Map<String, MetadataStoreProvider> loadProviders() {
         Map<String, MetadataStoreProvider> providers = new HashMap<>();
         providers.put(MEMORY_SCHEME_IDENTIFIER, new MemoryMetadataStoreProvider());

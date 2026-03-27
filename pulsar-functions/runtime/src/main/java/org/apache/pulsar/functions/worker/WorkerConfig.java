@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
@@ -904,14 +905,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         this.properties = properties;
     }
 
-    /********* DEPRECATED CONFIGS. *********/
+    // --------- DEPRECATED CONFIGS ---------
 
-    @Deprecated
-    @Data
     /**
-     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * @deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
      */
+    @Deprecated
+    @Data
+    @EqualsAndHashCode(callSuper = false)
     public static class ThreadContainerFactory extends ThreadRuntimeFactoryConfig {
 
     }
@@ -922,12 +924,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Deprecated
     private ThreadContainerFactory threadContainerFactory;
 
-    @Deprecated
-    @Data
     /**
-     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * @deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
      */
+    @Deprecated
+    @Data
+    @EqualsAndHashCode(callSuper = false)
     public static class ProcessContainerFactory extends ProcessRuntimeFactoryConfig {
 
     }
@@ -938,12 +941,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Deprecated
     private ProcessContainerFactory processContainerFactory;
 
-    @Deprecated
-    @Data
     /**
-     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * @deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
      */
+    @Deprecated
+    @Data
+    @EqualsAndHashCode(callSuper = false)
     public static class KubernetesContainerFactory extends KubernetesRuntimeFactoryConfig {
 
     }
