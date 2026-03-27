@@ -36,6 +36,7 @@ import org.apache.pulsar.io.core.SourceContext;
 
 @Slf4j
 public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements MessageListener<T> {
+    private static final long serialVersionUID = 1L;
 
     private final MultiConsumerPulsarSourceConfig pulsarSourceConfig;
     private final ClassLoader functionClassLoader;

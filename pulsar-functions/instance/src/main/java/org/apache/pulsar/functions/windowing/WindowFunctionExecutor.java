@@ -65,6 +65,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         this.start();
     }
 
+    @SuppressWarnings("unchecked")
     private void initializeUserFunction(WindowConfig windowConfig) {
         String actualWindowFunctionClassName = windowConfig.getActualWindowFunctionClassName();
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
@@ -75,12 +76,12 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
             Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
                     java.util.function.Function.class, userClassObject.getClass());
             if (typeArgs[0].equals(Collection.class)) {
-                bareWindowFunction = (java.util.function.Function) userClassObject;
+                bareWindowFunction = (java.util.function.Function<Collection<T>, X>) userClassObject;
             } else {
                 throw new IllegalArgumentException("Window function must take a collection as input");
             }
         } else if (userClassObject instanceof WindowFunction) {
-            windowFunction = (WindowFunction) userClassObject;
+            windowFunction = (WindowFunction<T, X>) userClassObject;
         } else {
             throw new IllegalArgumentException("Window function does not implement the correct interface");
         }
@@ -125,6 +126,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         return manager;
     }
 
+    @SuppressWarnings("unchecked")
     private TimestampExtractor<T> getTimeStampExtractor(WindowConfig windowConfig) {
 
         Class<?> theCls;
@@ -279,6 +281,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         return this.timestampExtractor != null;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public X process(T input, Context context) throws Exception {
         if (!this.initialized) {

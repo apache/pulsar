@@ -23,9 +23,6 @@ plugins {
 
 dependencies {
     implementation(project(":pulsar-client-api"))
-    implementation(project(":pulsar-client-original")) {
-        exclude(group = "it.unimi.dsi", module = "fastutil")
-    }
-    implementation(project(":pulsar-client-dependencies-minimized"))
+    implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
 }

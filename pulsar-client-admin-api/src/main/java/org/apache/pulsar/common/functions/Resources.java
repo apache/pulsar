@@ -35,10 +35,13 @@ public class Resources {
     private static final Resources DEFAULT = new Resources();
 
     // Default cpu is 1 core
+    @Builder.Default
     private Double cpu = 1d;
     // Default memory is 1GB
+    @Builder.Default
     private Long ram = 1073741824L;
     // Default disk is 10GB
+    @Builder.Default
     private Long disk = 10737418240L;
 
     public static Resources getDefaultResources() {

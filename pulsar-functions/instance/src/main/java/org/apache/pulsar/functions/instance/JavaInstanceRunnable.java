@@ -422,7 +422,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     @VisibleForTesting
-    void handleResult(Record srcRecord, JavaExecutionResult result) throws Exception {
+    void handleResult(Record<?> srcRecord, JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             Throwable t = result.getUserException();
             log.warn("Encountered exception when processing message {}",
@@ -483,7 +483,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private OutputRecordSinkRecord encodeWithRecordSchemaAndDecodeWithSinkSchema(Record srcRecord, Record record) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private OutputRecordSinkRecord<?> encodeWithRecordSchemaAndDecodeWithSinkSchema(
+            Record<?> srcRecord, Record<?> record) {
         AbstractSinkRecord<?> sinkRecord;
         Schema encodingSchema = record.getSchema();
         boolean isKeyValueSeparated = false;
@@ -523,8 +525,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return new OutputRecordSinkRecord(srcRecord, record, decoded, finalSchema);
     }
 
-    private Record readInput() throws Exception {
-        Record record;
+    private Record<?> readInput() throws Exception {
+        Record<?> record;
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
             Thread.currentThread().setContextClassLoader(componentClassLoader);
         }
@@ -775,6 +777,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         context.updateLoggers();
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void setupInput(ContextImpl contextImpl) throws Exception {
 
         SourceSpec sourceSpec = this.instanceConfig.getFunctionDetails().getSource();
@@ -926,6 +929,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
      * @param secretsProvider - the secrets provider that will convert secret's values into config values.
      * @param configs - the connector configuration map, which will be mutated.
      */
+    @SuppressWarnings("unchecked")
     private static void interpolateSecretsIntoConfigs(SecretsProvider secretsProvider,
                                                       Map<String, Object> configs) {
         for (Map.Entry<String, Object> entry : configs.entrySet()) {
@@ -1026,6 +1030,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void setupOutput(ContextImpl contextImpl) throws Exception {
 
         SinkSpec sinkSpec = this.instanceConfig.getFunctionDetails().getSink();
@@ -1099,6 +1104,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static <T> Schema<T> getSinkSchema(Record<?> record, Class<T> clazz) {
         SchemaType type = getSchemaTypeOrDefault(record, clazz);
         switch (type) {

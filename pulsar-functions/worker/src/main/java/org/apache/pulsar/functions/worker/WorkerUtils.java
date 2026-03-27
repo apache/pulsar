@@ -428,7 +428,7 @@ public final class WorkerUtils {
     }
 
     public static class NotLeaderAnymore extends Exception {
-
+        private static final long serialVersionUID = 1L;
     }
 
     public static Supplier<Boolean> getIsStillLeaderSupplier(final MembershipManager membershipManager,

@@ -93,6 +93,8 @@ public class FailFastNotifier
     }
 
     static class FailFastSkipException extends SkipException {
+        private static final long serialVersionUID = 1L;
+
         FailFastSkipException(String skipMessage) {
             super(skipMessage);
             reduceStackTrace();

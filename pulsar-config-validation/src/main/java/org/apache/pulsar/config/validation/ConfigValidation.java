@@ -114,7 +114,7 @@ public class ConfigValidation {
 
             Object value = null;
             try {
-                value = (Object) method.invoke(v);
+                value = method.invoke(v);
             } catch (IllegalArgumentException ex) {
                 value = null;
             }

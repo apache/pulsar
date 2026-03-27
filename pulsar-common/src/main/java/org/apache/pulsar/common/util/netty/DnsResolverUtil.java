@@ -74,19 +74,7 @@ public class DnsResolverUtil {
             ttl = Optional.ofNullable(ttlStr)
                     .map(Integer::decode)
                     .filter(i -> i > 0)
-                    .orElseGet(() -> {
-                        try {
-                            if (System.getSecurityManager() == null) {
-                                return JDK_DEFAULT_TTL;
-                            }
-                        } catch (Throwable t) {
-                            log.warn("Cannot use current logic to resolve JDK default DNS TTL settings. Use "
-                                            + "sun.net.inetaddr.ttl and sun.net.inetaddr.negative.ttl system "
-                                            + "properties for setting default values for DNS TTL settings. {}",
-                                    t.getMessage());
-                        }
-                        return DEFAULT_TTL;
-                    });
+                    .orElse(JDK_DEFAULT_TTL);
 
             negativeTtl = Optional.ofNullable(negativeTtlStr)
                     .map(Integer::decode)

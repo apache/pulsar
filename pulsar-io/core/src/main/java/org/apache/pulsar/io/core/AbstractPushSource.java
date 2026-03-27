@@ -98,6 +98,7 @@ public abstract class AbstractPushSource<T> {
      * Allows the source to notify errors asynchronously.
      * @param ex
      */
+    @SuppressWarnings("unchecked")
     public void notifyError(Exception ex) {
         consume(new ErrorNotifierRecord(ex));
     }

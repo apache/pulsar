@@ -30,6 +30,7 @@ import java.util.BitSet;
 @Deprecated
 @EqualsAndHashCode(callSuper = true)
 public class ConcurrentBitSetRecyclable extends ConcurrentBitSet {
+    private static final long serialVersionUID = 1L;
 
     private final Handle<ConcurrentBitSetRecyclable> recyclerHandle;
 

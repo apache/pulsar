@@ -33,7 +33,6 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.Getter;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
@@ -51,7 +50,6 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
      * for non-persistent topic: broker drops msg if publisher publishes messages more than configured max inflight
      * messages per connection.
      **/
-    @Getter
     public double msgDropRate;
 
     @JsonIgnore
