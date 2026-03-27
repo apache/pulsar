@@ -22,7 +22,7 @@ import lombok.Builder;
 import lombok.Data;
 
 /**
- * A wrapper for authentication data for functions
+ * A wrapper for authentication data for functions.
  */
 @Data
 @Builder
