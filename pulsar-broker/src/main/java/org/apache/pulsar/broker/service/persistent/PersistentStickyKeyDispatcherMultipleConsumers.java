@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import com.google.common.annotations.VisibleForTesting;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,6 +57,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.IntOpenHashSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -418,7 +417,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // in replay read mode, keep track of consumers for entries, used for look-ahead check
         Set<Consumer> consumersForEntriesForLookaheadCheck = lookAheadAllowed ? new HashSet<>() : null;
         // track already blocked hashes to block any further messages with the same hash
-        IntSet alreadyBlockedHashes = new IntOpenHashSet();
+        IntOpenHashSet alreadyBlockedHashes = new IntOpenHashSet();
 
         for (Entry inputEntry : entries) {
             EntryAndMetadata entry;

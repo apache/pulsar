@@ -344,7 +344,8 @@ public class CmdProduce extends AbstractCmd {
                             limiter.acquire();
                         }
 
-                        TypedMessageBuilder message = producer.newMessage();
+                        @SuppressWarnings("unchecked")
+                        TypedMessageBuilder<Object> message = (TypedMessageBuilder<Object>) producer.newMessage();
 
                         if (!kvMap.isEmpty()) {
                             message.properties(kvMap);
@@ -359,7 +360,7 @@ public class CmdProduce extends AbstractCmd {
                                 break;
                             case KEY_VALUE_ENCODING_TYPE_SEPARATED:
                             case KEY_VALUE_ENCODING_TYPE_INLINE:
-                                KeyValue kv = new KeyValue<>(
+                                KeyValue<byte[], byte[]> kv = new KeyValue<>(
                                         keyValueKeyBytes,
                                         content);
                                 message.value(kv);

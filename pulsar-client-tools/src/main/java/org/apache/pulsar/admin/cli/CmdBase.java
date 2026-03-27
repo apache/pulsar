@@ -109,6 +109,8 @@ public abstract class CmdBase {
     }
 
     protected class ParameterException extends CommandLine.ParameterException {
+        private static final long serialVersionUID = 1L;
+
         public ParameterException(String msg) {
             super(commander, msg);
         }

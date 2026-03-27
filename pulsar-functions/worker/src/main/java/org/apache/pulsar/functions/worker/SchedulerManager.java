@@ -776,18 +776,23 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     public static class RebalanceInProgressException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 
     public static class DrainInProgressException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 
     public static class TooFewWorkersException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 
     public static class UnknownWorkerException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 
     public static class WorkerNotRemovedAfterPriorDrainException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 
     private static class SchedulerStats {

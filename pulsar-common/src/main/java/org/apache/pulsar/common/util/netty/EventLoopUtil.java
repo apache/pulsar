@@ -194,6 +194,7 @@ public class EventLoopUtil {
         }
     }
 
+    @SuppressWarnings("deprecation") // EpollMode is deprecated in newer Netty but no replacement API exists yet
     public static void enableTriggeredMode(ServerBootstrap bootstrap) {
         if (Epoll.isAvailable()) {
             bootstrap.childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);

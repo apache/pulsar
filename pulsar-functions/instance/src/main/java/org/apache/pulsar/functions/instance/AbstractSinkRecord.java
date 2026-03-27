@@ -101,9 +101,13 @@ public abstract class AbstractSinkRecord<T> implements Record<T> {
                 // see PIP-85
                 if (record.getMessage().isPresent()
                         && record.getMessage().get().getReaderSchema().isPresent()) {
-                    schema = (Schema<T>) record.getMessage().get().getReaderSchema().get();
+                    @SuppressWarnings("unchecked")
+                    Schema<T> readerSchema = (Schema<T>) record.getMessage().get().getReaderSchema().get();
+                    schema = readerSchema;
                 } else {
-                    schema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
+                    @SuppressWarnings("unchecked")
+                    Schema<T> internalSchema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
+                    schema = internalSchema;
                 }
             }
             return schema;

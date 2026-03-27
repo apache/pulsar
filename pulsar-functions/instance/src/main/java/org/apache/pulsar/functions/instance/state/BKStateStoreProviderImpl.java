@@ -181,6 +181,7 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
         throw new IOException("Failed to open state table for function " + tenant + "/" + namespace + "/" + name);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends StateStore> T getStateStore(String tenant, String namespace, String name) throws Exception {
         // we defer creation of the state table until a java instance is running here.

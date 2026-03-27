@@ -59,6 +59,7 @@ public class PulsarClientSharedResourcesBuilderImpl implements PulsarClientShare
         }
     }
 
+    @SuppressWarnings("rawtypes")
     static class ThreadPoolResourceConfig extends NamedResourceConfig<ThreadPoolConfig> implements ThreadPoolConfig {
         int numberOfThreads = Runtime.getRuntime().availableProcessors();
         boolean daemon = Thread.currentThread().isDaemon();

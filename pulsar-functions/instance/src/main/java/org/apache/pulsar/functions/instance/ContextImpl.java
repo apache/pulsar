@@ -581,6 +581,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     class MessageBuilderImpl<T> implements TypedMessageBuilder<T> {
+        private static final long serialVersionUID = 1L;
+
         private TypedMessageBuilder<T> underlyingBuilder;
 
         @Override

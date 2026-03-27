@@ -291,6 +291,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         if (sinkRecord.getSourceRecord() instanceof PulsarRecord) {
+            @SuppressWarnings("unchecked")
             PulsarRecord<T> pulsarRecord = (PulsarRecord<T>) sinkRecord.getSourceRecord();
             // forward user properties to sink-topic
             msg.property("__pfn_input_topic__", pulsarRecord.getTopicName().get())
