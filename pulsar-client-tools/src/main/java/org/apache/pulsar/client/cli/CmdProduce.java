@@ -188,9 +188,9 @@ public class CmdProduce extends AbstractCmd {
      *
      * @return list of message bodies
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     static List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames,
-                                              Schema<?> schema) {
+                                              Schema schema) {
         List<byte[]> messageBodies = new ArrayList<>();
 
         for (String m : stringMessages) {
