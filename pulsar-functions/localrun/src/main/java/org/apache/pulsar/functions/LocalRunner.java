@@ -598,6 +598,7 @@ public class LocalRunner implements AutoCloseable {
         statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
+                @SuppressWarnings({"unchecked", "rawtypes"})
                 CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
                 int index = 0;
                 for (RuntimeSpawner spawner : spawners) {

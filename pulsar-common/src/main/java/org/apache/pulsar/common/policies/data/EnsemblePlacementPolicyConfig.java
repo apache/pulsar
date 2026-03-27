@@ -91,6 +91,8 @@ public class EnsemblePlacementPolicyConfig {
     }
 
     public static class ParseEnsemblePlacementPolicyConfigException extends Exception {
+        private static final long serialVersionUID = 1L;
+
         ParseEnsemblePlacementPolicyConfigException(String message, Throwable throwable) {
             super(message, throwable);
         }

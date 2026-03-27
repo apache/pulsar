@@ -58,7 +58,6 @@ dependencies {
     implementation(libs.jsr305)
     implementation(libs.jspecify)
     implementation(libs.roaringbitmap)
-    implementation(libs.fastutil)
 
     compileOnly(libs.swagger.annotations)
     compileOnly(libs.protobuf.java)

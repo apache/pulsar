@@ -561,7 +561,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
-                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+                    kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
                         ((AutoConsumeSchema) schema).getSchemaInfo(schemaVersion).getType(), schemaVersion);
@@ -591,7 +591,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         KeyValueSchemaImpl kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
             org.apache.pulsar.common.schema.KeyValue keyValue =
-                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
+                    kvSchema.decode(getKeyBytes(), getData(), null);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
                         ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), null);

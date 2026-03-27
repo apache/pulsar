@@ -24,7 +24,6 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
-import lombok.Getter;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 public class SourceStatsManager extends ComponentStatsManager {
@@ -82,10 +81,8 @@ public class SourceStatsManager extends ComponentStatsManager {
     private Counter.Child statTotalSourceExceptionsChild1min;
     private Counter.Child statTotalWrittenChild1min;
 
-    @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions =
             EvictingQueue.create(10);
-    @Getter
     private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSourceExceptions =
             EvictingQueue.create(10);
 

@@ -668,7 +668,7 @@ public class Commands {
                 return response;
             }
 
-            if (!zkServer.isSerializeLastProcessedZxidEnabled()) {
+            if (!ZooKeeperServer.isSerializeLastProcessedZxidEnabled()) {
                 response.setStatusCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 LOG.warn("Restore command requires serializeLastProcessedZxidEnable flag is set to true");
                 return response;
@@ -790,7 +790,7 @@ public class Commands {
                 return response;
             }
 
-            if (!zkServer.isSerializeLastProcessedZxidEnabled()) {
+            if (!ZooKeeperServer.isSerializeLastProcessedZxidEnabled()) {
                 response.setStatusCode(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 LOG.warn("Snapshot command requires serializeLastProcessedZxidEnable flag is set to true");
                 return response;

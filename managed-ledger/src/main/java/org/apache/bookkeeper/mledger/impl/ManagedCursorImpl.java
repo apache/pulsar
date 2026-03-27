@@ -2234,6 +2234,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private final class MarkDeletingMarkedPosition extends IllegalArgumentException {
+        private static final long serialVersionUID = 1L;
+
         public MarkDeletingMarkedPosition(String s) {
             super(s);
         }
@@ -3125,7 +3127,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         log.warn("[{}] [{}] Since the ledger [{}] is lost and the autoSkipNonRecoverableData is true, this ledger will"
                 + " be auto acknowledge in subscription", ledger.getName(), name, ledgerId);
         asyncDelete(() -> LongStream.range(0, ledgerInfo.getEntries())
-                        .mapToObj(i -> (Position) PositionFactory.create(ledgerId, i)).iterator(),
+                        .mapToObj(i -> PositionFactory.create(ledgerId, i)).iterator(),
                 new AsyncCallbacks.DeleteCallback() {
                     @Override
                     public void deleteComplete(Object ctx) {

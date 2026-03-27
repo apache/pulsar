@@ -142,6 +142,8 @@ public abstract class CliCommand implements Callable<Integer> {
     abstract void run() throws Exception;
 
     protected class ParameterException extends CommandLine.ParameterException {
+        private static final long serialVersionUID = 1L;
+
         public ParameterException(String msg) {
             super(commandSpec.commandLine(), msg);
         }
