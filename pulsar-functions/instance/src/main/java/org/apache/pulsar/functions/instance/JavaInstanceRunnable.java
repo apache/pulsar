@@ -141,7 +141,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Record<?> currentRecord;
 
+    @SuppressWarnings("rawtypes")
     private Source source;
+    @SuppressWarnings("rawtypes")
     private Sink sink;
 
     private final SecretsProvider secretsProvider;
@@ -303,7 +305,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     public interface AsyncResultConsumer {
-        void accept(Record record, JavaExecutionResult javaExecutionResult) throws Exception;
+        void accept(Record<?> record, JavaExecutionResult javaExecutionResult) throws Exception;
     }
 
     /**

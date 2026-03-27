@@ -188,8 +188,9 @@ public class CmdProduce extends AbstractCmd {
      *
      * @return list of message bodies
      */
+    @SuppressWarnings("unchecked")
     static List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames,
-                                              Schema schema) {
+                                              Schema<?> schema) {
         List<byte[]> messageBodies = new ArrayList<>();
 
         for (String m : stringMessages) {
@@ -247,6 +248,7 @@ public class CmdProduce extends AbstractCmd {
      * @return 0 for success, < 0 otherwise
      * @throws Exception
      */
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public int run() throws PulsarClientException {
         if (this.numTimesProduce <= 0) {
             throw new CommandLine.ParameterException(commandSpec.commandLine(),

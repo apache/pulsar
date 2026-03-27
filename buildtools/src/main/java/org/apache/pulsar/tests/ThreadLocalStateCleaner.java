@@ -108,7 +108,9 @@ public final class ThreadLocalStateCleaner {
                 threadLocalEntryValueField = FieldUtils.getField(entry.getClass(), "value",
                         true);
             }
-            return (T) threadLocalEntryValueField.get(entry);
+            @SuppressWarnings("unchecked") // reflective access to ThreadLocal entry value
+            T value = (T) threadLocalEntryValueField.get(entry);
+            return value;
         }
         return null;
     }

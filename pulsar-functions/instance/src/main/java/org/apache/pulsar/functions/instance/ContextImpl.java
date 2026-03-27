@@ -124,7 +124,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private boolean exposePulsarAdminClientEnabled;
 
     private List<Consumer<?>> inputConsumers;
-    private final Map<TopicName, Consumer> topicConsumers = new ConcurrentHashMap<>();
+    private final Map<TopicName, Consumer<?>> topicConsumers = new ConcurrentHashMap<>();
 
     static {
         // add label to indicate user metric
@@ -250,7 +250,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public Record<?> getCurrentRecord() {
-        return new PulsarFunctionRecord(record, config.getFunctionDetails());
+        return new PulsarFunctionRecord<>(record, config.getFunctionDetails());
     }
 
     @Override
@@ -387,6 +387,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             name);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends StateStore> T getStateStore(String tenant, String ns, String name) {
         return (T) stateManager.getStore(tenant, ns, name);

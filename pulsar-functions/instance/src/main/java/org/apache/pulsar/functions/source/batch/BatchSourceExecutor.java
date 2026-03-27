@@ -130,7 +130,9 @@ public class BatchSourceExecutor<T> implements Source<T> {
       batchSourceClassName,
       clsLoader);
     if (userClassObject instanceof BatchSource) {
-      batchSource = (BatchSource) userClassObject;
+      @SuppressWarnings("unchecked") // type parameter is erased at runtime
+      BatchSource<T> typedBatchSource = (BatchSource<T>) userClassObject;
+      batchSource = typedBatchSource;
     } else {
       throw new IllegalArgumentException("BatchSource does not implement the correct interface");
     }

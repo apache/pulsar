@@ -158,7 +158,9 @@ public class ConcurrentLongHashMap<V> {
         int numSections = concurrencyLevel;
         int perSectionExpectedItems = expectedItems / numSections;
         int perSectionCapacity = (int) (perSectionExpectedItems / mapFillFactor);
-        this.sections = (Section<V>[]) new Section[numSections];
+        @SuppressWarnings({"rawtypes", "unchecked"}) // generic array creation requires raw type
+        Section<V>[] newSections = (Section<V>[]) new Section[numSections];
+        this.sections = newSections;
 
         for (int i = 0; i < numSections; i++) {
             sections[i] = new Section<>(perSectionCapacity, mapFillFactor, mapIdleFactor,
@@ -294,6 +296,7 @@ public class ConcurrentLongHashMap<V> {
 
         private volatile int capacity;
         private final int initCapacity;
+        @SuppressWarnings("rawtypes") // AtomicIntegerFieldUpdater requires raw type for class parameter
         private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER =
                 AtomicIntegerFieldUpdater.newUpdater(Section.class, "size");
 

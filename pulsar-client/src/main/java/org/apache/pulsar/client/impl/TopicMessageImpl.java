@@ -36,11 +36,11 @@ public class TopicMessageImpl<T> implements TraceableMessage, Message<T> {
     private final Message<T> msg;
     private final TopicMessageIdImpl messageId;
     // consumer if this message is received by that consumer
-    final ConsumerImpl receivedByconsumer;
+    final ConsumerImpl<T> receivedByconsumer;
 
     TopicMessageImpl(String topicPartitionName,
                      Message<T> msg,
-                     ConsumerImpl receivedByConsumer) {
+                     ConsumerImpl<T> receivedByConsumer) {
         this.topicPartitionName = topicPartitionName;
         this.receivedByconsumer = receivedByConsumer;
 
@@ -192,8 +192,7 @@ public class TopicMessageImpl<T> implements TraceableMessage, Message<T> {
     }
 
     public Schema<T> getSchemaInternal() {
-        if (this.msg instanceof MessageImpl) {
-            MessageImpl message = (MessageImpl) this.msg;
+        if (this.msg instanceof MessageImpl<T> message) {
             return message.getSchemaInternal();
         }
         return null;

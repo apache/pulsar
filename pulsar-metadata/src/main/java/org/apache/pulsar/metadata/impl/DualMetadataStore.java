@@ -429,14 +429,14 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
+    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig<?> cacheConfig) {
         var cache =  new DualMetadataCache<>(this, clazz, null, null, null, cacheConfig);
         caches.add(cache);
         return cache;
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
+    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig<?> cacheConfig) {
         var cache =  new DualMetadataCache<>(this, null, typeRef, null, null, cacheConfig);
         caches.add(cache);
         return cache;
@@ -444,7 +444,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
-                                                 MetadataCacheConfig cacheConfig) {
+                                                 MetadataCacheConfig<?> cacheConfig) {
         var cache =  new DualMetadataCache<>(this, null, null, cacheName, serde, cacheConfig);
         caches.add(cache);
         return cache;

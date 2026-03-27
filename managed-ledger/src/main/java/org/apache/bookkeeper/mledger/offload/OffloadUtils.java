@@ -49,7 +49,7 @@ public final class OffloadUtils {
     private OffloadUtils() {}
 
     public static Map<String, String> getOffloadDriverMetadata(LedgerInfo ledgerInfo) {
-        Map<String, String> metadata = new HashMap();
+        Map<String, String> metadata = new HashMap<>();
         if (ledgerInfo.hasOffloadContext()) {
             OffloadContext ctx = ledgerInfo.getOffloadContext();
             if (ctx.hasDriverMetadata()) {
@@ -72,7 +72,7 @@ public final class OffloadUtils {
             if (ctx.hasDriverMetadata()) {
                 OffloadDriverMetadata driverMetadata = ctx.getDriverMetadata();
                 if (driverMetadata.getPropertiesCount() > 0) {
-                    Map<String, String> metadata = new HashMap();
+                    Map<String, String> metadata = new HashMap<>();
                     for (int i = 0; i < driverMetadata.getPropertiesCount(); i++) {
                         KeyValue kv = driverMetadata.getPropertyAt(i);
                         metadata.put(kv.getKey(), kv.getValue());
@@ -160,7 +160,7 @@ public final class OffloadUtils {
         });
 
         if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
-            Map<String, byte[]> customMetadata = new HashMap();
+            Map<String, byte[]> customMetadata = new HashMap<>();
             ledgerMetadataFormat.getCustomMetadataList().forEach(
                     entry -> customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
             builder.withCustomMetadata(customMetadata);
@@ -192,8 +192,7 @@ public final class OffloadUtils {
                                      String name, org.apache.bookkeeper.common.util.OrderedScheduler executor) {
         log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.",
                 name, ledgerId, uuid.toString(), cleanupReason);
-        Map<String, String> metadataMap = new HashMap();
-        metadataMap.putAll(offloadDriverMetadata);
+        Map<String, String> metadataMap = new HashMap<>(offloadDriverMetadata);
         metadataMap.put("ManagedLedgerName", name);
 
         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),

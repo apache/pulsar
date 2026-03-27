@@ -194,7 +194,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
-    public ReaderBuilder<T> messageCrypto(MessageCrypto messageCrypto) {
+    public ReaderBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto) {
         conf.setMessageCrypto(messageCrypto);
         return this;
     }

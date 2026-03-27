@@ -517,7 +517,7 @@ public class SourceConfigUtils {
         try {
             ConnectorDefinition defn = sourceFunction.getFunctionMetaData(ConnectorDefinition.class);
             if (defn != null && defn.getSourceConfigClass() != null) {
-                Class configClass =
+                Class<?> configClass =
                         Class.forName(defn.getSourceConfigClass(), true, sourceFunction.getClassLoader());
                 validateSourceConfig(sourceConfig, configClass);
             }
@@ -527,7 +527,7 @@ public class SourceConfigUtils {
 
     }
 
-    public static void validateSourceConfig(SourceConfig sourceConfig, Class configClass) {
+    public static void validateSourceConfig(SourceConfig sourceConfig, Class<?> configClass) {
         try {
             Object configObject =
                     ObjectMapperFactory.getMapper().getObjectMapper()

@@ -381,7 +381,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> messageCrypto(@NonNull MessageCrypto messageCrypto) {
+    public ConsumerBuilder<T> messageCrypto(@NonNull MessageCrypto<?, ?> messageCrypto) {
         conf.setMessageCrypto(messageCrypto);
         return this;
     }

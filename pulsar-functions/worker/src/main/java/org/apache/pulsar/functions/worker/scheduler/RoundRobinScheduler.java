@@ -78,7 +78,7 @@ public class RoundRobinScheduler implements IScheduler {
     @Override
     public List<Assignment> rebalance(List<Assignment> currentAssignments, Set<String> workers) {
 
-        Map<String, List<Instance>> workerToAssignmentMap = new HashMap<>();
+        Map<String, LinkedList<Instance>> workerToAssignmentMap = new HashMap<>();
 
         workers.forEach(workerId -> workerToAssignmentMap.put(workerId, new LinkedList<>()));
 
@@ -92,10 +92,10 @@ public class RoundRobinScheduler implements IScheduler {
         while (true) {
             iterations++;
 
-            Map.Entry<String, List<Instance>> mostAssignmentsWorker =
+            Map.Entry<String, LinkedList<Instance>> mostAssignmentsWorker =
                     findWorkerWithMostAssignments(workerToAssignmentMap);
 
-            Map.Entry<String, List<Instance>> leastAssignmentsWorker =
+            Map.Entry<String, LinkedList<Instance>> leastAssignmentsWorker =
                     findWorkerWithLeastAssignments(workerToAssignmentMap);
 
             if (mostAssignmentsWorker.getValue().size() == leastAssignmentsWorker.getValue().size()
@@ -106,8 +106,8 @@ public class RoundRobinScheduler implements IScheduler {
             String mostAssignmentsWorkerId = mostAssignmentsWorker.getKey();
             String leastAssignmentsWorkerId = leastAssignmentsWorker.getKey();
 
-            Queue<Instance> src = (Queue) workerToAssignmentMap.get(mostAssignmentsWorkerId);
-            Queue<Instance> dest = (Queue) workerToAssignmentMap.get(leastAssignmentsWorkerId);
+            LinkedList<Instance> src = workerToAssignmentMap.get(mostAssignmentsWorkerId);
+            LinkedList<Instance> dest = workerToAssignmentMap.get(leastAssignmentsWorkerId);
 
             Instance instance = src.poll();
             Assignment newAssignment = Assignment.newBuilder()
@@ -124,14 +124,14 @@ public class RoundRobinScheduler implements IScheduler {
         return newAssignments;
     }
 
-    private Map.Entry<String, List<Instance>> findWorkerWithLeastAssignments(
-            Map<String, List<Instance>> workerToAssignmentMap) {
+    private Map.Entry<String, LinkedList<Instance>> findWorkerWithLeastAssignments(
+            Map<String, LinkedList<Instance>> workerToAssignmentMap) {
         return workerToAssignmentMap.entrySet().stream().min(Comparator.comparingInt(o -> o.getValue().size())).get();
 
     }
 
-    private Map.Entry<String, List<Instance>> findWorkerWithMostAssignments(
-            Map<String, List<Instance>> workerToAssignmentMap) {
+    private Map.Entry<String, LinkedList<Instance>> findWorkerWithMostAssignments(
+            Map<String, LinkedList<Instance>> workerToAssignmentMap) {
         return workerToAssignmentMap.entrySet().stream().max(Comparator.comparingInt(o -> o.getValue().size())).get();
     }
 

@@ -71,7 +71,7 @@ public class FunctionCommon {
         return JsonFormat.printer().print(msg);
     }
 
-    public static void mergeJson(String json, Builder builder) throws IOException {
+    public static void mergeJson(String json, Builder<?> builder) throws IOException {
         JsonFormat.parser().merge(json, builder);
     }
 
@@ -358,7 +358,7 @@ public class FunctionCommon {
         return Math.round(value * scale) / scale;
     }
 
-    public static String capFirstLetter(Enum en) {
+    public static String capFirstLetter(Enum<?> en) {
         return StringUtils.capitalize(en.toString().toLowerCase());
     }
 

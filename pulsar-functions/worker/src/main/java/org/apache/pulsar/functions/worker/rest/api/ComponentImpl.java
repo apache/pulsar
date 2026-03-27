@@ -1089,7 +1089,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             long curTime = System.currentTimeMillis();
             long maxTime = curTime + 1000;
             while (curTime < maxTime) {
-                Message msg = reader.readNext(10000, TimeUnit.MILLISECONDS);
+                Message<?> msg = reader.readNext(10000, TimeUnit.MILLISECONDS);
                 if (msg == null) {
                     break;
                 }

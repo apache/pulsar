@@ -114,13 +114,20 @@ public interface PulsarClientImplementationBinding {
 
     Schema<LocalDateTime> newLocalDateTimeSchema();
 
+    // SchemaDefinition is intentionally raw here because callers like Schema.AVRO(Class)
+    // build SchemaDefinition via builder().withPojo(clazz).build() which erases the type
+    @SuppressWarnings("rawtypes")
     <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition);
 
-    <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(SchemaDefinition schemaDefinition);
+    @SuppressWarnings("rawtypes")
+    <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(
+            SchemaDefinition schemaDefinition);
 
+    @SuppressWarnings("rawtypes")
     <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition);
 
+    @SuppressWarnings("rawtypes")
     <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition);
 
     Schema<GenericRecord> newAutoConsumeSchema();

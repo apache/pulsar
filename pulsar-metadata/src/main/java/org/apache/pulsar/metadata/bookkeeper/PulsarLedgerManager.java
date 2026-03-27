@@ -144,7 +144,7 @@ public class PulsarLedgerManager implements LedgerManager {
                         return;
                     }
 
-                    Versioned<LedgerMetadata> result = new Versioned(metadata, new LongVersion(stat.getVersion()));
+                    Versioned<LedgerMetadata> result = new Versioned<>(metadata, new LongVersion(stat.getVersion()));
                     promise.complete(result);
                 });
 

@@ -73,11 +73,13 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     @JsonProperty("subscriptions")
+    @SuppressWarnings("unchecked") // wildcard type is always NonPersistentSubscriptionStats
     public Map<String, NonPersistentSubscriptionStats> getNonPersistentSubscriptions() {
         return (Map<String, NonPersistentSubscriptionStats>) nonPersistentSubscriptions;
     }
 
     @JsonProperty("replication")
+    @SuppressWarnings("unchecked") // wildcard type is always NonPersistentReplicatorStats
     public Map<String, NonPersistentReplicatorStats> getNonPersistentReplicators() {
         return (Map<String, NonPersistentReplicatorStats>) nonPersistentReplicators;
     }
@@ -117,10 +119,12 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         }
     }
 
+    @SuppressWarnings("unchecked") // wildcard type is always NonPersistentSubscriptionStats
     public Map<String, NonPersistentSubscriptionStats> getSubscriptions() {
         return (Map<String, NonPersistentSubscriptionStats>) nonPersistentSubscriptions;
     }
 
+    @SuppressWarnings("unchecked") // wildcard type is always NonPersistentReplicatorStats
     public Map<String, NonPersistentReplicatorStats> getReplication() {
         return (Map<String, NonPersistentReplicatorStats>) nonPersistentReplicators;
     }

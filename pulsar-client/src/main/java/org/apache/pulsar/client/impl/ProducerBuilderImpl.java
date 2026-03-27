@@ -242,7 +242,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> messageCrypto(MessageCrypto messageCrypto) {
+    public ProducerBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto) {
         conf.setMessageCrypto(messageCrypto);
         return this;
     }

@@ -44,13 +44,13 @@ public class BatchDataGeneratorPushSource extends BatchPushSource<Person> implem
   }
 
   @Override
-  public void open(Map config, SourceContext context) throws Exception {
+  public void open(Map<String, Object> config, SourceContext context) throws Exception {
     this.fairy = Fairy.create();
     this.sourceContext = context;
   }
 
   @Override
-  public void discover(Consumer taskEater) throws Exception {
+  public void discover(Consumer<byte[]> taskEater) throws Exception {
     log.info("Generating one task for each instance");
     for (int i = 0; i < sourceContext.getNumInstances(); ++i) {
       taskEater.accept(String.format("something-%d", System.currentTimeMillis()).getBytes(StandardCharsets.UTF_8));

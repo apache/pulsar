@@ -31,14 +31,14 @@ import java.util.Map;
  */
 public class ConfigValidation {
 
-    private static final Class DEFAULT_ANNOTATION_CLASS = ConfigValidationAnnotations.class;
+    private static final Class<?> DEFAULT_ANNOTATION_CLASS = ConfigValidationAnnotations.class;
 
     /**
      * Validate the config object with annotations from annotationClass.
      * @param config config object
      * @param annotationClass class with annotations to use
      */
-    public static void validateConfig(Object config, Class annotationClass) {
+    public static void validateConfig(Object config, Class<?> annotationClass) {
         for (Field field : config.getClass().getDeclaredFields()) {
             Object value = null;
             field.setAccessible(true);
@@ -60,16 +60,16 @@ public class ConfigValidation {
         validateConfig(config, DEFAULT_ANNOTATION_CLASS);
     }
 
-    private static void validateClass(Object config, Class annotationClass) {
+    private static void validateClass(Object config, Class<?> annotationClass) {
         processAnnotations(config.getClass().getAnnotations(), config.getClass().getName(), config, annotationClass);
     }
 
-    private static void validateField(Field field, Object value, Class annotationClass) {
+    private static void validateField(Field field, Object value, Class<?> annotationClass) {
         processAnnotations(field.getAnnotations(), field.getName(), value, annotationClass);
     }
 
     private static void processAnnotations(Annotation[] annotations, String fieldName, Object value,
-                                           Class annotationClass) {
+                                           Class<?> annotationClass) {
         try {
             for (Annotation annotation : annotations) {
                 String type = annotation.annotationType().getName();
