@@ -164,7 +164,7 @@ subprojects {
             showCauses = true
         }
         maxHeapSize = "1300m"
-        maxParallelForks = 4
+        maxParallelForks = (providers.gradleProperty("maxParallelForks").orNull?.toInt() ?: 4)
         systemProperty("testRetryCount", System.getProperty("testRetryCount", "1"))
         systemProperty("testFailFast", System.getProperty("testFailFast", "true"))
         jvmArgs(
