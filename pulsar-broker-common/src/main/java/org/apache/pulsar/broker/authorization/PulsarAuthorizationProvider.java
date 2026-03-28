@@ -121,7 +121,11 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             // list is empty)
                             Set<String> roles = policies.get().auth_policies
                                     .getSubscriptionAuthentication().get(subscription);
-                            if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
+                            Map<String, Set<AuthAction>> namespaceRolesAuth =
+                                    policies.get().auth_policies.getNamespaceAuthentication();
+                            if (!(namespaceRolesAuth != null && namespaceRolesAuth.containsKey(role)
+                                    && namespaceRolesAuth.get(role).contains(AuthAction.consume))
+                                    && roles != null && !roles.isEmpty() && !roles.contains(role)) {
                                 log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
                                 return CompletableFuture.completedFuture(false);
                             }
