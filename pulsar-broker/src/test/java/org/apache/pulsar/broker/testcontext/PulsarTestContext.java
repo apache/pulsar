@@ -136,6 +136,7 @@ import org.mockito.internal.util.MockUtil;
 @ToString
 @Getter
 @Builder(builderClassName = "Builder")
+@SuppressWarnings("try")
 public class PulsarTestContext implements AutoCloseable {
     private final ServiceConfiguration config;
     private final MetadataStoreExtended localMetadataStore;
@@ -709,6 +710,7 @@ public class PulsarTestContext implements AutoCloseable {
                     CreateMode.PERSISTENT);
         }
 
+        @SuppressWarnings("try")
         private TestZKServer createTestZookeeper(int sessionTimeout) throws Exception {
             TestZKServer testZKServer = new TestZKServer();
             try (ZooKeeper zkc = new ZooKeeper(testZKServer.getConnectionString(), sessionTimeout, event -> {

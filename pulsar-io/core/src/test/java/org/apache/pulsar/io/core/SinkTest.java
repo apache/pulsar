@@ -29,6 +29,7 @@ import org.testng.annotations.Test;
 
 public class SinkTest {
 
+    @SuppressWarnings("try")
     public static class TestSink implements Sink<String> {
 
         @Override

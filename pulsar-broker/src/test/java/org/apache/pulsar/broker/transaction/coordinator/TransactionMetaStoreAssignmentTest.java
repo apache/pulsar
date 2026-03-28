@@ -108,6 +108,7 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
                 });
     }
 
+    @SuppressWarnings("try")
     private PulsarClient buildClient() throws Exception {
         return PulsarClient.builder()
                 .serviceUrlProvider(new ServiceUrlProvider() {

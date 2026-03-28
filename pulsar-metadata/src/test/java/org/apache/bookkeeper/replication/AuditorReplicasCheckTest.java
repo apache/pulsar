@@ -112,6 +112,7 @@ public class AuditorReplicasCheckTest extends BookKeeperClusterTestCase {
         super.tearDown();
     }
 
+    @SuppressWarnings("try")
     private class TestBookKeeperAdmin extends BookKeeperAdmin {
 
         private final MultiKeyMap<String, AvailabilityOfEntriesOfLedger> returnAvailabilityOfEntriesOfLedger;

@@ -39,6 +39,7 @@ import org.apache.zookeeper.server.embedded.ZooKeeperServerEmbedded;
 import org.assertj.core.util.Files;
 
 @Slf4j
+@SuppressWarnings("try")
 public class TestZKServer implements AutoCloseable {
 
     public static final int TICK_TIME = 1000;

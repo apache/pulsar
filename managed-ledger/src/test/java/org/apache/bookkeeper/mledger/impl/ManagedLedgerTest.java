@@ -3364,6 +3364,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
      * @throws Exception
      */
     @Test(timeOut = 20000)
+    @SuppressWarnings("try")
     public void testManagedLedgerWithAddEntryTimeOut() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setAddEntryTimeoutSeconds(1);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);

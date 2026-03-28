@@ -6026,9 +6026,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(properties.get(propertyKey), lastIndex - 1);
     }
 
+    @SuppressWarnings("try")
     class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
         Map<Long, Integer> ledgerErrors = new HashMap<>();
 
+        @SuppressWarnings("try")
         public TestPulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
             super(orderedExecutor);
         }

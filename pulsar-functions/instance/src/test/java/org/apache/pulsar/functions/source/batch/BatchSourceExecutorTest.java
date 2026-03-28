@@ -50,6 +50,7 @@ import org.testng.annotations.Test;
  */
 public class BatchSourceExecutorTest {
 
+  @SuppressWarnings("try")
   public static class TestBatchSource implements BatchSource<String> {
     @Getter
     public static int prepareCount;
@@ -96,6 +97,7 @@ public class BatchSourceExecutorTest {
     }
   }
 
+  @SuppressWarnings("try")
   public static class TestBatchSourceFailDiscovery extends TestBatchSource {
     @Override
     public void discover(Consumer<byte[]> taskEater) throws Exception {
@@ -103,6 +105,7 @@ public class BatchSourceExecutorTest {
     }
   }
 
+  @SuppressWarnings("try")
   public static class TestBatchPushSource extends BatchPushSource<String> {
     @Getter
     public static int prepareCount;

@@ -176,6 +176,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("try")
     public void testRegexSubscription() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())

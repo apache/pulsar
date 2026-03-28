@@ -855,8 +855,9 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
      * Test that the replication worker will not shutdown on a simple ZK disconnection.
      */
     @Test
+    @SuppressWarnings("try")
     public void testRWZKConnectionLost() throws Exception {
-        try (ZooKeeperClient zk = ZooKeeperClient.newBuilder()
+        try (ZooKeeperClient ignored = ZooKeeperClient.newBuilder()
                 .connectString(zkUtil.getZooKeeperConnectString())
                 .sessionTimeoutMs(10000)
                 .build()) {
@@ -1034,6 +1035,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
                 RackawareEnsemblePlacementPolicy.class, checkReplicationStats);
     }
 
+    @SuppressWarnings("try")
     private void testRepairedNotAdheringPlacementPolicyLedgerFragments(
             Class<? extends EnsemblePlacementPolicy> placementPolicyClass,
             BiConsumer<Boolean, ReplicationWorker> checkReplicationStats) throws Exception {

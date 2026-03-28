@@ -365,6 +365,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         private final AtomicInteger openedReadHandles = new AtomicInteger(0);
 
+        @SuppressWarnings("try")
         class VerifyClosingReadHandle extends MockOffloadReadHandle {
             VerifyClosingReadHandle(ReadHandle toCopy) throws Exception {
                 super(toCopy);
@@ -379,6 +380,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @SuppressWarnings("try")
     static class MockOffloadReadHandle implements ReadHandle, OffloadedLedgerHandle {
         final long id;
         final List<ByteBuf> entries = new ArrayList();

@@ -28,6 +28,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
 public class SourceTest {
+    @SuppressWarnings("try")
     public static class TestSource implements Source<String> {
 
         @Override

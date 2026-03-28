@@ -68,6 +68,7 @@ public class SinkConfigUtilsTest {
     }
 
 
+    @SuppressWarnings("try")
     public static class NopSink implements Sink<Object> {
 
         @Override
