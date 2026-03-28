@@ -363,7 +363,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config.setBrokerDeleteInactiveTopicsFrequencySeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
-        config.setBrokerShutdownTimeoutMs(0L);
+        config.setBrokerShutdownTimeoutMs(30000L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
@@ -410,10 +410,12 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
         if (executor != null) {
+            log.info("Shutting down executor");
             executor.shutdownNow();
             executor = null;
         }
 
+        log.info("Closing admin clients");
         if (admin1 != null) {
             admin1.close();
             admin1 = null;
@@ -431,6 +433,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             admin4 = null;
         }
 
+        log.info("Closing metric readers");
         if (metricReader4 != null) {
             metricReader4.close();
             metricReader4 = null;
@@ -448,6 +451,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             metricReader1 = null;
         }
 
+        log.info("Closing Pulsar services");
         if (pulsar4 != null) {
             pulsar4.close();
             pulsar4 = null;
@@ -465,6 +469,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             pulsar1 = null;
         }
 
+        log.info("Stopping BookKeeper ensembles");
         if (bkEnsemble1 != null) {
             bkEnsemble1.stop();
             bkEnsemble1 = null;
@@ -481,15 +486,20 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             bkEnsemble4.stop();
             bkEnsemble4 = null;
         }
+        
+        log.info("Stopping global ZooKeeper");
         if (globalZkS != null) {
             globalZkS.stop();
             globalZkS = null;
         }
 
+        log.info("Resetting configurations");
         resetConfig1();
         resetConfig2();
         resetConfig3();
         resetConfig4();
+        
+        log.info("Cleanup completed");
     }
 
     protected void updateTenantInfo(String tenant, TenantInfoImpl tenantInfo) throws Exception {
