@@ -19,8 +19,8 @@
 
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.Optional;
@@ -64,11 +64,11 @@ public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBa
 
     MetadataStoreExtended changeDefaultMetadataCacheConfig(MetadataStoreExtended metadataStore) {
         MetadataStoreExtended spy = spy(metadataStore);
-        when(spy.getDefaultMetadataCacheConfig()).thenReturn(MetadataCacheConfig
+        doReturn(MetadataCacheConfig
                 .builder()
                 .refreshAfterWriteMillis(REFRESH_AFTER_WRITE_MILLIS_IN_TEST)
                 .expireAfterWriteMillis(EXPIRE_AFTER_WRITE_MILLIS_IN_TEST)
-                .build());
+                .build()).when(spy).getDefaultMetadataCacheConfig();
         return spy;
     }
 
