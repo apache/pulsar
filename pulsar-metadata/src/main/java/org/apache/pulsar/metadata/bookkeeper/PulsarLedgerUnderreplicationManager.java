@@ -1062,6 +1062,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void notifyUnderReplicationLedgerChanged(BookkeeperInternalCallbacks.GenericCallback<Void> cb)
             throws ReplicationException.UnavailableException {

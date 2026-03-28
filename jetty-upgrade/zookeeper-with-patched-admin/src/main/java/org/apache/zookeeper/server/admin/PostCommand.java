@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
+/*
  * Command that represents HTTP POST request
  */
 package org.apache.zookeeper.server.admin;

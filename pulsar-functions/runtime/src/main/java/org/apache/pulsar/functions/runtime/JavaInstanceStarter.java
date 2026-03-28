@@ -297,6 +297,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         return Boolean.TRUE.toString().equals(param);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void close() {
         try {

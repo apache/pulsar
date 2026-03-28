@@ -334,6 +334,7 @@ public class ProxyConnection extends PulsarHandler {
      * @param inboundChannel input channel
      * @param outboundChannel output channel
      */
+    @SuppressWarnings("deprecation")
     protected static ChannelPromise spliceNIC2NIC(EpollSocketChannel inboundChannel,
                                                   EpollSocketChannel outboundChannel, int spliceLength) {
         ChannelPromise promise = inboundChannel.newPromise();

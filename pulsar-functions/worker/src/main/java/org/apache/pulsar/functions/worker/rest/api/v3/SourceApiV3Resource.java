@@ -24,13 +24,13 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+/**
+ * @deprecated in favor of {@link SourcesApiV3Resource}
+ */
 @Path("/source")
 @Api(value = "/source", description = "Source admin apis", tags = "source")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Deprecated
-/**
- * @deprecated in favor of {@link SourcesApiV3Resource}
- */
 public class SourceApiV3Resource extends SourcesApiV3Resource {
 }

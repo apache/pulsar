@@ -69,6 +69,7 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
         return AUTH_NAME;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         try {
@@ -99,6 +100,7 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
         configure(params);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void configure(Map<String, String> params) {
         String keyStoreType = params.get(KEYSTORE_TYPE);

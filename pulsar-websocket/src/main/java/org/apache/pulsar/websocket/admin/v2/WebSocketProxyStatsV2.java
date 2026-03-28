@@ -39,6 +39,7 @@ import org.apache.pulsar.websocket.stats.ProxyTopicStat;
 @Path("/proxy-stats")
 @Api(value = "/proxy", description = "Stats for web-socket proxy", tags = "proxy-stats")
 @Produces(MediaType.APPLICATION_JSON)
+@SuppressWarnings("deprecation")
 public class WebSocketProxyStatsV2 extends WebSocketProxyStatsBase {
     @GET
     @Path("/metrics")

@@ -436,6 +436,7 @@ public class CmdFunctions extends CmdBase {
             }
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         void processArguments() throws Exception {
             // merge deprecated args with new args

@@ -291,6 +291,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         return new Builder();
     }
 
+    @SuppressWarnings("deprecation")
     protected PulsarZooKeeperClient(String connectString,
                                     int sessionTimeoutMs,
                                     ZooKeeperWatcherBase watcherManager,
@@ -356,6 +357,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         watcherManager.waitForConnection();
     }
 
+    @SuppressWarnings("deprecation")
     protected ZooKeeper createZooKeeper() throws IOException, QuorumPeerConfig.ConfigException {
         if (null != configPath) {
             return new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode,

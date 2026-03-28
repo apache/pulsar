@@ -68,6 +68,7 @@ public class ProducerBuilderFactory {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public <T> ProducerBuilder<T> createProducerBuilder(String topic, Schema<T> schema, String producerName) {
         ProducerBuilder<T> builder = client.newProducer(schema);
         if (defaultConfigurer != null) {

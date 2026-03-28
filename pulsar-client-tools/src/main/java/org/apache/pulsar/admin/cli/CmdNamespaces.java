@@ -2051,6 +2051,7 @@ public class CmdNamespaces extends CmdBase {
         private String namespaceName;
 
         @Override
+        @SuppressWarnings("deprecation")
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             System.out.println(getAdmin().namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace)
@@ -2072,6 +2073,7 @@ public class CmdNamespaces extends CmdBase {
         private boolean disabled = false;
 
         @Override
+        @SuppressWarnings("deprecation")
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
 

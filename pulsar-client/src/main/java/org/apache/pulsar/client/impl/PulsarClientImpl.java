@@ -330,6 +330,7 @@ public class PulsarClientImpl implements PulsarClient {
         return new ProducerBuilderImpl<>(this, Schema.BYTES);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public <T> ProducerBuilder<T> newProducer(Schema<T> schema) {
         ProducerBuilderImpl<T> producerBuilder = new ProducerBuilderImpl<>(this, schema);

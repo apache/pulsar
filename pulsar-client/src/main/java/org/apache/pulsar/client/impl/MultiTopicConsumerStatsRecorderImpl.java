@@ -28,6 +28,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("deprecation")
 public class MultiTopicConsumerStatsRecorderImpl extends ConsumerStatsRecorderImpl implements MultiTopicConsumerStats {
 
     private static final long serialVersionUID = 1L;

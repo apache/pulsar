@@ -427,6 +427,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ConsumerBuilder<T> maxPendingChuckedMessage(int maxPendingChuckedMessage) {
         conf.setMaxPendingChunkedMessage(maxPendingChuckedMessage);

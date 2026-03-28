@@ -24,13 +24,13 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+/**
+ * @deprecated in favor of {@link SinksApiV3Resource}
+ */
 @Api(value = "/sink", description = "Sink admin apis", tags = "sink")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Path("/sink")
 @Deprecated
-/**
- * @deprecated in favor of {@link SinksApiV3Resource}
- */
 public class SinkApiV3Resource extends SinksApiV3Resource {
 }

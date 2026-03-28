@@ -90,7 +90,8 @@ public class SourceConfigUtils {
             functionDetailsBuilder.setParallelism(1);
         }
         functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
-        functionDetailsBuilder.setAutoAck(true);
+        @SuppressWarnings("deprecation")
+        Function.FunctionDetails.Builder autoAckBuilder = functionDetailsBuilder.setAutoAck(true);
         if (sourceConfig.getProcessingGuarantees() != null) {
             functionDetailsBuilder.setProcessingGuarantees(
                     convertProcessingGuarantee(sourceConfig.getProcessingGuarantees()));

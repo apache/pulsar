@@ -134,7 +134,7 @@ class ProxyExtensionsUtils {
 
         try {
             Class<?> extensionClass = ncl.loadClass(phDef.getExtensionClass());
-            Object extension = extensionClass.newInstance();
+            Object extension = extensionClass.getDeclaredConstructor().newInstance();
             if (!(extension instanceof ProxyExtension)) {
                 throw new IOException("Class " + phDef.getExtensionClass()
                     + " does not implement extension interface");

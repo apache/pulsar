@@ -92,7 +92,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         exclusiveLeaderProducer = null;
     }
 
-    /**
+    /*
      * Public methods. Please use these methods if references FunctionMetaManager from an external class
      */
 

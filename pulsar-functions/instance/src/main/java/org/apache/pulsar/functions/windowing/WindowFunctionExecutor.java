@@ -221,6 +221,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         };
     }
 
+    @SuppressWarnings("deprecation")
     private void processWindow(Context context, List<Record<T>> tuples, List<Record<T>> newTuples, List<Record<T>>
             expiredTuples, Long referenceTime) {
 

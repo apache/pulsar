@@ -117,6 +117,7 @@ public class CmdClusters extends CmdBase {
         private boolean deleteAll;
 
         @Override
+        @SuppressWarnings("deprecation")
         void run() throws PulsarAdminException {
             if (deleteAll) {
                 for (String tenant : getAdmin().tenants().getTenants()) {
