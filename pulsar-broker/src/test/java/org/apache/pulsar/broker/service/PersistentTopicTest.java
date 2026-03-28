@@ -1710,7 +1710,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         when(pulsarClientMock.getCnxPool()).thenReturn(connectionPool);
         when(pulsarClientMock.newProducer(any())).thenAnswer(
                 invocation -> {
-                    ProducerBuilderImpl producerBuilder =
+                    @SuppressWarnings("rawtypes")                    ProducerBuilderImpl producerBuilder =
                             new ProducerBuilderImpl(pulsarClientMock, invocation.getArgument(0)) {
                                 @Override
                                 public CompletableFuture<org.apache.pulsar.client.api.Producer> createAsync() {

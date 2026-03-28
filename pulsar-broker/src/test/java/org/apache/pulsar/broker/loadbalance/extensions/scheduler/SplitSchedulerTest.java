@@ -104,7 +104,7 @@ public class SplitSchedulerTest {
 
     @Test(timeOut = 30 * 1000)
     public void testExecuteSuccess() {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         SplitCounter counter = new SplitCounter();
         SplitManager manager = mock(SplitManager.class);
         SplitScheduler scheduler = new SplitScheduler(pulsar, channel, manager, counter, reference, context, strategy);
@@ -134,7 +134,7 @@ public class SplitSchedulerTest {
 
     @Test(timeOut = 30 * 1000)
     public void testExecuteFailure() {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         SplitCounter counter = new SplitCounter();
         SplitManager manager = new SplitManager(counter);
         SplitScheduler scheduler = new SplitScheduler(pulsar, channel, manager, counter, reference, context, strategy);

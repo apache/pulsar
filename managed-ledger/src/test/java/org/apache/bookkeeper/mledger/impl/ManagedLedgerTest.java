@@ -1493,7 +1493,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         c2.close();
         ledger.deleteCursor("c2");
-        assertEquals(Sets.newHashSet(ledger.getCursors()), new HashSet());
+        assertEquals(Sets.newHashSet(ledger.getCursors()), new HashSet<>());
     }
 
     @Test
@@ -1621,7 +1621,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void ledgersList() throws Exception {
         MetaStore store = factory.getMetaStore();
 
-        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet());
+        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet<>());
         ManagedLedger ledger1 = factory.open("ledger1");
         assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet("ledger1"));
         ManagedLedger ledger2 = factory.open("ledger2");
@@ -1629,7 +1629,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger1.delete();
         assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet("ledger2"));
         ledger2.delete();
-        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet());
+        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet<>());
     }
 
     @Test
@@ -3225,7 +3225,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);
         assertTrue(ctxHolder.get() instanceof CompletableFuture);
-        CompletableFuture ledgerCreateHook = (CompletableFuture) ctxHolder.get();
+        CompletableFuture<?> ledgerCreateHook = (CompletableFuture<?>) ctxHolder.get();
         assertTrue(ledgerCreateHook.isCompletedExceptionally());
 
         ledger.close();
@@ -3650,7 +3650,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(config.getProperties().get("key"), "value");
     }
 
-    private void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
+    private void setFieldValue(Class<?> clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(classObj, fieldValue);
@@ -4530,7 +4530,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             BlockingQueue<Runnable> queue =  WhiteboxImpl.getInternalState(boundedScheduledExecutorService, "queue");
             for (Runnable r : queue) {
                 if (r instanceof FutureTask) {
-                    FutureTask futureTask = (FutureTask) r;
+                    FutureTask<?> futureTask = (FutureTask<?>) r;
                     if (!futureTask.isCancelled() && !futureTask.isDone()) {
                         taskCounter++;
                     }

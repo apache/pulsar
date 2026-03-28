@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class KeyValueSchemaInfoTest {
 
-    private static final Map<String, String> FOO_PROPERTIES = new HashMap() {
+    private static final Map<String, String> FOO_PROPERTIES = new HashMap<>() {
 
         private static final long serialVersionUID = 58641844834472929L;
 
@@ -58,7 +58,7 @@ public class KeyValueSchemaInfoTest {
 
     };
 
-    private static final Map<String, String> BAR_PROPERTIES = new HashMap() {
+    private static final Map<String, String> BAR_PROPERTIES = new HashMap<>() {
 
         private static final long serialVersionUID = 58641844834472929L;
 

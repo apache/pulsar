@@ -288,8 +288,8 @@ public class TopKBundlesTest {
     public void testPartitionSort() {
 
         Random rand = new Random();
-        List<Map.Entry<String, ? extends Comparable>> actual = new ArrayList<>();
-        List<Map.Entry<String, ? extends Comparable>> expected = new ArrayList<>();
+        @SuppressWarnings("rawtypes") List<Map.Entry<String, ? extends Comparable>> actual = new ArrayList<>();
+        @SuppressWarnings("rawtypes") List<Map.Entry<String, ? extends Comparable>> expected = new ArrayList<>();
 
         for (int j = 0; j < 100; j++) {
             Map<String, Integer> map = new HashMap<>();
@@ -337,7 +337,7 @@ public class TopKBundlesTest {
             s.cacheSize = 75000000 - (rnd.nextInt(4 * 75000));
             stats.add(s);
         }
-        List<Map.Entry<String, ? extends Comparable>> bundleEntries = new ArrayList<>();
+        @SuppressWarnings("rawtypes") List<Map.Entry<String, ? extends Comparable>> bundleEntries = new ArrayList<>();
 
         for (NamespaceBundleStats s : stats) {
             bundleEntries.add(Map.entry("bundle-" + s.msgThroughputIn, s));

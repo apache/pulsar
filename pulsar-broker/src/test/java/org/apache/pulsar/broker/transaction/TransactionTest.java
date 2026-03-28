@@ -1425,7 +1425,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionName(subName)
                 .subscribe();
         List<MessageId> messageIds = new ArrayList<>();
-        for (Message message : messageList) {
+        for (Message<?> message : messageList) {
             messageIds.add(message.getMessageId());
         }
         for (int i = 0; i < 4; i++) {
@@ -1559,7 +1559,7 @@ public class TransactionTest extends TransactionTestBase {
         when(executorProvider.getExecutor(any(Object.class))).thenReturn(executorService);
         // Mock pendingAckStore.
         PendingAckStore pendingAckStore = mock(PendingAckStore.class);
-        doAnswer(new Answer() {
+        doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 executorService.execute(()->{
@@ -1825,26 +1825,35 @@ public class TransactionTest extends TransactionTestBase {
         // inject a failed writer future
         CompletableFuture<SystemTopicClient.Writer<?>> writerFuture = new CompletableFuture<>();
         for (PulsarService pulsarService : pulsarServiceList) {
+            @SuppressWarnings("rawtypes")
             SystemTopicTxnBufferSnapshotService bufferSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
+            @SuppressWarnings({"unchecked", "rawtypes"})
             ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap1 =
-                    ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(bufferSnapshotService));
+                    ((ConcurrentHashMap) field.get(bufferSnapshotService));
+            @SuppressWarnings("rawtypes")
             ReferenceCountedWriter failedCountedWriter =
                     new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, bufferSnapshotService);
             writerMap1.put(NamespaceName.get(namespace), failedCountedWriter);
 
+            @SuppressWarnings("rawtypes")
             SystemTopicTxnBufferSnapshotService segmentSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotSegmentService();
+            @SuppressWarnings({"unchecked", "rawtypes"})
             ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap2 =
-                    ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(segmentSnapshotService));
+                    ((ConcurrentHashMap) field.get(segmentSnapshotService));
+            @SuppressWarnings("rawtypes")
             ReferenceCountedWriter failedCountedWriter2 =
                     new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, segmentSnapshotService);
             writerMap2.put(NamespaceName.get(namespace), failedCountedWriter2);
 
+            @SuppressWarnings("rawtypes")
             SystemTopicTxnBufferSnapshotService indexSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotIndexService();
+            @SuppressWarnings({"unchecked", "rawtypes"})
             ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap3 =
-                    ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(indexSnapshotService));
+                    ((ConcurrentHashMap) field.get(indexSnapshotService));
+            @SuppressWarnings("rawtypes")
             ReferenceCountedWriter failedCountedWriter3 =
                     new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, indexSnapshotService);
             writerMap3.put(NamespaceName.get(namespace), failedCountedWriter3);

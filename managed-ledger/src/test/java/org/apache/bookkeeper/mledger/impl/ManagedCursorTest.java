@@ -1077,7 +1077,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int messages = 100;
         final int consumers = 5;
 
-        List<Future<AtomicBoolean>> futures = new ArrayList();
+        List<Future<AtomicBoolean>> futures = new ArrayList<>();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(consumers + 1);
@@ -2372,7 +2372,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int messages = 100;
         final int consumers = 10;
 
-        List<Future<Void>> futures = new ArrayList();
+        List<Future<Void>> futures = new ArrayList<>();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(consumers + 1);
@@ -3115,7 +3115,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry4".getBytes(Encoding));
 
         // 1. Replay empty position set should return empty entry set
-        Set<Position> positions = new HashSet();
+        Set<Position> positions = new HashSet<>();
         assertTrue(c1.replayEntries(positions).isEmpty());
 
         positions.add(p1);

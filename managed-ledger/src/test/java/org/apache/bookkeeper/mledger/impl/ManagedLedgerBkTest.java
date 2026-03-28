@@ -187,7 +187,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         final AtomicBoolean done = new AtomicBoolean();
         final CyclicBarrier barrier = new CyclicBarrier(numProducers + numConsumers + 1);
 
-        List<Future<?>> futures = new ArrayList();
+        List<Future<?>> futures = new ArrayList<>();
 
         for (int i = 0; i < numProducers; i++) {
             futures.add(executor.submit(() -> {
@@ -266,7 +266,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         final AtomicBoolean done = new AtomicBoolean();
         final CyclicBarrier barrier = new CyclicBarrier(numProducers + numConsumers + 1);
 
-        List<Future<?>> futures = new ArrayList();
+        List<Future<?>> futures = new ArrayList<>();
         List<Position> positions = new CopyOnWriteArrayList<>();
 
         for (int i = 0; i < numProducers; i++) {
@@ -375,12 +375,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         mlConfig.setMetadataMaxEntriesPerLedger(10);
         ManagedLedger ledger = factory.open("ml-markdelete-ledger", mlConfig);
 
-        final List<Position> addedEntries = new ArrayList();
+        final List<Position> addedEntries = new ArrayList<>();
 
         int numCursors = 10;
         final CyclicBarrier barrier = new CyclicBarrier(numCursors);
 
-        List<ManagedCursor> cursors = new ArrayList();
+        List<ManagedCursor> cursors = new ArrayList<>();
         for (int i = 0; i < numCursors; i++) {
             cursors.add(ledger.openCursor(String.format("c%d", i)));
         }
@@ -390,7 +390,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             addedEntries.add(pos);
         }
 
-        List<Future<?>> futures = new ArrayList();
+        List<Future<?>> futures = new ArrayList<>();
 
         for (ManagedCursor cursor : cursors) {
             futures.add(executor.submit(() -> {
@@ -424,7 +424,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
-        List<Position> positions = new ArrayList();
+        List<Position> positions = new ArrayList<>();
 
         for (int i = 0; i < 10; i++) {
             Position p = ledger.addEntry("entry".getBytes());
@@ -432,7 +432,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }
 
         final CountDownLatch counter = new CountDownLatch(positions.size());
-        final AtomicReference<Exception> gotException = new AtomicReference();
+        final AtomicReference<Exception> gotException = new AtomicReference<>();
 
         for (Position p : positions) {
             cursor.asyncDelete(p, new DeleteCallback() {

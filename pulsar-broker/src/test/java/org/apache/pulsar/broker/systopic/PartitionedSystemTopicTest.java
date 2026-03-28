@@ -99,7 +99,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(ns));
-        SystemTopicClient.Reader reader = systemTopicClientForNamespace.newReader();
+        SystemTopicClient.Reader<?> reader = systemTopicClientForNamespace.newReader();
 
         int partitions = admin.topics().getPartitionedTopicMetadata(
                 String.format("persistent://%s/%s", ns, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).partitions;
@@ -326,8 +326,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         NamespaceEventsSystemTopicFactory systemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarClient);
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(ns));
-        SystemTopicClient.Reader reader1 = systemTopicClientForNamespace.newReader();
-        SystemTopicClient.Reader reader2 = systemTopicClientForNamespace.newReader();
+        SystemTopicClient.Reader<?> reader1 = systemTopicClientForNamespace.newReader();
+        SystemTopicClient.Reader<?> reader2 = systemTopicClientForNamespace.newReader();
 
         conf.setMaxSameAddressProducersPerTopic(1);
         admin.namespaces().setMaxProducersPerTopic(ns, 1);

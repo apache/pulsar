@@ -70,6 +70,7 @@ public class ConsumerImplTest {
         createConsumer(consumerConf);
     }
 
+    @SuppressWarnings("rawtypes")
     private void createConsumer(ConsumerConfigurationData consumerConf) {
         executorProvider = new ExecutorProvider(1, "ConsumerImplTest");
         internalExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -149,6 +150,7 @@ public class ConsumerImplTest {
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_InterceptorsWorksWithPrefetchDisabled() {
         CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
+        @SuppressWarnings("rawtypes")
         MessageImpl message = mock(MessageImpl.class);
         ConsumerImpl<byte[]> spy = spy(consumer);
 
@@ -167,6 +169,7 @@ public class ConsumerImplTest {
     @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_WorkNormally() {
         CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
+        @SuppressWarnings("rawtypes")
         MessageImpl message = mock(MessageImpl.class);
         ConsumerImpl<byte[]> spy = spy(consumer);
 

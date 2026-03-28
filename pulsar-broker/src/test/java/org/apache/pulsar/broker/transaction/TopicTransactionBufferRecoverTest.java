@@ -254,7 +254,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     private void makeTBSnapshotReaderTimeoutIfFirstRead(TopicName topicName) throws Exception {
-        SystemTopicClient.Reader mockReader = mock(SystemTopicClient.Reader.class);
+        SystemTopicClient.Reader<?> mockReader = mock(SystemTopicClient.Reader.class);
         AtomicBoolean isFirstCallOfMethodHasMoreEvents = new AtomicBoolean();
         AtomicBoolean isFirstCallOfMethodHasReadNext = new AtomicBoolean();
         AtomicBoolean isFirstCallOfMethodHasReadNextAsync = new AtomicBoolean();
@@ -276,7 +276,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         }).when(mockReader).readNext();
 
         doAnswer(invocation -> {
-            CompletableFuture<Message> future = new CompletableFuture<>();
+            CompletableFuture<Message<?>> future = new CompletableFuture<>();
             new Thread(() -> {
                 if (isFirstCallOfMethodHasReadNextAsync.compareAndSet(false, true)){
                     // Just stuck the thread.
@@ -296,9 +296,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         for (PulsarService pulsarService : pulsarServiceList){
             // Init prop: lastMessageIdInBroker.
-            final SystemTopicTxnBufferSnapshotService tbSnapshotService =
+            final SystemTopicTxnBufferSnapshotService<?> tbSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
-            SystemTopicTxnBufferSnapshotService spyTbSnapshotService = spy(tbSnapshotService);
+            SystemTopicTxnBufferSnapshotService<?> spyTbSnapshotService = spy(tbSnapshotService);
             doAnswer(invocation -> CompletableFuture.completedFuture(mockReader))
                     .when(spyTbSnapshotService).createReader(topicName);
             Field field =

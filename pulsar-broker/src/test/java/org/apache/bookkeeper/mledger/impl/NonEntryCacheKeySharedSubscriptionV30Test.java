@@ -149,11 +149,11 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         LedgerHandle spyFirstLedger = spy(firstLedger);
         CountDownLatch replyReadSignal = new CountDownLatch(1);
         AtomicBoolean replayReadWasTriggered = new AtomicBoolean();
-        Answer answer = invocation -> {
+        Answer<?> answer = invocation -> {
             long firstEntry = (long) invocation.getArguments()[0];
             if (firstEntry == firstWaitingAckPos.getEntryId()) {
                 replayReadWasTriggered.set(true);
-                final CompletableFuture res = new CompletableFuture<>();
+                final CompletableFuture<Object> res = new CompletableFuture<>();
                 threadFactory.newThread(() -> {
                     try {
                         replyReadSignal.await();
@@ -246,6 +246,7 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         consumerList.get(consumerList.size() - 1).join();
 
         synchronized (dispatcher) {
+            @SuppressWarnings("rawtypes")
             LinkedHashMap recentJoinedConsumers = dispatcher.getRecentlyJoinedConsumers();
             assertTrue(verifyMapItemsAreInOrder(recentJoinedConsumers));
         }

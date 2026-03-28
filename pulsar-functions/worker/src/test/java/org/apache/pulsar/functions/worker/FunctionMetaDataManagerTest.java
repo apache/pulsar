@@ -64,7 +64,9 @@ public class FunctionMetaDataManagerTest {
         when(builder.sendTimeout(anyInt(), any(TimeUnit.class))).thenReturn(builder);
         when(builder.accessMode(any())).thenReturn(builder);
 
+        @SuppressWarnings("rawtypes")
         Producer producer = mock(Producer.class);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilder messageBuilder = mock(TypedMessageBuilder.class);
         when(messageBuilder.key(anyString())).thenReturn(messageBuilder);
         doAnswer(invocation -> {
@@ -304,6 +306,7 @@ public class FunctionMetaDataManagerTest {
         Request.ServiceRequest serviceRequest =
                 Request.ServiceRequest.newBuilder().setServiceRequestType(
                 Request.ServiceRequest.ServiceRequestType.UPDATE).build();
+        @SuppressWarnings("rawtypes")
         Message msg = mock(Message.class);
         doReturn(serviceRequest.toByteArray()).when(msg).getData();
         functionMetaDataManager.processMetaDataTopicMessage(msg);

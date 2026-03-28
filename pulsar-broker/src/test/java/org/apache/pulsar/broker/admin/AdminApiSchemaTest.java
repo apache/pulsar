@@ -250,7 +250,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         String namespace = format("%s%s%s", "schematest", "/",
                 "test");
         String topicName = "persistent://" + namespace + "/test-key-value-schema";
-        Schema keyValueSchema = Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class));
+        Schema<?> keyValueSchema = Schema.KeyValue(Schema.AVRO(Foo.class), Schema.AVRO(Foo.class));
         admin.schemas().createSchema(topicName, keyValueSchema.getSchemaInfo());
         SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topicName);
 

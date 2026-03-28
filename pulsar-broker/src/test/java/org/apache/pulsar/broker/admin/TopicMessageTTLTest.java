@@ -56,7 +56,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testCluster));
         admin.topics().createPartitionedTopic(testTopic, 2);
-        Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/"
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/"
                 + "dummy-topic").create();
         producer.close();
         waitForZooKeeperWatchers();

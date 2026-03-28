@@ -759,7 +759,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         };
     }
 
-    protected ServiceProducer getServiceProducer(ProducerImpl clientProducer, String topicName) {
+    protected ServiceProducer getServiceProducer(ProducerImpl<?> clientProducer, String topicName) {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
         org.apache.pulsar.broker.service.Producer serviceProducer =
@@ -788,7 +788,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     private static void reconnectAllConnections(PulsarClientImpl c) throws Exception {
         ConnectionPool pool = c.getCnxPool();
-        Method closeAllConnections = ConnectionPool.class.getDeclaredMethod("closeAllConnections", new Class[]{});
+        Method closeAllConnections = ConnectionPool.class.getDeclaredMethod("closeAllConnections", new Class<?>[]{});
         closeAllConnections.setAccessible(true);
         closeAllConnections.invoke(pool, new Object[]{});
     }

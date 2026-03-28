@@ -1013,7 +1013,7 @@ public class KubernetesRuntimeTest {
         assertEquals(args.size(), totalArgs,
                 "Actual args : " + StringUtils.join(args, " "));
 
-        HashMap goInstanceConfig = new ObjectMapper().readValue(args.get(7).replaceAll("^\'|\'$",
+        HashMap<?, ?> goInstanceConfig = new ObjectMapper().readValue(args.get(7).replaceAll("^\'|\'$",
                 ""), HashMap.class);
 
         assertEquals(args.get(0), "chmod");

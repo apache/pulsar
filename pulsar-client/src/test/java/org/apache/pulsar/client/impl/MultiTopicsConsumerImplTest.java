@@ -107,11 +107,13 @@ public class MultiTopicsConsumerImplTest {
         @Cleanup
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
+        @SuppressWarnings("rawtypes")
         ConsumerConfigurationData consumerConfData = new ConsumerConfigurationData();
         consumerConfData.setTopicNames(Sets.newHashSet(topicName));
 
         assertEquals(Long.parseLong("100"), clientImpl.getConfiguration().getStatsIntervalSeconds());
 
+        @SuppressWarnings("rawtypes")
         MultiTopicsConsumerImpl impl = new MultiTopicsConsumerImpl(
             clientImpl, consumerConfData,
             executorProvider, null, Schema.BYTES, null, true);

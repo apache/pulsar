@@ -190,6 +190,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
     class DummyProducerBuilder<T> extends ProducerBuilderImpl<T> {
         // This is a dummy producer builder to test the health check timeout
         // the producer constructed by this builder will not send any message
+        @SuppressWarnings("rawtypes")
         public DummyProducerBuilder(PulsarClientImpl client, Schema schema) {
             super(client, schema);
         }

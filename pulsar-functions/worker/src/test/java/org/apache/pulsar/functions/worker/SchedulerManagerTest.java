@@ -79,6 +79,7 @@ public class SchedulerManagerTest {
     private FunctionRuntimeManager functionRuntimeManager;
     private MembershipManager membershipManager;
     private CompletableFuture<MessageId> completableFuture;
+    @SuppressWarnings("rawtypes")
     private Producer producer;
     private TypedMessageBuilder<byte[]> message;
     private ScheduledExecutorService executor;

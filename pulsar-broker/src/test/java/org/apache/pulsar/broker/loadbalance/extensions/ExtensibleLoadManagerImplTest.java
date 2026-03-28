@@ -359,7 +359,9 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         NamespaceBundle bundle = pulsar1.getNamespaceService().getBundle(topicName);
         primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
 
+        @SuppressWarnings("rawtypes")
         CompletableFuture future1 = new CompletableFuture();
+        @SuppressWarnings("rawtypes")
         CompletableFuture future2 = new CompletableFuture();
         try {
             pulsar1.getBrokerService().getTopics().put(topicName.toString(), future1);

@@ -355,7 +355,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // clear caches to load data from metadata-store again
         MetadataCacheImpl<ClusterData> clusterCache = (MetadataCacheImpl<ClusterData>) pulsar.getPulsarResources()
                 .getClusterResources().getCache();
-        MetadataCacheImpl isolationPolicyCache = (MetadataCacheImpl) pulsar.getPulsarResources()
+        MetadataCacheImpl<?> isolationPolicyCache = (MetadataCacheImpl<?>) pulsar.getPulsarResources()
                 .getNamespaceResources().getIsolationPolicies().getCache();
         AbstractMetadataStore store = (AbstractMetadataStore) clusterCache.getStore();
         clusterCache.invalidateAll();
@@ -962,7 +962,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         AsyncResponse response1 = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
-        CompletableFuture<List<String>> future = new CompletableFuture();
+        CompletableFuture<List<String>> future = new CompletableFuture<>();
         future.completeExceptionally(new RuntimeException("500 error contains error message"));
         NamespaceService namespaceService = pulsar.getNamespaceService();
 

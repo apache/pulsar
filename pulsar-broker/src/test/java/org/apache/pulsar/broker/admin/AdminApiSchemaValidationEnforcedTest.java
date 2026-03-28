@@ -82,7 +82,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         } catch (PulsarAdminException.NotFoundException e) {
             assertEquals(e.getMessage(), "Schema not found");
         }
-        try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
         }
     }
@@ -110,7 +110,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
                 .build();
         PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "", properties);
         admin.schemas().createSchema(topicName, postSchemaPayload);
-        try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
         }
         assertSchemaInfoEquals(admin.schemas().getSchemaInfo(topicName), schemaInfo);
@@ -138,7 +138,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         } catch (PulsarAdminException.NotFoundException e) {
             assertEquals(e.getMessage(), "Schema not found");
         }
-        try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
         }
     }
@@ -169,7 +169,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
                 .build();
         PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "", properties);
         admin.schemas().createSchema(topicName, postSchemaPayload);
-        try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).create()) {
             fail("Client no schema, but topic has schema, should fail");
         }  catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("IncompatibleSchemaException"));

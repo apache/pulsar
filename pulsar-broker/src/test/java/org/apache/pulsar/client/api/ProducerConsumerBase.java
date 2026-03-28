@@ -77,7 +77,7 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected <T> ReceivedMessages<T> receiveAndAckMessages(
             BiFunction<MessageId, T, Boolean> ackPredicate,
             Consumer<T>...consumers) throws Exception {
-        ReceivedMessages receivedMessages = new ReceivedMessages();
+        ReceivedMessages<T> receivedMessages = new ReceivedMessages<>();
         receiveMessagesInThreads((consumer, msg) -> {
             T v = msg.getValue();
             MessageId messageId = msg.getMessageId();

@@ -375,7 +375,7 @@ public class PulsarBrokerStarterTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass = Class.forName("org.apache.pulsar.PulsarBrokerStarter$StarterArguments");
+            Class<?> argumentsClass = Class.forName("org.apache.pulsar.PulsarBrokerStarter$StarterArguments");
             PulsarBrokerStarter.main(new String[]{"-g"});
 
             String message = baoStream.toString();

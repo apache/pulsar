@@ -2623,7 +2623,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String topic = "persistent://testTenant/ns1/max-subscriptions-per-topic";
 
         admin.topics().createPartitionedTopic(topic, 3);
-        Producer producer = pulsarClient.newProducer().topic(topic).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         producer.close();
 
         // create subscription
@@ -2662,9 +2662,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         producer = pulsarClient.newProducer().topic(topic).create();
         producer.close();
 
-        Consumer consumer1 = null;
-        Consumer consumer2 = null;
-        Consumer consumer3 = null;
+        Consumer<?> consumer1 = null;
+        Consumer<?> consumer2 = null;
+        Consumer<?> consumer3 = null;
 
         try {
             consumer1 = pulsarClient.newConsumer().subscriptionName("test-sub1").topic(topic).subscribe();
@@ -3268,14 +3268,14 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         AbstractTopic topic = (AbstractTopic) topics.get(topicName).join().get();
         AbstractTopic spyTopic = Mockito.spy(topic);
         AtomicInteger counter = new AtomicInteger();
-        doAnswer(new Answer() {
+        doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 counter.incrementAndGet();
                 return invocation.callRealMethod();
             }
         }).when(spyTopic).addSchema(any(SchemaData.class));
-        doAnswer(new Answer() {
+        doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 counter.incrementAndGet();
@@ -3797,7 +3797,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.of(MessageIdImpl.earliest));
         for (int i = 0; i < 10; i++) {
             Awaitility.await().untilAsserted(() -> {
-                Message m = consumer.receive();
+                Message<?> m = consumer.receive();
                 assertNotNull(m);
                 consumer.acknowledge(m);
             });
@@ -4162,7 +4162,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     public void testDeletePatchyPartitionedTopic() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName(defaultNamespace + "/tp");
         admin.topics().createPartitionedTopic(topic, 2);
-        Producer producer = pulsarClient.newProducer().topic(TopicName.get(topic).getPartition(0).toString())
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(TopicName.get(topic).getPartition(0).toString())
                 .create();
         // Mock a scenario that "-partition-1" has been removed due to topic GC.
         pulsar.getBrokerService().getTopic(TopicName.get(topic).getPartition(1).toString(), false)

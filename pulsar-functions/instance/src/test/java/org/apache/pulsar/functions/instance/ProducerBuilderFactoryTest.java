@@ -52,7 +52,7 @@ import org.testng.annotations.Test;
 
 public class ProducerBuilderFactoryTest {
     private PulsarClient pulsarClient;
-    private ProducerBuilder producerBuilder;
+    private ProducerBuilder<?> producerBuilder;
 
     @BeforeMethod
     public void setup() {
