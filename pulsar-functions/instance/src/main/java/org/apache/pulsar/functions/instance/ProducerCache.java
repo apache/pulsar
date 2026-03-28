@@ -125,8 +125,9 @@ public class ProducerCache implements Closeable {
         if (closed.get()) {
             throw new IllegalStateException("ProducerCache is already closed");
         }
-        @SuppressWarnings("unchecked") // cache stores Producer<?>, caller ensures type consistency
-        Producer<T> producer = (Producer<T>) cache.get(new ProducerCacheKey(cacheArea, topicName, additionalCacheKey), key -> {
+        @SuppressWarnings("unchecked")
+        Producer<T> producer = (Producer<T>) cache.get(
+                new ProducerCacheKey(cacheArea, topicName, additionalCacheKey), key -> {
             try {
                 return supplier.call();
             } catch (RuntimeException e) {
