@@ -301,6 +301,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
         Field field = TransactionBufferHandlerImpl.class.getDeclaredField("outstandingRequests");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         ConcurrentSkipListMap<Long, Object> outstandingRequests =
                 (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
 

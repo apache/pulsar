@@ -38,6 +38,7 @@ public class StrategicCompactorTest extends CompactorTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected long compact(String topic) throws ExecutionException, InterruptedException {
         return (long) compactor.compact(topic, strategy).get();
     }

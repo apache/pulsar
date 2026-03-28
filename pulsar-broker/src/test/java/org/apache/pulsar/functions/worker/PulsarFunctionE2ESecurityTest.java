@@ -243,6 +243,7 @@ public class PulsarFunctionE2ESecurityTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,

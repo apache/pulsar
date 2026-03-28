@@ -45,6 +45,7 @@ public class TypedMessageBuilderImplTest {
     protected ProducerBase producerBase;
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultValue() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         producerBase = mock(ProducerBase.class);
 
@@ -80,6 +81,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInlineValue() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         producerBase = mock(ProducerBase.class);
 
@@ -115,6 +117,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedValue() throws Exception {
         producerBase = mock(ProducerBase.class);
 
@@ -149,6 +152,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyEncodingTypeDefault() {
         producerBase = mock(ProducerBase.class);
 
@@ -168,6 +172,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyEncodingTypeInline() {
         producerBase = mock(ProducerBase.class);
 
@@ -187,6 +192,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyEncodingTypeSeparated() {
         producerBase = mock(ProducerBase.class);
 
@@ -211,6 +217,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyBytesEncodingTypeDefault() {
         producerBase = mock(ProducerBase.class);
 
@@ -230,6 +237,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyBytesEncodingTypeInline() {
         producerBase = mock(ProducerBase.class);
 
@@ -249,6 +257,7 @@ public class TypedMessageBuilderImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetKeyBytesEncodingTypeSeparated() {
         producerBase = mock(ProducerBase.class);
 

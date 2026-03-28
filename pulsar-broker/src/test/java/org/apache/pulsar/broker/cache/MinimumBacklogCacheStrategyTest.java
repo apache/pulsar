@@ -78,6 +78,7 @@ public class MinimumBacklogCacheStrategyTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testBacklogConsumerCacheReads() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

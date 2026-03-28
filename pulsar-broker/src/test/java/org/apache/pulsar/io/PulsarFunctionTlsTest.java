@@ -203,6 +203,7 @@ public class PulsarFunctionTlsTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
                                                            PulsarAdmin mockPulsarAdmin) {
         workerConfig = new WorkerConfig();

@@ -2000,6 +2000,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         private static AtomicInteger count = new AtomicInteger(0);
 
         @Override
+        @SuppressWarnings("unchecked")
         public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
                 Class<T> topicClazz) {
             try {

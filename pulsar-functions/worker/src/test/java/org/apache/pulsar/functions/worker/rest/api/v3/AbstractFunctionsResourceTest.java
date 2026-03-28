@@ -234,6 +234,7 @@ public abstract class AbstractFunctionsResourceTest {
         mockStatic(classStatic, withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS), consumer);
     }
 
+    @SuppressWarnings("unchecked")
     private <T> void mockStatic(Class<T> classStatic, MockSettings mockSettings, Consumer<MockedStatic<T>> consumer) {
         final MockedStatic<T> mockedStatic = mockStaticContexts.computeIfAbsent(classStatic.getName(),
                 name -> Mockito.mockStatic(classStatic, mockSettings));

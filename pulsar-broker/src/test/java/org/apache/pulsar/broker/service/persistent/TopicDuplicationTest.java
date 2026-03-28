@@ -179,6 +179,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         checkDeduplicationEnabled(producerName, messageDeduplication, maxSeq3);
     }
 
+    @SuppressWarnings("unchecked")
     private long sendMessageAndGetMaxSeq(int maxMsgNum, Producer producer) throws Exception{
         long seq = System.nanoTime();
         for (int i = 0; i <= maxMsgNum; i++) {

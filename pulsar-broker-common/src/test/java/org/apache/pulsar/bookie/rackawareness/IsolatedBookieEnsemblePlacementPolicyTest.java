@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -128,6 +129,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMetadataStoreCases() throws Exception {
         Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
         mainBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
@@ -138,8 +140,8 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
 
         store = mock(MetadataStoreExtended.class);
-        MetadataCacheImpl cache = mock(MetadataCacheImpl.class);
-        when(store.getMetadataCache(BookiesRackConfiguration.class)).thenReturn(cache);
+        MetadataCacheImpl<BookiesRackConfiguration> cache = mock(MetadataCacheImpl.class);
+        doReturn(cache).when(store).getMetadataCache(BookiesRackConfiguration.class);
         CompletableFuture<Optional<BookiesRackConfiguration>> initialFuture = new CompletableFuture<>();
         //The initialFuture only has group1.
         BookiesRackConfiguration rackConfiguration1 = new BookiesRackConfiguration();

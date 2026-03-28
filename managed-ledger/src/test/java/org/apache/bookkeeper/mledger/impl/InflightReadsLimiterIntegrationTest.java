@@ -112,10 +112,11 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
                 Object res = invocation.callRealMethod();
                 return res;
             } else if (secondReadEntries.contains(firstEntry)) {
-                final CompletableFuture res = new CompletableFuture<>();
+                final CompletableFuture<LedgerEntries> res = new CompletableFuture<>();
                 threadFactory.newThread(() -> {
                     try {
                         readCompleteSignal2.await();
+                        @SuppressWarnings("unchecked")
                         CompletableFuture<LedgerEntries> future =
                                 (CompletableFuture<LedgerEntries>) invocation.callRealMethod();
                         future.thenAccept(v -> {

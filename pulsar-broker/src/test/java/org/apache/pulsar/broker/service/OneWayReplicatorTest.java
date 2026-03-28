@@ -474,6 +474,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     @Test(timeOut = 45 * 1000)
+    @SuppressWarnings("unchecked")
     public void testTopicCloseWhenInternalProducerCloseErrorOnce() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
         admin1.topics().createNonPartitionedTopic(topicName);
@@ -524,6 +525,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
     }
 
+    @SuppressWarnings("unchecked")
     private Runnable injectMockReplicatorProducerBuilder(
                                 BiFunction<ProducerConfigurationData, ProducerImpl, ProducerImpl> producerDecorator)
             throws Exception {
@@ -1134,6 +1136,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     @Test(dataProvider = "replicationLevels")
+    @SuppressWarnings("unchecked")
     public void testReloadWithTopicLevelGeoReplication(ReplicationLevel replicationLevel) throws Exception {
         final String topicName = ((Supplier<String>) () -> {
             if (replicationLevel.equals(ReplicationLevel.TOPIC_LEVEL)) {
@@ -1537,6 +1540,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
      * This test used to confirm the "start replicator retry task" will be skipped after the topic is closed.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testCloseTopicAfterStartReplicationFailed() throws Exception {
         Field fieldTopicNameCache = TopicName.class.getDeclaredField("cache");
         fieldTopicNameCache.setAccessible(true);

@@ -96,6 +96,7 @@ public class PulsarSinkTest {
     /**
      * Verify that JavaInstance does not support functions that take Void type as input.
      */
+    @SuppressWarnings("unchecked")
     private static PulsarClientImpl getPulsarClient() throws PulsarClientException {
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
@@ -186,6 +187,7 @@ public class PulsarSinkTest {
      * Verify that JavaInstance does support functions that output Void type.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testVoidOutputClasses() throws Exception {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
@@ -205,6 +207,7 @@ public class PulsarSinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInconsistentOutputType() throws IOException {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to be inconsistent to that of SerDe
@@ -230,6 +233,7 @@ public class PulsarSinkTest {
      * Verify that Default Serializer works fine.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultSerDe() throws PulsarClientException {
 
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
@@ -251,6 +255,7 @@ public class PulsarSinkTest {
      * Verify that Explicit setting of Default Serializer works fine.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testExplicitDefaultSerDe() throws PulsarClientException {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
@@ -269,6 +274,7 @@ public class PulsarSinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testComplexOuputType() throws PulsarClientException {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
@@ -287,6 +293,7 @@ public class PulsarSinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInitializeSchema() throws Exception {
         PulsarClient pulsarClient = getPulsarClient();
 
@@ -343,6 +350,7 @@ public class PulsarSinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSinkAndMessageRouting() throws Exception {
 
         String[] topics = {"topic-1", "topic-2", "topic-3", null};
@@ -371,6 +379,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<String> getDestinationTopic() {
                     return getTopicOptional(topic);
                 }
@@ -409,6 +418,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<String> getDestinationTopic() {
                     return getTopicOptional(topic);
                 }
@@ -447,6 +457,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<String> getDestinationTopic() {
                     return getTopicOptional(topic);
                 }
@@ -506,6 +517,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<Long> getRecordSequence() {
                     return Optional.of(1L);
                 }
@@ -550,6 +562,7 @@ public class PulsarSinkTest {
         testWriteGenericRecords(ProcessingGuarantees.EFFECTIVELY_ONCE);
     }
 
+    @SuppressWarnings("unchecked")
     private void testWriteGenericRecords(ProcessingGuarantees guarantees) throws Exception {
         String defaultTopic = "default";
 
@@ -612,6 +625,7 @@ public class PulsarSinkTest {
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 public Optional<Long> getRecordSequence() {
                     return Optional.of(1L);
                 }

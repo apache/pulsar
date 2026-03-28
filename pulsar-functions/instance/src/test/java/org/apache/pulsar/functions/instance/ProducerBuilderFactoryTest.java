@@ -55,6 +55,7 @@ public class ProducerBuilderFactoryTest {
     private ProducerBuilder producerBuilder;
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     public void setup() {
         pulsarClient = mock(PulsarClient.class);
 

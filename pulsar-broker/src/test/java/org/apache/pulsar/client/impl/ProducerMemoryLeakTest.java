@@ -54,6 +54,7 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSendQueueIsFull() throws Exception {
         final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
@@ -105,6 +106,7 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
     }
 
     @Test(dataProvider = "maxMessageSizeAndCompressions")
+    @SuppressWarnings("unchecked")
     public void testSendMessageSizeExceeded(int maxMessageSize, CompressionType compressionType) throws Exception {
         final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
@@ -184,6 +186,7 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
     }
 
     @Test(dataProvider = "maxMessageSizes")
+    @SuppressWarnings("unchecked")
     public void testBatchedSendMessageSizeExceeded(int maxMessageSize) throws Exception {
         final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
@@ -228,6 +231,7 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSendAfterClosedProducer() throws Exception {
         final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
@@ -257,6 +261,7 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testBrokenSchema() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(getNamespace(),
                 SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
@@ -343,6 +348,7 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
                     }
 
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
                                                       Throwable exception) {
                         if (method.equals("onSendAcknowledgement")) {
@@ -382,11 +388,13 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
 
         public volatile ByteBuf payload;
 
+        @SuppressWarnings("unchecked")
         public <T> MsgPayloadTouchableMessageBuilder(ProducerBase producer, Schema<T> schema) {
             super(producer, schema);
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Message<T> getMessage() {
             MessageImpl<T> msg = (MessageImpl<T>) super.getMessage();
             payload = msg.getPayload();

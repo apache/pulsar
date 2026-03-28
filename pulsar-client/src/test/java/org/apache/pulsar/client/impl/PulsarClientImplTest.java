@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -99,17 +100,18 @@ public class PulsarClientImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testConsumerIsClosed() throws Exception {
         // mock client connection
         LookupService lookup = mock(LookupService.class);
-        when(lookup.getTopicsUnderNamespace(
+        doReturn(CompletableFuture.completedFuture(
+                        new GetTopicsResult(Collections.emptyList(), null, false, true)))
+                .when(lookup).getTopicsUnderNamespace(
                 any(NamespaceName.class),
                 any(CommandGetTopicsOfNamespace.Mode.class),
                 nullable(String.class),
                 nullable(String.class),
-                nullable(Map.class)))
-                .thenReturn(CompletableFuture.completedFuture(
-                        new GetTopicsResult(Collections.emptyList(), null, false, true)));
+                nullable(Map.class));
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
         when(lookup.getBroker(any()))

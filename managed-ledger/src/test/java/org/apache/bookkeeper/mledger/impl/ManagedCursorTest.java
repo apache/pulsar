@@ -1077,7 +1077,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int messages = 100;
         final int consumers = 5;
 
-        List<Future<AtomicBoolean>> futures = new ArrayList();
+        List<Future<AtomicBoolean>> futures = new ArrayList<>();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(consumers + 1);
@@ -2372,7 +2372,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int messages = 100;
         final int consumers = 10;
 
-        List<Future<Void>> futures = new ArrayList();
+        List<Future<Void>> futures = new ArrayList<>();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(consumers + 1);
@@ -3115,7 +3115,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry4".getBytes(Encoding));
 
         // 1. Replay empty position set should return empty entry set
-        Set<Position> positions = new HashSet();
+        Set<Position> positions = new HashSet<>();
         assertTrue(c1.replayEntries(positions).isEmpty());
 
         positions.add(p1);
@@ -3901,12 +3901,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         .setMarkDeleteLedgerId(markDeleteLedgerId).setMarkDeleteEntryId(markDeleteEntryId)
                         .setLastActive(0L);
                 Stat stat = mock(Stat.class);
+                @SuppressWarnings("unchecked")
                 MetaStoreCallback<ManagedCursorInfo> callback = (MetaStoreCallback<ManagedCursorInfo>) invocation
                         .getArguments()[2];
                 callback.operationComplete(info, stat);
                 return null;
             }
-        }).when(mockMetaStore).asyncGetCursorInfo(eq(mlName), eq(cursorName), any(MetaStoreCallback.class));
+        }).when(mockMetaStore).asyncGetCursorInfo(eq(mlName), eq(cursorName), any());
 
         ManagedLedgerImpl ml = mock(ManagedLedgerImpl.class);
         when(ml.getName()).thenReturn(mlName);
@@ -4666,8 +4667,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Field field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
 
-        ((ConcurrentSkipListMap<Long, ManagedLedgerInfo.LedgerInfo>) field.get(ledger))
-                .remove(position.getLedgerId());
+        @SuppressWarnings("unchecked")
+        ConcurrentSkipListMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers =
+                (ConcurrentSkipListMap<Long, ManagedLedgerInfo.LedgerInfo>) field.get(ledger);
+        ledgers.remove(position.getLedgerId());
         field = ManagedCursorImpl.class.getDeclaredField("markDeletePosition");
         field.setAccessible(true);
         field.set(managedCursor, PositionFactory.create(position1.getLedgerId(), -1));
@@ -5805,7 +5808,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
                         @Override
                         public Iterator<org.apache.bookkeeper.client.api.LedgerEntry> iterator() {
-                            return EmptyIterator.INSTANCE;
+                            return EmptyIterator.emptyIterator();
                         }
 
                         @Override

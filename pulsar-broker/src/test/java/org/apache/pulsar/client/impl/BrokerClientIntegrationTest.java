@@ -769,6 +769,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAvroSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         TestMessageObject object = new TestMessageObject();
@@ -802,6 +803,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testJsonSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ObjectMapper mapper = new ObjectMapper();
@@ -908,6 +910,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test(dataProvider = "booleanFlagProvider")
+    @SuppressWarnings("unchecked")
     public void testPooledMessageWithAckTimeout(boolean isBatchingEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 

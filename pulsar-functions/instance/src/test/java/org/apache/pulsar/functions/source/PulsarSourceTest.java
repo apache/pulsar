@@ -326,6 +326,7 @@ public class PulsarSourceTest {
     }
 
     @Test(dataProvider = "sourceImpls")
+    @SuppressWarnings("unchecked")
     public void testPreserveOriginalSchema(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         pulsarSourceConfig.setTypeClassName(GenericRecord.class.getName());
 
@@ -348,6 +349,7 @@ public class PulsarSourceTest {
     }
 
     @Test(dataProvider = "sourceImpls")
+    @SuppressWarnings("unchecked")
     public void testInputConsumersGetter(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         PulsarSource<GenericRecord> pulsarSource = getPulsarSource(pulsarSourceConfig);
         pulsarSource.open(new HashMap<>(), null);
@@ -369,6 +371,7 @@ public class PulsarSourceTest {
 
 
     @Test(dataProvider = "sourceImpls")
+    @SuppressWarnings("unchecked")
     public void testPulsarRecordCustomAck(PulsarSourceConfig pulsarSourceConfig) throws Exception {
 
         PulsarSource pulsarSource = getPulsarSource(pulsarSourceConfig);

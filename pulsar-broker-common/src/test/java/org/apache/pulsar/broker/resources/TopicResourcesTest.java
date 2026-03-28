@@ -152,8 +152,9 @@ public class TopicResourcesTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testBiConsumerListenerNotInvokedAfterDeregistered() {
-        BiConsumer listener = mock(BiConsumer.class);
+        BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
         topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);
         topicResources.handleNotification(new Notification(NotificationType.Created,
                 "/managed-ledgers/tenant/namespace/persistent/topic"));

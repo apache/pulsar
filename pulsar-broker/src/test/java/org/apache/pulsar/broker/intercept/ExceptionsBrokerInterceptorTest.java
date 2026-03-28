@@ -69,6 +69,7 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMessageAckedExceptions() throws Exception {
         String topic = "persistent://public/default/test";
         String subName = "test-sub";

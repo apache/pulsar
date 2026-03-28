@@ -83,6 +83,7 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
         final int numberOfClients = 100;
 
         // create a long topic name to consume more memory per topic
+        @SuppressWarnings("unchecked")
         final String topicNamePrefix = "persistent://" + namespace + "/" + StringUtils.repeat('a', 512) + "-";
         // number of topics to create
         final int topicCount = 300;

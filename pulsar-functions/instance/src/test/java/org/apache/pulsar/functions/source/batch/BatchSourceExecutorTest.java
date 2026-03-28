@@ -82,6 +82,7 @@ public class BatchSourceExecutorTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Record<String> readNext() throws Exception {
       if (++recordCount % 5 == 0) {
         return null;
@@ -130,6 +131,7 @@ public class BatchSourceExecutorTest {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void prepare(byte[] task) throws Exception {
       prepareCount++;
       for (int i = 0; i < 5; ++i) {
@@ -219,6 +221,7 @@ public class BatchSourceExecutorTest {
   }
 
   @BeforeMethod
+  @SuppressWarnings("unchecked")
   public void setUp() throws Exception {
     TestBatchSource.closeCount = 0;
     TestBatchSource.discoverCount = 0;

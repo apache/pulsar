@@ -31,6 +31,7 @@ import org.testng.annotations.Test;
 public class ProducerCacheTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void shouldTolerateAlreadyClosedExceptionInClose() {
         ProducerCache cache = new ProducerCache();
         Producer producer = mock(Producer.class);
@@ -43,6 +44,7 @@ public class ProducerCacheTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void shouldTolerateRuntimeExceptionInClose() {
         ProducerCache cache = new ProducerCache();
         Producer producer = mock(Producer.class);
@@ -54,6 +56,7 @@ public class ProducerCacheTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void shouldTolerateRuntimeExceptionInFlush() {
         ProducerCache cache = new ProducerCache();
         Producer producer = mock(Producer.class);
@@ -65,6 +68,7 @@ public class ProducerCacheTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void shouldCompleteFlushBeforeCloseAndWaitForClosing() {
         ProducerCache cache = new ProducerCache();
         Producer producer = mock(Producer.class);

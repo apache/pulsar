@@ -708,6 +708,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testUpdateTransactionCoordinatorNumber() throws Exception {
         int coordinatorSize = 3;
         pulsar.getPulsarResources()

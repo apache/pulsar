@@ -101,6 +101,7 @@ public class ThreadRuntimeFactoryTest {
     }
 
 
+    @SuppressWarnings("unchecked")
     private ClientBuilder testMemoryLimit(Long absolute, Double percent) throws Exception {
         try (MockedStatic<PulsarClient> mockedPulsarClient = mockStatic(PulsarClient.class)) {
             ClientBuilder clientBuilder = Mockito.mock(ClientBuilder.class);

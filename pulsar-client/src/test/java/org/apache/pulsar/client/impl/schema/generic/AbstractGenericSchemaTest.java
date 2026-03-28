@@ -39,6 +39,7 @@ import org.testng.annotations.Test;
 public class AbstractGenericSchemaTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericProtobufNativeSchema() {
         Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema =
                 Schema.PROTOBUF_NATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);

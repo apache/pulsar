@@ -105,6 +105,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -133,6 +134,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInlineGetProducerDataAssigned() {
 
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
@@ -162,6 +164,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -192,6 +195,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultAVROVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -228,6 +232,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedAVROVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -266,6 +271,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultJSONVersionGetProducerDataAssigned() {
         JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -302,6 +308,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedJSONVersionGetProducerDataAssigned() {
         JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -340,6 +347,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultAVROJSONVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -376,6 +384,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedAVROJSONVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());

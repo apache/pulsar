@@ -103,6 +103,7 @@ public class SplitSchedulerTest {
     }
 
     @Test(timeOut = 30 * 1000)
+    @SuppressWarnings("unchecked")
     public void testExecuteSuccess() {
         AtomicReference<List<Metrics>> reference = new AtomicReference();
         SplitCounter counter = new SplitCounter();
@@ -133,6 +134,7 @@ public class SplitSchedulerTest {
     }
 
     @Test(timeOut = 30 * 1000)
+    @SuppressWarnings("unchecked")
     public void testExecuteFailure() {
         AtomicReference<List<Metrics>> reference = new AtomicReference();
         SplitCounter counter = new SplitCounter();

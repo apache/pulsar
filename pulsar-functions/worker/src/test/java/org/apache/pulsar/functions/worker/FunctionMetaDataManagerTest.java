@@ -54,6 +54,7 @@ public class FunctionMetaDataManagerTest {
 
     static byte[] producerByteArray;
 
+    @SuppressWarnings("unchecked")
     private static PulsarClient mockPulsarClient() throws PulsarClientException {
         ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
         when(builder.topic(anyString())).thenReturn(builder);
@@ -291,6 +292,7 @@ public class FunctionMetaDataManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProcessRequest() throws PulsarClientException, IOException {
         WorkerConfig workerConfig = new WorkerConfig();
         FunctionMetaDataManager functionMetaDataManager = spy(

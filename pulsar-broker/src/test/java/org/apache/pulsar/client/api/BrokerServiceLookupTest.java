@@ -982,6 +982,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         final LookupService lookupService = pulsarClientImpl.getLookup();
         assertTrue(lookupService.isBinaryProtoLookupService());
 
+        @SuppressWarnings("unchecked")
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(tpName);
 

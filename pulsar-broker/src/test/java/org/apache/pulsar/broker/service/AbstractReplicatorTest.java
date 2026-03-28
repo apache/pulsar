@@ -59,6 +59,7 @@ import org.testng.annotations.Test;
 public class AbstractReplicatorTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testRetryStartProducerStoppedByTopicRemove() throws Exception {
         final String localCluster = "localCluster";
         final String remoteCluster = "remoteCluster";

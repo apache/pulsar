@@ -912,6 +912,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
     * @throws Exception
     */
     @Test
+    @SuppressWarnings("unchecked")
     public void testPartitionedTopicInterceptor() throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = newTopicName();
@@ -942,6 +943,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
                     }
 
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void onPartitionsChange(String topicName, int partitions) {
                         newProducerPartitions.addAndGet(partitions);
                     }

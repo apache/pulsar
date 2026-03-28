@@ -93,11 +93,13 @@ public class StrategicCompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private long compact(String topic) throws ExecutionException, InterruptedException {
         return (long) compactor.compact(topic, strategy).get();
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testNumericOrderCompaction() throws Exception {
 
         strategy = new NumericOrderCompactionStrategy();
@@ -180,6 +182,7 @@ public class StrategicCompactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
+    @SuppressWarnings("unchecked")
     public void testSameBatchCompactToSameBatch() throws Exception {
         final String topic =
                 "persistent://my-property/my-ns/testSameBatchCompactToSameBatch" + UUID.randomUUID();

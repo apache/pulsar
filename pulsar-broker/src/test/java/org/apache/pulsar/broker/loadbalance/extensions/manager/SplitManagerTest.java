@@ -194,6 +194,7 @@ public class SplitManagerTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, CompletableFuture<Void>> getinFlightUnloadRequests(SplitManager manager)
             throws IllegalAccessException {
         var inFlightUnloadRequest =

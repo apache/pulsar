@@ -954,6 +954,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void unloadAndLoadTopic(String topic, Producer producer) throws PulsarAdminException,
             PulsarClientException {
         admin.topics().unload(topic);

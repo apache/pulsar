@@ -214,6 +214,7 @@ public class UnloadManagerTest {
         assertEquals(counter.getBreakdownCounters().get(Failure).get(Unknown).get(), 1);
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, CompletableFuture<Void>> getInFlightUnloadRequestMap(UnloadManager manager)
             throws IllegalAccessException {
         Map<String, CompletableFuture<Void>> inFlightUnloadRequest =

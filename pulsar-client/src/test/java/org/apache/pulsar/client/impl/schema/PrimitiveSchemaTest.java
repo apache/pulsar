@@ -50,6 +50,7 @@ public class PrimitiveSchemaTest {
 
 
     @DataProvider(name = "schemas")
+    @SuppressWarnings("unchecked")
     public Object[][] schemas() {
 
         // we are not using a static initialization block, see here:
@@ -137,6 +138,7 @@ public class PrimitiveSchemaTest {
     }
 
     @Test(dataProvider = "schemas")
+    @SuppressWarnings("unchecked")
     public void allSchemasShouldRoundtripInput(Map<Schema, List<Object>> testData) {
         for (Map.Entry<Schema, List<Object>> test : testData.entrySet()) {
             log.info("Test schema {}", test.getKey());

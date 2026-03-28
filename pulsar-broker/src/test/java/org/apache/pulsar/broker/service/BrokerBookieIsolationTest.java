@@ -291,6 +291,7 @@ public class BrokerBookieIsolationTest {
         assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
     }
 
+    @SuppressWarnings("unchecked")
     private LedgerManager getLedgerManager(BookieImpl bookie1) throws IllegalAccessException {
         DbLedgerStorage ledgerStorage =
                 (DbLedgerStorage) FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);

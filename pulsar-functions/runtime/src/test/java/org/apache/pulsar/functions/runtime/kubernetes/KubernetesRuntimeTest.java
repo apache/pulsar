@@ -192,6 +192,7 @@ public class KubernetesRuntimeTest {
     }
 
     @AfterMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void tearDown() {
         if (null != this.factory) {
             this.factory.close();
@@ -207,6 +208,7 @@ public class KubernetesRuntimeTest {
                 memoryOverCommitRatio, manifestCustomizer, downloadDirectory, null, null);
     }
 
+    @SuppressWarnings("unchecked")
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
                                                            double cpuOverCommitRatio, double memoryOverCommitRatio,
                                                            Optional<RuntimeCustomizer> manifestCustomizer,
@@ -1085,6 +1087,7 @@ public class KubernetesRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testKubernetesRuntimeWithExposeAdminClientDisabled() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false, false);
 
@@ -1101,6 +1104,7 @@ public class KubernetesRuntimeTest {
                 memoryOverCommitRatio, manifestCustomizerClassName, runtimeCustomizerConfig, null, null);
     }
 
+    @SuppressWarnings("unchecked")
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir, int percentMemoryPadding,
                                                           double cpuOverCommitRatio, double memoryOverCommitRatio,
                                                           String manifestCustomizerClassName,
@@ -1200,6 +1204,7 @@ public class KubernetesRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testBasicKubernetesManifestCustomizerWithRuntimeCustomizerConfig() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
@@ -1243,6 +1248,7 @@ public class KubernetesRuntimeTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testBasicKubernetesManifestCustomizerWithRuntimeCustomizerConfigOverwrite() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {

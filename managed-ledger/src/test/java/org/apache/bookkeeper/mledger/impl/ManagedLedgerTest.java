@@ -3802,6 +3802,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         Deque<CompletableFuture<Void>> futures = new ConcurrentLinkedDeque<>();
         doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
             CompletableFuture<Void> result = (CompletableFuture<Void>) invocation.callRealMethod();
             futures.offer(result);
             return result;
@@ -4271,8 +4272,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         CompletableFuture<Void> offloadFuture = new CompletableFuture<>();
         offloadFuture.complete(null);
-        Mockito.when(ledgerOffloader.offload(any(ReadHandle.class), any(UUID.class),
-                any(Map.class))).thenReturn(offloadFuture);
+        doReturn(offloadFuture).when(ledgerOffloader).offload(any(ReadHandle.class), any(UUID.class),
+                any());
 
         final ManagedLedgerImpl ledgerInit = (ManagedLedgerImpl) factory.open("test-offload-task-close", config);
         final ManagedLedgerImpl ledger = spy(ledgerInit);

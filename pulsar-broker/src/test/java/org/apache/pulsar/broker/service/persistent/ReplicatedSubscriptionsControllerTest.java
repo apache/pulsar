@@ -61,6 +61,7 @@ import org.testng.annotations.Test;
 public class ReplicatedSubscriptionsControllerTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSnapshotRequestWhenReplicatorRemovedConcurrentlyDoesNotThrow() throws Exception {
         // Use a real PersistentTopic instance so that the replicator removal happens via the production code path
         // (PersistentTopic#removeReplicator), instead of directly doing "replicators.remove(..)" in the test.

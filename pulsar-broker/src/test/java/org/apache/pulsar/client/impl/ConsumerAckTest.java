@@ -230,6 +230,7 @@ public class ConsumerAckTest extends SharedPulsarBaseTest {
     }
 
     // Send 1 non-batched message, then send N-1 messages that are in the same batch
+    @SuppressWarnings("unchecked")
     private AckTestData prepareDataForAck(String topic) throws PulsarClientException {
         final int numMessages = 10;
         @Cleanup Producer<String> batchProducer = pulsarClient.newProducer(Schema.STRING)

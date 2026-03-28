@@ -119,6 +119,7 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
     }
 
     @Test(invocationCount = 5)
+    @SuppressWarnings("unchecked")
     public void testTailingReadsRollingRestart() throws Exception {
         // this description is showed in result CSV files
         String testConfigDescriptionInResult = cacheType.getDescription();

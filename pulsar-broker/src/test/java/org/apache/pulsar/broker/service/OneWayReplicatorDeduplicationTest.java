@@ -632,6 +632,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
      * 4. Verify: All 4 messages are copied to the remote cluster.
      */
     @Test(timeOut = 360 * 1000, dataProvider = "enabledDeduplication")
+    @SuppressWarnings("unchecked")
     public void testDeduplicationNotLostMessage(boolean enabledDeduplication) throws Exception {
         waitInternalClientCreated();
 
@@ -882,6 +883,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         Runnable taskToClearInjection = injectReplicatorClientCnx(
             (conf, eventLoopGroup) -> new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
                 @Override
+                @SuppressWarnings("unchecked")
                 protected void handleGetSchemaResponse(CommandGetSchemaResponse commandGetSchemaResponse) {
                     if (getSchemaSuccess.get()) {
                         getSchemaSuccess.set(false);
@@ -903,6 +905,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 }
 
                 @Override
+                @SuppressWarnings("unchecked")
                 protected void handleGetOrCreateSchemaResponse(CommandGetOrCreateSchemaResponse
                                                                        commandGetOrCreateSchemaResponse) {
 
@@ -928,6 +931,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             });
 
         // Create topics and enable deduplication.
+        @SuppressWarnings("unchecked")
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topics().createSubscription(topicName, "s1", MessageId.earliest);

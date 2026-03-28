@@ -33,6 +33,7 @@ import org.testng.annotations.Test;
 public class SupportVersioningKeyValueSchemaTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testKeyValueVersioningEncodeDecode() {
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
@@ -71,6 +72,7 @@ public class SupportVersioningKeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparateKeyValueVersioningEncodeDecode() {
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
@@ -104,6 +106,7 @@ public class SupportVersioningKeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testKeyValueDefaultVersioningEncodeDecode() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -137,6 +140,7 @@ public class SupportVersioningKeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testKeyValueLatestVersioningEncodeDecode() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());

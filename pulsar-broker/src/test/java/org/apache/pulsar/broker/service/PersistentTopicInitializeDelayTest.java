@@ -80,6 +80,7 @@ public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
 
     public static class MyTopicFactory implements TopicFactory {
         @Override
+        @SuppressWarnings("unchecked")
         public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
                                           Class<T> topicClazz) {
             try {

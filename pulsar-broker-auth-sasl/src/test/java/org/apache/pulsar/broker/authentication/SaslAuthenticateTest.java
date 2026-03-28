@@ -307,6 +307,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSaslOnlyAuthFirstStage() throws Exception {
         @Cleanup
         AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
@@ -353,6 +354,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMaxInflightContext() throws Exception {
         @Cleanup
         AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();

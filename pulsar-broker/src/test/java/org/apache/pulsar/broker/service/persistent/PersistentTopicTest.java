@@ -581,6 +581,7 @@ public class PersistentTopicTest extends BrokerTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDeleteTopicFail() throws Exception {
         final String fullyTopicName = "persistent://prop/ns-abc/" + "tp_"
                 + UUID.randomUUID().toString().replaceAll("-", "");

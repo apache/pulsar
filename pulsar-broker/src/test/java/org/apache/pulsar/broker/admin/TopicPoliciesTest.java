@@ -2329,6 +2329,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDisableSubscribeRate() throws Exception {
         assertEquals(pulsar.getConfiguration().getSubscribeThrottlingRatePerConsumer(), 0);
         admin.topics().createNonPartitionedTopic(persistenceTopic);
@@ -2957,6 +2958,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(messages.size(), defaultMaxUnackedMsgOnBroker);
     }
 
+    @SuppressWarnings("unchecked")
     private void produceMsg(Producer producer, int msgNum) throws Exception{
         for (int i = 0; i < msgNum; i++) {
             producer.send("msg".getBytes());
@@ -3479,6 +3481,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testPoliciesCanBeDeletedWithTopic() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         final String topic2 = testTopic + UUID.randomUUID();

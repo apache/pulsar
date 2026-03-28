@@ -416,6 +416,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 30 * 1000, dataProvider = "partitionedTopic")
+    @SuppressWarnings("unchecked")
     public void testAck(boolean partitionedTopic) throws Exception {
         String topic = null;
         if (partitionedTopic) {
@@ -536,6 +537,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 30 * 1000)
+    @SuppressWarnings("unchecked")
     public void testTableViewTailMessageReadRetry() throws Exception {
         String topic = "persistent://public/default/tableview-is-interrupted-test";
         admin.topics().createNonPartitionedTopic(topic);
@@ -573,6 +575,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testBuildTableViewWithMessagesAlwaysAvailable() throws Exception {
         String topic = "persistent://public/default/testBuildTableViewWithMessagesAlwaysAvailable";
         admin.topics().createPartitionedTopic(topic, 10);

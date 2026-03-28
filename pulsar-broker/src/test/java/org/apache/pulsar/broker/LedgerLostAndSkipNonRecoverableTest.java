@@ -151,6 +151,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
         });
     }
 
+    @SuppressWarnings("unchecked")
     private List<MessageIdImpl>[] sendManyMessages(String topicName, int ledgerCount, int messageCountPerLedger,
                                                    int messageCountPerEntry) throws Exception {
         List<MessageIdImpl>[] messageIds = new List[ledgerCount];
@@ -243,6 +244,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
         private List<MessageIdImpl>[] messageIds;
     }
 
+    @SuppressWarnings("unchecked")
     private List<MessageIdImpl>[] sortMessageId(List<MessageIdImpl> messageIds, boolean enabledBatch){
         Map<Long, List<MessageIdImpl>> map = messageIds.stream().collect(Collectors.groupingBy(v -> v.getLedgerId()));
         TreeMap<Long, List<MessageIdImpl>> sortedMap = new TreeMap<>(map);

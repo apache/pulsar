@@ -587,6 +587,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BrokerTestBase {
     /***
      * After {@param signal} complete, the consumer({@param consumerName}) start to receive messages.
      */
+    @SuppressWarnings("unchecked")
     private org.apache.pulsar.broker.service.Consumer makeConsumerReceiveMessagesDelay(String topic, String sub,
                                                             String consumerName,
                                                             CompletableFuture<Void> signal) throws Exception {

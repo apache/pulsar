@@ -643,6 +643,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSlowReceiveTableviewAfterCompaction() throws Exception {
         String topic = "persistent://my-property/my-ns/my-topic1";
         String strategyClassName = "topicCompactionStrategyClassName";

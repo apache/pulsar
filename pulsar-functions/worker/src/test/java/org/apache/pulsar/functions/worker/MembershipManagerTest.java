@@ -57,6 +57,7 @@ public class MembershipManagerTest {
 
     private final WorkerConfig workerConfig;
 
+    @SuppressWarnings("unchecked")
     public MembershipManagerTest() {
         this.workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -68,6 +69,7 @@ public class MembershipManagerTest {
         workerConfig.setStateStorageServiceUrl("foo");
     }
 
+    @SuppressWarnings("unchecked")
     private static PulsarClient mockPulsarClient() throws PulsarClientException {
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
@@ -91,6 +93,7 @@ public class MembershipManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCheckFailuresNoFailures() throws Exception {
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         PulsarClient pulsarClient = mockPulsarClient();
@@ -166,6 +169,7 @@ public class MembershipManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCheckFailuresSomeFailures() throws Exception {
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
@@ -251,6 +255,7 @@ public class MembershipManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCheckFailuresSomeUnassigned() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -336,6 +341,7 @@ public class MembershipManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testHeartBeatFunctionWorkerDown() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");

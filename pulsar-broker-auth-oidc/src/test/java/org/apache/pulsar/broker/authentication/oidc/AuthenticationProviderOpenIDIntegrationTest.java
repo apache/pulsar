@@ -637,7 +637,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build a JWT with a custom claim
-        HashMap<String, Object> claims = new HashMap();
+        HashMap<String, Object> claims = new HashMap<>();
         claims.put("test", "my-role");
         String token = generateToken(validJwk, issuer, "not-my-role", "allowed-audience", 0L,
                 0L, 10000L, claims);

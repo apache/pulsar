@@ -583,6 +583,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSplitLargestBundle() throws Exception {
         String namespace = "prop/ns-abc2";
         String topic = "persistent://" + namespace + "/t1-";
@@ -655,6 +656,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testSplitBundleWithHighestThroughput() throws Exception {
 
         conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());

@@ -60,6 +60,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         return ExtensibleLoadManagerImpl.class.getName();
     }
 
+    @SuppressWarnings("unchecked")
     protected String selectBroker(ServiceUnitId serviceUnit, Object loadManager) {
         try {
             return ((ExtensibleLoadManagerImpl) loadManager)
@@ -70,6 +71,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected void selectBrokerForNamespace(
             Object ownershipData,
             String broker, String namespace, String assignedBundleName) {

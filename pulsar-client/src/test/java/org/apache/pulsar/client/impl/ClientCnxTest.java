@@ -243,6 +243,7 @@ public class ClientCnxTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testHandleCloseConsumer() {
         ThreadFactory threadFactory = new DefaultThreadFactory("testHandleCloseConsumer");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
@@ -267,6 +268,7 @@ public class ClientCnxTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testHandleCloseProducer() {
         ThreadFactory threadFactory = new DefaultThreadFactory("testHandleCloseProducer");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);

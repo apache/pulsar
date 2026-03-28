@@ -345,6 +345,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
@@ -619,6 +620,7 @@ public class PulsarFunctionLocalRunTest {
         testE2EPulsarFunctionLocalRun(jarFilePathUrl, 1);
     }
 
+    @SuppressWarnings("unchecked")
     private void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
 
         final String namespacePortion = "io";

@@ -2186,6 +2186,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                         compactedLedgerId.get(), BookKeeper.DigestType.CRC32, new byte[]{})));
     }
 
+    @SuppressWarnings("unchecked")
     private void triggerCompactionAndWait(String topicName) throws Exception {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();

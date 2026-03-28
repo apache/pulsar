@@ -152,6 +152,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         RESET_CURSOR;
     }
 
+    @SuppressWarnings("unchecked")
     private ReceivedMessages<String> ackOddMessagesOnly(Consumer<String>...consumers) throws Exception {
         return receiveAndAckMessages((msgId, msgV) -> Integer.valueOf(msgV) % 2 == 1, consumers);
     }
@@ -221,6 +222,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "typesOfSetDispatcherPauseOnAckStatePersistent")
+    @SuppressWarnings("unchecked")
     public void testBrokerDynamicConfig(TypeOfUpdateTopicConfig type) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -275,6 +277,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "multiConsumerSubscriptionTypes")
+    @SuppressWarnings("unchecked")
     public void testPauseOnAckStatPersist(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -321,6 +324,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "skipTypes")
+    @SuppressWarnings("unchecked")
     public void testUnPauseOnSkipEntries(SkipType skipType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -400,6 +404,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "singleConsumerSubscriptionTypes")
+    @SuppressWarnings("unchecked")
     public void testSingleConsumerDispatcherWillNotPause(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -442,6 +447,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "multiConsumerSubscriptionTypes")
+    @SuppressWarnings("unchecked")
     public void testPauseOnAckStatPersistNotAffectReplayRead(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -495,6 +501,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "multiConsumerSubscriptionTypes")
+    @SuppressWarnings("unchecked")
     public void testMultiConsumersPauseOnAckStatPersistNotAffectReplayRead(SubscriptionType subscriptionType)
             throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");

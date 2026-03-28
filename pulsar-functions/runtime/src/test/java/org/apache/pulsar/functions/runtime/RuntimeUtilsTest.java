@@ -60,6 +60,7 @@ public class RuntimeUtilsTest {
     }
 
     @Test(dataProvider = "k8sRuntime")
+    @SuppressWarnings("unchecked")
     public void getGoInstanceCmd(boolean k8sRuntime) throws IOException {
         HashMap<String, String> goInstanceConfig;
 

@@ -316,6 +316,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGetTopicPoliciesWithCleanCache() throws Exception {
         final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();

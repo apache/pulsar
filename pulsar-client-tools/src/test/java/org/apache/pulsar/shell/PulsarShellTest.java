@@ -142,6 +142,7 @@ public class PulsarShellTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInteractiveMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
@@ -161,6 +162,7 @@ public class PulsarShellTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFileMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
@@ -178,6 +180,7 @@ public class PulsarShellTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFileModeExitOnError() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);

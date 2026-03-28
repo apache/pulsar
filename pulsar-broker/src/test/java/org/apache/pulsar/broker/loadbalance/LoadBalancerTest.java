@@ -438,6 +438,7 @@ public class LoadBalancerTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private AtomicReference<Map<String, ResourceQuota>> getRealtimeResourceQuota(PulsarService pulsar)
             throws NoSuchFieldException, IllegalAccessException {
         Field quotasField = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass()

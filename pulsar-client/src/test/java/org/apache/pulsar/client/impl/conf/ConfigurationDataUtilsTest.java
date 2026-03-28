@@ -166,6 +166,7 @@ public class ConfigurationDataUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadSecretParams() {
         ClientConfigurationData confData = new ClientConfigurationData();
         Map<String, String> authParamMap = new HashMap<>();

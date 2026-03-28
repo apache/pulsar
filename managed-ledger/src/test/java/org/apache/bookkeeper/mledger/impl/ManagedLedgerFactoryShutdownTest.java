@@ -117,7 +117,7 @@ public class ManagedLedgerFactoryShutdownTest {
             }
         });
         given(metadataStore.put(anyString(), any(), any())).willAnswer(inv -> {
-            @SuppressWarnings("unchecked cast")
+            @SuppressWarnings("unchecked")
             Optional<Long> expectedVersion = inv.getArgument(2, Optional.class);
             return CompletableFuture.supplyAsync(() -> new Stat(inv.getArgument(0, String.class),
                     expectedVersion.orElse(0L) + 1, createTimeMillis,

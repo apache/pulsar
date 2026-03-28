@@ -93,6 +93,7 @@ public class PulsarFunctionTlsTest {
             new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
 
     @BeforeMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     void setup() throws Exception {
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble

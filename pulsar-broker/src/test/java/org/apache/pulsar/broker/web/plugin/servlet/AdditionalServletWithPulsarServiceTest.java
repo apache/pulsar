@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 public class AdditionalServletWithPulsarServiceTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadAdditionalServlet() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setAdditionalServletClass(MockAdditionalServletWithClassLoader.class.getName());

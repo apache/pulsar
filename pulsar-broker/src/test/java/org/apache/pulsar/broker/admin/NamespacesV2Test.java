@@ -455,6 +455,7 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGetClusterAntiAffinityNamespaces() throws Exception {
         // create 5 namespaces, 3 namespaces are set to the same namespace anti affinity group,
         // 2 namespaces are not set to any anti affinity group

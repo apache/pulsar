@@ -367,6 +367,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
             new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+                @SuppressWarnings("unchecked")
                 protected void handleGetOrCreateSchemaResponse(
                         CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
                     responseSignal.join();
@@ -403,6 +404,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
             new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+                @SuppressWarnings("unchecked")
                 protected void handleGetOrCreateSchemaResponse(
                         CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
                     responseSignal.join();
@@ -868,6 +870,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batchingModesAndValueEncodingType")
+    @SuppressWarnings("unchecked")
     public void testAutoKeyValueConsume(boolean batching, KeyValueEncodingType keyValueEncodingType) throws Exception {
         String topic = NAMESPACE + "/schema-test-auto-keyvalue-consume-" + batching + "-" + keyValueEncodingType;
 
@@ -1154,6 +1157,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAutoKeyValueConsumeGenericObject() throws Exception {
         String topic = NAMESPACE + "/schema-test-auto-keyvalue-consume-" + UUID.randomUUID();
 
@@ -1424,6 +1428,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "keyEncodingType")
+    @SuppressWarnings("unchecked")
     public void testAutoKeyValueConsumeGenericObjectNullValues(KeyValueEncodingType encodingType) throws Exception {
         String topic = NAMESPACE + "/schema-test-auto-keyvalue-" + encodingType + "-null-value-consume-"
                 + UUID.randomUUID();

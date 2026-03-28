@@ -285,6 +285,7 @@ public class TopKBundlesTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testPartitionSort() {
 
         Random rand = new Random();

@@ -113,6 +113,7 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
                 SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, new PartitionedTopicMetadata(txnLogPartitions));
     }
 
+    @SuppressWarnings("unchecked")
     private void pubAndSubOneMsg(String topic, String subscription) throws Exception {
         Consumer consumer1 = client1.newConsumer(Schema.STRING).topic(topic).subscriptionName(subscription)
                 .isAckReceiptEnabled(true).subscribe();
@@ -222,6 +223,7 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testOngoingMessagesWillNotBeReplicated() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp");
         final String subscription = "s1";

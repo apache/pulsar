@@ -374,7 +374,7 @@ public class AuthenticationProviderOpenIDTest {
 
         // Build an empty JWT
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
-        HashMap<String, List<String>> claims = new HashMap();
+        HashMap<String, List<String>> claims = new HashMap<>();
         claims.put("roles", Collections.singletonList("my-role"));
         defaultJwtBuilder.setClaims(claims);
         defaultJwtBuilder.setAudience(basicProviderAudience);

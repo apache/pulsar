@@ -191,6 +191,7 @@ public class PulsarFunctionAdminTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
         workerConfig = new WorkerConfig();
         workerConfig.setPulsarFunctionsNamespace(pulsarFunctionsNamespace);

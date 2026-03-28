@@ -100,7 +100,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
                 }
             });
             return true;
-        }).when(spyCursor).asyncMarkDelete(any(Position.class), any(Map.class),
+        }).when(spyCursor).asyncMarkDelete(any(Position.class), any(),
                 any(AsyncCallbacks.MarkDeleteCallback.class), any());
         doAnswer(invocationOnMock -> {
             calledFindPositionCount.incrementAndGet();

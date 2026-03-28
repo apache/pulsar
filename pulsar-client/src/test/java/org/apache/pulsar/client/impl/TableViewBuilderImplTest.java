@@ -48,6 +48,7 @@ public class TableViewBuilderImplTest {
     private CompletableFuture readNextFuture;
 
     @BeforeClass(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void setup() {
         Reader reader = mock(Reader.class);
         readNextFuture = new CompletableFuture();
@@ -136,11 +137,13 @@ public class TableViewBuilderImplTest {
     }
 
     @Test(expectedExceptions = NullPointerException.class)
+    @SuppressWarnings("unchecked")
     public void testTableViewImplWhenDefaultCryptoKeyReaderIsNullMap() throws PulsarClientException {
         tableViewBuilderImpl.topic(TOPIC_NAME).defaultCryptoKeyReader((Map<String, String>) null).create();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    @SuppressWarnings("unchecked")
     public void testTableViewImplWhenDefaultCryptoKeyReaderIsEmptyMap() throws PulsarClientException {
         tableViewBuilderImpl.topic(TOPIC_NAME).defaultCryptoKeyReader(new HashMap<String, String>()).create();
     }

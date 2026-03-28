@@ -118,6 +118,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testTimeoutReleasePendingLookupRequestSemaphore() throws Exception {
         PulsarClientImpl client = (PulsarClientImpl) newClient();
 

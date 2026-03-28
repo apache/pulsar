@@ -70,6 +70,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDisableSchemaValidationEnforcedNoSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/default-no-schema");
         String namespace = "schema-validation-enforced/default-no-schema";
@@ -88,6 +89,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDisableSchemaValidationEnforcedHasSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/default-has-schema");
         String namespace = "schema-validation-enforced/default-has-schema";
@@ -126,6 +128,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testEnableSchemaValidationEnforcedNoSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/enable-no-schema");
         String namespace = "schema-validation-enforced/enable-no-schema";

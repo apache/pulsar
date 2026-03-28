@@ -147,6 +147,7 @@ public class MultiTopicsConsumerTest extends SharedPulsarBaseTest {
     // test that reproduces the issue that PR https://github.com/apache/pulsar/pull/12456 fixes
     // where MultiTopicsConsumerImpl has a data race that causes out-of-order delivery of messages
     @Test
+    @SuppressWarnings("unchecked")
     public void testShouldMaintainOrderForIndividualTopicInMultiTopicsConsumer()
             throws PulsarAdminException, PulsarClientException, ExecutionException, InterruptedException,
             TimeoutException {

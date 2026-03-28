@@ -86,6 +86,7 @@ public class FunctionRuntimeManagerTest {
     private static final String PULSAR_SERVICE_URL = "pulsar://localhost:6650";
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProcessAssignmentUpdateAddFunctions() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
@@ -179,6 +180,7 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProcessAssignmentUpdateDeleteFunctions() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
@@ -283,6 +285,7 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProcessAssignmentUpdateModifyFunctions() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -422,6 +425,7 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testReassignment() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -536,6 +540,7 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testRuntimeManagerInitialize() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -686,6 +691,7 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testExternallyManagedRuntimeUpdate() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -846,6 +852,7 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFunctionRuntimeSetCorrectly() {
 
         // Function runtime not set
@@ -1073,6 +1080,7 @@ public class FunctionRuntimeManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testThreadFunctionInstancesRestart() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();

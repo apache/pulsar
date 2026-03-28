@@ -148,6 +148,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericRecordBuilderByFieldName() {
         RecordSchemaBuilder recordSchemaBuilder =
             SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
@@ -230,6 +231,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericRecordBuilderAvroByFieldname() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record(People1.class.getCanonicalName());
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
@@ -298,6 +300,7 @@ public class SchemaBuilderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericRecordBuilderAvroByFieldnamePojo() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record(People1.class.getCanonicalName());
         people1SchemaBuilder.field("age").type(SchemaType.INT32);

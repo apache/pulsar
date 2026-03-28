@@ -499,6 +499,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSchemaLedgerAutoRelease() throws Exception {
         String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
         String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespaceName + "/tp");

@@ -62,6 +62,7 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void test() throws Exception {
 
         String topic = "persistent://my-property/my-ns/my-compact-topic";

@@ -462,6 +462,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     PersistentTopic persistentTopic = (PersistentTopic) topic.get();
                     var field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
                     field.setAccessible(true);
+                    @SuppressWarnings("unchecked")
                     NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers =
                             (NavigableMap<Long, ManagedLedgerInfo.LedgerInfo>)
                                     field.get(persistentTopic.getManagedLedger());
@@ -488,6 +489,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                         Field abortsField = SingleSnapshotAbortedTxnProcessorImpl.class.getDeclaredField("aborts");
                         abortsField.setAccessible(true);
 
+                        @SuppressWarnings("unchecked")
                         LinkedMap<TxnID, Position> linkedMap =
                                 (LinkedMap<TxnID, Position>) abortsField.get(abortedTxnProcessor);
                         assertEquals(linkedMap.size(), 1);
@@ -554,6 +556,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     private void checkSnapshotCount(TopicName topicName, boolean hasSnapshot,
                                     PersistentTopic persistentTopic, Field field) throws Exception {
         persistentTopic.triggerCompaction();
+        @SuppressWarnings("unchecked")
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(persistentTopic);
         Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
 
@@ -592,6 +595,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     @Test(timeOut = 30000)
+    @SuppressWarnings("unchecked")
     public void testTransactionBufferRecoverThrowException() throws Exception {
         OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(1)

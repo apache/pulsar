@@ -56,6 +56,7 @@ public class TopicListWatcherTest {
     private PatternMultiTopicsConsumerImpl<byte[]> patternConsumer;
 
     @BeforeMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void setup() {
         listener = mock(TopicsChangedListener.class);
         client = mock(PulsarClientImpl.class);

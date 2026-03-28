@@ -276,6 +276,7 @@ public abstract class AbstractPulsarE2ETest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config)
             throws IOException, URISyntaxException {
 

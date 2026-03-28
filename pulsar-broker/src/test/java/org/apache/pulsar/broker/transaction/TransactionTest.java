@@ -554,6 +554,7 @@ public class TransactionTest extends TransactionTestBase {
         ManagedLedgerFactory managedLedgerFactory = pulsarService.getDefaultManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
                 (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field.get(managedLedgerFactory);
         ledgers.remove(TopicName.get(topic).getPersistenceNamingEncoding());
@@ -783,6 +784,7 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(position4.getEntryId(), messageId4.getEntryId());
 
         //test publishing normal messages will not change maxReadPosition if the state o TB is Initializing.
+        @SuppressWarnings("unchecked")
         Class<TopicTransactionBufferState> transactionBufferStateClass =
                 (Class<TopicTransactionBufferState>) topicTransactionBuffer.getClass().getSuperclass();
         Field field = transactionBufferStateClass.getDeclaredField("state");
@@ -1403,6 +1405,7 @@ public class TransactionTest extends TransactionTestBase {
         Field field = MessagesImpl.class.getDeclaredField("messageList");
         field.setAccessible(true);
 
+        @SuppressWarnings("unchecked")
         MessagesImpl<byte[]> messages = (MessagesImpl<byte[]>) method.invoke(consumer);
 
         List<Message<byte[]>> messageList = new ArrayList<>();
@@ -1617,6 +1620,7 @@ public class TransactionTest extends TransactionTestBase {
      * see: https://github.com/apache/pulsar/pull/16248.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testTBRecoverChangeStateError() throws InterruptedException, TimeoutException {
         final AtomicReference<PersistentTopic> persistentTopic = new AtomicReference<>();
         // Create Executor
@@ -1812,6 +1816,7 @@ public class TransactionTest extends TransactionTestBase {
 
 
     @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
     public void testTBSnapshotWriter() throws Exception {
         String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);
         admin.namespaces().createNamespace(namespace, 16);

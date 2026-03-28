@@ -88,6 +88,7 @@ public class DefaultNamespaceBundleSplitStrategyTest {
     String broker = "broker-1";
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     void setup() {
         config = new ServiceConfiguration();
         config.setLoadBalancerDebugModeEnabled(true);

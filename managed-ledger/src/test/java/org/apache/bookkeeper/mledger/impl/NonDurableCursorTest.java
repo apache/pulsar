@@ -767,7 +767,7 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         assertEquals(nonDurableCursor.getNumberOfEntries(), 0);
         assertEquals(nonDurableCursor.getNumberOfEntriesInBacklog(true), 0);
 
-        List<Position> positions = new ArrayList();
+        List<Position> positions = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             positions.add(ledger.addEntry(("entry-" + i).getBytes(UTF_8)));
         }

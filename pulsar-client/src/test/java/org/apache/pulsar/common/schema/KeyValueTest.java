@@ -61,6 +61,7 @@ import org.testng.annotations.Test;
 
 public class KeyValueTest {
 
+    @SuppressWarnings({"serial", "rawtypes", "unchecked"})
     private static final Map<Schema, List<Object>> testData = new HashMap() {
 
         private static final long serialVersionUID = -3081991052949960650L;
@@ -99,6 +100,7 @@ public class KeyValueTest {
     }
 
     @Test(dataProvider = "schemas")
+    @SuppressWarnings("unchecked")
     public void testAllSchemas(Map<Schema, List<Object>> schemas) {
         for (Map.Entry<Schema, List<Object>> keyEntry : schemas.entrySet()) {
             for (Map.Entry<Schema, List<Object>> valueEntry : schemas.entrySet()) {

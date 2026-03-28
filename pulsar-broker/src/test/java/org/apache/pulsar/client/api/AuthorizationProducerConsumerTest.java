@@ -553,6 +553,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testUpdateTopicPropertiesAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
         cleanup();

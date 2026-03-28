@@ -88,6 +88,7 @@ public class MultiTopicsConsumerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGetStats() throws Exception {
         String topicName = "test-stats";
         ClientConfigurationData conf = new ClientConfigurationData();

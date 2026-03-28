@@ -140,6 +140,7 @@ public class ProcessRuntimeTest {
         return createProcessRuntimeFactory(extraDependenciesDir, null, false);
     }
 
+    @SuppressWarnings("unchecked")
     private ProcessRuntimeFactory createProcessRuntimeFactory(String extraDependenciesDir, String webServiceUrl,
                                                               boolean exposePulsarAdminClientEnabled) {
         ProcessRuntimeFactory processRuntimeFactory = new ProcessRuntimeFactory();

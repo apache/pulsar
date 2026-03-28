@@ -135,6 +135,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
 
     // change enabled to true to run the test
     @Test(enabled = false)
+    @SuppressWarnings("unchecked")
     public void testTailingReadsKeySharedSlowConsumer() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-test-topic";
         final String subscriptionName = "test-subscription";
@@ -301,6 +302,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
 
     // change enabled to true to run the test
     @Test(enabled = false)
+    @SuppressWarnings("unchecked")
     public void testCatchUpReadsWithFailureProxyDisconnectingAllConnections() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-catchup-test-topic";
         final String subscriptionName = "test-catchup-subscription";
@@ -475,6 +477,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testTailingReadsClearsCacheAfterCacheTimeout() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-test-topic";
         final String subscriptionName = "test-subscription";
@@ -586,6 +589,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testExpectedReads() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-test-topic";
         final String subscriptionName = "test-subscription";

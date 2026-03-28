@@ -80,6 +80,7 @@ public class FunctionMetaDataTopicTailerTest {
         CountDownLatch readLatch = new CountDownLatch(1);
         CountDownLatch processLatch = new CountDownLatch(1);
         when(reader.readNext(anyInt(), any(TimeUnit.class))).thenReturn(msg).then(new Answer<Message>() {
+            @SuppressWarnings("unchecked")
             public Message answer(InvocationOnMock invocation) {
                 try {
                     readLatch.countDown();
@@ -96,6 +97,6 @@ public class FunctionMetaDataTopicTailerTest {
         readLatch.await();
 
         verify(reader, times(2)).readNext(anyInt(), any(TimeUnit.class));
-        verify(fsm, times(1)).processMetaDataTopicMessage(any(Message.class));
+        verify(fsm, times(1)).processMetaDataTopicMessage(any());
     }
 }

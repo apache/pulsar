@@ -47,6 +47,7 @@ public class SourceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSinkContext() throws Exception {
         SourceContext sourceContext = mock(SourceContext.class);
 

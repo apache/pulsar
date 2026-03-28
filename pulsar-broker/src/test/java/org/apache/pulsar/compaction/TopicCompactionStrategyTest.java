@@ -28,6 +28,7 @@ public class TopicCompactionStrategyTest {
     public static class DummyTopicCompactionStrategy implements TopicCompactionStrategy<byte[]> {
 
         @Override
+        @SuppressWarnings("unchecked")
         public Schema getSchema() {
             return Schema.BYTES;
         }

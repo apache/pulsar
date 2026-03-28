@@ -132,6 +132,7 @@ public class WindowFunctionExecutorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testWindowFunctionWithAtmostOnce() throws Exception {
         windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATMOST_ONCE);
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context)
@@ -146,6 +147,7 @@ public class WindowFunctionExecutorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testWindowFunctionWithAtleastOnce() throws Exception {
 
         WindowConfig config = new WindowConfig();
@@ -248,6 +250,7 @@ public class WindowFunctionExecutorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testExecuteWithLateTupleStream() throws Exception {
 
         windowConfig.setLateDataTopic("$late");

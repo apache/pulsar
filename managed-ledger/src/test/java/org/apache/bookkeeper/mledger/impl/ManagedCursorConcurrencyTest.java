@@ -75,7 +75,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
         final ManagedCursor cursor = ledger.openCursor("c1");
 
-        final List<Position> addedEntries = new ArrayList();
+        final List<Position> addedEntries = new ArrayList<>();
 
         for (int i = 0; i < 1000; i++) {
             Position pos = ledger.addEntry("entry".getBytes());
@@ -135,7 +135,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         final CompletableFuture<String> closeFuture = new CompletableFuture<>();
         final String closed = "closed";
 
-        final List<Position> addedEntries = new ArrayList();
+        final List<Position> addedEntries = new ArrayList<>();
 
         for (int i = 0; i < 1000; i++) {
             Position pos = ledger.addEntry("entry".getBytes());
@@ -214,7 +214,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
         final ManagedCursor cursor = ledger.openCursor("c1");
 
-        final List<Position> addedEntries = new ArrayList();
+        final List<Position> addedEntries = new ArrayList<>();
 
         for (int i = 0; i < 1000; i++) {
             Position pos = ledger.addEntry("entry".getBytes());
@@ -313,7 +313,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
     public void testConcurrentReadOfSameEntry() throws Exception {
         ManagedLedger ledger = factory.open("testConcurrentReadOfSameEntry", new ManagedLedgerConfig());
         final int numCursors = 20;
-        final List<ManagedCursor> cursors = new ArrayList();
+        final List<ManagedCursor> cursors = new ArrayList<>();
         for (int i = 0; i < numCursors; i++) {
             final ManagedCursor cursor = ledger.openCursor("c" + i);
             cursors.add(cursor);

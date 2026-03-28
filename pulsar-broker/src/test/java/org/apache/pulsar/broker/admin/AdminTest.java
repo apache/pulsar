@@ -230,6 +230,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void internalConfigurationRetroCompatibility() throws Exception {
         OldInternalConfigurationData oldDataModel = new OldInternalConfigurationData(
                 MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL(conf.getMetadataStoreUrl()),
@@ -817,6 +818,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void persistentTopics() throws Exception {
 
         final String tenant = "prop-xyz";
@@ -940,6 +942,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void test500Error() throws Exception {
         final String tenant = "prop-xyz";
         final String cluster = "use";

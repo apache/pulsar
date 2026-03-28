@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,10 +61,11 @@ public class ProducerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testPopulateMessageSchema() {
         MessageImpl<?> msg = mock(MessageImpl.class);
         when(msg.hasReplicateFrom()).thenReturn(true);
-        when(msg.getSchemaInternal()).thenReturn(mock(Schema.class));
+        doReturn(mock(Schema.class)).when(msg).getSchemaInternal();
         when(msg.getSchemaInfoForReplicator()).thenReturn(null);
         ProducerImpl<?> producer = mock(ProducerImpl.class, withSettings()
                 .defaultAnswer(Mockito.CALLS_REAL_METHODS));
@@ -72,6 +74,7 @@ public class ProducerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFailPendingMessagesSyncRetry()
             throws Exception {
         ProducerImpl<byte[]> producer =

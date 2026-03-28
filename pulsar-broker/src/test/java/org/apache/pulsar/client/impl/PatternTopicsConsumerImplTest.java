@@ -825,6 +825,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         };
     }
 
+    @SuppressWarnings("unchecked")
     private void waitTopicListWatcherCreation(Consumer<?> consumer) {
         Awaitility.await().untilAsserted(() -> {
             CompletableFuture<TopicListWatcher> completableFuture =

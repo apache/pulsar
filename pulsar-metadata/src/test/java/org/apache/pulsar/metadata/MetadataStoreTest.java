@@ -526,6 +526,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testZkLoadConfigFromFile() throws Exception {
         final String metadataStoreName = UUID.randomUUID().toString().replaceAll("-", "");
         MetadataStoreConfig.MetadataStoreConfigBuilder builder =

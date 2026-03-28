@@ -92,6 +92,7 @@ public class ContextImplTest {
     private ProducerCache producerCache;
 
     @BeforeMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void setup() throws PulsarClientException {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);

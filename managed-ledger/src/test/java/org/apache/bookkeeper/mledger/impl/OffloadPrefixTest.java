@@ -825,6 +825,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         // make an ledger empty
         Field ledgersField = ledger.getClass().getDeclaredField("ledgers");
         ledgersField.setAccessible(true);
+        @SuppressWarnings("unchecked")
         Map<Long, LedgerInfo> ledgers = (Map<Long, LedgerInfo>) ledgersField.get(ledger);
         ledgers.put(secondLedgerId,
                     new LedgerInfo().copyFrom(ledgers.get(secondLedgerId)).setEntries(0).setSize(0));

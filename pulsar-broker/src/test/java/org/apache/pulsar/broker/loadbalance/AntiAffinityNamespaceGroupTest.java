@@ -535,12 +535,14 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         return !brokerToFailureDomainMap.isEmpty();
     }
 
+    @SuppressWarnings("unchecked")
     private NamespaceBundle makeBundle(final String tenant, final String namespace) {
         return nsFactory.getBundle(NamespaceName.get(tenant, namespace),
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
     }
 
+    @SuppressWarnings("unchecked")
     private static void filterAntiAffinityGroupOwnedBrokers(
             PulsarService pulsar,
             String assignedNamespace,
@@ -558,6 +560,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static boolean shouldAntiAffinityNamespaceUnload(
             String namespace,
             String bundle,

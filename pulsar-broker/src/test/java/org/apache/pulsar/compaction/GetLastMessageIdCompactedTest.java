@@ -97,6 +97,7 @@ public class GetLastMessageIdCompactedTest extends SharedPulsarBaseTest {
         });
     }
 
+    @SuppressWarnings("unchecked")
     private void clearAllTheLedgersOutdated(String topicName) throws Exception {
         PersistentTopic persistentTopic =
                 (PersistentTopic) getTopic(topicName, false).get().get();

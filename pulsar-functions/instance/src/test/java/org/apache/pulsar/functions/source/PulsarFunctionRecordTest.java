@@ -29,6 +29,7 @@ import org.testng.annotations.Test;
 public class PulsarFunctionRecordTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAck() {
         Record record = mock(Record.class);
         Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setAutoAck(true)

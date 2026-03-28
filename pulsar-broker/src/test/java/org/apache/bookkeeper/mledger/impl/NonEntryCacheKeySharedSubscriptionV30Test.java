@@ -79,6 +79,7 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
     }
 
 
+    @SuppressWarnings("unchecked")
     @Test(timeOut = 180 * 1000, invocationCount = 1)
     public void testRecentJoinQueueIsInOrderAfterRewind() throws Exception {
         int msgCount = 300;
@@ -153,10 +154,11 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
             long firstEntry = (long) invocation.getArguments()[0];
             if (firstEntry == firstWaitingAckPos.getEntryId()) {
                 replayReadWasTriggered.set(true);
-                final CompletableFuture res = new CompletableFuture<>();
+                final CompletableFuture<LedgerEntries> res = new CompletableFuture<>();
                 threadFactory.newThread(() -> {
                     try {
                         replyReadSignal.await();
+                        @SuppressWarnings("unchecked")
                         CompletableFuture<LedgerEntries> future =
                                 (CompletableFuture<LedgerEntries>) invocation.callRealMethod();
                         future.thenAccept(v -> {
@@ -246,7 +248,8 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         consumerList.get(consumerList.size() - 1).join();
 
         synchronized (dispatcher) {
-            LinkedHashMap recentJoinedConsumers = dispatcher.getRecentlyJoinedConsumers();
+            LinkedHashMap<org.apache.pulsar.broker.service.Consumer, Position> recentJoinedConsumers =
+                    dispatcher.getRecentlyJoinedConsumers();
             assertTrue(verifyMapItemsAreInOrder(recentJoinedConsumers));
         }
 

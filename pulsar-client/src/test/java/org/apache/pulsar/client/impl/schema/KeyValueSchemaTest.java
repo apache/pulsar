@@ -236,6 +236,7 @@ public class KeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAllowNullSchemaEncodeAndDecode() {
         Schema keyValueSchema = Schema.KeyValue(Foo.class, Bar.class);
 
@@ -261,6 +262,7 @@ public class KeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testNotAllowNullSchemaEncodeAndDecode() {
         Schema keyValueSchema = Schema.KeyValue(JSONSchema.of(SchemaDefinition.<Foo>builder()
                         .withPojo(Foo.class).withAlwaysAllowNull(false).build()),
@@ -289,6 +291,7 @@ public class KeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultKeyValueEncodingTypeSchemaEncodeAndDecode() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -318,6 +321,7 @@ public class KeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInlineKeyValueEncodingTypeSchemaEncodeAndDecode() {
 
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
@@ -349,6 +353,7 @@ public class KeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedKeyValueEncodingTypeSchemaEncodeAndDecode() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -444,6 +449,7 @@ public class KeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testKeyValueSchemaSeparatedEncoding() {
         KeyValueSchemaImpl<String, String> keyValueSchema = (KeyValueSchemaImpl<String, String>)
                 KeyValueSchemaImpl.of(Schema.STRING, Schema.STRING,
@@ -454,6 +460,7 @@ public class KeyValueSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testKeyValueSchemaCache() {
         Schema<Foo> keySchema = spy(Schema.AVRO(Foo.class));
         Schema<Foo> valueSchema = spy(Schema.AVRO(Foo.class));

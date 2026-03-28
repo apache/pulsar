@@ -246,6 +246,7 @@ public class PulsarFunctionPublishTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
         workerConfig = new WorkerConfig();

@@ -307,7 +307,9 @@ public class EntryCountEstimatorTest {
     public void testNoLedgersRaceFirstKey() {
         readPosition = PositionFactory.EARLIEST;
         // remove all ledgers from ledgersInfo
-        ledgersInfo = mock(NavigableMap.class);
+        @SuppressWarnings("unchecked")
+        NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> mockedMap = mock(NavigableMap.class);
+        ledgersInfo = mockedMap;
         when(ledgersInfo.isEmpty()).thenReturn(false);
         when(ledgersInfo.firstKey()).thenThrow(NoSuchElementException.class);
         when(ledgersInfo.lastKey()).thenReturn(1L);
@@ -320,7 +322,9 @@ public class EntryCountEstimatorTest {
     public void testNoLedgersRaceLastKey() {
         readPosition = PositionFactory.EARLIEST;
         // remove all ledgers from ledgersInfo
-        ledgersInfo = mock(NavigableMap.class);
+        @SuppressWarnings("unchecked")
+        NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> mockedMap = mock(NavigableMap.class);
+        ledgersInfo = mockedMap;
         lastLedgerId = null;
         when(ledgersInfo.isEmpty()).thenReturn(false);
         when(ledgersInfo.firstKey()).thenReturn(1L);

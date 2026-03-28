@@ -465,6 +465,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testReplicationWillNotStuckByIncompleteSchemaFuture() throws Exception {
         int originalReplicationProducerQueueSize = pulsar1.getConfiguration().getReplicationProducerQueueSize();
         pulsar1.getConfiguration().setReplicationProducerQueueSize(5);
@@ -1426,6 +1427,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCleanupTopic() throws Exception {
 
         final String cluster1 = pulsar1.getConfig().getClusterName();
