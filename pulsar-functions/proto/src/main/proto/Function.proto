@@ -98,8 +98,16 @@ message FunctionDetails {
     bool retainOrdering = 21;
     bool retainKeyOrdering = 22;
     SubscriptionPosition subscriptionPosition = 23;
+    MemoryLimit memoryLimit = 24;
 }
 
+message MemoryLimit {
+    // limit value in bytes, represents the memory limit in bytes
+    int64 limitInBytes = 1;
+
+    // percent of max direct memory, in percentage
+    double percentOfMaxDirectMemory = 2;
+}
 message ConsumerSpec {
     string schemaType = 1;
     string serdeClassName = 2;

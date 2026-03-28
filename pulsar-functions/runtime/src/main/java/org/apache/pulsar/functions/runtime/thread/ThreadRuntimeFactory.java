@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.runtime.thread;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.util.DirectMemoryUtils.jvmMaxDirectMemoryPercentage;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,7 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -81,8 +82,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
-                                String pulsarWebServiceUrl) throws Exception {
-        initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
+                                String pulsarWebServiceUrl, Optional<MemoryLimit> memoryLimit) throws Exception {
+        initialize(threadGroupName, memoryLimit, pulsarServiceUrl, authConfig,
                 stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
@@ -95,15 +96,16 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
-                                String pulsarWebServiceUrl, FunctionCacheManager fnCache) throws Exception {
-        initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
-                stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
+                                String pulsarWebServiceUrl, FunctionCacheManager fnCache,
+                                Optional<MemoryLimit> memoryLimit) throws Exception {
+        initialize(threadGroupName, memoryLimit, pulsarServiceUrl
+                , authConfig, stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
                 Optional.empty(), fnCache);
     }
 
-    private void initialize(String threadGroupName, Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit,
+    private void initialize(String threadGroupName, Optional<MemoryLimit> memoryLimit,
                             String pulsarServiceUrl, AuthenticationConfig authConfig, String stateStorageImplClass,
                             String storageServiceUrl,
                             SecretsProviderConfigurator secretsProviderConfigurator, SecretsProvider secretsProvider,
@@ -139,10 +141,10 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.functionsManager = functionsManager;
     }
 
-    private Optional<Long> calculateClientMemoryLimit(Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit) {
+    private Optional<Long> calculateClientMemoryLimit(Optional<MemoryLimit> memoryLimit) {
         if (memoryLimit.isPresent()) {
 
-            Long absolute = memoryLimit.get().getAbsoluteValue();
+            Long absolute = memoryLimit.get().getLimitInBytes();
             Double percentOfDirectMem = memoryLimit.get().getPercentOfMaxDirectMemory();
             if (absolute != null) {
                 checkArgument(absolute > 0, "Absolute memory limit for Pulsar client has to be positive");
@@ -153,7 +155,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             }
 
             if (absolute != null && percentOfDirectMem != null) {
-                return Optional.of(Math.min(absolute, getBytesPercentDirectMem(percentOfDirectMem)));
+                return Optional.of(Math.min(absolute, jvmMaxDirectMemoryPercentage(percentOfDirectMem)));
             }
 
             if (absolute != null) {
@@ -161,14 +163,10 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             }
 
             if (percentOfDirectMem != null) {
-                return Optional.of(getBytesPercentDirectMem(percentOfDirectMem));
+                return Optional.of(jvmMaxDirectMemoryPercentage(percentOfDirectMem));
             }
         }
         return Optional.empty();
-    }
-
-    private long getBytesPercentDirectMem(double percent) {
-        return (long) (DirectMemoryUtils.jvmMaxDirectMemory() * (percent / 100));
     }
 
 
