@@ -116,7 +116,7 @@ public class ConsumerBuilderImplTest {
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
         ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
-        new ConsumerBuilderImpl<>(client, consumerConfigurationData,null);
+        new ConsumerBuilderImpl<>(client, consumerConfigurationData, null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
