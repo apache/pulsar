@@ -33,6 +33,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.concurrent.GenericFutureListener;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -246,7 +247,7 @@ public class AsyncDualMemoryLimiterUtilTest {
 
         when(channelFuture.addListener(any())).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")
-            io.netty.util.concurrent.GenericFutureListener<io.netty.channel.ChannelFuture> listener = invocation.getArgument(0);
+            GenericFutureListener<ChannelFuture> listener = invocation.getArgument(0);
             listenerCalled.set(true);
             // Simulate successful write
             listener.operationComplete(channelFuture);
@@ -417,7 +418,7 @@ public class AsyncDualMemoryLimiterUtilTest {
         when(ctx.writeAndFlush(any(ByteBuf.class))).thenReturn(channelFuture);
         when(channelFuture.addListener(any())).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")
-            io.netty.util.concurrent.GenericFutureListener<io.netty.channel.ChannelFuture> listener = invocation.getArgument(0);
+            GenericFutureListener<ChannelFuture> listener = invocation.getArgument(0);
             listener.operationComplete(channelFuture);
             return channelFuture;
         });
@@ -455,7 +456,7 @@ public class AsyncDualMemoryLimiterUtilTest {
         when(ctx.writeAndFlush(any(ByteBuf.class))).thenReturn(channelFuture);
         when(channelFuture.addListener(any())).thenAnswer(invocation -> {
             @SuppressWarnings("unchecked")
-            io.netty.util.concurrent.GenericFutureListener<io.netty.channel.ChannelFuture> listener = invocation.getArgument(0);
+            GenericFutureListener<ChannelFuture> listener = invocation.getArgument(0);
             // Simulate write failure
             when(channelFuture.isSuccess()).thenReturn(false);
             when(channelFuture.cause()).thenReturn(new RuntimeException("Write to socket failed"));

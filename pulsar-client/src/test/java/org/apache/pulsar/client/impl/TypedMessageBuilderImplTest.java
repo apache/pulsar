@@ -138,7 +138,8 @@ public class TypedMessageBuilderImplTest {
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = new KeyValue<>(foo, bar);
 
         // Check kv.encoding.type SEPARATED
-        TypedMessageBuilderImpl<?> typedMessageBuilder = (TypedMessageBuilderImpl<?>) typedMessageBuilderImpl.value(keyValue);
+        TypedMessageBuilderImpl<?> typedMessageBuilder =
+                (TypedMessageBuilderImpl<?>) typedMessageBuilderImpl.value(keyValue);
         Method method = TypedMessageBuilderImpl.class.getDeclaredMethod("beforeSend");
         method.setAccessible(true);
         method.invoke(typedMessageBuilder);
