@@ -474,7 +474,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Mock managed ledger and write counter.
         MockedManagedLedger mockedManagedLedger = mockManagedLedgerWithWriteCounter(mlName);
         // Start tests.
-        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<>(mockedManagedLedger.managedLedger,
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<>(
+                mockedManagedLedger.managedLedger,
                 threadPoolExecutor, transactionTimer, dataSerializer, 2, 1024 * 4,
                 1, true, DISABLED_BUFFERED_WRITER_METRICS);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
