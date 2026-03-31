@@ -29,7 +29,6 @@ dependencies {
     implementation(libs.avro)
     implementation(libs.jackson.databind)
     implementation(libs.protobuf.java)
-    implementation(libs.protobuf.java.util)
     implementation(libs.gson)
     implementation(libs.slf4j.api)
     implementation(libs.log4j.slf4j2.impl)

@@ -87,6 +87,7 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
     }
 
     protected ArrayList<PulsarClient> clients = new ArrayList<>();
+    private final java.util.Map<PulsarClient, LookupService> originalLookupServices = new java.util.HashMap<>();
 
     @DataProvider(name = "serviceUnitStateTableViewClassName")
     public static Object[][] serviceUnitStateTableViewClassName() {
@@ -152,7 +153,10 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         lookupService = (LookupService) FieldUtils.readDeclaredField(pulsarClient, "lookup", true);
 
         for (int i = 0; i < 4; i++) {
-            clients.add(pulsarClient(lookupUrl.toString(), 100));
+            PulsarClient client = pulsarClient(lookupUrl.toString(), 100);
+            clients.add(client);
+            originalLookupServices.put(client,
+                    (LookupService) FieldUtils.readDeclaredField(client, "lookup", true));
         }
     }
 
@@ -196,6 +200,14 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         admin.namespaces().unload(defaultTestNamespace);
         reset(primaryLoadManager, secondaryLoadManager);
         FieldUtils.writeDeclaredField(pulsarClient, "lookup", lookupService, true);
+        // Restore original lookup services for all shared clients to prevent state leakage
+        // between tests when a previous test fails before resetting spied lookup services.
+        for (PulsarClient client : clients) {
+            LookupService original = originalLookupServices.get(client);
+            if (original != null) {
+                FieldUtils.writeDeclaredField(client, "lookup", original, true);
+            }
+        }
         pulsar1.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
         pulsar2.getConfig().setLoadBalancerMultiPhaseBundleUnload(true);
     }

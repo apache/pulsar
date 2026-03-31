@@ -142,7 +142,7 @@ javax-servlet = "3.1.0"
 # Oxia / etcd
 oxia = "0.7.4"
 # Build plugins
-lightproto = "0.6.2"
+lightproto = "0.6.6"
 errorprone = "2.45.0"
 spotbugs = "4.9.6"
 checkerframework = "3.33.0"

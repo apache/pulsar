@@ -24,7 +24,6 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 import com.google.gson.reflect.TypeToken;
-import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import java.lang.reflect.Type;
 import java.nio.file.Files;
@@ -38,9 +37,10 @@ import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.ConsumerSpec;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.SourceSpec;
+import org.apache.pulsar.functions.proto.SubscriptionType;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
@@ -103,8 +103,8 @@ public class ProcessRuntimeTest {
     private static final Map<String, ConsumerSpec> topicsToSchema = new HashMap<>();
     static {
         topicsToSerDeClassName.put("test_src", "");
-        topicsToSchema.put("test_src",
-                ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
+        ConsumerSpec consumerSpec = new ConsumerSpec().setSerdeClassName("").setIsRegexPattern(false);
+        topicsToSchema.put("test_src", consumerSpec);
     }
 
     private ProcessRuntimeFactory factory;
@@ -171,25 +171,26 @@ public class ProcessRuntimeTest {
     }
 
     FunctionDetails createFunctionDetails(FunctionDetails.Runtime runtime) {
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.setRuntime(runtime);
-        functionDetailsBuilder.setTenant(TEST_TENANT);
-        functionDetailsBuilder.setNamespace(TEST_NAMESPACE);
-        functionDetailsBuilder.setName(TEST_NAME);
-        functionDetailsBuilder.setClassName("org.apache.pulsar.functions.utils.functioncache.AddFunction");
-        functionDetailsBuilder.setSink(Function.SinkSpec.newBuilder()
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.setRuntime(runtime);
+        functionDetails.setTenant(TEST_TENANT);
+        functionDetails.setNamespace(TEST_NAMESPACE);
+        functionDetails.setName(TEST_NAME);
+        functionDetails.setClassName("org.apache.pulsar.functions.utils.functioncache.AddFunction");
+        functionDetails.setSink()
                 .setTopic(TEST_NAME + "-output")
                 .setSerDeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer")
                 .setClassName("org.pulsar.pulsar.TestSink")
-                .setTypeClassName(String.class.getName())
-                .build());
-        functionDetailsBuilder.setLogTopic(TEST_NAME + "-log");
-        functionDetailsBuilder.setSource(Function.SourceSpec.newBuilder()
-                .setSubscriptionType(Function.SubscriptionType.FAILOVER)
-                .putAllInputSpecs(topicsToSchema)
+                .setTypeClassName(String.class.getName());
+        functionDetails.setLogTopic(TEST_NAME + "-log");
+        SourceSpec sourceSpec = functionDetails.setSource();
+        sourceSpec.setSubscriptionType(SubscriptionType.FAILOVER)
                 .setClassName("org.pulsar.pulsar.TestSource")
-                .setTypeClassName(String.class.getName()));
-        return functionDetailsBuilder.build();
+                .setTypeClassName(String.class.getName());
+        for (Map.Entry<String, ConsumerSpec> entry : topicsToSchema.entrySet()) {
+            sourceSpec.putInputSpecs(entry.getKey()).copyFrom(entry.getValue());
+        }
+        return functionDetails;
     }
 
     InstanceConfig createJavaInstanceConfig(FunctionDetails.Runtime runtime) {
@@ -343,7 +344,7 @@ public class ProcessRuntimeTest {
                 + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '"
-                + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + config.getFunctionDetails().toJson()
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + pulsarAdminArg
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg) + " --metrics_port "
@@ -396,7 +397,7 @@ public class ProcessRuntimeTest {
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion()
                 + " --function_details '"
-                + JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails())
+                + config.getFunctionDetails().toJson()
                 + "' --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port " + args.get(portArg)
                 + " --metrics_port " + args.get(metricsPortArg)

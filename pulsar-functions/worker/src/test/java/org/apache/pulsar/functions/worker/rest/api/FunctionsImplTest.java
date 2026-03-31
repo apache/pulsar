@@ -63,8 +63,12 @@ import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.FunctionStatus;
+import org.apache.pulsar.functions.proto.MetricsData;
+import org.apache.pulsar.functions.proto.SubscriptionType;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -97,7 +101,7 @@ public class FunctionsImplTest {
     private static final String outputTopic = "test-output-topic";
     private static final String outputSerdeClassName = TopicSchema.DEFAULT_SERDE;
     private static final String className = TestFunction.class.getName();
-    private Function.SubscriptionType subscriptionType = Function.SubscriptionType.FAILOVER;
+    private SubscriptionType subscriptionType = SubscriptionType.FAILOVER;
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
     static {
         topicsToSerDeClassName.put("test_src", TopicSchema.DEFAULT_SERDE);
@@ -120,7 +124,7 @@ public class FunctionsImplTest {
     private FunctionsImpl resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
-    private Function.FunctionMetaData mockedFunctionMetadata;
+    private FunctionMetaData mockedFunctionMetadata;
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
     @BeforeMethod
@@ -136,8 +140,8 @@ public class FunctionsImplTest {
         this.mockedPulsarAdmin = mock(PulsarAdmin.class);
         this.mockedTenants = mock(Tenants.class);
         this.mockedNamespaces = mock(Namespaces.class);
-        this.mockedFunctionMetadata =
-                Function.FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        this.mockedFunctionMetadata = new FunctionMetaData();
+        this.mockedFunctionMetadata.setFunctionDetails().copyFrom(createDefaultFunctionDetails());
         namespaceList.add(tenant + "/" + namespace);
 
         this.mockedWorkerService = mock(PulsarWorkerService.class);
@@ -154,26 +158,25 @@ public class FunctionsImplTest {
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetadata);
         when(mockedManager.containsFunction(tenant, namespace, function)).thenReturn(true);
         when(mockedFunctionRunTimeManager.findFunctionAssignment(eq(tenant), eq(namespace), eq(function), anyInt()))
-                .thenReturn(Function.Assignment.newBuilder()
-                        .setWorkerId(workerId)
-                        .build());
+                .thenReturn(new Assignment()
+                        .setWorkerId(workerId));
 
-        Function.FunctionDetails.Builder functionDetailsBuilder = createDefaultFunctionDetails().toBuilder();
+        FunctionDetails functionDetails = new FunctionDetails().copyFrom(createDefaultFunctionDetails());
         InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionDetails(functionDetailsBuilder.build());
+        instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setMaxBufferedTuples(1024);
 
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
                 instanceConfig, null, null, null, null, null, null, null, null, null);
-        CompletableFuture<InstanceCommunication.MetricsData> metricsDataCompletableFuture =
-                new CompletableFuture<InstanceCommunication.MetricsData>();
+        CompletableFuture<MetricsData> metricsDataCompletableFuture =
+                new CompletableFuture<MetricsData>();
         metricsDataCompletableFuture.complete(javaInstanceRunnable.getMetrics());
         Runtime runtime = mock(Runtime.class);
         doReturn(metricsDataCompletableFuture).when(runtime).getMetrics(anyInt());
 
-        CompletableFuture<InstanceCommunication.FunctionStatus> functionStatusCompletableFuture =
+        CompletableFuture<FunctionStatus> functionStatusCompletableFuture =
                 new CompletableFuture<>();
-        functionStatusCompletableFuture.complete(javaInstanceRunnable.getFunctionStatus().build());
+        functionStatusCompletableFuture.complete(javaInstanceRunnable.getFunctionStatus());
 
         RuntimeSpawner runtimeSpawner = mock(RuntimeSpawner.class);
         when(runtimeSpawner.getFunctionStatus(anyInt())).thenReturn(functionStatusCompletableFuture);
@@ -213,15 +216,15 @@ public class FunctionsImplTest {
 
     @Test
     public void testMetricsEmpty() throws PulsarClientException {
-        Function.FunctionDetails.Builder functionDetailsBuilder = createDefaultFunctionDetails().toBuilder();
+        FunctionDetails functionDetails = new FunctionDetails().copyFrom(createDefaultFunctionDetails());
         InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionDetails(functionDetailsBuilder.build());
+        instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setMaxBufferedTuples(1024);
 
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
                 instanceConfig, null, null, null, null, null, null, null, null, null);
-        CompletableFuture<InstanceCommunication.MetricsData> completableFuture =
-                new CompletableFuture<InstanceCommunication.MetricsData>();
+        CompletableFuture<MetricsData> completableFuture =
+                new CompletableFuture<MetricsData>();
         completableFuture.complete(javaInstanceRunnable.getMetrics());
         Runtime runtime = mock(Runtime.class);
         doReturn(completableFuture).when(runtime).getMetrics(anyInt());
@@ -384,7 +387,7 @@ public class FunctionsImplTest {
         return functionConfig;
     }
 
-    public static Function.FunctionDetails createDefaultFunctionDetails() {
+    public static FunctionDetails createDefaultFunctionDetails() {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
         return FunctionConfigUtils.convert(functionConfig);
     }

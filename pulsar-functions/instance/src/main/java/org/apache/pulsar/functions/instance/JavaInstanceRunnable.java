@@ -86,10 +86,13 @@ import org.apache.pulsar.functions.instance.state.StateStoreContextImpl;
 import org.apache.pulsar.functions.instance.state.StateStoreProvider;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData.Builder;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
+import org.apache.pulsar.functions.proto.MetricsData;
+import org.apache.pulsar.functions.proto.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.ProducerSpec;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.sink.PulsarSinkConfig;
@@ -153,7 +156,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private InstanceCache instanceCache;
 
-    private final org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType componentType;
+    private final FunctionDetails.ComponentType componentType;
 
     private final Map<String, String> properties;
 
@@ -328,8 +331,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 @SuppressWarnings("deprecation")
                 boolean atMostOnceAutoAck = instanceConfig.getFunctionDetails().getProcessingGuarantees()
-                        == org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATMOST_ONCE
-                        && instanceConfig.getFunctionDetails().getAutoAck();
+                        == ProcessingGuarantees.ATMOST_ONCE
+                        && instanceConfig.getFunctionDetails().isAutoAck();
                 if (atMostOnceAutoAck) {
                     currentRecord.ack();
                 }
@@ -435,15 +438,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (result.getResult() != null) {
                 sendOutputMessage(srcRecord, result.getResult());
             } else {
-                org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails =
+                FunctionDetails functionDetails =
                         instanceConfig.getFunctionDetails();
                 // When function return null, needs to be acked directly.
                 if (functionDetails.getProcessingGuarantees()
-                        != org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.MANUAL) {
+                        != ProcessingGuarantees.MANUAL) {
                     // This condition has been automatically acked.
                     // After waiting to remove the autoAck configuration,can be removing the judgment condition.
-                    if (!functionDetails.getAutoAck() || functionDetails.getProcessingGuarantees()
-                            != org.apache.pulsar.functions.proto.Function.ProcessingGuarantees.ATMOST_ONCE) {
+                    if (!functionDetails.isAutoAck() || functionDetails.getProcessingGuarantees()
+                            != ProcessingGuarantees.ATMOST_ONCE) {
                         srcRecord.ack();
                     }
                 }
@@ -457,7 +460,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
-        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
+        if (componentType == FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(componentClassLoader);
         }
         AbstractSinkRecord<?> sinkRecord;
@@ -530,7 +533,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private Record<?> readInput() throws Exception {
         Record<?> record;
-        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+        if (componentType == FunctionDetails.ComponentType.SOURCE) {
             Thread.currentThread().setContextClassLoader(componentClassLoader);
         }
         try {
@@ -569,7 +572,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (source != null) {
-            if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+            if (componentType == FunctionDetails.ComponentType.SOURCE) {
                 Thread.currentThread().setContextClassLoader(componentClassLoader);
             }
             try {
@@ -584,7 +587,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (sink != null) {
-            if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
+            if (componentType == FunctionDetails.ComponentType.SINK) {
                 Thread.currentThread().setContextClassLoader(componentClassLoader);
             }
             try {
@@ -644,21 +647,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.stats = stats;
     }
 
-    public InstanceCommunication.MetricsData getAndResetMetrics() {
+    public MetricsData getAndResetMetrics() {
         if (isInitialized) {
             statsLock.writeLock().lock();
             try {
-                InstanceCommunication.MetricsData metricsData = internalGetMetrics();
+                MetricsData metricsData = internalGetMetrics();
                 internalResetMetrics();
                 return metricsData;
             } finally {
                 statsLock.writeLock().unlock();
             }
         }
-        return InstanceCommunication.MetricsData.getDefaultInstance();
+        return new MetricsData();
     }
 
-    public InstanceCommunication.MetricsData getMetrics() {
+    public MetricsData getMetrics() {
         if (isInitialized) {
             statsLock.readLock().lock();
             try {
@@ -667,7 +670,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 statsLock.readLock().unlock();
             }
         }
-        return InstanceCommunication.MetricsData.getDefaultInstance();
+        return new MetricsData();
     }
 
     public void resetMetrics() {
@@ -681,13 +684,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private InstanceCommunication.MetricsData internalGetMetrics() {
-        InstanceCommunication.MetricsData.Builder bldr = createMetricsDataBuilder();
+    private MetricsData internalGetMetrics() {
+        MetricsData metricsData = createMetricsData();
         Map<String, Double> userMetrics = javaInstance.getMetrics();
         if (userMetrics != null) {
-            bldr.putAllUserMetrics(userMetrics);
+            userMetrics.forEach(metricsData::putUserMetrics);
         }
-        return bldr.build();
+        return metricsData;
     }
 
     private void internalResetMetrics() {
@@ -695,55 +698,62 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             javaInstance.resetMetrics();
     }
 
-    private Builder createMetricsDataBuilder() {
-        InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
+    private MetricsData createMetricsData() {
+        MetricsData metricsData = new MetricsData();
         if (stats != null) {
-            bldr.setProcessedSuccessfullyTotal((long) stats.getTotalProcessedSuccessfully());
-            bldr.setSystemExceptionsTotal((long) stats.getTotalSysExceptions());
-            bldr.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
-            bldr.setReceivedTotal((long) stats.getTotalRecordsReceived());
-            bldr.setAvgProcessLatency(stats.getAvgProcessLatency());
-            bldr.setLastInvocation((long) stats.getLastInvocation());
+            metricsData.setProcessedSuccessfullyTotal((long) stats.getTotalProcessedSuccessfully());
+            metricsData.setSystemExceptionsTotal((long) stats.getTotalSysExceptions());
+            metricsData.setUserExceptionsTotal((long) stats.getTotalUserExceptions());
+            metricsData.setReceivedTotal((long) stats.getTotalRecordsReceived());
+            metricsData.setAvgProcessLatency(stats.getAvgProcessLatency());
+            metricsData.setLastInvocation((long) stats.getLastInvocation());
 
-            bldr.setProcessedSuccessfullyTotal1Min((long) stats.getTotalProcessedSuccessfully1min());
-            bldr.setSystemExceptionsTotal1Min((long) stats.getTotalSysExceptions1min());
-            bldr.setUserExceptionsTotal1Min((long) stats.getTotalUserExceptions1min());
-            bldr.setReceivedTotal1Min((long) stats.getTotalRecordsReceived1min());
-            bldr.setAvgProcessLatency1Min(stats.getAvgProcessLatency1min());
+            metricsData.setProcessedsuccessfullytotal1min((long) stats.getTotalProcessedSuccessfully1min());
+            metricsData.setSystemexceptionstotal1min((long) stats.getTotalSysExceptions1min());
+            metricsData.setUserexceptionstotal1min((long) stats.getTotalUserExceptions1min());
+            metricsData.setReceivedtotal1min((long) stats.getTotalRecordsReceived1min());
+            metricsData.setAvgprocesslatency1min(stats.getAvgProcessLatency1min());
         }
 
-        return bldr;
+        return metricsData;
     }
 
-    public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
-        InstanceCommunication.FunctionStatus.Builder functionStatusBuilder =
-                InstanceCommunication.FunctionStatus.newBuilder();
+    public FunctionStatus getFunctionStatus() {
+        FunctionStatus functionStatus = new FunctionStatus();
         if (isInitialized) {
             statsLock.readLock().lock();
             try {
-                functionStatusBuilder.setNumReceived((long) stats.getTotalRecordsReceived());
-                functionStatusBuilder.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
-                functionStatusBuilder.setNumUserExceptions((long) stats.getTotalUserExceptions());
-                stats.getLatestUserExceptions().forEach(ex -> {
-                    functionStatusBuilder.addLatestUserExceptions(ex);
-                });
-                functionStatusBuilder.setNumSystemExceptions((long) stats.getTotalSysExceptions());
-                stats.getLatestSystemExceptions().forEach(ex -> {
-                    functionStatusBuilder.addLatestSystemExceptions(ex);
-                });
-                stats.getLatestSourceExceptions().forEach(ex -> {
-                    functionStatusBuilder.addLatestSourceExceptions(ex);
-                });
-                stats.getLatestSinkExceptions().forEach(ex -> {
-                    functionStatusBuilder.addLatestSinkExceptions(ex);
-                });
-                functionStatusBuilder.setAverageLatency(stats.getAvgProcessLatency());
-                functionStatusBuilder.setLastInvocationTime((long) stats.getLastInvocation());
+                functionStatus.setNumReceived((long) stats.getTotalRecordsReceived());
+                functionStatus.setNumSuccessfullyProcessed((long) stats.getTotalProcessedSuccessfully());
+                functionStatus.setNumUserExceptions((long) stats.getTotalUserExceptions());
+                for (FunctionStatus.ExceptionInformation ex : stats.getLatestUserExceptions()) {
+                    functionStatus.addLatestUserException()
+                            .setExceptionString(ex.getExceptionString())
+                            .setMsSinceEpoch(ex.getMsSinceEpoch());
+                }
+                functionStatus.setNumSystemExceptions((long) stats.getTotalSysExceptions());
+                for (FunctionStatus.ExceptionInformation ex : stats.getLatestSystemExceptions()) {
+                    functionStatus.addLatestSystemException()
+                            .setExceptionString(ex.getExceptionString())
+                            .setMsSinceEpoch(ex.getMsSinceEpoch());
+                }
+                for (FunctionStatus.ExceptionInformation ex : stats.getLatestSourceExceptions()) {
+                    functionStatus.addLatestSourceException()
+                            .setExceptionString(ex.getExceptionString())
+                            .setMsSinceEpoch(ex.getMsSinceEpoch());
+                }
+                for (FunctionStatus.ExceptionInformation ex : stats.getLatestSinkExceptions()) {
+                    functionStatus.addLatestSinkException()
+                            .setExceptionString(ex.getExceptionString())
+                            .setMsSinceEpoch(ex.getMsSinceEpoch());
+                }
+                functionStatus.setAverageLatency(stats.getAvgProcessLatency());
+                functionStatus.setLastInvocationTime((long) stats.getLastInvocation());
             } finally {
                 statsLock.readLock().unlock();
             }
         }
-        return functionStatusBuilder;
+        return functionStatus;
     }
 
     private void setupLogHandler() {
@@ -788,16 +798,20 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // If source classname is not set, we default pulsar source
         if (sourceSpec.getClassName().isEmpty()) {
             Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
-            sourceSpec.getInputSpecsMap().forEach((topic, conf) -> {
+            sourceSpec.forEachInputSpecs((topic, conf) -> {
                 ConsumerConfig consumerConfig =
-                        ConsumerConfig.builder().isRegexPattern(conf.getIsRegexPattern()).build();
+                        ConsumerConfig.builder().isRegexPattern(conf.isIsRegexPattern()).build();
                 if (conf.getSchemaType() != null && !conf.getSchemaType().isEmpty()) {
                     consumerConfig.setSchemaType(conf.getSchemaType());
                 } else if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {
                     consumerConfig.setSerdeClassName(conf.getSerdeClassName());
                 }
-                consumerConfig.setSchemaProperties(conf.getSchemaPropertiesMap());
-                consumerConfig.setConsumerProperties(conf.getConsumerPropertiesMap());
+                Map<String, String> schemaProperties = new HashMap<>();
+                conf.forEachSchemaProperties(schemaProperties::put);
+                consumerConfig.setSchemaProperties(schemaProperties);
+                Map<String, String> consumerProperties = new HashMap<>();
+                conf.forEachConsumerProperties(consumerProperties::put);
+                consumerConfig.setConsumerProperties(consumerProperties);
                 if (conf.hasReceiverQueueSize()) {
                     consumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize().getValue());
                 }
@@ -808,12 +822,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     consumerConfig.setMessagePayloadProcessorConfig(
                             MessagePayloadProcessorUtils.convertFromSpec(conf.getMessagePayloadProcessorSpec()));
                 }
-                consumerConfig.setPoolMessages(conf.getPoolMessages());
+                consumerConfig.setPoolMessages(conf.isPoolMessages());
 
                 topicSchema.put(topic, consumerConfig);
             });
 
-            sourceSpec.getTopicsToSerDeClassNameMap().forEach((topic, serde) -> {
+            sourceSpec.forEachTopicsToSerDeClassName((topic, serde) -> {
                 topicSchema.put(topic,
                         ConsumerConfig.builder()
                                 .serdeClassName(serde)
@@ -852,7 +866,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             );
 
             pulsarSourceConfig.setSkipToLatest(
-                sourceSpec.getSkipToLatest()
+                sourceSpec.isSkipToLatest()
             );
 
             Objects.requireNonNull(contextImpl.getSubscriptionType());
@@ -910,7 +924,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         this.source = (Source<?>) object;
 
-        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+        if (componentType == FunctionDetails.ComponentType.SOURCE) {
             Thread.currentThread().setContextClassLoader(this.componentClassLoader);
         }
         try {
@@ -957,16 +971,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                                                InstanceConfig instanceConfig,
                                                                SecretsProvider secretsProvider,
                                                                ClassLoader componentClassLoader,
-                                                               org.apache.pulsar.functions.proto.Function
-                                                            .FunctionDetails.ComponentType componentType)
+                                                               FunctionDetails.ComponentType componentType)
             throws IOException {
         final Map<String, Object> config = connectorConfigs.isEmpty() ? new HashMap<>() : ObjectMapperFactory
                 .getMapper()
                 .reader()
                 .forType(new TypeReference<Map<String, Object>>() {})
                 .readValue(connectorConfigs);
-        if (componentType != org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK
-                && componentType != org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+        if (componentType != FunctionDetails.ComponentType.SINK
+                && componentType != FunctionDetails.ComponentType.SOURCE) {
             return config;
         }
 
@@ -974,7 +987,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         if (instanceConfig.isIgnoreUnknownConfigFields() && componentClassLoader instanceof NarClassLoader) {
             final String configClassName;
-            if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+            if (componentType == FunctionDetails.ComponentType.SOURCE) {
                 configClassName = ConnectorUtils
                         .getConnectorDefinition((NarClassLoader) componentClassLoader).getSourceConfigClass();
             } else {
@@ -1048,7 +1061,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         this.instanceConfig.getFunctionDetails().getProcessingGuarantees().name()));
                 pulsarSinkConfig.setTopic(sinkSpec.getTopic());
                 pulsarSinkConfig.setForwardSourceMessageProperty(
-                        this.instanceConfig.getFunctionDetails().getSink().getForwardSourceMessageProperty());
+                        this.instanceConfig.getFunctionDetails().getSink().isForwardSourceMessageProperty());
 
                 if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
                     pulsarSinkConfig.setSchemaType(sinkSpec.getSchemaType());
@@ -1057,22 +1070,24 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 pulsarSinkConfig.setTypeClassName(sinkSpec.getTypeClassName());
-                pulsarSinkConfig.setSchemaProperties(sinkSpec.getSchemaPropertiesMap());
+                Map<String, String> schemaProperties = new HashMap<>();
+                sinkSpec.forEachSchemaProperties(schemaProperties::put);
+                pulsarSinkConfig.setSchemaProperties(schemaProperties);
 
-                if (this.instanceConfig.getFunctionDetails().getSink().getProducerSpec() != null) {
-                    org.apache.pulsar.functions.proto.Function.ProducerSpec conf =
-                            this.instanceConfig.getFunctionDetails().getSink().getProducerSpec();
-                    ProducerConfig.ProducerConfigBuilder builder = ProducerConfig.builder()
-                            .maxPendingMessages(conf.getMaxPendingMessages())
-                            .maxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions())
-                            .batchBuilder(conf.getBatchBuilder())
-                            .useThreadLocalProducers(conf.getUseThreadLocalProducers())
-                            .cryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()))
-                            .batchingConfig(BatchingUtils.convertFromSpec(conf.getBatchingSpec()))
-                            .compressionType(FunctionCommon.convertFromFunctionDetailsCompressionType(
-                                    conf.getCompressionType()));
-                    pulsarSinkConfig.setProducerConfig(builder.build());
-                }
+                ProducerSpec conf =
+                        this.instanceConfig.getFunctionDetails().getSink().getProducerSpec();
+                ProducerConfig.ProducerConfigBuilder builder = ProducerConfig.builder()
+                        .maxPendingMessages(conf.getMaxPendingMessages())
+                        .maxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions())
+                        .batchBuilder(conf.getBatchBuilder())
+                        .useThreadLocalProducers(conf.isUseThreadLocalProducers())
+                        .cryptoConfig(conf.hasCryptoSpec()
+                                ? CryptoUtils.convertFromSpec(conf.getCryptoSpec()) : null)
+                        .batchingConfig(BatchingUtils.convertFromSpec(
+                                conf.hasBatchingSpec() ? conf.getBatchingSpec() : null))
+                        .compressionType(FunctionCommon.convertFromFunctionDetailsCompressionType(
+                                conf.getCompressionType()));
+                pulsarSinkConfig.setProducerConfig(builder.build());
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats,
                         this.functionClassLoader, this.producerCache);
@@ -1090,7 +1105,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             throw new RuntimeException("Sink does not implement correct interface");
         }
 
-        if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
+        if (componentType == FunctionDetails.ComponentType.SINK) {
             Thread.currentThread().setContextClassLoader(this.componentClassLoader);
         }
         try {

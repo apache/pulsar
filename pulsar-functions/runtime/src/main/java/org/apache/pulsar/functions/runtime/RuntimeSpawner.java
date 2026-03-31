@@ -25,7 +25,6 @@
 package org.apache.pulsar.functions.runtime;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -34,9 +33,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 
 @Slf4j
 public class RuntimeSpawner implements AutoCloseable {
@@ -118,24 +116,19 @@ public class RuntimeSpawner implements AutoCloseable {
             return FutureUtil.failedFuture(new IllegalStateException("Function runtime is not started yet"));
         }
         return runtime.getFunctionStatus(instanceId).thenApply(f -> {
-           FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-           builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(String.valueOf(instanceId));
-            if (!f.getRunning() && runtimeDeathException != null) {
-                builder.setFailureException(runtimeDeathException.getMessage());
+            FunctionStatus status = new FunctionStatus();
+            status.copyFrom(f);
+            status.setNumRestarts(numRestarts);
+            status.setInstanceId(String.valueOf(instanceId));
+            if (!f.isRunning() && runtimeDeathException != null) {
+                status.setFailureException(runtimeDeathException.getMessage());
             }
-           return builder.build();
+            return status;
         });
     }
 
     public CompletableFuture<String> getFunctionStatusAsJson(int instanceId) {
-        return this.getFunctionStatus(instanceId).thenApply(msg -> {
-            try {
-                return FunctionCommon.printJson(msg);
-            } catch (IOException e) {
-                throw new RuntimeException(
-                        instanceConfig.getFunctionDetails().getName() + " Exception parsing getStatus", e);
-            }
-        });
+        return this.getFunctionStatus(instanceId).thenApply(msg -> msg.toString());
     }
 
     @Override

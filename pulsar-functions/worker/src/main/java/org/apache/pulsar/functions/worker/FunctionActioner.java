@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Data;
@@ -60,11 +59,14 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
+import org.apache.pulsar.functions.proto.ConsumerSpec;
+import org.apache.pulsar.functions.proto.FunctionAuthenticationSpec;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Instance;
+import org.apache.pulsar.functions.proto.PackageLocationMetaData;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
@@ -113,8 +115,8 @@ public class FunctionActioner {
             String packageFile;
             String transformFunctionPackageFile = null;
 
-            Function.PackageLocationMetaData pkgLocation = functionMetaData.getPackageLocation();
-            Function.PackageLocationMetaData transformFunctionPkgLocation =
+            PackageLocationMetaData pkgLocation = functionMetaData.getPackageLocation();
+            PackageLocationMetaData transformFunctionPkgLocation =
                     functionMetaData.getTransformFunctionPackageLocation();
 
             if (runtimeFactory.externallyManaged()) {
@@ -148,7 +150,7 @@ public class FunctionActioner {
     }
 
     private String getPackageFile(FunctionMetaData functionMetaData, FunctionDetails functionDetails, int instanceId,
-                                  Function.PackageLocationMetaData pkgLocation,
+                                  PackageLocationMetaData pkgLocation,
                                   FunctionDetails.ComponentType componentType)
             throws URISyntaxException, IOException, ClassNotFoundException, PulsarAdminException {
         String packagePath = pkgLocation.getPackagePath();
@@ -162,9 +164,9 @@ public class FunctionActioner {
             File pkgFile = new File(url.toURI());
             packageFile = pkgFile.getAbsolutePath();
         } else if (FunctionCommon.isFunctionCodeBuiltin(functionDetails, componentType)) {
-            File pkgFile = getBuiltinArchive(
-                    componentType,
-                    FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
+            FunctionDetails functionDetailsCopy = new FunctionDetails();
+            functionDetailsCopy.copyFrom(functionMetaData.getFunctionDetails());
+            File pkgFile = getBuiltinArchive(componentType, functionDetailsCopy);
             packageFile = pkgFile.getAbsolutePath();
         } else {
             File pkgDir = new File(workerConfig.getDownloadDirectory(),
@@ -180,23 +182,23 @@ public class FunctionActioner {
         return packageFile;
     }
 
-    RuntimeSpawner getRuntimeSpawner(Function.Instance instance, String packageFile,
+    RuntimeSpawner getRuntimeSpawner(Instance instance, String packageFile,
                                      String transformFunctionPackageFile) {
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         int instanceId = instance.getInstanceId();
 
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails
-                .newBuilder(functionMetaData.getFunctionDetails());
+        FunctionDetails functionDetailsCopy = new FunctionDetails();
+        functionDetailsCopy.copyFrom(functionMetaData.getFunctionDetails());
 
         // check to make sure functionAuthenticationSpec has any data and authentication is enabled.
         // If not set to null, since for protobuf,
         // even if the field is not set its not going to be null. Have to use the "has" method to check
-        Function.FunctionAuthenticationSpec functionAuthenticationSpec = null;
+        FunctionAuthenticationSpec functionAuthenticationSpec = null;
         if (workerConfig.isAuthenticationEnabled() && instance.getFunctionMetaData().hasFunctionAuthSpec()) {
             functionAuthenticationSpec = instance.getFunctionMetaData().getFunctionAuthSpec();
         }
 
-        InstanceConfig instanceConfig = createInstanceConfig(functionDetailsBuilder.build(),
+        InstanceConfig instanceConfig = createInstanceConfig(functionDetailsCopy,
                 functionAuthenticationSpec,
                 instanceId, workerConfig.getPulsarFunctionsCluster());
 
@@ -209,7 +211,7 @@ public class FunctionActioner {
         return runtimeSpawner;
     }
 
-    InstanceConfig createInstanceConfig(FunctionDetails functionDetails, Function.FunctionAuthenticationSpec
+    InstanceConfig createInstanceConfig(FunctionDetails functionDetails, FunctionAuthenticationSpec
             functionAuthSpec, int instanceId, String clusterName) {
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionDetails(functionDetails);
@@ -233,7 +235,7 @@ public class FunctionActioner {
     }
 
     private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData,
-                              int instanceId, Function.PackageLocationMetaData pkgLocation,
+                              int instanceId, PackageLocationMetaData pkgLocation,
                               FunctionDetails.ComponentType componentType)
             throws IOException, PulsarAdminException {
 
@@ -292,14 +294,14 @@ public class FunctionActioner {
             tempPkgFile.delete();
         }
 
-        if (details.getRuntime() == Function.FunctionDetails.Runtime.GO && !pkgFile.canExecute()) {
+        if (details.getRuntime() == FunctionDetails.Runtime.GO && !pkgFile.canExecute()) {
             pkgFile.setExecutable(true);
             log.info("Golang function package file {} is set to executable", pkgFile);
         }
     }
 
     private void cleanupFunctionFiles(FunctionRuntimeInfo functionRuntimeInfo) {
-        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
+        Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         // clean up function package
         File pkgDir = new File(
@@ -318,7 +320,7 @@ public class FunctionActioner {
     }
 
     public void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
-        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
+        Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         FunctionDetails details = functionMetaData.getFunctionDetails();
         log.info("{}/{}/{}-{} Stopping function...", details.getTenant(), details.getNamespace(), details.getName(),
@@ -365,25 +367,17 @@ public class FunctionActioner {
         cleanupFunctionFiles(functionRuntimeInfo);
 
         //cleanup subscriptions
-        if (details.getSource().getCleanupSubscription()) {
-            Map<String, Function.ConsumerSpec> consumerSpecMap = details.getSource().getInputSpecsMap();
-            consumerSpecMap.entrySet().forEach(new Consumer<Map.Entry<String, Function.ConsumerSpec>>() {
-                @Override
-                public void accept(Map.Entry<String, Function.ConsumerSpec> stringConsumerSpecEntry) {
+        if (details.getSource().isCleanupSubscription()) {
+            details.getSource().forEachInputSpecs((topic, consumerSpec) -> {
+                String subscriptionName = isBlank(functionRuntimeInfo.getFunctionInstance()
+                        .getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName())
+                        ? InstanceUtils.getDefaultSubscriptionName(functionRuntimeInfo
+                        .getFunctionInstance().getFunctionMetaData().getFunctionDetails())
+                        : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
+                        .getFunctionDetails().getSource().getSubscriptionName();
 
-                    Function.ConsumerSpec consumerSpec = stringConsumerSpecEntry.getValue();
-                    String topic = stringConsumerSpecEntry.getKey();
-
-                    String subscriptionName = isBlank(functionRuntimeInfo.getFunctionInstance()
-                            .getFunctionMetaData().getFunctionDetails().getSource().getSubscriptionName())
-                            ? InstanceUtils.getDefaultSubscriptionName(functionRuntimeInfo
-                            .getFunctionInstance().getFunctionMetaData().getFunctionDetails())
-                            : functionRuntimeInfo.getFunctionInstance().getFunctionMetaData()
-                            .getFunctionDetails().getSource().getSubscriptionName();
-
-                    deleteSubscription(topic, consumerSpec, subscriptionName,
-                            String.format("Cleaning up subscriptions for function %s", fqfn));
-                }
+                deleteSubscription(topic, consumerSpec, subscriptionName,
+                        String.format("Cleaning up subscriptions for function %s", fqfn));
             });
         }
 
@@ -391,7 +385,7 @@ public class FunctionActioner {
         cleanupBatchSource(details);
     }
 
-    private void deleteSubscription(String topic, Function.ConsumerSpec consumerSpec,
+    private void deleteSubscription(String topic, ConsumerSpec consumerSpec,
                                     String subscriptionName, String msg) {
         try {
             Actions.newBuilder()
@@ -402,7 +396,7 @@ public class FunctionActioner {
                         .sleepBetweenInvocationsMs(1000)
                         .supplier(
                           getDeleteSubscriptionSupplier(topic,
-                            consumerSpec.getIsRegexPattern(),
+                            consumerSpec.isIsRegexPattern(),
                             subscriptionName)
                         )
                         .build())
@@ -524,7 +518,7 @@ public class FunctionActioner {
                 File.separatorChar);
     }
 
-    private File getBuiltinArchive(FunctionDetails.ComponentType componentType, FunctionDetails.Builder functionDetails)
+    private File getBuiltinArchive(FunctionDetails.ComponentType componentType, FunctionDetails functionDetails)
             throws IOException, ClassNotFoundException {
         if (componentType == FunctionDetails.ComponentType.SOURCE && functionDetails.hasSource()) {
             SourceSpec sourceSpec = functionDetails.getSource();
@@ -532,9 +526,7 @@ public class FunctionActioner {
                 Connector connector = connectorsManager.getConnector(sourceSpec.getBuiltin());
                 File archive = connector.getArchivePath().toFile();
                 String sourceClass = connector.getConnectorDefinition().getSourceClass();
-                SourceSpec.Builder builder = SourceSpec.newBuilder(functionDetails.getSource());
-                builder.setClassName(sourceClass);
-                functionDetails.setSource(builder);
+                functionDetails.getSource().setClassName(sourceClass);
 
                 fillSourceTypeClass(functionDetails, connector.getConnectorFunctionPackage(), sourceClass);
                 return archive;
@@ -548,9 +540,7 @@ public class FunctionActioner {
 
                 File archive = connector.getArchivePath().toFile();
                 String sinkClass = connector.getConnectorDefinition().getSinkClass();
-                SinkSpec.Builder builder = SinkSpec.newBuilder(functionDetails.getSink());
-                builder.setClassName(sinkClass);
-                functionDetails.setSink(builder);
+                functionDetails.getSink().setClassName(sinkClass);
 
                 fillSinkTypeClass(functionDetails, connector.getConnectorFunctionPackage(), sinkClass);
                 return archive;
@@ -565,40 +555,30 @@ public class FunctionActioner {
         throw new IOException("Could not find built in archive definition");
     }
 
-    private void fillSourceTypeClass(FunctionDetails.Builder functionDetails,
+    private void fillSourceTypeClass(FunctionDetails functionDetails,
                                      ValidatableFunctionPackage functionPackage, String className) {
         String typeArg = getSourceType(className, functionPackage.getTypePool()).asErasure().getName();
 
-        SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(functionDetails.getSource());
-        sourceBuilder.setTypeClassName(typeArg);
-        functionDetails.setSource(sourceBuilder);
+        functionDetails.getSource().setTypeClassName(typeArg);
 
-        SinkSpec sinkSpec = functionDetails.getSink();
-        if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
-            SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(sinkSpec);
-            sinkBuilder.setTypeClassName(typeArg);
-            functionDetails.setSink(sinkBuilder);
+        if (!functionDetails.hasSink() || StringUtils.isEmpty(functionDetails.getSink().getTypeClassName())) {
+            functionDetails.setSink().setTypeClassName(typeArg);
         }
     }
 
-    private void fillSinkTypeClass(FunctionDetails.Builder functionDetails,
+    private void fillSinkTypeClass(FunctionDetails functionDetails,
                                    ValidatableFunctionPackage functionPackage, String className) {
         String typeArg = getSinkType(className, functionPackage.getTypePool()).asErasure().getName();
 
-        SinkSpec.Builder sinkBuilder = SinkSpec.newBuilder(functionDetails.getSink());
-        sinkBuilder.setTypeClassName(typeArg);
-        functionDetails.setSink(sinkBuilder);
+        functionDetails.getSink().setTypeClassName(typeArg);
 
-        SourceSpec sourceSpec = functionDetails.getSource();
-        if (null == sourceSpec || StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
-            SourceSpec.Builder sourceBuilder = SourceSpec.newBuilder(sourceSpec);
-            sourceBuilder.setTypeClassName(typeArg);
-            functionDetails.setSource(sourceBuilder);
+        if (!functionDetails.hasSource() || StringUtils.isEmpty(functionDetails.getSource().getTypeClassName())) {
+            functionDetails.getSource().setTypeClassName(typeArg);
         }
     }
 
     private static String getDownloadFileName(FunctionDetails functionDetails,
-                                             Function.PackageLocationMetaData packageLocation) {
+                                             PackageLocationMetaData packageLocation) {
         if (!org.apache.commons.lang3.StringUtils.isEmpty(packageLocation.getOriginalFileName())) {
             return packageLocation.getOriginalFileName();
         }
@@ -623,7 +603,7 @@ public class FunctionActioner {
         }
     }
 
-    private void setupBatchSource(Function.FunctionDetails functionDetails) {
+    private void setupBatchSource(FunctionDetails functionDetails) {
         if (isBatchSource(functionDetails)) {
 
             String intermediateTopicName = SourceConfigUtils.computeBatchSourceIntermediateTopicName(
@@ -670,7 +650,7 @@ public class FunctionActioner {
         }
     }
 
-    private void cleanupBatchSource(Function.FunctionDetails functionDetails) {
+    private void cleanupBatchSource(FunctionDetails functionDetails) {
         if (isBatchSource(functionDetails)) {
             // clean up intermediate topic
             String intermediateTopicName = SourceConfigUtils
@@ -710,7 +690,7 @@ public class FunctionActioner {
         }
     }
 
-    private static boolean isBatchSource(Function.FunctionDetails functionDetails) {
+    private static boolean isBatchSource(FunctionDetails functionDetails) {
         if (InstanceUtils.calculateSubjectType(functionDetails) == FunctionDetails.ComponentType.SOURCE) {
             String fqfn = FunctionCommon.getFullyQualifiedName(functionDetails);
             Map<String, Object> configMap = SourceConfigUtils.extractSourceConfig(functionDetails.getSource(), fqfn);

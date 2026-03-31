@@ -22,7 +22,6 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.util.JsonFormat;
 import io.prometheus.client.hotspot.BufferPoolsExports;
 import io.prometheus.client.hotspot.ClassLoadingExports;
 import io.prometheus.client.hotspot.GarbageCollectorExports;
@@ -53,7 +52,8 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.go.GoInstanceConfig;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.Resources;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
@@ -102,9 +102,9 @@ public class RuntimeUtils {
     public static List<String> getArgsBeforeCmd(InstanceConfig instanceConfig, String extraDependenciesDir) {
 
         final List<String> args = new LinkedList<>();
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.JAVA) {
             //no-op
-        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
+        } else if (instanceConfig.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.PYTHON) {
             // add `extraDependenciesDir` to python package searching path
             if (StringUtils.isNotEmpty(extraDependenciesDir)) {
                 args.add("PYTHONPATH=${PYTHONPATH}:" + extraDependenciesDir);
@@ -139,10 +139,7 @@ public class RuntimeUtils {
         final List<String> args = new LinkedList<>();
         GoInstanceConfig goInstanceConfig = new GoInstanceConfig();
 
-        // pass the raw functino details directly so that we don't need to assemble the `instanceConf.funcDetails`
-        // manually in Go instance
-        String functionDetails =
-                JsonFormat.printer().omittingInsignificantWhitespace().print(instanceConfig.getFunctionDetails());
+        String functionDetails = instanceConfig.getFunctionDetails().toJson();
         goInstanceConfig.setFunctionDetails(functionDetails);
 
         if (instanceConfig.getClusterName() != null) {
@@ -170,7 +167,7 @@ public class RuntimeUtils {
         }
 
         @SuppressWarnings("deprecation")
-        boolean autoAck = instanceConfig.getFunctionDetails().getAutoAck();
+        boolean autoAck = instanceConfig.getFunctionDetails().isAutoAck();
         if (autoAck) {
             goInstanceConfig.setAutoAck(autoAck);
         }
@@ -192,10 +189,10 @@ public class RuntimeUtils {
         }
         if (instanceConfig.getFunctionDetails().getProcessingGuarantees() != null) {
             goInstanceConfig
-                    .setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuaranteesValue());
+                    .setProcessingGuarantees(instanceConfig.getFunctionDetails().getProcessingGuarantees().getValue());
         }
         if (instanceConfig.getFunctionDetails().getRuntime() != null) {
-            goInstanceConfig.setRuntime(instanceConfig.getFunctionDetails().getRuntimeValue());
+            goInstanceConfig.setRuntime(instanceConfig.getFunctionDetails().getRuntime().getValue());
         }
         if (instanceConfig.getFunctionDetails().getSecretsMap() != null) {
             goInstanceConfig.setSecretsMap(instanceConfig.getFunctionDetails().getSecretsMap());
@@ -231,25 +228,22 @@ public class RuntimeUtils {
         if (pulsarServiceUrl != null) {
             goInstanceConfig.setPulsarServiceURL(pulsarServiceUrl);
         }
-        if (instanceConfig.getFunctionDetails().getSource().getCleanupSubscription()) {
+        if (instanceConfig.getFunctionDetails().getSource().isCleanupSubscription()) {
             goInstanceConfig
-                    .setCleanupSubscription(instanceConfig.getFunctionDetails().getSource().getCleanupSubscription());
+                    .setCleanupSubscription(instanceConfig.getFunctionDetails().getSource().isCleanupSubscription());
         }
         if (instanceConfig.getFunctionDetails().getSource().getSubscriptionName() != null) {
             goInstanceConfig.setSubscriptionName(instanceConfig.getFunctionDetails().getSource().getSubscriptionName());
         }
         goInstanceConfig.setSubscriptionPosition(
-                instanceConfig.getFunctionDetails().getSource().getSubscriptionPosition().getNumber());
+                instanceConfig.getFunctionDetails().getSource().getSubscriptionPosition().getValue());
 
-        if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
+        if (instanceConfig.getFunctionDetails().getSource().getInputSpecsCount() > 0) {
             Map<String, String> sourceInputSpecs = new HashMap<>();
-            for (Map.Entry<String, Function.ConsumerSpec> entry :
-                    instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().entrySet()) {
-                String topic = entry.getKey();
-                Function.ConsumerSpec spec = entry.getValue();
-                sourceInputSpecs.put(topic, JsonFormat.printer().omittingInsignificantWhitespace().print(spec));
+            instanceConfig.getFunctionDetails().getSource().forEachInputSpecs((topic, spec) -> {
+                sourceInputSpecs.put(topic, spec.toJson());
                 goInstanceConfig.setSourceSpecsTopic(topic);
-            }
+            });
             goInstanceConfig.setSourceInputSpecs(sourceInputSpecs);
         }
 
@@ -273,12 +267,14 @@ public class RuntimeUtils {
             goInstanceConfig.setDisk(instanceConfig.getFunctionDetails().getResources().getDisk());
         }
 
-        if (instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic() != null) {
+        if (instanceConfig.getFunctionDetails().hasRetryDetails()
+                && instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic() != null) {
             goInstanceConfig
                     .setDeadLetterTopic(instanceConfig.getFunctionDetails().getRetryDetails().getDeadLetterTopic());
         }
 
-        if (instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries() != 0) {
+        if (instanceConfig.getFunctionDetails().hasRetryDetails()
+                && instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries() != 0) {
             goInstanceConfig
                     .setMaxMessageRetries(instanceConfig.getFunctionDetails().getRetryDetails().getMaxMessageRetries());
         }
@@ -328,13 +324,13 @@ public class RuntimeUtils {
                                       String pulsarWebServiceUrl) throws Exception {
         final List<String> args = new LinkedList<>();
 
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.GO) {
             return getGoInstanceCmd(instanceConfig, authConfig, originalCodeFileName,
                     pulsarServiceUrl, stateStorageServiceUrl, pulsarWebServiceUrl,
                     k8sRuntime);
         }
 
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.JAVA) {
             args.add("java");
             args.add("-cp");
 
@@ -404,8 +400,8 @@ public class RuntimeUtils {
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                 Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
             }
-            if (instanceConfig.getFunctionDetails().getResources() != null) {
-                Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
+            if (instanceConfig.getFunctionDetails().hasResources()) {
+                Resources resources = instanceConfig.getFunctionDetails().getResources();
                 if (resources.getRam() != 0) {
                     args.add("-Xmx" + String.valueOf(resources.getRam()));
                 }
@@ -420,7 +416,7 @@ public class RuntimeUtils {
                 args.add("--transform_function_id");
                 args.add(instanceConfig.getTransformFunctionId());
             }
-        } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
+        } else if (instanceConfig.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.PYTHON) {
             args.add("python3");
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                 Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
@@ -457,12 +453,11 @@ public class RuntimeUtils {
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
         args.add("--function_details");
-        args.add("'" + JsonFormat.printer().omittingInsignificantWhitespace()
-                .print(instanceConfig.getFunctionDetails()) + "'");
+        args.add("'" + instanceConfig.getFunctionDetails().toJson() + "'");
 
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.JAVA) {
             // TODO: for now only Java function context exposed pulsar admin, so python/go no need to pass this argument
             // until pulsar admin client enabled in python/go function context.
             // For backward compatibility, pass `--web_serviceurl` parameter only if
@@ -502,7 +497,7 @@ public class RuntimeUtils {
         args.add(String.valueOf(instanceConfig.getMetricsPort()));
 
         // params supported only by the Java instance runtime.
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.JAVA) {
             args.add("--pending_async_requests");
             args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
 
@@ -531,7 +526,7 @@ public class RuntimeUtils {
         args.add("--cluster_name");
         args.add(instanceConfig.getClusterName());
 
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.JAVA) {
             if (!StringUtils.isEmpty(narExtractionDirectory)) {
                 args.add("--nar_extraction_directory");
                 args.add(narExtractionDirectory);

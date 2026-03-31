@@ -38,8 +38,8 @@ import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Instance;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
@@ -80,12 +80,12 @@ public class FunctionActionerTest {
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
                 new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class),
                 mock(PackageUrlValidator.class));
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                .build();
+        FunctionMetaData function1 = new FunctionMetaData();
+        function1.setFunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-namespace").setName("func-1");
+        Instance instance = new Instance();
+        instance.setFunctionMetaData().copyFrom(function1);
+        instance.setInstanceId(0);
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
         doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
@@ -154,20 +154,14 @@ public class FunctionActionerTest {
     }
 
     private void startFunction(FunctionActioner actioner, String pkgPathLocation, String extraPkgPathLocation) {
-        PackageLocationMetaData packageLocation = PackageLocationMetaData.newBuilder()
-                .setPackagePath(pkgPathLocation)
-                .build();
-        PackageLocationMetaData extraPackageLocation = PackageLocationMetaData.newBuilder()
-                .setPackagePath(extraPkgPathLocation)
-                .build();
-        Function.FunctionMetaData function = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(packageLocation)
-                .setTransformFunctionPackageLocation(extraPackageLocation)
-                .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function).setInstanceId(0)
-                .build();
+        FunctionMetaData function = new FunctionMetaData();
+        function.setFunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-namespace").setName("func-1");
+        function.setPackageLocation().setPackagePath(pkgPathLocation);
+        function.setTransformFunctionPackageLocation().setPackagePath(extraPkgPathLocation);
+        Instance instance = new Instance();
+        instance.setFunctionMetaData().copyFrom(function);
+        instance.setInstanceId(0);
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
         doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
@@ -204,14 +198,13 @@ public class FunctionActionerTest {
 
 
         String pkgPathLocation = "http://invalid/my-file.jar";
-        Function.FunctionMetaData functionMeta = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
+        FunctionMetaData functionMeta = new FunctionMetaData();
+        functionMeta.setFunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-namespace").setName("func-1");
+        functionMeta.setPackageLocation().setPackagePath(pkgPathLocation);
 
-        Function.Instance instance = Function.Instance.newBuilder()
-                .setFunctionMetaData(functionMeta).build();
+        Instance instance = new Instance();
+        instance.setFunctionMetaData().copyFrom(functionMeta);
 
         RuntimeSpawner runtimeSpawner = spy(actioner.getRuntimeSpawner(instance, "foo", "bar"));
 

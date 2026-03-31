@@ -60,8 +60,8 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails.ComponentType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -352,7 +352,7 @@ public class LocalRunner implements AutoCloseable {
                 throw new IllegalArgumentException("Pulsar Function local run already started!");
             }
             Runtime.getRuntime().addShutdownHook(shutdownHook);
-            Function.FunctionDetails functionDetails = null;
+            FunctionDetails functionDetails = null;
             String userCodeFile;
             String transformFunctionFile = null;
             int parallelism;
@@ -538,7 +538,7 @@ public class LocalRunner implements AutoCloseable {
         return new UserCodeClassLoader(classLoader, classLoaderCreated);
     }
 
-    private void startProcessMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
+    private void startProcessMode(FunctionDetails functionDetails,
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile, String transformFunctionFile) throws Exception {
@@ -622,7 +622,7 @@ public class LocalRunner implements AutoCloseable {
     }
 
 
-    private void startThreadedMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
+    private void startThreadedMode(FunctionDetails functionDetails,
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile, String transformFunctionFile) throws Exception {

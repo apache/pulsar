@@ -36,9 +36,9 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Request;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.ServiceRequest;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
@@ -220,13 +220,12 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 toWrite = functionMetaData.toByteArray();
             }
         } else {
-            Request.ServiceRequest serviceRequest = Request.ServiceRequest.newBuilder()
-                    .setServiceRequestType(delete ? Request.ServiceRequest.ServiceRequestType.DELETE
-                            : Request.ServiceRequest.ServiceRequestType.UPDATE)
-                    .setFunctionMetaData(functionMetaData)
-                    .setWorkerId(workerConfig.getWorkerId())
-                    .setRequestId(UUID.randomUUID().toString())
-                    .build();
+            ServiceRequest serviceRequest = new ServiceRequest();
+            serviceRequest.setServiceRequestType(delete ? ServiceRequest.ServiceRequestType.DELETE
+                            : ServiceRequest.ServiceRequestType.UPDATE);
+            serviceRequest.setFunctionMetaData().copyFrom(functionMetaData);
+            serviceRequest.setWorkerId(workerConfig.getWorkerId());
+            serviceRequest.setRequestId(UUID.randomUUID().toString());
             toWrite = serviceRequest.toByteArray();
         }
         try {
@@ -253,7 +252,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private void checkRequestOutDated(FunctionMetaData functionMetaData, boolean delete) {
-        Function.FunctionDetails details = functionMetaData.getFunctionDetails();
+        FunctionDetails details = functionMetaData.getFunctionDetails();
         if (isRequestOutdated(details.getTenant(), details.getNamespace(),
                 details.getName(), functionMetaData.getVersion())) {
             if (log.isDebugEnabled()) {
@@ -348,7 +347,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private void processUncompactedMetaDataTopicMessage(Message<byte[]> message) throws IOException {
-        Request.ServiceRequest serviceRequest = Request.ServiceRequest.parseFrom(message.getData());
+        ServiceRequest serviceRequest = new ServiceRequest();
+        serviceRequest.parseFrom(io.netty.buffer.Unpooled.wrappedBuffer(message.getData()),
+                message.getData().length);
         if (log.isDebugEnabled()) {
             log.debug("Received Service Request: {}", serviceRequest);
         }
@@ -373,7 +374,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
             // this is a delete message
             this.processDeregister(tenant, namespace, functionName, version);
         } else {
-            FunctionMetaData functionMetaData = FunctionMetaData.parseFrom(message.getData());
+            FunctionMetaData functionMetaData = new FunctionMetaData();
+            functionMetaData.parseFrom(io.netty.buffer.Unpooled.wrappedBuffer(message.getData()),
+                    message.getData().length);
             this.processUpdate(functionMetaData);
         }
     }
@@ -386,7 +389,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return containsFunctionMetaData(functionMetaData.getFunctionDetails());
     }
 
-    private boolean containsFunctionMetaData(Function.FunctionDetails functionDetails) {
+    private boolean containsFunctionMetaData(FunctionDetails functionDetails) {
         return containsFunctionMetaData(
                 functionDetails.getTenant(), functionDetails.getNamespace(), functionDetails.getName());
     }
@@ -465,7 +468,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private boolean isRequestOutdated(FunctionMetaData requestFunctionMetaData) {
-        Function.FunctionDetails functionDetails = requestFunctionMetaData.getFunctionDetails();
+        FunctionDetails functionDetails = requestFunctionMetaData.getFunctionDetails();
         return isRequestOutdated(functionDetails.getTenant(), functionDetails.getNamespace(),
                 functionDetails.getName(), requestFunctionMetaData.getVersion());
     }
@@ -481,7 +484,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     void setFunctionMetaData(FunctionMetaData functionMetaData) {
-        Function.FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
+        FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
         if (!this.functionMetaDataMap.containsKey(functionDetails.getTenant())) {
             this.functionMetaDataMap.put(functionDetails.getTenant(), new ConcurrentHashMap<>());
         }

@@ -77,13 +77,13 @@ import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.state.StateValue;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.state.DefaultStateStore;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
-import org.apache.pulsar.functions.proto.Function.SourceSpec;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.FunctionStatus;
+import org.apache.pulsar.functions.proto.PackageLocationMetaData;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -107,10 +107,10 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
     protected final Supplier<PulsarWorkerService> workerServiceSupplier;
-    protected final Function.FunctionDetails.ComponentType componentType;
+    protected final FunctionDetails.ComponentType componentType;
 
     public ComponentImpl(Supplier<PulsarWorkerService> workerServiceSupplier,
-                         Function.FunctionDetails.ComponentType componentType) {
+                         FunctionDetails.ComponentType componentType) {
         this.workerServiceSupplier = workerServiceSupplier;
         this.componentType = componentType;
     }
@@ -119,7 +119,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
         public abstract T notScheduledInstance();
 
-        public abstract T fromFunctionStatusProto(InstanceCommunication.FunctionStatus status,
+        public abstract T fromFunctionStatusProto(FunctionStatus status,
                                                   String assignedWorkerId);
 
         public abstract T notRunning(String assignedWorkerId, String error);
@@ -130,7 +130,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                             final int instanceId,
                                             final URI uri) {
 
-            Function.Assignment assignment;
+            Assignment assignment;
             if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
                 assignment = worker().getFunctionRuntimeManager().findFunctionAssignment(tenant, namespace, name, -1);
             } else {
@@ -196,7 +196,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         public abstract X getStatus(String tenant,
                                     String namespace,
                                     String name,
-                                    Collection<Function.Assignment> assignments,
+                                    Collection<Assignment> assignments,
                                     URI uri) throws PulsarAdminException;
 
         public abstract X getStatusExternal(String tenant,
@@ -211,15 +211,15 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                     final String name,
                                     final URI uri) {
 
-            Function.FunctionMetaData functionMetaData =
+            FunctionMetaData functionMetaData =
                     worker().getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, name);
 
-            Collection<Function.Assignment> assignments =
+            Collection<Assignment> assignments =
                     worker().getFunctionRuntimeManager().findFunctionAssignments(tenant, namespace, name);
 
             // TODO refactor the code for externally managed.
             if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
-                Function.Assignment assignment = assignments.iterator().next();
+                Assignment assignment = assignments.iterator().next();
                 boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
                 if (isOwner) {
                     return getStatusExternal(tenant, namespace, name,
@@ -277,7 +277,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         return workerService.isInitialized();
     }
 
-    PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionMetaData functionMetaData,
+    PackageLocationMetaData getFunctionPackageLocation(final FunctionMetaData functionMetaData,
                                                                final String functionPkgUrl,
                                                                final FormDataContentDisposition fileDetail,
                                                                final File uploadedInputStreamAsFile)
@@ -287,7 +287,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 getFunctionCodeBuiltin(functionMetaData.getFunctionDetails(), componentType));
     }
 
-    PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionMetaData functionMetaData,
+    PackageLocationMetaData getFunctionPackageLocation(final FunctionMetaData functionMetaData,
                                                                final String functionPkgUrl,
                                                                final FormDataContentDisposition fileDetail,
                                                                final File uploadedInputStreamAsFile,
@@ -298,7 +298,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
         String tenant = functionDetails.getTenant();
         String namespace = functionDetails.getNamespace();
-        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder();
+        PackageLocationMetaData packageLocationMetaDataBuilder = new PackageLocationMetaData();
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         boolean isPackageManagementEnabled = worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement();
         PackageName packageName = PackageName.get(
@@ -621,7 +621,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
 
         if (!FunctionMetaDataUtils.canChangeState(functionMetaData, Integer.parseInt(instanceId),
-                start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
+                start ? org.apache.pulsar.functions.proto.FunctionState.RUNNING
+                        : org.apache.pulsar.functions.proto.FunctionState.STOPPED)) {
             log.error("Operation not permitted on {}/{}/{}", tenant, namespace, componentName);
             throw new RestException(Status.BAD_REQUEST, "Operation not permitted");
         }
@@ -753,7 +754,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
 
         if (!FunctionMetaDataUtils.canChangeState(functionMetaData, -1,
-                start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED)) {
+                start ? org.apache.pulsar.functions.proto.FunctionState.RUNNING
+                        : org.apache.pulsar.functions.proto.FunctionState.STOPPED)) {
             log.error("Operation not permitted on {}/{}/{}", tenant, namespace, componentName);
             throw new RestException(Status.BAD_REQUEST, "Operation not permitted");
         }
@@ -1038,16 +1040,23 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         if (topic != null) {
             inputTopicToWrite = topic;
         } else if (functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() == 1) {
-            inputTopicToWrite = functionMetaData.getFunctionDetails().getSource().getInputSpecsMap()
-                    .keySet().iterator().next();
+            String[] firstKey = new String[1];
+            functionMetaData.getFunctionDetails().getSource().forEachInputSpecs((k, v) -> firstKey[0] = k);
+            inputTopicToWrite = firstKey[0];
         } else {
             log.error("Function in trigger function has more than 1 input topics @ /{}/{}/{}", tenant, namespace,
                     functionName);
             throw new RestException(Status.BAD_REQUEST, "Function in trigger function has more than 1 input topics");
         }
+        boolean topicFound;
+        try {
+            functionMetaData.getFunctionDetails().getSource().getInputSpecs(inputTopicToWrite);
+            topicFound = true;
+        } catch (IllegalArgumentException e) {
+            topicFound = false;
+        }
         if (functionMetaData.getFunctionDetails().getSource().getInputSpecsCount() == 0
-                || !functionMetaData.getFunctionDetails().getSource().getInputSpecsMap()
-                .containsKey(inputTopicToWrite)) {
+                || !topicFound) {
             log.error("Function in trigger function has unidentified topic @ /{}/{}/{} {}", tenant, namespace,
                     functionName, inputTopicToWrite);
             throw new RestException(Status.BAD_REQUEST, "Function in trigger function has unidentified topic");

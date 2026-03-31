@@ -24,7 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Record;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.ProcessingGuarantees;
 
 /**
  * The record returned by the proxy to the user.
@@ -33,9 +34,9 @@ import org.apache.pulsar.functions.proto.Function;
 public class PulsarFunctionRecord<T> implements Record<T> {
 
     private final Record<T> record;
-    private final Function.FunctionDetails functionConfig;
+    private final FunctionDetails functionConfig;
 
-    public PulsarFunctionRecord(Record<T> record, Function.FunctionDetails functionConfig) {
+    public PulsarFunctionRecord(Record<T> record, FunctionDetails functionConfig) {
         this.record = record;
         this.functionConfig = functionConfig;
     }
@@ -88,12 +89,12 @@ public class PulsarFunctionRecord<T> implements Record<T> {
     @SuppressWarnings("deprecation")
     @Override
     public void ack() {
-        Function.ProcessingGuarantees processingGuarantees = functionConfig.getProcessingGuarantees();
-        if (processingGuarantees == Function.ProcessingGuarantees.MANUAL) {
+        ProcessingGuarantees processingGuarantees = functionConfig.getProcessingGuarantees();
+        if (processingGuarantees == ProcessingGuarantees.MANUAL) {
             record.ack();
         } else {
             log.warn("Ignore this ack option, under this configuration Guarantees:[{}] autoAck:[{}], "
-                    + "the framework will automatically ack", processingGuarantees, functionConfig.getAutoAck());
+                    + "the framework will automatically ack", processingGuarantees, functionConfig.isAutoAck());
         }
     }
 

@@ -37,7 +37,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -122,8 +122,8 @@ public class KubernetesSecretsTokenAuthProviderTest {
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider =
                 new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api,  null, (fd) -> "default");
-        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                .setNamespace("test-ns").setName("test-func").build();
+        FunctionDetails funcDetails = new FunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-ns").setName("test-func");
         Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.cacheAuthData(funcDetails,
                 new AuthenticationDataSource() {
                     @Override
@@ -186,8 +186,8 @@ public class KubernetesSecretsTokenAuthProviderTest {
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, null, (fd) -> "default");
         // test when existingFunctionAuthData is empty
         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
-        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                .setNamespace("test-ns").setName("test-func").build();
+        FunctionDetails funcDetails = new FunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-ns").setName("test-func");
 
         CoreV1Api.APIcreateNamespacedSecretRequest namespacedSecretRequest = mock();
         when(coreV1Api.createNamespacedSecret(anyString(), any())).thenReturn(namespacedSecretRequest);

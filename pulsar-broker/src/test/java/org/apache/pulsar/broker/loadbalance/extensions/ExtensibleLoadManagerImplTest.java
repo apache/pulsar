@@ -88,6 +88,7 @@ import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl;
@@ -774,7 +775,9 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
             for (var consumer : consumers) {
                 consumer.close();
             }
-            resetLookupService(pulsarClient, lookup.getLeft());
+            if (lookup != null) {
+                resetLookupService(pulsarClient, lookup.getLeft());
+            }
         }
     }
 
@@ -1243,31 +1246,54 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                                 pulsar.getBrokerId(), pulsar.getBrokerServiceUrl());
                     }
                 }
-                // Check if the broker is available
+                // Simulate broker going offline: clean ownerships first (as disableBroker() does),
+                // then unregister from the broker registry.
                 var wrapper = (ExtensibleLoadManagerWrapper) pulsar4.getLoadManager().get();
                 var loadManager4 = spy((ExtensibleLoadManagerImpl)
                         FieldUtils.readField(wrapper, "loadManager", true));
-                loadManager4.getBrokerRegistry().unregister();
+                ServiceUnitStateChannel channel4 = (ServiceUnitStateChannel)
+                        FieldUtils.readField(loadManager4, "serviceUnitStateChannel", true);
+                channel4.cleanOwnerships();
+                // Simulate broker going offline by removing it from the broker registry.
+                // Set state to Closed BEFORE deleting the ZK node to prevent the notification
+                // handler's session-expiry recovery from auto-re-registering broker4.
+                // In production, the PulsarService shuts down after unregister(), so the handler
+                // never fires. In tests, the service stays running, creating a race.
+                var registry4 = (BrokerRegistryImpl) loadManager4.getBrokerRegistry();
+                registry4.state.set(BrokerRegistryImpl.State.Closed);
+                String brokerZkPath = "/loadbalance/brokers/" + pulsar4.getBrokerId();
+                pulsar4.getLocalMetadataStore().delete(brokerZkPath, Optional.empty()).get();
 
                 NamespaceName slaMonitorNamespace =
                         getSLAMonitorNamespace(pulsar4.getBrokerId(), pulsar.getConfiguration());
                 String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
+                // Wait for ownership to be reassigned after broker unregistration
+                String pulsar4BrokerUrl = pulsar4.getBrokerServiceUrl();
+                Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+                    String lookupResult = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                    assertNotNull(lookupResult);
+                    assertNotEquals(lookupResult, pulsar4BrokerUrl);
+                });
                 String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                assertNotNull(result);
                 log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
-                assertNotEquals(result, pulsar4.getBrokerServiceUrl());
 
                 Producer<String> producer = pulsar.getClient().newProducer(Schema.STRING)
                         .topic(slaMonitorTopic).create();
                 producer.send("t1");
 
                 // Test re-register broker and check the lookup result
-                loadManager4.getBrokerRegistry().registerAsync().get();
+                // Reset state to Started to allow re-registration.
+                registry4.state.set(BrokerRegistryImpl.State.Started);
+                registry4.registerAsync().get();
 
+                // Wait for ownership to be reassigned back to pulsar4 after re-registration
+                Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+                    String reRegResult = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                    assertNotNull(reRegResult);
+                    assertEquals(reRegResult, pulsar4.getBrokerServiceUrl());
+                });
                 result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                assertNotNull(result);
                 log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
-                assertEquals(result, pulsar4.getBrokerServiceUrl());
 
                 producer.send("t2");
                 Producer<String> producer1 = pulsar.getClient().newProducer(Schema.STRING)
@@ -1331,10 +1357,10 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 assertTrue(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
         makeSecondaryAsLeader();
         makePrimaryAsLeader();
-        Awaitility.await()
+        Awaitility.await().atMost(30, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
-        Awaitility.await()
+        Awaitility.await().atMost(30, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
         ServiceConfiguration defaultConf = getDefaultConf();
@@ -1466,31 +1492,54 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                                 pulsar.getBrokerId(), pulsar.getBrokerServiceUrl());
                     }
                 }
-                // Check if the broker is available
+                // Simulate broker going offline: clean ownerships first (as disableBroker() does),
+                // then unregister from the broker registry.
                 var wrapper = (ExtensibleLoadManagerWrapper) pulsar4.getLoadManager().get();
                 var loadManager4 = spy((ExtensibleLoadManagerImpl)
                         FieldUtils.readField(wrapper, "loadManager", true));
-                loadManager4.getBrokerRegistry().unregister();
+                ServiceUnitStateChannel channel4 = (ServiceUnitStateChannel)
+                        FieldUtils.readField(loadManager4, "serviceUnitStateChannel", true);
+                channel4.cleanOwnerships();
+                // Simulate broker going offline by removing it from the broker registry.
+                // Set state to Closed BEFORE deleting the ZK node to prevent the notification
+                // handler's session-expiry recovery from auto-re-registering broker4.
+                // In production, the PulsarService shuts down after unregister(), so the handler
+                // never fires. In tests, the service stays running, creating a race.
+                var registry4 = (BrokerRegistryImpl) loadManager4.getBrokerRegistry();
+                registry4.state.set(BrokerRegistryImpl.State.Closed);
+                String brokerZkPath = "/loadbalance/brokers/" + pulsar4.getBrokerId();
+                pulsar4.getLocalMetadataStore().delete(brokerZkPath, Optional.empty()).get();
 
                 NamespaceName slaMonitorNamespace =
                         getSLAMonitorNamespace(pulsar4.getBrokerId(), pulsar.getConfiguration());
                 String slaMonitorTopic = slaMonitorNamespace.getPersistentTopicName("test");
+                // Wait for ownership to be reassigned after broker unregistration
+                String pulsar4BrokerUrl = pulsar4.getBrokerServiceUrl();
+                Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+                    String lookupResult = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                    assertNotNull(lookupResult);
+                    assertNotEquals(lookupResult, pulsar4BrokerUrl);
+                });
                 String result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                assertNotNull(result);
                 log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
-                assertNotEquals(result, pulsar4.getBrokerServiceUrl());
 
                 Producer<String> producer = pulsar.getClient().newProducer(Schema.STRING)
                         .topic(slaMonitorTopic).create();
                 producer.send("t1");
 
                 // Test re-register broker and check the lookup result
-                loadManager4.getBrokerRegistry().registerAsync().get();
+                // Reset state to Started to allow re-registration.
+                registry4.state.set(BrokerRegistryImpl.State.Started);
+                registry4.registerAsync().get();
 
+                // Wait for ownership to be reassigned back to pulsar4 after re-registration
+                Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+                    String reRegResult = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
+                    assertNotNull(reRegResult);
+                    assertEquals(reRegResult, pulsar4.getBrokerServiceUrl());
+                });
                 result = pulsar.getAdminClient().lookups().lookupTopic(slaMonitorTopic);
-                assertNotNull(result);
                 log.info("{} Namespace is re-owned by {}", slaMonitorTopic, result);
-                assertEquals(result, pulsar4.getBrokerServiceUrl());
 
                 producer.send("t2");
                 Producer<String> producer1 = pulsar.getClient().newProducer(Schema.STRING)
@@ -1520,10 +1569,10 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Awaitility.await().untilAsserted(() ->
                 assertFalse(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
         makeSecondaryAsLeader();
-        Awaitility.await()
+        Awaitility.await().atMost(30, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertFalse(primaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
-        Awaitility.await()
+        Awaitility.await().atMost(30, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
     }

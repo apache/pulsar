@@ -19,14 +19,10 @@
 package org.apache.pulsar.functions.runtime.process;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
-import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -41,10 +37,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.proto.Empty;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
+import org.apache.pulsar.functions.proto.HealthCheckResult;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.proto.MetricsData;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
@@ -66,7 +64,7 @@ class ProcessRuntime implements Runtime {
     @Getter
     private Throwable deathException;
     private ManagedChannel channel;
-    private InstanceControlGrpc.InstanceControlFutureStub stub;
+    private InstanceControlGrpc.InstanceControlStub stub;
     private ScheduledFuture<?> timer;
     private InstanceConfig instanceConfig;
     private final Long expectedHealthCheckInterval;
@@ -178,11 +176,11 @@ class ProcessRuntime implements Runtime {
             channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
                     .usePlaintext()
                     .build();
-            stub = InstanceControlGrpc.newFutureStub(channel);
+            stub = InstanceControlGrpc.newStub(channel);
 
             timer = InstanceCache.getInstanceCache().getScheduledExecutorService()
                     .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
-                        CompletableFuture<InstanceCommunication.HealthCheckResult> result = healthCheck();
+                        CompletableFuture<HealthCheckResult> result = healthCheck();
                         try {
                             result.get();
                         } catch (Exception e) {
@@ -242,50 +240,55 @@ class ProcessRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<FunctionStatus> response = stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
-                .getFunctionStatus(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
+                .getFunctionStatus(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
-                FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-                builder.setRunning(false);
-                if (deathException != null) {
-                    builder.setFailureException(deathException.getMessage());
-                } else {
-                    builder.setFailureException(throwable.getMessage());
-                }
-                retval.complete(builder.build());
+            public void onNext(FunctionStatus t) {
+                retval.complete(t);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.FunctionStatus t) {
-                retval.complete(t);
+            public void onError(Throwable throwable) {
+                FunctionStatus status = new FunctionStatus();
+                status.setRunning(false);
+                if (deathException != null) {
+                    status.setFailureException(deathException.getMessage());
+                } else {
+                    status.setFailureException(throwable.getMessage());
+                }
+                retval.complete(status);
             }
-        }, MoreExecutors.directExecutor());
+
+            @Override
+            public void onCompleted() {
+            }
+        });
         return retval;
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
-        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+    public CompletableFuture<MetricsData> getAndResetMetrics() {
+        CompletableFuture<MetricsData> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<InstanceCommunication.MetricsData> response =
-                stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
-                        .getAndResetMetrics(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
+                .getAndResetMetrics(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
+            public void onNext(MetricsData t) {
+                retval.complete(t);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
                 retval.completeExceptionally(throwable);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.MetricsData t) {
-                retval.complete(t);
+            public void onCompleted() {
             }
-        }, MoreExecutors.directExecutor());
+        });
         return retval;
     }
 
@@ -296,42 +299,46 @@ class ProcessRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<Empty> response =
-                stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).resetMetrics(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<Empty>() {
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).resetMetrics(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
+            public void onNext(Empty t) {
+                retval.complete(null);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
                 retval.completeExceptionally(throwable);
             }
 
             @Override
-            public void onSuccess(Empty t) {
-                retval.complete(null);
+            public void onCompleted() {
             }
-        }, MoreExecutors.directExecutor());
+        });
         return retval;
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
-        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+    public CompletableFuture<MetricsData> getMetrics(int instanceId) {
+        CompletableFuture<MetricsData> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<InstanceCommunication.MetricsData> response =
-                stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getMetrics(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).getMetrics(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
+            public void onNext(MetricsData t) {
+                retval.complete(t);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
                 retval.completeExceptionally(throwable);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.MetricsData t) {
-                retval.complete(t);
+            public void onCompleted() {
             }
-        }, MoreExecutors.directExecutor());
+        });
         return retval;
     }
 
@@ -340,25 +347,27 @@ class ProcessRuntime implements Runtime {
         return RuntimeUtils.getPrometheusMetrics(metricsPort);
     }
 
-    public CompletableFuture<InstanceCommunication.HealthCheckResult> healthCheck() {
-        CompletableFuture<InstanceCommunication.HealthCheckResult> retval = new CompletableFuture<>();
+    public CompletableFuture<HealthCheckResult> healthCheck() {
+        CompletableFuture<HealthCheckResult> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
         }
-        ListenableFuture<InstanceCommunication.HealthCheckResult> response =
-                stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).healthCheck(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<InstanceCommunication.HealthCheckResult>() {
+        stub.withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS).healthCheck(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
+            public void onNext(HealthCheckResult t) {
+                retval.complete(t);
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
                 retval.completeExceptionally(throwable);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.HealthCheckResult t) {
-                retval.complete(t);
+            public void onCompleted() {
             }
-        }, MoreExecutors.directExecutor());
+        });
         return retval;
     }
 

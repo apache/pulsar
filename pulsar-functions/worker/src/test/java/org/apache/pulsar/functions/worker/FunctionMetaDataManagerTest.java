@@ -45,8 +45,8 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Request;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.ServiceRequest;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -93,16 +93,16 @@ public class FunctionMetaDataManagerTest {
                         mock(SchedulerManager.class),
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
 
-        Map<String, Function.FunctionMetaData> functionMetaDataMap1 = new HashMap<>();
-        Function.FunctionMetaData f1 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder().setName("func-1")).build();
+        Map<String, FunctionMetaData> functionMetaDataMap1 = new HashMap<>();
+        FunctionMetaData f1 = new FunctionMetaData();
+        f1.setFunctionDetails().setName("func-1");
         functionMetaDataMap1.put("func-1", f1);
-        Function.FunctionMetaData f2 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder().setName("func-2")).build();
+        FunctionMetaData f2 = new FunctionMetaData();
+        f2.setFunctionDetails().setName("func-2");
         functionMetaDataMap1.put("func-2", f2);
-        Function.FunctionMetaData f3 = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder().setName("func-3")).build();
-        Map<String, Function.FunctionMetaData> functionMetaDataInfoMap2 = new HashMap<>();
+        FunctionMetaData f3 = new FunctionMetaData();
+        f3.setFunctionDetails().setName("func-3");
+        Map<String, FunctionMetaData> functionMetaDataInfoMap2 = new HashMap<>();
         functionMetaDataInfoMap2.put("func-3", f3);
 
 
@@ -142,9 +142,9 @@ public class FunctionMetaDataManagerTest {
                 new FunctionMetaDataManager(workerConfig,
                         mock(SchedulerManager.class),
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
-        Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
-                .setVersion(1)
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")).build();
+        FunctionMetaData m1 = new FunctionMetaData();
+        m1.setVersion(1);
+        m1.setFunctionDetails().setName("func-1");
 
         // become leader
         Producer<byte[]> exclusiveProducer = functionMetaDataManager.acquireExclusiveWrite(() -> true);
@@ -187,9 +187,9 @@ public class FunctionMetaDataManagerTest {
                 new FunctionMetaDataManager(workerConfig,
                         mock(SchedulerManager.class),
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
-        Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
-                .setVersion(1)
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")).build();
+        FunctionMetaData m1 = new FunctionMetaData();
+        m1.setVersion(1);
+        m1.setFunctionDetails().setName("func-1");
 
         // update when you are not the leader
         try {
@@ -218,7 +218,7 @@ public class FunctionMetaDataManagerTest {
             Assert.assertEquals(e.getMessage(), "Update request ignored because it is out of date. Please try again.");
         }
         // udpate with new version
-        Function.FunctionMetaData m2 = m1.toBuilder().setVersion(2).build();
+        FunctionMetaData m2 = new FunctionMetaData().copyFrom(m1).setVersion(2);
         functionMetaDataManager.updateFunctionOnLeader(m2, false);
         if (compact) {
             Assert.assertTrue(Arrays.equals(m2.toByteArray(), producerByteArray));
@@ -246,10 +246,9 @@ public class FunctionMetaDataManagerTest {
                 new FunctionMetaDataManager(workerConfig,
                         mockedScheduler,
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
-        Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
-                .setVersion(1)
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1")).build();
+        FunctionMetaData m1 = new FunctionMetaData();
+        m1.setVersion(1);
+        m1.setFunctionDetails().setName("func-1").setNamespace("namespace-1").setTenant("tenant-1");
 
         // Try deleting when you are not the leader
         try {
@@ -282,7 +281,7 @@ public class FunctionMetaDataManagerTest {
         verify(mockedScheduler, times(1)).schedule();
 
         // udpate with new version
-        m1 = m1.toBuilder().setVersion(2).build();
+        m1 = new FunctionMetaData().copyFrom(m1).setVersion(2);
         functionMetaDataManager.updateFunctionOnLeader(m1, true);
         verify(mockedScheduler, times(2)).schedule();
         if (compact) {
@@ -300,34 +299,31 @@ public class FunctionMetaDataManagerTest {
                         mock(SchedulerManager.class),
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
 
-        doReturn(true).when(functionMetaDataManager).processUpdate(any(Function.FunctionMetaData.class));
-        doReturn(true).when(functionMetaDataManager).processDeregister(any(Function.FunctionMetaData.class));
+        doReturn(true).when(functionMetaDataManager).processUpdate(any(FunctionMetaData.class));
+        doReturn(true).when(functionMetaDataManager).processDeregister(any(FunctionMetaData.class));
 
-        Request.ServiceRequest serviceRequest =
-                Request.ServiceRequest.newBuilder().setServiceRequestType(
-                Request.ServiceRequest.ServiceRequestType.UPDATE).build();
+        ServiceRequest serviceRequest = new ServiceRequest()
+                .setServiceRequestType(ServiceRequest.ServiceRequestType.UPDATE);
         @SuppressWarnings("rawtypes")
         Message msg = mock(Message.class);
         doReturn(serviceRequest.toByteArray()).when(msg).getData();
         functionMetaDataManager.processMetaDataTopicMessage(msg);
 
         verify(functionMetaDataManager, times(1)).processUpdate
-                (any(Function.FunctionMetaData.class));
-        verify(functionMetaDataManager).processUpdate(serviceRequest.getFunctionMetaData());
+                (any(FunctionMetaData.class));
 
-        serviceRequest = Request.ServiceRequest.newBuilder().setServiceRequestType(
-                Request.ServiceRequest.ServiceRequestType.INITIALIZE).build();
+        serviceRequest = new ServiceRequest()
+                .setServiceRequestType(ServiceRequest.ServiceRequestType.INITIALIZE);
         doReturn(serviceRequest.toByteArray()).when(msg).getData();
         functionMetaDataManager.processMetaDataTopicMessage(msg);
 
-        serviceRequest = Request.ServiceRequest.newBuilder().setServiceRequestType(
-                Request.ServiceRequest.ServiceRequestType.DELETE).build();
+        serviceRequest = new ServiceRequest()
+                .setServiceRequestType(ServiceRequest.ServiceRequestType.DELETE);
         doReturn(serviceRequest.toByteArray()).when(msg).getData();
         functionMetaDataManager.processMetaDataTopicMessage(msg);
 
         verify(functionMetaDataManager, times(1)).processDeregister(
-                any(Function.FunctionMetaData.class));
-        verify(functionMetaDataManager).processDeregister(serviceRequest.getFunctionMetaData());
+                any(FunctionMetaData.class));
     }
 
     @Test
@@ -339,14 +335,13 @@ public class FunctionMetaDataManagerTest {
                 new FunctionMetaDataManager(workerConfig,
                         schedulerManager,
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
-        Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
-                .setVersion(1)
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1")).build();
+        FunctionMetaData m1 = new FunctionMetaData();
+        m1.setVersion(1);
+        m1.setFunctionDetails().setName("func-1").setNamespace("namespace-1").setTenant("tenant-1");
 
         Assert.assertTrue(functionMetaDataManager.processUpdate(m1));
         verify(functionMetaDataManager, times(1))
-                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+                .setFunctionMetaData(any(FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
         Assert.assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
@@ -361,7 +356,7 @@ public class FunctionMetaDataManagerTest {
             Assert.assertEquals(e.getMessage(), "Update request ignored because it is out of date. Please try again.");
         }
         verify(functionMetaDataManager, times(1))
-                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+                .setFunctionMetaData(any(FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
         Assert.assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
@@ -369,10 +364,10 @@ public class FunctionMetaDataManagerTest {
                 "tenant-1").get("namespace-1").size());
 
         // udpate with new version
-        m1 = m1.toBuilder().setVersion(2).build();
+        m1 = new FunctionMetaData().copyFrom(m1).setVersion(2);
         Assert.assertTrue(functionMetaDataManager.processUpdate(m1));
         verify(functionMetaDataManager, times(2))
-                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+                .setFunctionMetaData(any(FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
         Assert.assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
@@ -389,21 +384,20 @@ public class FunctionMetaDataManagerTest {
                 new FunctionMetaDataManager(workerConfig,
                         schedulerManager,
                         mockPulsarClient(), ErrorNotifier.getDefaultImpl()));
-        Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
-                .setVersion(1)
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1")).build();
+        FunctionMetaData m1 = new FunctionMetaData();
+        m1.setVersion(1);
+        m1.setFunctionDetails().setName("func-1").setNamespace("namespace-1").setTenant("tenant-1");
 
         Assert.assertFalse(functionMetaDataManager.processDeregister(m1));
         verify(functionMetaDataManager, times(0))
-                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+                .setFunctionMetaData(any(FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
         Assert.assertEquals(0, functionMetaDataManager.functionMetaDataMap.size());
 
         // insert something
         Assert.assertTrue(functionMetaDataManager.processUpdate(m1));
         verify(functionMetaDataManager, times(1))
-                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+                .setFunctionMetaData(any(FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
         Assert.assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
@@ -418,7 +412,7 @@ public class FunctionMetaDataManagerTest {
             Assert.assertEquals(e.getMessage(), "Delete request ignored because it is out of date. Please try again.");
         }
         verify(functionMetaDataManager, times(1))
-                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+                .setFunctionMetaData(any(FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
         Assert.assertEquals(m1, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").get("func-1"));
@@ -426,10 +420,10 @@ public class FunctionMetaDataManagerTest {
                 "tenant-1").get("namespace-1").size());
 
         // delete now
-        m1 = m1.toBuilder().setVersion(2).build();
+        m1 = new FunctionMetaData().copyFrom(m1).setVersion(2);
         Assert.assertTrue(functionMetaDataManager.processDeregister(m1));
         verify(functionMetaDataManager, times(1))
-                .setFunctionMetaData(any(Function.FunctionMetaData.class));
+                .setFunctionMetaData(any(FunctionMetaData.class));
         verify(schedulerManager, times(0)).schedule();
         Assert.assertEquals(0, functionMetaDataManager.functionMetaDataMap.get(
                 "tenant-1").get("namespace-1").size());

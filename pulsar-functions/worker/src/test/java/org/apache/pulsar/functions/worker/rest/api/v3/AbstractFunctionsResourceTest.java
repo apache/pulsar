@@ -50,7 +50,8 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.LoadedFunctionPackage;
@@ -112,7 +113,7 @@ public abstract class AbstractFunctionsResourceTest {
     protected Namespace mockedNamespace;
     protected InputStream mockedInputStream;
     protected FormDataContentDisposition mockedFormData;
-    protected Function.FunctionMetaData mockedFunctionMetaData;
+    protected FunctionMetaData mockedFunctionMetaData;
     protected LeaderService mockedLeaderService;
     protected Packages mockedPackages;
     protected PulsarFunctionTestTemporaryDirectory tempDirectory;
@@ -270,7 +271,7 @@ public abstract class AbstractFunctionsResourceTest {
         });
     }
 
-    protected abstract Function.FunctionDetails.ComponentType getComponentType();
+    protected abstract FunctionDetails.ComponentType getComponentType();
 
     public static class LoadedConnector extends Connector {
         public LoadedConnector(ConnectorDefinition connectorDefinition) {
