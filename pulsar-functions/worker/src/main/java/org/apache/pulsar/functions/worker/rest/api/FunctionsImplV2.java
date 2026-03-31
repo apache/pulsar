@@ -19,13 +19,11 @@
 package org.apache.pulsar.functions.worker.rest.api;
 
 import com.google.gson.Gson;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
@@ -34,9 +32,9 @@ import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.FunctionStatusList;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
@@ -60,45 +58,44 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
     @Override
     public Response getFunctionInfo(final String tenant, final String namespace,
-                                    final String functionName, AuthenticationParameters authParams)
-            throws IOException {
+                                    final String functionName, AuthenticationParameters authParams) {
 
         // run just for parameter checks
         delegate.getFunctionInfo(tenant, namespace, functionName, authParams);
 
         FunctionMetaDataManager functionMetaDataManager = delegate.worker().getFunctionMetaDataManager();
 
-        Function.FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace,
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace,
                 functionName);
-        String functionDetailsJson = FunctionCommon.printJson(functionMetaData.getFunctionDetails());
+        String functionDetailsJson = functionMetaData.getFunctionDetails().toJson();
         return Response.status(Response.Status.OK).entity(functionDetailsJson).build();
     }
 
     @Override
     public Response getFunctionInstanceStatus(final String tenant, final String namespace, final String functionName,
                                               final String instanceId, URI uri,
-                                              AuthenticationParameters authParams) throws IOException {
+                                              AuthenticationParameters authParams) {
 
         org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData
                 functionInstanceStatus = delegate.getFunctionInstanceStatus(tenant, namespace,
                 functionName, instanceId, uri, authParams);
 
-        String jsonResponse = FunctionCommon.printJson(toProto(functionInstanceStatus, instanceId));
+        String jsonResponse = toProto(functionInstanceStatus, instanceId).toJson();
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
     }
 
     @Override
     public Response getFunctionStatusV2(String tenant, String namespace, String functionName,
-                                        URI requestUri, AuthenticationParameters authParams) throws
-            IOException {
+                                        URI requestUri, AuthenticationParameters authParams) {
         FunctionStatus functionStatus = delegate.getFunctionStatus(tenant, namespace,
                 functionName, requestUri, authParams);
-        InstanceCommunication.FunctionStatusList.Builder functionStatusList =
-                InstanceCommunication.FunctionStatusList.newBuilder();
-        functionStatus.instances.forEach(functionInstanceStatus -> functionStatusList.addFunctionStatusList(
-                toProto(functionInstanceStatus.getStatus(),
-                        String.valueOf(functionInstanceStatus.getInstanceId()))));
-        String jsonResponse = FunctionCommon.printJson(functionStatusList);
+        FunctionStatusList functionStatusList = new FunctionStatusList();
+        for (FunctionStatus.FunctionInstanceStatus instanceStatus : functionStatus.instances) {
+            toProto(functionStatusList.addFunctionStatus(),
+                    instanceStatus.getStatus(),
+                    String.valueOf(instanceStatus.getInstanceId()));
+        }
+        String jsonResponse = functionStatusList.toJson();
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
     }
 
@@ -107,13 +104,13 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
             uploadedInputStream, FormDataContentDisposition fileDetail, String functionPkgUrl, String
                                              functionDetailsJson, AuthenticationParameters authParams) {
 
-        Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
+        FunctionDetails functionDetails = new FunctionDetails();
         try {
-            FunctionCommon.mergeJson(functionDetailsJson, functionDetailsBuilder);
-        } catch (IOException e) {
+            functionDetails.parseFromJson(functionDetailsJson);
+        } catch (Exception e) {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
-        FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
+        FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         delegate.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
                 functionPkgUrl, functionConfig, authParams);
@@ -126,13 +123,13 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
                                    String functionPkgUrl, String functionDetailsJson,
                                    AuthenticationParameters authParams) {
 
-        Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
+        FunctionDetails functionDetails = new FunctionDetails();
         try {
-            FunctionCommon.mergeJson(functionDetailsJson, functionDetailsBuilder);
-        } catch (IOException e) {
+            functionDetails.parseFromJson(functionDetailsJson);
+        } catch (Exception e) {
             throw new RestException(Response.Status.BAD_REQUEST, e.getMessage());
         }
-        FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
+        FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         delegate.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
                 functionPkgUrl, functionConfig, authParams, null);
@@ -221,43 +218,42 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
         return delegate.getListOfConnectors();
     }
 
-    private InstanceCommunication.FunctionStatus toProto(
+    private org.apache.pulsar.functions.proto.FunctionStatus toProto(
             org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData
                     functionInstanceStatus, String instanceId) {
-        List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSysExceptions =
-                functionInstanceStatus.getLatestSystemExceptions()
-                .stream()
-                .map(exceptionInformation -> InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
-                        .setExceptionString(exceptionInformation.getExceptionString())
-                        .setMsSinceEpoch(exceptionInformation.getTimestampMs())
-                        .build())
-                .collect(Collectors.toList());
-
-        List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions =
-                functionInstanceStatus.getLatestUserExceptions()
-                .stream()
-                .map(exceptionInformation -> InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
-                        .setExceptionString(exceptionInformation.getExceptionString())
-                        .setMsSinceEpoch(exceptionInformation.getTimestampMs())
-                        .build())
-                .collect(Collectors.toList());
-
-
-        InstanceCommunication.FunctionStatus functionStatus = InstanceCommunication.FunctionStatus.newBuilder()
-                .setRunning(functionInstanceStatus.isRunning())
-                .setFailureException(functionInstanceStatus.getError())
-                .setNumRestarts(functionInstanceStatus.getNumRestarts())
-                .setNumSuccessfullyProcessed(functionInstanceStatus.getNumSuccessfullyProcessed())
-                .setNumUserExceptions(functionInstanceStatus.getNumUserExceptions())
-                .addAllLatestUserExceptions(latestUserExceptions)
-                .setNumSystemExceptions(functionInstanceStatus.getNumSystemExceptions())
-                .addAllLatestSystemExceptions(latestSysExceptions)
-                .setAverageLatency(functionInstanceStatus.getAverageLatency())
-                .setLastInvocationTime(functionInstanceStatus.getLastInvocationTime())
-                .setInstanceId(instanceId)
-                .setWorkerId(delegate.worker().getWorkerConfig().getWorkerId())
-                .build();
-
-        return functionStatus;
+        org.apache.pulsar.functions.proto.FunctionStatus status =
+                new org.apache.pulsar.functions.proto.FunctionStatus();
+        toProto(status, functionInstanceStatus, instanceId);
+        return status;
     }
+
+    private void toProto(
+            org.apache.pulsar.functions.proto.FunctionStatus status,
+            org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData
+                    functionInstanceStatus, String instanceId) {
+        status.setRunning(functionInstanceStatus.isRunning())
+              .setFailureException(functionInstanceStatus.getError())
+              .setNumRestarts(functionInstanceStatus.getNumRestarts())
+              .setNumSuccessfullyProcessed(functionInstanceStatus.getNumSuccessfullyProcessed())
+              .setNumUserExceptions(functionInstanceStatus.getNumUserExceptions())
+              .setNumSystemExceptions(functionInstanceStatus.getNumSystemExceptions())
+              .setAverageLatency(functionInstanceStatus.getAverageLatency())
+              .setLastInvocationTime(functionInstanceStatus.getLastInvocationTime())
+              .setInstanceId(instanceId)
+              .setWorkerId(delegate.worker().getWorkerConfig().getWorkerId());
+
+        for (org.apache.pulsar.common.policies.data.ExceptionInformation ex :
+                functionInstanceStatus.getLatestUserExceptions()) {
+            status.addLatestUserException()
+                  .setExceptionString(ex.getExceptionString())
+                  .setMsSinceEpoch(ex.getTimestampMs());
+        }
+        for (org.apache.pulsar.common.policies.data.ExceptionInformation ex :
+                functionInstanceStatus.getLatestSystemExceptions()) {
+            status.addLatestSystemException()
+                  .setExceptionString(ex.getExceptionString())
+                  .setMsSinceEpoch(ex.getTimestampMs());
+        }
+    }
+
 }

@@ -917,6 +917,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // otheradmin.namespaces().unload("prop-xyz/use/ns2");
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "topicName")
     public void persistentTopics(String topicName) throws Exception {
         final String subName = topicName;
@@ -1012,6 +1013,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/ns1"), new ArrayList<>());
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "topicName")
     public void testSkipHoleMessages(String topicName) throws Exception {
         final String subName = topicName;
@@ -1058,6 +1060,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), msgBacklog - skipNumber);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "topicType")
     public void testPartitionState(String topicType) throws Exception {
         final String namespace = "prop-xyz/ns1";
@@ -1103,6 +1106,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "topicType")
     public void testNonPartitionState(String topicType) throws Exception {
         final String namespace = "prop-xyz/ns1";
@@ -1141,6 +1145,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         client.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "topicNamesForAllTypes")
     public void partitionedTopics(String topicType, String topicName) throws Exception {
         final String namespace = "prop-xyz/ns1";
@@ -2157,6 +2162,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete("persistent://prop-xyz/ns1-bundles/ds2");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeleteSubscription() throws Exception {
         final String subName = "test-sub";
@@ -2971,6 +2977,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(topicName);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void persistentTopicsInvalidCursorReset() throws Exception {
         admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(10, 10));
@@ -3059,6 +3066,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testPersistentTopicsExpireMessages() throws Exception {
         // Force to create a topic
@@ -3146,6 +3154,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         consumer3.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPersistentTopicsExpireMessagesInvalidPartitionIndex() throws Exception {
         // Create a topic
@@ -3178,6 +3187,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testPersistentTopicExpireMessageOnPartitionTopic() throws Exception {
 

@@ -44,14 +44,14 @@ public class TableViewBuilderImplTest {
 
     private static final String TOPIC_NAME = "testTopicName";
     private PulsarClientImpl client;
-    private TableViewBuilderImpl tableViewBuilderImpl;
+    private TableViewBuilderImpl<?> tableViewBuilderImpl;
     private CompletableFuture readNextFuture;
 
     @BeforeClass(alwaysRun = true)
     @SuppressWarnings("unchecked")
     public void setup() {
-        Reader reader = mock(Reader.class);
-        readNextFuture = new CompletableFuture();
+        Reader<?> reader = mock(Reader.class);
+        readNextFuture = new CompletableFuture<>();
         when(reader.readNextAsync()).thenReturn(readNextFuture);
         client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
@@ -73,7 +73,7 @@ public class TableViewBuilderImplTest {
 
     @Test
     public void testTableViewBuilderImpl() throws PulsarClientException {
-        TableView tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
+        TableView<?> tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
             .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
             .subscriptionName("testSubscriptionName")
             .cryptoKeyReader(mock(CryptoKeyReader.class))
@@ -85,7 +85,7 @@ public class TableViewBuilderImplTest {
 
     @Test
     public void testTableViewBuilderImplWhenOnlyTopicNameIsSet() throws PulsarClientException {
-        TableView tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
+        TableView<?> tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
             .create();
 
         assertNotNull(tableView);
@@ -119,7 +119,7 @@ public class TableViewBuilderImplTest {
 
     @Test
     public void testTableViewBuilderImplWithCryptoKeyReader() throws PulsarClientException {
-        TableView tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
+        TableView<?> tableView = tableViewBuilderImpl.topic(TOPIC_NAME)
             .cryptoKeyReader(mock(CryptoKeyReader.class))
             .create();
 

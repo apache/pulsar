@@ -32,6 +32,7 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
     @Override
     public void close() throws IOException {}
 
+    @SuppressWarnings("deprecation")
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {}
 
@@ -41,6 +42,7 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
         return "mock";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         String principal = "unknown";

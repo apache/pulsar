@@ -80,6 +80,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         return new Object[][] { { DispatchRateType.messageRate }, { DispatchRateType.byteRate } };
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatorRateLimiterWithOnlyTopicLevel() throws Exception {
         cleanup();
@@ -128,6 +129,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatorRateLimiterWithOnlyNamespaceLevel() throws Exception {
         cleanup();
@@ -175,6 +177,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatorRateLimiterWithOnlyBrokerLevel() throws Exception {
         cleanup();
@@ -217,6 +220,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatorRatePriority() throws Exception {
         cleanup();
@@ -314,6 +318,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatorRateLimiterDynamicallyChange() throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
@@ -378,6 +383,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test(dataProvider =  "dispatchRateType")
     public void testReplicatorRateLimiterMessageNotReceivedAllMessages(DispatchRateType dispatchRateType)
             throws Exception {
@@ -466,6 +472,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatorRateLimiterMessageReceivedAllMessages() throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);

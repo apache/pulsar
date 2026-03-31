@@ -173,6 +173,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         pulsar1.getConfiguration().setAuthorizationEnabled(false);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testForcefullyTopicDeletion() throws Exception {
         log.info("--- Starting ReplicatorTest::testForcefullyTopicDeletion ---");
@@ -199,7 +200,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertFalse(pulsar1.getBrokerService().getTopics().containsKey(topicName));
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test(timeOut = 30000)
     public void testConcurrentReplicator() throws Exception {
 
@@ -1247,6 +1248,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedCluster() throws Exception {
 
@@ -1298,6 +1300,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      * </pre>
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testUpdateGlobalTopicPartition() throws Exception {
         log.info("--- Starting ReplicatorTest::testUpdateGlobalTopicPartition ---");
@@ -1344,6 +1347,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer2.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testIncrementPartitionsOfTopicWithReplicatedSubscription() throws Exception {
         final String cluster1 = pulsar1.getConfig().getClusterName();
@@ -1383,6 +1387,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         return new Object[][] { { "persistent://", "/persistent" }, { "non-persistent://", "/non-persistent" } };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "topicPrefix")
     public void testTopicReplicatedAndProducerCreate(String topicPrefix, String topicName) throws Exception {
         log.info("--- Starting ReplicatorTest::testTopicReplicatedAndProducerCreate ---");
@@ -1426,6 +1431,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         nonPersistentProducer2.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     @SuppressWarnings("unchecked")
     public void testCleanupTopic() throws Exception {
@@ -1616,6 +1622,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 pulsarService.getTransactionMetadataStoreService().getStores().size() == coordinatorSize);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupAnotherCluster() throws Exception {
         log.info("--- Starting ReplicatorTest::testLookupAnotherCluster ---");
@@ -1787,6 +1794,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertThrows(PulsarClientException.ProducerBusyException.class, () -> new MessageProducer(url2, dest2));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatorWithTTL() throws Exception {
         log.info("--- Starting ReplicatorTest::testReplicatorWithTTL ---");
@@ -1931,6 +1939,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testEnableReplicationWithNamespaceAllowedClustersPolices() throws Exception {
         log.info("--- testEnableReplicationWithNamespaceAllowedClustersPolices ---");

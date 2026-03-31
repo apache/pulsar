@@ -82,6 +82,7 @@ public class PersistentSubscriptionTest {
     final TxnID txnID1 = new TxnID(1, 1);
     final TxnID txnID2 = new TxnID(1, 2);
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setup() throws Exception {
         pulsarTestContext = PulsarTestContext.builderForNonStartableContext()

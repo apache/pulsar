@@ -64,6 +64,7 @@ public class BrokerInterceptorWithClassLoaderTest {
     @Test
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader narLoader = mock(NarClassLoader.class);
+        @SuppressWarnings("deprecation")
         BrokerInterceptor interceptor = new BrokerInterceptor() {
             @Override
             public void beforeSendMessage(Subscription subscription, Entry entry,

@@ -87,6 +87,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     String issuerK8s;
     WireMockServer server;
 
+    @SuppressWarnings("deprecation")
     @BeforeClass
     void beforeClass() throws IOException {
 
@@ -578,6 +579,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
      * both kinds of authentication work.
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthenticationProviderListStateSuccess() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();

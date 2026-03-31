@@ -17,10 +17,9 @@
  * under the License.
  */
 
-// Docker image module — no Java compilation needed
-tasks.named("compileJava") { enabled = false }
-tasks.named("compileTestJava") { enabled = false }
-tasks.named("jar") { enabled = false }
+group = "org.apache.pulsar"
+version = the<VersionCatalogsExtension>().named("libs").findVersion("pulsar").get().requiredVersion
+
 
 val pulsarVersion = project.version.toString()
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
@@ -82,8 +81,4 @@ val dockerBuild by tasks.registering(Exec::class) {
     args.add(".")
 
     commandLine(args)
-}
-
-tasks.named("assemble") {
-    dependsOn(dockerBuild)
 }

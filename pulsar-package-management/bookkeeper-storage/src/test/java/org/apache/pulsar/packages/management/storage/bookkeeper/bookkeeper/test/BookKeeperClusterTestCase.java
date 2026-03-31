@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /**
  * This file is derived from BookKeeperClusterTestCase from Apache BookKeeper
  * http://bookkeeper.apache.org
@@ -57,8 +58,8 @@ import org.apache.bookkeeper.bookie.MockUncleanShutdownDetection;
 import org.apache.bookkeeper.bookie.ReadOnlyBookie;
 import org.apache.bookkeeper.bookie.UncleanShutdownDetection;
 import org.apache.bookkeeper.bookie.UncleanShutdownDetectionImpl;
-import org.apache.bookkeeper.client.BookKeeperTestClient;
-import org.apache.bookkeeper.client.TestStatsProvider;
+import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
+import org.apache.bookkeeper.client.PulsarBookKeeperTestStatsProvider;
 import org.apache.bookkeeper.common.allocator.ByteBufAllocatorWithOomHandler;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
@@ -115,7 +116,7 @@ public abstract class BookKeeperClusterTestCase {
     private final List<ServerTester> servers = new LinkedList<>();
 
     protected int numBookies;
-    protected BookKeeperTestClient bkc;
+    protected PulsarBookKeeperTestClient bkc;
     protected boolean useUUIDasBookieId = true;
 
     /*
@@ -260,7 +261,7 @@ public abstract class BookKeeperClusterTestCase {
         baseClientConf.setMetadataServiceUri(metadataServiceUri);
         baseClientConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
         if (numBookies > 0) {
-            bkc = new BookKeeperTestClient(baseClientConf, new TestStatsProvider());
+            bkc = new PulsarBookKeeperTestClient(baseClientConf, new PulsarBookKeeperTestStatsProvider());
         }
 
         // Create Bookie Servers (B1, B2, B3)
@@ -676,7 +677,7 @@ public abstract class BookKeeperClusterTestCase {
         ServerTester tester = new ServerTester(conf);
 
         if (bkc == null) {
-            bkc = new BookKeeperTestClient(baseClientConf, new TestStatsProvider());
+            bkc = new PulsarBookKeeperTestClient(baseClientConf, new PulsarBookKeeperTestStatsProvider());
         }
 
         BookieId address = tester.getServer().getBookieId();
@@ -703,7 +704,7 @@ public abstract class BookKeeperClusterTestCase {
             throws Exception {
         ServerTester tester = new ServerTester(conf, b);
         if (bkc == null) {
-            bkc = new BookKeeperTestClient(baseClientConf, new TestStatsProvider());
+            bkc = new PulsarBookKeeperTestClient(baseClientConf, new PulsarBookKeeperTestStatsProvider());
         }
         BookieId address = tester.getServer().getBookieId();
         Future<?> waitForBookie = conf.isForceReadOnlyBookie()
@@ -816,11 +817,11 @@ public abstract class BookKeeperClusterTestCase {
         servers.forEach(t -> t.getStatsProvider().clear());
     }
 
-    public TestStatsProvider getStatsProvider(BookieId addr) throws UnknownHostException {
+    public PulsarBookKeeperTestStatsProvider getStatsProvider(BookieId addr) throws UnknownHostException {
         return byAddress(addr).get().getStatsProvider();
     }
 
-    public TestStatsProvider getStatsProvider(int index) throws Exception {
+    public PulsarBookKeeperTestStatsProvider getStatsProvider(int index) throws Exception {
         return servers.get(index).getStatsProvider();
     }
 
@@ -829,7 +830,7 @@ public abstract class BookKeeperClusterTestCase {
      */
     public class ServerTester {
         private final ServerConfiguration conf;
-        private final TestStatsProvider provider;
+        private final PulsarBookKeeperTestStatsProvider provider;
         private final Bookie bookie;
         private final BookieServer server;
         private final BookieSocketAddress address;
@@ -843,7 +844,7 @@ public abstract class BookKeeperClusterTestCase {
 
         ServerTester(ServerConfiguration conf) throws Exception {
             this.conf = conf;
-            provider = new TestStatsProvider();
+            provider = new PulsarBookKeeperTestStatsProvider();
 
             StatsLogger rootStatsLogger = provider.getStatsLogger("");
             StatsLogger bookieStats = rootStatsLogger.scope(BOOKIE_SCOPE);
@@ -887,7 +888,7 @@ public abstract class BookKeeperClusterTestCase {
 
         ServerTester(ServerConfiguration conf, Bookie b) throws Exception {
             this.conf = conf;
-            provider = new TestStatsProvider();
+            provider = new PulsarBookKeeperTestStatsProvider();
 
             metadataDriver = null;
             registrationManager = null;
@@ -940,7 +941,7 @@ public abstract class BookKeeperClusterTestCase {
             return server;
         }
 
-        TestStatsProvider getStatsProvider() {
+        PulsarBookKeeperTestStatsProvider getStatsProvider() {
             return provider;
         }
 

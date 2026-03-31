@@ -1276,6 +1276,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic),
                 ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testGetNativeSchemaWithAutoConsumeWithMultiVersion() throws Exception {

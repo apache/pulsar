@@ -48,6 +48,7 @@ public class RocksdbMetadataStoreTest {
         Assert.assertEquals(l, RocksdbMetadataStore.toLong(RocksdbMetadataStore.toBytes(l)));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMetaValue() throws Exception {
         RocksdbMetadataStore.MetaValue metaValue = new RocksdbMetadataStore.MetaValue();

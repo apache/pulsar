@@ -72,11 +72,16 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     private static final String PROXY_ROLE = "proxy";
     private static final String BROKER_ROLE = "broker";
     private static final String CLIENT_ROLE = "client";
+    @SuppressWarnings("deprecation")
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+@SuppressWarnings("deprecation")
 
     private static final String ADMIN_TOKEN = Jwts.builder().setSubject(ADMIN_ROLE).signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
     private static final String PROXY_TOKEN = Jwts.builder().setSubject(PROXY_ROLE).signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
     private static final String BROKER_TOKEN = Jwts.builder().setSubject(BROKER_ROLE).signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
     private static final String CLIENT_TOKEN = Jwts.builder().setSubject(CLIENT_ROLE).signWith(SECRET_KEY).compact();
 
     private ProxyService proxyService;
@@ -490,6 +495,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 .authentication(AuthenticationFactory.token(ADMIN_TOKEN)).build());
     }
 
+    @SuppressWarnings("deprecation")
     private PulsarClient createPulsarClient(String proxyServiceUrl, ClientBuilder clientBuilder)
             throws PulsarClientException {
         return clientBuilder.serviceUrl(proxyServiceUrl).statsInterval(0, TimeUnit.SECONDS)

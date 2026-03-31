@@ -301,32 +301,35 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return false;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
+    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig<?> cacheConfig) {
         JavaType typeRef = TypeFactory.defaultInstance().constructSimpleType(clazz, null);
         String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
         MetadataCacheImpl<T> metadataCache =
-                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.serDesExecutor,
-                        this.schedulerExecutor);
+                new MetadataCacheImpl<T>(cacheName, this, typeRef, (MetadataCacheConfig<T>) cacheConfig,
+                        this.serDesExecutor, this.schedulerExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
+    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig<?> cacheConfig) {
         String cacheName = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName : getClass().getSimpleName();
         MetadataCacheImpl<T> metadataCache =
-                new MetadataCacheImpl<T>(cacheName, this, typeRef, cacheConfig, this.serDesExecutor,
-                        this.schedulerExecutor);
+                new MetadataCacheImpl<T>(cacheName, this, typeRef, (MetadataCacheConfig<T>) cacheConfig,
+                        this.serDesExecutor, this.schedulerExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
-                                                 MetadataCacheConfig cacheConfig) {
+                                                 MetadataCacheConfig<?> cacheConfig) {
         MetadataCacheImpl<T> metadataCache =
-                new MetadataCacheImpl<>(cacheName, this, serde, cacheConfig,
+                new MetadataCacheImpl<>(cacheName, this, serde, (MetadataCacheConfig<T>) cacheConfig,
                         this.serDesExecutor, this.schedulerExecutor);
         metadataCaches.add(metadataCache);
         return metadataCache;
@@ -630,7 +633,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
         // Clear cache after session expired.
         if (event == SessionEvent.SessionReestablished || event == SessionEvent.Reconnected) {
-            for (MetadataCacheImpl metadataCache : metadataCaches) {
+            for (MetadataCacheImpl<?> metadataCache : metadataCaches) {
                 metadataCache.invalidateAll();
             }
             invalidateAll();

@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     testImplementation(libs.gson)
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
@@ -90,6 +94,11 @@ val integrationTest by tasks.registering(Test::class) {
             excludeGroups(integrationTestExcludedGroups)
         }
     }
+
+    val failFastValue = providers.gradleProperty("testFailFast").getOrElse("true").toBoolean()
+    failFast = failFastValue
+    systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse("1"))
+    systemProperty("testFailFast", failFastValue.toString())
 
     systemProperty("currentVersion", project.version.toString())
     systemProperty("buildDirectory", layout.buildDirectory.get().asFile.absolutePath)

@@ -53,8 +53,16 @@ import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.CompressionType;
+import org.apache.pulsar.functions.proto.ConsumerSpec;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.ProducerSpec;
+import org.apache.pulsar.functions.proto.RetryDetails;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
+import org.apache.pulsar.functions.proto.SubscriptionPosition;
+import org.apache.pulsar.functions.proto.SubscriptionType;
 
 @Slf4j
 public class FunctionConfigUtils {
@@ -97,44 +105,40 @@ public class FunctionConfigUtils {
         boolean isBuiltin = !StringUtils.isEmpty(functionConfig.getJar())
                 && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        FunctionDetails functionDetails = new FunctionDetails();
 
         // Setup source
-        Function.SourceSpec.Builder sourceSpecBuilder = Function.SourceSpec.newBuilder();
+        SourceSpec sourceSpec = functionDetails.setSource();
         if (functionConfig.getInputs() != null) {
             functionConfig.getInputs().forEach((topicName ->
-                sourceSpecBuilder.putInputSpecs(topicName,
-                        Function.ConsumerSpec.newBuilder()
-                                .setIsRegexPattern(false)
-                                .build())
+                sourceSpec.putInputSpecs(topicName)
+                        .setIsRegexPattern(false)
             ));
         }
         if (functionConfig.getTopicsPattern() != null && !functionConfig.getTopicsPattern().isEmpty()) {
-            sourceSpecBuilder.putInputSpecs(functionConfig.getTopicsPattern(),
-                    Function.ConsumerSpec.newBuilder()
-                            .setIsRegexPattern(true)
-                            .build());
+            sourceSpec.putInputSpecs(functionConfig.getTopicsPattern())
+                    .setIsRegexPattern(true);
         }
         if (functionConfig.getCustomSerdeInputs() != null) {
             functionConfig.getCustomSerdeInputs().forEach((topicName, serdeClassName) -> {
-                sourceSpecBuilder.putInputSpecs(topicName,
-                        Function.ConsumerSpec.newBuilder()
-                                .setSerdeClassName(serdeClassName)
-                                .setIsRegexPattern(false)
-                                .build());
+                sourceSpec.putInputSpecs(topicName)
+                        .setSerdeClassName(serdeClassName)
+                        .setIsRegexPattern(false);
             });
         }
         if (functionConfig.getCustomSchemaInputs() != null) {
             functionConfig.getCustomSchemaInputs().forEach((topicName, conf) -> {
                 try {
                     ConsumerConfig consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
-                    sourceSpecBuilder.putInputSpecs(topicName,
-                            Function.ConsumerSpec.newBuilder()
-                                    .setSchemaType(consumerConfig.getSchemaType())
-                                    .putAllSchemaProperties(consumerConfig.getSchemaProperties())
-                                    .putAllConsumerProperties(consumerConfig.getConsumerProperties())
-                                    .setIsRegexPattern(false)
-                                    .build());
+                    ConsumerSpec cs = sourceSpec.putInputSpecs(topicName)
+                            .setSchemaType(consumerConfig.getSchemaType())
+                            .setIsRegexPattern(false);
+                    if (consumerConfig.getSchemaProperties() != null) {
+                        consumerConfig.getSchemaProperties().forEach(cs::putSchemaProperties);
+                    }
+                    if (consumerConfig.getConsumerProperties() != null) {
+                        consumerConfig.getConsumerProperties().forEach(cs::putConsumerProperties);
+                    }
                 } catch (JsonProcessingException e) {
                     throw new IllegalArgumentException(
                             String.format("Incorrect custom schema inputs,Topic %s ", topicName));
@@ -143,7 +147,7 @@ public class FunctionConfigUtils {
         }
         if (functionConfig.getInputSpecs() != null) {
             functionConfig.getInputSpecs().forEach((topicName, consumerConf) -> {
-                Function.ConsumerSpec.Builder bldr = Function.ConsumerSpec.newBuilder()
+                ConsumerSpec bldr = sourceSpec.putInputSpecs(topicName)
                         .setIsRegexPattern(consumerConf.isRegexPattern());
                 if (isNotBlank(consumerConf.getSchemaType())) {
                     bldr.setSchemaType(consumerConf.getSchemaType());
@@ -151,98 +155,101 @@ public class FunctionConfigUtils {
                     bldr.setSerdeClassName(consumerConf.getSerdeClassName());
                 }
                 if (consumerConf.getReceiverQueueSize() != null) {
-                    bldr.setReceiverQueueSize(Function.ConsumerSpec.ReceiverQueueSize.newBuilder()
-                            .setValue(consumerConf.getReceiverQueueSize()).build());
+                    bldr.setReceiverQueueSize().setValue(consumerConf.getReceiverQueueSize());
                 }
                 if (consumerConf.getSchemaProperties() != null) {
-                    bldr.putAllSchemaProperties(consumerConf.getSchemaProperties());
+                    consumerConf.getSchemaProperties().forEach(bldr::putSchemaProperties);
                 }
                 if (consumerConf.getCryptoConfig() != null) {
-                    bldr.setCryptoSpec(CryptoUtils.convert(consumerConf.getCryptoConfig()));
+                    bldr.setCryptoSpec().copyFrom(CryptoUtils.convert(consumerConf.getCryptoConfig()));
                 }
                 if (consumerConf.getMessagePayloadProcessorConfig() != null) {
-                    bldr.setMessagePayloadProcessorSpec(
+                    bldr.setMessagePayloadProcessorSpec().copyFrom(
                             MessagePayloadProcessorUtils.convert(consumerConf.getMessagePayloadProcessorConfig()));
                 }
-                bldr.putAllConsumerProperties(consumerConf.getConsumerProperties());
+                if (consumerConf.getConsumerProperties() != null) {
+                    consumerConf.getConsumerProperties().forEach(bldr::putConsumerProperties);
+                }
                 bldr.setPoolMessages(consumerConf.isPoolMessages());
-                sourceSpecBuilder.putInputSpecs(topicName, bldr.build());
             });
         }
 
         // Set subscription type
-        Function.SubscriptionType subType;
+        SubscriptionType subType;
         if ((functionConfig.getRetainOrdering() != null && functionConfig.getRetainOrdering())
                 || FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE
                 .equals(functionConfig.getProcessingGuarantees())) {
-            subType = Function.SubscriptionType.FAILOVER;
+            subType = SubscriptionType.FAILOVER;
         } else if (functionConfig.getRetainKeyOrdering() != null && functionConfig.getRetainKeyOrdering()) {
-            subType = Function.SubscriptionType.KEY_SHARED;
+            subType = SubscriptionType.KEY_SHARED;
         } else {
-            subType = Function.SubscriptionType.SHARED;
+            subType = SubscriptionType.SHARED;
         }
-        sourceSpecBuilder.setSubscriptionType(subType);
+        sourceSpec.setSubscriptionType(subType);
 
         // Set subscription name
         if (isNotBlank(functionConfig.getSubName())) {
-            sourceSpecBuilder.setSubscriptionName(functionConfig.getSubName());
+            sourceSpec.setSubscriptionName(functionConfig.getSubName());
         }
 
         // Set subscription position
         if (functionConfig.getSubscriptionPosition() != null) {
-            Function.SubscriptionPosition subPosition;
+            SubscriptionPosition subPosition;
             if (SubscriptionInitialPosition.Earliest == functionConfig.getSubscriptionPosition()) {
-                subPosition = Function.SubscriptionPosition.EARLIEST;
+                subPosition = SubscriptionPosition.EARLIEST;
             } else {
-                subPosition = Function.SubscriptionPosition.LATEST;
+                subPosition = SubscriptionPosition.LATEST;
             }
-            sourceSpecBuilder.setSubscriptionPosition(subPosition);
+            sourceSpec.setSubscriptionPosition(subPosition);
         }
 
         if (functionConfig.getSkipToLatest() != null) {
-            sourceSpecBuilder.setSkipToLatest(functionConfig.getSkipToLatest());
+            sourceSpec.setSkipToLatest(functionConfig.getSkipToLatest());
         } else {
-            sourceSpecBuilder.setSkipToLatest(false);
+            sourceSpec.setSkipToLatest(false);
         }
 
         if (extractedDetails.getTypeArg0() != null) {
-            sourceSpecBuilder.setTypeClassName(extractedDetails.getTypeArg0());
+            sourceSpec.setTypeClassName(extractedDetails.getTypeArg0());
         } else if (StringUtils.isNotEmpty(functionConfig.getInputTypeClassName())) {
-            sourceSpecBuilder.setTypeClassName(functionConfig.getInputTypeClassName());
+            sourceSpec.setTypeClassName(functionConfig.getInputTypeClassName());
         }
         if (functionConfig.getTimeoutMs() != null) {
-            sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
+            sourceSpec.setTimeoutMs(functionConfig.getTimeoutMs());
             // We use negative acks for fast tracking failures
-            sourceSpecBuilder.setNegativeAckRedeliveryDelayMs(functionConfig.getTimeoutMs());
+            sourceSpec.setNegativeAckRedeliveryDelayMs(functionConfig.getTimeoutMs());
         }
         if (functionConfig.getCleanupSubscription() != null) {
-            sourceSpecBuilder.setCleanupSubscription(functionConfig.getCleanupSubscription());
+            sourceSpec.setCleanupSubscription(functionConfig.getCleanupSubscription());
         } else {
-            sourceSpecBuilder.setCleanupSubscription(true);
+            sourceSpec.setCleanupSubscription(true);
         }
-        functionDetailsBuilder.setSource(sourceSpecBuilder);
 
         // Setup sink
-        Function.SinkSpec.Builder sinkSpecBuilder = Function.SinkSpec.newBuilder();
+        SinkSpec sinkSpec = functionDetails.setSink();
         if (functionConfig.getOutput() != null) {
-            sinkSpecBuilder.setTopic(functionConfig.getOutput());
+            sinkSpec.setTopic(functionConfig.getOutput());
         }
         if (!StringUtils.isBlank(functionConfig.getOutputSerdeClassName())) {
-            sinkSpecBuilder.setSerDeClassName(functionConfig.getOutputSerdeClassName());
+            sinkSpec.setSerDeClassName(functionConfig.getOutputSerdeClassName());
         }
         if (!StringUtils.isBlank(functionConfig.getOutputSchemaType())) {
-            sinkSpecBuilder.setSchemaType(functionConfig.getOutputSchemaType());
+            sinkSpec.setSchemaType(functionConfig.getOutputSchemaType());
         }
         if (functionConfig.getForwardSourceMessageProperty() == Boolean.TRUE) {
-            sinkSpecBuilder.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
+            sinkSpec.setForwardSourceMessageProperty(functionConfig.getForwardSourceMessageProperty());
         }
         if (functionConfig.getCustomSchemaOutputs() != null && functionConfig.getOutput() != null) {
             String conf = functionConfig.getCustomSchemaOutputs().get(functionConfig.getOutput());
             try {
                 if (StringUtils.isNotEmpty(conf)) {
                     ConsumerConfig consumerConfig = OBJECT_MAPPER.readValue(conf, ConsumerConfig.class);
-                    sinkSpecBuilder.putAllSchemaProperties(consumerConfig.getSchemaProperties());
-                    sinkSpecBuilder.putAllConsumerProperties(consumerConfig.getConsumerProperties());
+                    if (consumerConfig.getSchemaProperties() != null) {
+                        consumerConfig.getSchemaProperties().forEach(sinkSpec::putSchemaProperties);
+                    }
+                    if (consumerConfig.getConsumerProperties() != null) {
+                        consumerConfig.getConsumerProperties().forEach(sinkSpec::putConsumerProperties);
+                    }
                 }
             } catch (JsonProcessingException e) {
                 throw new IllegalArgumentException(
@@ -250,54 +257,56 @@ public class FunctionConfigUtils {
             }
         }
         if (extractedDetails.getTypeArg1() != null) {
-            sinkSpecBuilder.setTypeClassName(extractedDetails.getTypeArg1());
+            sinkSpec.setTypeClassName(extractedDetails.getTypeArg1());
         } else if (StringUtils.isNotEmpty(functionConfig.getOutputTypeClassName())) {
-            sinkSpecBuilder.setTypeClassName(functionConfig.getOutputTypeClassName());
+            sinkSpec.setTypeClassName(functionConfig.getOutputTypeClassName());
         }
         if (functionConfig.getProducerConfig() != null) {
-            sinkSpecBuilder.setProducerSpec(convertProducerConfigToProducerSpec(functionConfig.getProducerConfig()));
+            sinkSpec.setProducerSpec()
+                    .copyFrom(convertProducerConfigToProducerSpec(functionConfig.getProducerConfig()));
         }
         if (functionConfig.getBatchBuilder() != null) {
-            Function.ProducerSpec.Builder builder = sinkSpecBuilder.getProducerSpec() != null
-                    ? sinkSpecBuilder.getProducerSpec().toBuilder()
-                    : Function.ProducerSpec.newBuilder();
-            sinkSpecBuilder.setProducerSpec(builder.setBatchBuilder(functionConfig.getBatchBuilder()).build());
+            ProducerSpec producerSpec;
+            if (sinkSpec.hasProducerSpec()) {
+                producerSpec = sinkSpec.getProducerSpec();
+            } else {
+                producerSpec = sinkSpec.setProducerSpec();
+            }
+            producerSpec.setBatchBuilder(functionConfig.getBatchBuilder());
         }
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
 
         if (functionConfig.getTenant() != null) {
-            functionDetailsBuilder.setTenant(functionConfig.getTenant());
+            functionDetails.setTenant(functionConfig.getTenant());
         }
         if (functionConfig.getNamespace() != null) {
-            functionDetailsBuilder.setNamespace(functionConfig.getNamespace());
+            functionDetails.setNamespace(functionConfig.getNamespace());
         }
         if (functionConfig.getName() != null) {
-            functionDetailsBuilder.setName(functionConfig.getName());
+            functionDetails.setName(functionConfig.getName());
         }
         if (functionConfig.getLogTopic() != null) {
-            functionDetailsBuilder.setLogTopic(functionConfig.getLogTopic());
+            functionDetails.setLogTopic(functionConfig.getLogTopic());
         }
         if (functionConfig.getRuntime() != null) {
-            functionDetailsBuilder.setRuntime(FunctionCommon.convertRuntime(functionConfig.getRuntime()));
+            functionDetails.setRuntime(FunctionCommon.convertRuntime(functionConfig.getRuntime()));
         }
         if (functionConfig.getProcessingGuarantees() != null) {
-            functionDetailsBuilder.setProcessingGuarantees(
+            functionDetails.setProcessingGuarantees(
                     FunctionCommon.convertProcessingGuarantee(functionConfig.getProcessingGuarantees()));
         }
         if (functionConfig.getRetainKeyOrdering() != null) {
-            functionDetailsBuilder.setRetainKeyOrdering(functionConfig.getRetainKeyOrdering());
+            functionDetails.setRetainKeyOrdering(functionConfig.getRetainKeyOrdering());
         }
         if (functionConfig.getRetainOrdering() != null) {
-            functionDetailsBuilder.setRetainOrdering(functionConfig.getRetainOrdering());
+            functionDetails.setRetainOrdering(functionConfig.getRetainOrdering());
         }
 
         if (functionConfig.getMaxMessageRetries() != null && functionConfig.getMaxMessageRetries() >= 0) {
-            Function.RetryDetails.Builder retryBuilder = Function.RetryDetails.newBuilder();
-            retryBuilder.setMaxMessageRetries(functionConfig.getMaxMessageRetries());
+            RetryDetails retryDetails = functionDetails.setRetryDetails();
+            retryDetails.setMaxMessageRetries(functionConfig.getMaxMessageRetries());
             if (isNotEmpty(functionConfig.getDeadLetterTopic())) {
-                retryBuilder.setDeadLetterTopic(functionConfig.getDeadLetterTopic());
+                retryDetails.setDeadLetterTopic(functionConfig.getDeadLetterTopic());
             }
-            functionDetailsBuilder.setRetryDetails(retryBuilder);
         }
 
         Map<String, Object> configs = new HashMap<>();
@@ -317,74 +326,72 @@ public class FunctionConfigUtils {
             } else {
                 // Override functionConfig.getProcessingGuarantees to MANUAL, and set windowsFunction is guarantees
                 windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees
-                        .valueOf(functionDetailsBuilder.getProcessingGuarantees().name()));
-                functionDetailsBuilder.setProcessingGuarantees(Function.ProcessingGuarantees.MANUAL);
+                        .valueOf(functionDetails.getProcessingGuarantees().name()));
+                functionDetails.setProcessingGuarantees(ProcessingGuarantees.MANUAL);
             }
             windowConfig.setActualWindowFunctionClassName(extractedDetails.getFunctionClassName());
             configs.put(WindowConfig.WINDOW_CONFIG_KEY, windowConfig);
             // set class name to window function executor
-            functionDetailsBuilder.setClassName("org.apache.pulsar.functions.windowing.WindowFunctionExecutor");
+            functionDetails.setClassName("org.apache.pulsar.functions.windowing.WindowFunctionExecutor");
         } else {
             if (extractedDetails.getFunctionClassName() != null) {
-                functionDetailsBuilder.setClassName(extractedDetails.getFunctionClassName());
+                functionDetails.setClassName(extractedDetails.getFunctionClassName());
             }
         }
         if (!configs.isEmpty()) {
-            functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
+            functionDetails.setUserConfig(new Gson().toJson(configs));
         }
         if (functionConfig.getSecrets() != null && !functionConfig.getSecrets().isEmpty()) {
-            functionDetailsBuilder.setSecretsMap(new Gson().toJson(functionConfig.getSecrets()));
+            functionDetails.setSecretsMap(new Gson().toJson(functionConfig.getSecrets()));
         }
 
-        Boolean autoAck = functionConfig.getAutoAck();
-        if (autoAck != null) {
-            functionDetailsBuilder.setAutoAck(autoAck);
+        if (functionConfig.getAutoAck() != null) {
+            functionDetails.setAutoAck(functionConfig.getAutoAck());
         } else {
-            functionDetailsBuilder.setAutoAck(true);
+            functionDetails.setAutoAck(true);
         }
         if (functionConfig.getParallelism() != null) {
-            functionDetailsBuilder.setParallelism(functionConfig.getParallelism());
+            functionDetails.setParallelism(functionConfig.getParallelism());
         } else {
-            functionDetailsBuilder.setParallelism(1);
+            functionDetails.setParallelism(1);
         }
 
         // use default resources if resources not set
         Resources resources = Resources.mergeWithDefault(functionConfig.getResources());
 
-        Function.Resources.Builder bldr = Function.Resources.newBuilder();
-        bldr.setCpu(resources.getCpu());
-        bldr.setRam(resources.getRam());
-        bldr.setDisk(resources.getDisk());
-        functionDetailsBuilder.setResources(bldr);
+        org.apache.pulsar.functions.proto.Resources res = functionDetails.setResources();
+        res.setCpu(resources.getCpu());
+        res.setRam(resources.getRam());
+        res.setDisk(resources.getDisk());
 
         if (!StringUtils.isEmpty(functionConfig.getRuntimeFlags())) {
-            functionDetailsBuilder.setRuntimeFlags(functionConfig.getRuntimeFlags());
+            functionDetails.setRuntimeFlags(functionConfig.getRuntimeFlags());
         }
 
-        functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.FUNCTION);
+        functionDetails.setComponentType(FunctionDetails.ComponentType.FUNCTION);
 
         if (!StringUtils.isEmpty(functionConfig.getCustomRuntimeOptions())) {
-            functionDetailsBuilder.setCustomRuntimeOptions(functionConfig.getCustomRuntimeOptions());
+            functionDetails.setCustomRuntimeOptions(functionConfig.getCustomRuntimeOptions());
         }
 
         if (isBuiltin) {
             String builtin = functionConfig.getJar().replaceFirst("^builtin://", "");
-            functionDetailsBuilder.setBuiltin(builtin);
+            functionDetails.setBuiltin(builtin);
         }
 
-        return validateFunctionDetails(functionDetailsBuilder.build());
+        return validateFunctionDetails(functionDetails);
     }
 
     @SuppressWarnings("deprecation")
     public static FunctionDetails validateFunctionDetails(FunctionDetails functionDetails)
             throws IllegalArgumentException {
-        if (!functionDetails.getAutoAck() && functionDetails.getProcessingGuarantees()
-                == Function.ProcessingGuarantees.ATMOST_ONCE) {
+        if (!functionDetails.isAutoAck() && functionDetails.getProcessingGuarantees()
+                == ProcessingGuarantees.ATMOST_ONCE) {
             throw new IllegalArgumentException("When Guarantees == ATMOST_ONCE, autoAck must be equal to true."
                     + " This is a contradictory configuration, autoAck will be removed later."
                     + " Please refer to PIP: https://github.com/apache/pulsar/issues/15560");
         }
-        if (!functionDetails.getAutoAck()) {
+        if (!functionDetails.isAutoAck()) {
             log.warn("The autoAck configuration will be deprecated in the future."
                     + " If you want not to automatically ack, please configure the processing guarantees as MANUAL.");
         }
@@ -402,39 +409,40 @@ public class FunctionConfigUtils {
         functionConfig.setProcessingGuarantees(
                 FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
         Map<String, ConsumerConfig> consumerConfigMap = new HashMap<>();
-        for (Map.Entry<String, Function.ConsumerSpec> input : functionDetails.getSource().getInputSpecsMap()
-                .entrySet()) {
+        functionDetails.getSource().forEachInputSpecs((topicName, input) -> {
             ConsumerConfig consumerConfig = new ConsumerConfig();
-            if (isNotEmpty(input.getValue().getSerdeClassName())) {
-                consumerConfig.setSerdeClassName(input.getValue().getSerdeClassName());
+            if (isNotEmpty(input.getSerdeClassName())) {
+                consumerConfig.setSerdeClassName(input.getSerdeClassName());
             }
-            if (isNotEmpty(input.getValue().getSchemaType())) {
-                consumerConfig.setSchemaType(input.getValue().getSchemaType());
+            if (isNotEmpty(input.getSchemaType())) {
+                consumerConfig.setSchemaType(input.getSchemaType());
             }
-            if (input.getValue().hasReceiverQueueSize()) {
-                consumerConfig.setReceiverQueueSize(input.getValue().getReceiverQueueSize().getValue());
+            if (input.hasReceiverQueueSize()) {
+                consumerConfig.setReceiverQueueSize(input.getReceiverQueueSize().getValue());
             }
-            if (input.getValue().hasCryptoSpec()) {
-                consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getValue().getCryptoSpec()));
+            if (input.hasCryptoSpec()) {
+                consumerConfig.setCryptoConfig(CryptoUtils.convertFromSpec(input.getCryptoSpec()));
             }
-            if (input.getValue().hasMessagePayloadProcessorSpec()) {
+            if (input.hasMessagePayloadProcessorSpec()) {
                 consumerConfig.setMessagePayloadProcessorConfig(MessagePayloadProcessorUtils.convertFromSpec(
-                        input.getValue().getMessagePayloadProcessorSpec()));
+                        input.getMessagePayloadProcessorSpec()));
             }
-            consumerConfig.setRegexPattern(input.getValue().getIsRegexPattern());
-            consumerConfig.setSchemaProperties(input.getValue().getSchemaPropertiesMap());
-            consumerConfig.setPoolMessages(input.getValue().getPoolMessages());
-            consumerConfigMap.put(input.getKey(), consumerConfig);
-        }
+            consumerConfig.setRegexPattern(input.isIsRegexPattern());
+            Map<String, String> schemaProps = new HashMap<>();
+            input.forEachSchemaProperties(schemaProps::put);
+            consumerConfig.setSchemaProperties(schemaProps);
+            consumerConfig.setPoolMessages(input.isPoolMessages());
+            consumerConfigMap.put(topicName, consumerConfig);
+        });
         functionConfig.setInputSpecs(consumerConfigMap);
         if (!isEmpty(functionDetails.getSource().getSubscriptionName())) {
             functionConfig.setSubName(functionDetails.getSource().getSubscriptionName());
         }
-        functionConfig.setRetainOrdering(functionDetails.getRetainOrdering());
-        functionConfig.setRetainKeyOrdering(functionDetails.getRetainKeyOrdering());
+        functionConfig.setRetainOrdering(functionDetails.isRetainOrdering());
+        functionConfig.setRetainKeyOrdering(functionDetails.isRetainKeyOrdering());
 
-        functionConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
-        functionConfig.setAutoAck(functionDetails.getAutoAck());
+        functionConfig.setCleanupSubscription(functionDetails.getSource().isCleanupSubscription());
+        functionConfig.setAutoAck(functionDetails.isAutoAck());
 
         // Set subscription position
         functionConfig.setSubscriptionPosition(
@@ -452,15 +460,13 @@ public class FunctionConfigUtils {
         if (!isEmpty(functionDetails.getSink().getSchemaType())) {
             functionConfig.setOutputSchemaType(functionDetails.getSink().getSchemaType());
         }
-        if (functionDetails.getSink().getProducerSpec() != null) {
-            functionConfig.setProducerConfig(
-                    convertProducerSpecToProducerConfig(functionDetails.getSink().getProducerSpec()));
-        }
+        functionConfig.setProducerConfig(
+                convertProducerSpecToProducerConfig(functionDetails.getSink().getProducerSpec()));
         if (!isEmpty(functionDetails.getLogTopic())) {
             functionConfig.setLogTopic(functionDetails.getLogTopic());
         }
-        if (functionDetails.getSink().getForwardSourceMessageProperty()) {
-            functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().getForwardSourceMessageProperty());
+        if (functionDetails.getSink().isForwardSourceMessageProperty()) {
+            functionConfig.setForwardSourceMessageProperty(functionDetails.getSink().isForwardSourceMessageProperty());
         }
         functionConfig.setRuntime(FunctionCommon.convertRuntime(functionDetails.getRuntime()));
         if (functionDetails.hasRetryDetails()) {
@@ -519,35 +525,35 @@ public class FunctionConfigUtils {
         return functionConfig;
     }
 
-    public static Function.ProducerSpec convertProducerConfigToProducerSpec(ProducerConfig producerConf) {
-        Function.ProducerSpec.Builder builder = Function.ProducerSpec.newBuilder();
+    public static ProducerSpec convertProducerConfigToProducerSpec(ProducerConfig producerConf) {
+        ProducerSpec producerSpec = new ProducerSpec();
         if (producerConf.getMaxPendingMessages() != null) {
-            builder.setMaxPendingMessages(producerConf.getMaxPendingMessages());
+            producerSpec.setMaxPendingMessages(producerConf.getMaxPendingMessages());
         }
         if (producerConf.getMaxPendingMessagesAcrossPartitions() != null) {
-            builder.setMaxPendingMessagesAcrossPartitions(producerConf.getMaxPendingMessagesAcrossPartitions());
+            producerSpec.setMaxPendingMessagesAcrossPartitions(producerConf.getMaxPendingMessagesAcrossPartitions());
         }
         if (producerConf.getUseThreadLocalProducers() != null) {
-            builder.setUseThreadLocalProducers(producerConf.getUseThreadLocalProducers());
+            producerSpec.setUseThreadLocalProducers(producerConf.getUseThreadLocalProducers());
         }
         if (producerConf.getCryptoConfig() != null) {
-            builder.setCryptoSpec(CryptoUtils.convert(producerConf.getCryptoConfig()));
+            producerSpec.setCryptoSpec().copyFrom(CryptoUtils.convert(producerConf.getCryptoConfig()));
         }
         if (producerConf.getBatchBuilder() != null) {
-            builder.setBatchBuilder(producerConf.getBatchBuilder());
+            producerSpec.setBatchBuilder(producerConf.getBatchBuilder());
         }
         if (producerConf.getBatchingConfig() != null) {
-            builder.setBatchingSpec(BatchingUtils.convert(producerConf.getBatchingConfig()));
+            producerSpec.setBatchingSpec().copyFrom(BatchingUtils.convert(producerConf.getBatchingConfig()));
         }
         if (producerConf.getCompressionType() != null) {
-            builder.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
+            producerSpec.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
         } else {
-            builder.setCompressionType(Function.CompressionType.LZ4);
+            producerSpec.setCompressionType(CompressionType.LZ4);
         }
-        return builder.build();
+        return producerSpec;
     }
 
-    public static ProducerConfig convertProducerSpecToProducerConfig(Function.ProducerSpec spec) {
+    public static ProducerConfig convertProducerSpecToProducerConfig(ProducerSpec spec) {
         ProducerConfig producerConfig = new ProducerConfig();
         if (spec.getMaxPendingMessages() != 0) {
             producerConfig.setMaxPendingMessages(spec.getMaxPendingMessages());
@@ -564,7 +570,7 @@ public class FunctionConfigUtils {
         if (spec.hasBatchingSpec()) {
             producerConfig.setBatchingConfig(BatchingUtils.convertFromSpec(spec.getBatchingSpec()));
         }
-        producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
+        producerConfig.setUseThreadLocalProducers(spec.isUseThreadLocalProducers());
         producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
         return producerConfig;
     }

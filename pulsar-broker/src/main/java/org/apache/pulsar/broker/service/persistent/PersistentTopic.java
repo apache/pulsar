@@ -4834,7 +4834,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return persistentTopicAttributes;
         }
         return PERSISTENT_TOPIC_ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
-                old -> old != null ? old : new PersistentTopicAttributes(TopicName.get(topic)));
+                old -> old != null ? old : new PersistentTopicAttributes(TopicName.get(topic), brokerService.pulsar()));
     }
 
     /**

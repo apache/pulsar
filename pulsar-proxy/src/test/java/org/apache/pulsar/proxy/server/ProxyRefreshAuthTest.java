@@ -55,6 +55,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class ProxyRefreshAuthTest extends ProducerConsumerBase {
     private static final String CLUSTER_NAME = "proxy-authorization";
+    @SuppressWarnings("deprecation")
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
     private ProxyService proxyService;
@@ -160,6 +161,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         return new Object[]{true, false};
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "forwardAuthDataProvider")
     public void testAuthDataRefresh(boolean forwardAuthData) throws Exception {
         log.info("-- Starting {} test --", methodName);

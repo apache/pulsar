@@ -170,6 +170,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
 
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testChunkingWithOrderingKey() throws Exception {

@@ -17,4 +17,8 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 // pulsar-transaction-common has no internal Pulsar dependencies

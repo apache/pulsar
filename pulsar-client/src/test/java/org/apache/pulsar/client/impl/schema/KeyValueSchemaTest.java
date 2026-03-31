@@ -250,7 +250,7 @@ public class KeyValueSchemaTest {
         foo.setField4(bar);
         foo.setColor(Color.RED);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
 
         KeyValue<Foo, Bar> keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(encodeBytes);
@@ -279,7 +279,7 @@ public class KeyValueSchemaTest {
         foo.setField4(bar);
         foo.setColor(Color.RED);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
 
         KeyValue<Foo, Bar> keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(encodeBytes);
@@ -309,7 +309,7 @@ public class KeyValueSchemaTest {
         foo.setColor(Color.RED);
 
         // Check kv.encoding.type default not set value
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
 
         KeyValue<Foo, Bar> keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(encodeBytes);
@@ -342,7 +342,7 @@ public class KeyValueSchemaTest {
         foo.setColor(Color.RED);
 
         // Check kv.encoding.type INLINE
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
         KeyValue<Foo, Bar>  keyValue = (KeyValue<Foo, Bar>) keyValueSchema.decode(encodeBytes);
         Foo fooBack = keyValue.getKey();
@@ -372,7 +372,7 @@ public class KeyValueSchemaTest {
         foo.setColor(Color.RED);
 
         // Check kv.encoding.type SEPARATED
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         Assert.assertTrue(encodeBytes.length > 0);
         try {
             keyValueSchema.decode(encodeBytes);

@@ -830,6 +830,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
         consumer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testDeleteTopicAndSchema() throws Exception {

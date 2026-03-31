@@ -100,6 +100,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         return builder.build();
     }
 
+    @SuppressWarnings("deprecation")
     protected void setUpBase(int numBroker, int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
         setBrokerCount(numBroker);
         internalSetup();

@@ -189,7 +189,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private volatile boolean hasReachedEndOfTopic;
 
-    private final MessageCrypto msgCrypto;
+    private final MessageCrypto<?, ?> msgCrypto;
 
     private final Map<String, String> metadata;
 
@@ -349,7 +349,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 this.msgCrypto = conf.getMessageCrypto();
             } else {
                 // default to use MessageCryptoBc;
-                MessageCrypto msgCryptoBc;
+                MessageCrypto<?, ?> msgCryptoBc;
                 try {
                     msgCryptoBc = new MessageCryptoBc(
                             String.format("[%s] [%s]", topic, subscription),
@@ -2014,6 +2014,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private DecryptResult decryptPayloadIfNeeded(MessageIdData messageId, int redeliveryCount,
                                                  MessageMetadata msgMetadata,
                                                  ByteBuf payload, ClientCnx currentCnx) {
@@ -2030,7 +2031,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         int maxDecryptedSize = msgCrypto.getMaxOutputSize(payload.readableBytes());
         ByteBuf decryptedData = PulsarByteBufAllocator.DEFAULT.buffer(maxDecryptedSize);
         ByteBuffer nioDecryptedData = decryptedData.nioBuffer(0, maxDecryptedSize);
-        if (msgCrypto.decrypt(() -> msgMetadata, payload.nioBuffer(), nioDecryptedData, conf.getCryptoKeyReader())) {
+        if (((MessageCrypto) msgCrypto).decrypt(() -> msgMetadata, payload.nioBuffer(),
+                nioDecryptedData, conf.getCryptoKeyReader())) {
             decryptedData.writerIndex(nioDecryptedData.limit());
             return DecryptResult.success(decryptedData);
         }
@@ -2326,6 +2328,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 futures.stream().map(CompletableFuture::join).filter(Objects::nonNull).collect(Collectors.toList()));
     }
 
+    @SuppressWarnings("unchecked")
     private CompletableFuture<Boolean> processPossibleToDLQ(MessageIdAdv messageId) {
         List<MessageImpl<T>> deadLetterMessages = null;
         if (possibleSendToDeadLetterTopicMessages != null) {
@@ -2405,6 +2408,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    @SuppressWarnings("unchecked")
     private CompletableFuture<Producer<byte[]>> initDeadLetterProducerIfNeeded() {
         CompletableFuture<Producer<byte[]>> p = deadLetterProducer;
         if (p == null || p.isCompletedExceptionally()) {

@@ -270,7 +270,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private CryptoKeyReader cryptoKeyReader = null;
 
     @JsonIgnore
-    private transient MessageCrypto messageCrypto = null;
+    private transient MessageCrypto<?, ?> messageCrypto = null;
 
     @ApiModelProperty(
             name = "cryptoFailureAction",

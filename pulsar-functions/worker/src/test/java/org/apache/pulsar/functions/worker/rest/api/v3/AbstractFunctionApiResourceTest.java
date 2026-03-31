@@ -47,9 +47,9 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.proto.Function.SubscriptionType;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.SubscriptionType;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -72,12 +72,10 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
         mockInstanceUtils();
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> metaDataList = new LinkedList<>();
-        FunctionMetaData functionMetaData1 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-1").build()
-        ).build();
-        FunctionMetaData functionMetaData2 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder().setName("test-2").build()
-        ).build();
+        FunctionMetaData functionMetaData1 = new FunctionMetaData();
+        functionMetaData1.setFunctionDetails().setName("test-1");
+        FunctionMetaData functionMetaData2 = new FunctionMetaData();
+        functionMetaData2.setFunctionDetails().setName("test-2");
         metaDataList.add(functionMetaData1);
         metaDataList.add(functionMetaData2);
         when(mockedManager.listFunctions(eq(TENANT), eq(NAMESPACE))).thenReturn(metaDataList);
@@ -90,23 +88,17 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
     public void testOnlyGetSources() {
         List<String> functions = Lists.newArrayList("test-2");
         List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
-        FunctionMetaData f1 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder()
-                        .setName("test-1")
-                        .setComponentType(FunctionDetails.ComponentType.SOURCE)
-                        .build()).build();
+        FunctionMetaData f1 = new FunctionMetaData();
+        f1.setFunctionDetails().setName("test-1")
+                .setComponentType(FunctionDetails.ComponentType.SOURCE);
         functionMetaDataList.add(f1);
-        FunctionMetaData f2 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder()
-                        .setName("test-2")
-                        .setComponentType(FunctionDetails.ComponentType.FUNCTION)
-                        .build()).build();
+        FunctionMetaData f2 = new FunctionMetaData();
+        f2.setFunctionDetails().setName("test-2")
+                .setComponentType(FunctionDetails.ComponentType.FUNCTION);
         functionMetaDataList.add(f2);
-        FunctionMetaData f3 = FunctionMetaData.newBuilder().setFunctionDetails(
-                FunctionDetails.newBuilder()
-                        .setName("test-3")
-                        .setComponentType(FunctionDetails.ComponentType.SINK)
-                        .build()).build();
+        FunctionMetaData f3 = new FunctionMetaData();
+        f3.setFunctionDetails().setName("test-3")
+                .setComponentType(FunctionDetails.ComponentType.SINK);
         functionMetaDataList.add(f3);
         when(mockedManager.listFunctions(eq(TENANT), eq(NAMESPACE))).thenReturn(functionMetaDataList);
 
@@ -139,8 +131,8 @@ public abstract class AbstractFunctionApiResourceTest extends AbstractFunctionsR
 
     @Override
     protected void doSetup() {
-        this.mockedFunctionMetadata =
-                FunctionMetaData.newBuilder().setFunctionDetails(createDefaultFunctionDetails()).build();
+        this.mockedFunctionMetadata = new FunctionMetaData();
+        this.mockedFunctionMetadata.setFunctionDetails().copyFrom(createDefaultFunctionDetails());
         when(mockedManager.getFunctionMetaData(any(), any(), any())).thenReturn(mockedFunctionMetadata);
     }
 

@@ -101,6 +101,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         super.tearDown();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithBookiesFromDifferentRacks() throws Exception {
         int numOfBookies = 5;
@@ -216,6 +217,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithLedgersNotAdheringToPlacementPolicy() throws Exception {
         int numOfBookies = 5;
@@ -299,6 +301,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithLedgersNotAdheringToPlacementPolicyAndNotMarkToUnderreplication()
             throws Exception {
@@ -371,6 +374,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         assertEquals(unnderReplicateLedgerId, -1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithLedgersNotAdheringToPlacementPolicyAndMarkToUnderreplication()
             throws Exception {
@@ -454,6 +458,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         testPlacementPolicyCheckWithURLedgers(false);
     }
 
+    @SuppressWarnings("deprecation")
     public void testPlacementPolicyCheckWithURLedgers(boolean timeElapsed) throws Exception {
         int numOfBookies = 4;
         /*
@@ -578,6 +583,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithLedgersNotAdheringToPolicyWithMultipleSegments() throws Exception {
         int numOfBookies = 7;
@@ -682,6 +688,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testZoneawarePlacementPolicyCheck() throws Exception {
         int numOfBookies = 6;

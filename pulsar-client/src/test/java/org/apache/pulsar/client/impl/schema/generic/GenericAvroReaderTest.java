@@ -36,9 +36,13 @@ public class GenericAvroReaderTest {
 
     private Foo foo;
     private FooV2 fooV2;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooSchemaNotNull;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooSchema;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooV2Schema;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooOffsetSchema;
 
     @BeforeMethod

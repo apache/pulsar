@@ -78,11 +78,11 @@ public class PulsarSink<T> implements Sink<T> {
     }
 
     abstract class PulsarSinkProcessorBase implements PulsarSinkProcessor<T> {
-        protected Producer<T> getProducer(String destinationTopic, Schema schema) {
+        protected Producer<T> getProducer(String destinationTopic, Schema<T> schema) {
             return getProducer(destinationTopic, schema, null, null);
         }
 
-        protected Producer<T> getProducer(String topicName, Schema schema, String producerName, String partitionId) {
+        protected Producer<T> getProducer(String topicName, Schema<T> schema, String producerName, String partitionId) {
             return producerCache.getOrCreateProducer(ProducerCache.CacheArea.SINK_RECORD_CACHE, topicName, partitionId,
                     () -> {
                         Producer<T> producer = createProducer(topicName, schema, producerName);

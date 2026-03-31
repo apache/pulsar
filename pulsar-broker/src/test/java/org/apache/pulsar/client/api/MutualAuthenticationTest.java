@@ -89,6 +89,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
             return toSend;
         }
     }
+    @SuppressWarnings("deprecation")
 
     public static class MutualAuthentication implements Authentication {
         @Override
@@ -120,6 +121,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
             // noop
         }
     }
+    @SuppressWarnings("deprecation")
 
 
     public static class MutualAuthenticationState implements AuthenticationState {
@@ -159,6 +161,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
             return isComplete;
         }
     }
+    @SuppressWarnings("deprecation")
 
     public static class MutualAuthenticationProvider implements AuthenticationProvider {
         @Override

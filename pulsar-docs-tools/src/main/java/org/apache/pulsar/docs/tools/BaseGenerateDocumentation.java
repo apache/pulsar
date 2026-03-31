@@ -109,8 +109,8 @@ public abstract class BaseGenerateDocumentation implements Callable<Integer> {
         }
 
         @SneakyThrows
-        Class type() {
-            return (Class) MethodUtils.invokeMethod(fieldContext, "type");
+        Class<?> type() {
+            return (Class<?>) MethodUtils.invokeMethod(fieldContext, "type");
         }
 
         @SneakyThrows

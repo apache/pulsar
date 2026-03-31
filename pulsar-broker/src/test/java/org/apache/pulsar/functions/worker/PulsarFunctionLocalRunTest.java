@@ -198,6 +198,7 @@ public class PulsarFunctionLocalRunTest {
             pulsarApiExamplesClassLoader = null;
         }
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
@@ -344,6 +345,7 @@ public class PulsarFunctionLocalRunTest {
             }
         }
     }
+    @SuppressWarnings("deprecation")
 
     @SuppressWarnings("unchecked")
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
@@ -388,6 +390,7 @@ public class PulsarFunctionLocalRunTest {
         workerConfig.setAuthorizationEnabled(true);
         return workerConfig;
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,

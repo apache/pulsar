@@ -63,6 +63,7 @@ public class ConsumerAckTest extends SharedPulsarBaseTest {
 
     private TransactionImpl transaction;
     private PulsarClient clientWithStats;
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     public void setupConsumerAckTest() throws Exception {

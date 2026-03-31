@@ -662,6 +662,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             admin.namespaces().deleteNamespace(ns);
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTlsDisabled() throws Exception {
@@ -702,6 +703,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             pulsarClient.close();
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTlsEnabled() throws Exception {
@@ -779,6 +781,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             pulsarClient.close();
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTlsEnabledWithoutNonTlsServicePorts() throws Exception {
@@ -1006,6 +1009,7 @@ public class BrokerServiceTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";

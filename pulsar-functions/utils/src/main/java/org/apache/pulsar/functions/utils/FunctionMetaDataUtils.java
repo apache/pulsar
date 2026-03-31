@@ -18,64 +18,67 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import org.apache.pulsar.functions.proto.Function;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.FunctionState;
 
 public class FunctionMetaDataUtils {
 
-    public static boolean canChangeState(Function.FunctionMetaData functionMetaData, int instanceId,
-                                         Function.FunctionState newState) {
+    public static boolean canChangeState(FunctionMetaData functionMetaData, int instanceId,
+                                         FunctionState newState) {
         if (instanceId >= functionMetaData.getFunctionDetails().getParallelism()) {
             return false;
         }
-        if (functionMetaData.getInstanceStatesMap() == null || functionMetaData.getInstanceStatesMap().isEmpty()) {
+        if (functionMetaData.getInstanceStatesCount() == 0) {
             // This means that all instances of the functions are running
-            return newState == Function.FunctionState.STOPPED;
+            return newState == FunctionState.STOPPED;
         }
         if (instanceId >= 0) {
-            if (functionMetaData.getInstanceStatesMap().containsKey(instanceId)) {
-                return functionMetaData.getInstanceStatesMap().get(instanceId) != newState;
-            } else {
+            try {
+                FunctionState currentState = functionMetaData.getInstanceStates(instanceId);
+                return currentState != newState;
+            } catch (IllegalArgumentException e) {
                 return false;
             }
         } else {
             // want to change state for all instances
-            for (Function.FunctionState state : functionMetaData.getInstanceStatesMap().values()) {
+            AtomicBoolean canChange = new AtomicBoolean(false);
+            functionMetaData.forEachInstanceStates((id, state) -> {
                 if (state != newState) {
-                    return true;
+                    canChange.set(true);
                 }
-            }
-            return false;
+            });
+            return canChange.get();
         }
     }
 
-    public static Function.FunctionMetaData changeFunctionInstanceStatus(Function.FunctionMetaData functionMetaData,
+    public static FunctionMetaData changeFunctionInstanceStatus(FunctionMetaData functionMetaData,
                                                                          Integer instanceId, boolean start) {
-        Function.FunctionMetaData.Builder builder = functionMetaData.toBuilder()
+        FunctionMetaData result = new FunctionMetaData().copyFrom(functionMetaData)
                 .setVersion(functionMetaData.getVersion() + 1);
-        if (builder.getInstanceStatesMap() == null || builder.getInstanceStatesMap().isEmpty()) {
+        if (result.getInstanceStatesCount() == 0) {
             for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
-                builder.putInstanceStates(i, Function.FunctionState.RUNNING);
+                result.putInstanceStates(i, FunctionState.RUNNING);
             }
         }
-        Function.FunctionState state = start ? Function.FunctionState.RUNNING : Function.FunctionState.STOPPED;
+        FunctionState state = start ? FunctionState.RUNNING : FunctionState.STOPPED;
         if (instanceId < 0) {
             for (int i = 0; i < functionMetaData.getFunctionDetails().getParallelism(); ++i) {
-                builder.putInstanceStates(i, state);
+                result.putInstanceStates(i, state);
             }
-        } else if (instanceId < builder.getFunctionDetails().getParallelism()) {
-            builder.putInstanceStates(instanceId, state);
+        } else if (instanceId < result.getFunctionDetails().getParallelism()) {
+            result.putInstanceStates(instanceId, state);
         }
-        return builder.build();
+        return result;
     }
 
-    public static Function.FunctionMetaData incrMetadataVersion(Function.FunctionMetaData existingMetaData,
-                                                                Function.FunctionMetaData updatedMetaData) {
+    public static FunctionMetaData incrMetadataVersion(FunctionMetaData existingMetaData,
+                                                                FunctionMetaData updatedMetaData) {
         long version = 0;
         if (existingMetaData != null) {
             version = existingMetaData.getVersion() + 1;
         }
-        return updatedMetaData.toBuilder()
-                .setVersion(version)
-                .build();
+        return new FunctionMetaData().copyFrom(updatedMetaData)
+                .setVersion(version);
     }
 }

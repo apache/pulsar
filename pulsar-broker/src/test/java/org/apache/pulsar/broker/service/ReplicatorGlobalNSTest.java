@@ -90,6 +90,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test(priority = Integer.MAX_VALUE)
     public void testRemoveLocalClusterOnGlobalNamespace() throws Exception {
         log.info("--- Starting ReplicatorTest::testRemoveLocalClusterOnGlobalNamespace ---");

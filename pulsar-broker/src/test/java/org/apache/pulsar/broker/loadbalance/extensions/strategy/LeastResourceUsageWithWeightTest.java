@@ -190,6 +190,7 @@ public class LeastResourceUsageWithWeightTest {
                 1, 1, 1, 1, 1, 1, ctx.brokerConfiguration());
     }
 
+    @SuppressWarnings("deprecation")
     public static LoadManagerContext getContext() {
         var ctx = mock(LoadManagerContext.class);
         var conf = new ServiceConfiguration();

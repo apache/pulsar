@@ -57,6 +57,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateBackward(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
@@ -81,6 +82,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateForward(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
@@ -104,6 +106,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateFull(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
@@ -131,6 +134,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateDisabled(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 

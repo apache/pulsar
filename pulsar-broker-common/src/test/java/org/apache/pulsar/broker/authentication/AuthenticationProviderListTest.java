@@ -76,6 +76,7 @@ public class AuthenticationProviderListTest {
 
     private AuthenticationProviderList authProvider;
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         this.keyPairA = Keys.keyPairFor(SignatureAlgorithm.ES256);
@@ -190,6 +191,7 @@ public class AuthenticationProviderListTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     private AuthenticationState newAuthState(String token, String expectedSubject) throws Exception {
         // Must pass the token to the newAuthState for legacy reasons.
         AuthenticationState authState = authProvider.newAuthState(
@@ -204,6 +206,7 @@ public class AuthenticationProviderListTest {
         return authState;
     }
 
+    @SuppressWarnings("deprecation")
     private void verifyAuthStateExpired(AuthenticationState authState, String expectedSubject)
         throws Exception {
         assertEquals(authState.getAuthRole(), expectedSubject);
@@ -266,6 +269,7 @@ public class AuthenticationProviderListTest {
         verify(requestBB).setAttribute(eq(AuthenticatedDataAttributeName), isA(AuthenticationDataSource.class));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthenticateWithMultipleProviders() throws Exception {
         HttpServletRequest httpRequest = mock(HttpServletRequest.class);
@@ -352,6 +356,7 @@ public class AuthenticationProviderListTest {
                     return subject;
                 }
 
+                @SuppressWarnings("deprecation")
                 @Override
                 public AuthData authenticate(AuthData authData) {
                     return null;
@@ -362,6 +367,7 @@ public class AuthenticationProviderListTest {
                     return null;
                 }
 
+                @SuppressWarnings("deprecation")
                 @Override
                 public boolean isComplete() {
                     return false;
@@ -377,6 +383,7 @@ public class AuthenticationProviderListTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void verifyAuthenticationStateSuccess(AuthenticationState authState, boolean isAsync, String expectedRole)
             throws Exception {
         assertThat(authState).isNotNull();

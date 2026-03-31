@@ -99,9 +99,10 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public SchemaDefinitionBuilder<T> withPojo(Class clazz) {
-        this.clazz = clazz;
+    public SchemaDefinitionBuilder<T> withPojo(Class<?> clazz) {
+        this.clazz = (Class<T>) clazz;
         return this;
     }
 

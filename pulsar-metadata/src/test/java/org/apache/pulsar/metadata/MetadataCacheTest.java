@@ -532,7 +532,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
                         .mandatoryStop(Duration.ofSeconds(3))).build());
 
         MetadataCache<MyClass> cacheRef = cache;
-        if (cache instanceof DualMetadataCache dc) {
+        if (cache instanceof DualMetadataCache<?> dc) {
             cacheRef = (MetadataCache<MyClass>) dc.getMetadataCache().get();
         }
 

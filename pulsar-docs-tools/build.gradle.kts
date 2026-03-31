@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     implementation(libs.swagger.annotations)
     implementation(libs.swagger.core)

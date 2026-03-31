@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 // Distribution module — no Java compilation needed
 tasks.named("compileJava") { enabled = false }
 tasks.named("compileTestJava") { enabled = false }
@@ -289,8 +293,8 @@ val serverDistTar by tasks.registering(Tar::class) {
         }
     }
 
-    // Java instance JAR (runtime-all fat jar)
-    from(project(":pulsar-functions:pulsar-functions-runtime-all").tasks.named("jar")) {
+    // Java instance JAR (runtime-all fat jar, produced by Shadow plugin)
+    from(project(":pulsar-functions:pulsar-functions-runtime-all").tasks.named("shadowJar")) {
         into("${baseDir}/instances")
         rename(".*", "java-instance.jar")
     }

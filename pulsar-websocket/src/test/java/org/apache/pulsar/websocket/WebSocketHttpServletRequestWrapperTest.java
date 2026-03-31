@@ -64,6 +64,7 @@ public class WebSocketHttpServletRequestWrapperTest {
                 BEARER_TOKEN);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void mockRequestTest() throws Exception {
         WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(

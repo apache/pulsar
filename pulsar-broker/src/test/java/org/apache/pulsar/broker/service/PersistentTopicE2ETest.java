@@ -1001,6 +1001,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         deleteNamespaceWithRetry(namespaceName, false);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMessageExpiryWithTopicMessageTTL() throws Exception {
         int namespaceMessageTTLSecs = 10;

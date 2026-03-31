@@ -18,7 +18,8 @@
  */
 
 plugins {
-    id("pulsar.shadow-conventions")
+    id("pulsar.java-conventions")
+    alias(libs.plugins.shadow)
 }
 
 dependencies {
@@ -32,9 +33,16 @@ dependencies {
     annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
 }
 
+// Don't build the benchmarks fat JAR during ./gradlew assemble — only on demand
+shadow {
+    addShadowJarToAssembleLifecycle.set(false)
+}
+
 tasks.shadowJar {
     archiveClassifier.set("benchmarks")
     isZip64 = true
+    mergeServiceFiles()
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
     manifest {
         attributes("Main-Class" to "org.openjdk.jmh.Main")
     }

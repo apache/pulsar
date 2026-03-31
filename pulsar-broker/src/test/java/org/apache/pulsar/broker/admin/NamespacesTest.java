@@ -954,6 +954,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         resetBroker();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSplitBundles() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
@@ -998,6 +999,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         resetBroker();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSplitBundleWithUnDividedRange() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
@@ -1104,6 +1106,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testRetention() throws Exception {
         try {
@@ -1194,6 +1197,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(errorCaptor.getValue().getResponse().getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testValidateTopicOwnership() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());

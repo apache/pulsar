@@ -50,6 +50,7 @@ public class PatternConsumerUpdateQueueTest {
                 null, null);
     }
 
+    @SuppressWarnings("rawtypes")
     private QueueInstance createInstance(CompletableFuture<Void> customizedRecheckFuture,
                                          CompletableFuture<Void> customizedPartialUpdateFuture,
                                          CompletableFuture<Void> customizedConsumerInitFuture,
@@ -77,8 +78,8 @@ public class PatternConsumerUpdateQueueTest {
             when(topicsChangeListener.onTopicsRemoved(anyCollection())).thenReturn(customizedPartialUpdateFuture);
         } else {
             CompletableFuture<Void> ex = FutureUtil.failedFuture(new RuntimeException("Failed topics changed event"));
-            Answer answer = invocationOnMock -> {
-                Collection inputCollection = invocationOnMock.getArgument(0, Collection.class);
+            Answer<?> answer = invocationOnMock -> {
+                Collection<?> inputCollection = invocationOnMock.getArgument(0, Collection.class);
                 if (successTopics.containsAll(inputCollection)) {
                     return customizedPartialUpdateFuture;
                 } else if (errorTopics.containsAll(inputCollection)) {
@@ -103,7 +104,7 @@ public class PatternConsumerUpdateQueueTest {
     @AllArgsConstructor
     private static class QueueInstance implements Closeable {
         private PatternConsumerUpdateQueue queue;
-        private PatternMultiTopicsConsumerImpl mockedConsumer;
+        private PatternMultiTopicsConsumerImpl<?> mockedConsumer;
         private PatternMultiTopicsConsumerImpl.TopicsChangedListener mockedListener;
 
         @Override

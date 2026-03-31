@@ -19,9 +19,6 @@
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
-import com.google.protobuf.AbstractMessage.Builder;
-import com.google.protobuf.MessageOrBuilder;
-import com.google.protobuf.util.JsonFormat;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -54,8 +51,14 @@ import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowFunction;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails.ComponentType;
+import org.apache.pulsar.functions.proto.FunctionDetails.Runtime;
+import org.apache.pulsar.functions.proto.Instance;
+import org.apache.pulsar.functions.proto.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
+import org.apache.pulsar.functions.proto.SubscriptionPosition;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.Source;
@@ -66,14 +69,6 @@ import org.apache.pulsar.io.core.Source;
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class FunctionCommon {
-
-    public static String printJson(MessageOrBuilder msg) throws IOException {
-        return JsonFormat.printer().print(msg);
-    }
-
-    public static void mergeJson(String json, Builder builder) throws IOException {
-        JsonFormat.parser().merge(json, builder);
-    }
 
     public static int findAvailablePort() {
         // The logic here is a little flaky. There is no guarantee that this
@@ -182,10 +177,10 @@ public class FunctionCommon {
         throw new RuntimeException("Unrecognized runtime: " + runtime.name());
     }
 
-    public static org.apache.pulsar.functions.proto.Function.ProcessingGuarantees convertProcessingGuarantee(
+    public static ProcessingGuarantees convertProcessingGuarantee(
             FunctionConfig.ProcessingGuarantees processingGuarantees) {
-        for (org.apache.pulsar.functions.proto.Function.ProcessingGuarantees type :
-                org.apache.pulsar.functions.proto.Function.ProcessingGuarantees
+        for (ProcessingGuarantees type :
+                ProcessingGuarantees
                 .values()) {
             if (type.name().equals(processingGuarantees.name())) {
                 return type;
@@ -195,7 +190,7 @@ public class FunctionCommon {
     }
 
     public static FunctionConfig.ProcessingGuarantees convertProcessingGuarantee(
-            org.apache.pulsar.functions.proto.Function.ProcessingGuarantees processingGuarantees) {
+            ProcessingGuarantees processingGuarantees) {
         for (FunctionConfig.ProcessingGuarantees type : FunctionConfig.ProcessingGuarantees.values()) {
             if (type.name().equals(processingGuarantees.name())) {
                 return type;
@@ -273,7 +268,7 @@ public class FunctionCommon {
         }
     }
 
-    public static String getFullyQualifiedInstanceId(org.apache.pulsar.functions.proto.Function.Instance instance) {
+    public static String getFullyQualifiedInstanceId(Instance instance) {
         return getFullyQualifiedInstanceId(
                 instance.getFunctionMetaData().getFunctionDetails().getTenant(),
                 instance.getFunctionMetaData().getFunctionDetails().getNamespace(),
@@ -323,7 +318,7 @@ public class FunctionCommon {
     }
 
     public static String getFullyQualifiedName(
-            org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails) {
+            org.apache.pulsar.functions.proto.FunctionDetails functionDetails) {
         return getFullyQualifiedName(functionDetails.getTenant(), functionDetails.getNamespace(),
                 functionDetails.getName());
 
@@ -358,27 +353,27 @@ public class FunctionCommon {
         return Math.round(value * scale) / scale;
     }
 
-    public static String capFirstLetter(Enum en) {
+    public static String capFirstLetter(Enum<?> en) {
         return StringUtils.capitalize(en.toString().toLowerCase());
     }
 
     public static boolean isFunctionCodeBuiltin(
-            org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetail) {
+            FunctionDetails functionDetail) {
         return isFunctionCodeBuiltin(functionDetail, functionDetail.getComponentType());
     }
 
     public static boolean isFunctionCodeBuiltin(
-            org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails,
+            FunctionDetails functionDetails,
             ComponentType componentType) {
         if (componentType == ComponentType.SOURCE && functionDetails.hasSource()) {
-            org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = functionDetails.getSource();
+            SourceSpec sourceSpec = functionDetails.getSource();
             if (!isEmpty(sourceSpec.getBuiltin())) {
                 return true;
             }
         }
 
         if (componentType == ComponentType.SINK && functionDetails.hasSink()) {
-            org.apache.pulsar.functions.proto.Function.SinkSpec sinkSpec = functionDetails.getSink();
+            SinkSpec sinkSpec = functionDetails.getSink();
             if (!isEmpty(sinkSpec.getBuiltin())) {
                 return true;
             }
@@ -388,8 +383,8 @@ public class FunctionCommon {
     }
 
     public static SubscriptionInitialPosition convertFromFunctionDetailsSubscriptionPosition(
-            org.apache.pulsar.functions.proto.Function.SubscriptionPosition subscriptionPosition) {
-        if (org.apache.pulsar.functions.proto.Function.SubscriptionPosition.EARLIEST.equals(subscriptionPosition)) {
+            SubscriptionPosition subscriptionPosition) {
+        if (SubscriptionPosition.EARLIEST.equals(subscriptionPosition)) {
             return SubscriptionInitialPosition.Earliest;
         } else {
             return SubscriptionInitialPosition.Latest;
@@ -397,7 +392,7 @@ public class FunctionCommon {
     }
 
     public static CompressionType convertFromFunctionDetailsCompressionType(
-            org.apache.pulsar.functions.proto.Function.CompressionType compressionType) {
+            org.apache.pulsar.functions.proto.CompressionType compressionType) {
         if (compressionType == null) {
             return CompressionType.LZ4;
         }
@@ -415,22 +410,22 @@ public class FunctionCommon {
         }
     }
 
-    public static org.apache.pulsar.functions.proto.Function.CompressionType convertFromCompressionType(
+    public static org.apache.pulsar.functions.proto.CompressionType convertFromCompressionType(
        CompressionType compressionType) {
         if (compressionType == null) {
-            return org.apache.pulsar.functions.proto.Function.CompressionType.LZ4;
+            return org.apache.pulsar.functions.proto.CompressionType.LZ4;
         }
         switch (compressionType) {
             case NONE:
-                return org.apache.pulsar.functions.proto.Function.CompressionType.NONE;
+                return org.apache.pulsar.functions.proto.CompressionType.NONE;
             case ZLIB:
-                return org.apache.pulsar.functions.proto.Function.CompressionType.ZLIB;
+                return org.apache.pulsar.functions.proto.CompressionType.ZLIB;
             case ZSTD:
-                return org.apache.pulsar.functions.proto.Function.CompressionType.ZSTD;
+                return org.apache.pulsar.functions.proto.CompressionType.ZSTD;
             case SNAPPY:
-                return org.apache.pulsar.functions.proto.Function.CompressionType.SNAPPY;
+                return org.apache.pulsar.functions.proto.CompressionType.SNAPPY;
             default:
-                return org.apache.pulsar.functions.proto.Function.CompressionType.LZ4;
+                return org.apache.pulsar.functions.proto.CompressionType.LZ4;
         }
     }
 }

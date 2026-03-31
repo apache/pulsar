@@ -104,6 +104,7 @@ public class PulsarFunctionTlsTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionTlsTest.class);
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod
     void setup(Method method) throws Exception {
@@ -202,6 +203,7 @@ public class PulsarFunctionTlsTest {
             }
         }
     }
+    @SuppressWarnings("deprecation")
 
     @SuppressWarnings("unchecked")
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
@@ -290,6 +292,7 @@ public class PulsarFunctionTlsTest {
         }
 
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String jarFile,
                                                          String tenant,

@@ -91,6 +91,7 @@ public class PulsarFunctionTlsTest {
     protected String testNamespace = testTenant + "/my-ns";
     private PulsarFunctionTestTemporaryDirectory[] tempDirectories =
             new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     @SuppressWarnings("unchecked")
@@ -293,6 +294,7 @@ public class PulsarFunctionTlsTest {
             pulsarAdmins[i].functions().deleteFunction(config.getTenant(), config.getNamespace(), config.getName());
         }
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(
         String jarFile,

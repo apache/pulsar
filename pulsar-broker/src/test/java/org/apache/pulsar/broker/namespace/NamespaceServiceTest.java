@@ -123,6 +123,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSplitAndOwnBundles() throws Exception {
 
@@ -194,6 +195,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSplitMapWithRefreshedStatMap() throws Exception {
 
@@ -250,6 +252,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testIsServiceUnitDisabled() throws Exception {
 
@@ -274,6 +277,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testRemoveOwnershipNamespaceBundle() throws Exception {
 
@@ -428,6 +432,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         System.out.println(withListener);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testCreateNamespaceWithDefaultNumberOfBundles() throws Exception {
         OwnershipCache mockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -491,6 +496,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testRemoveOwnershipAndSplitBundle() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -538,6 +544,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSplitBundleAndRemoveOldBundleFromOwnerShipCache() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());

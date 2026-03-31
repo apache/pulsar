@@ -40,6 +40,7 @@ public class AnnotationListener implements IAnnotationTransformer {
         System.out.println("Created annotation listener");
     }
 
+    @SuppressWarnings("rawtypes") // overriding TestNG API that uses raw types
     @Override
     public void transform(ITestAnnotation annotation,
                           Class testClass,
@@ -84,6 +85,7 @@ public class AnnotationListener implements IAnnotationTransformer {
     }
 
     @Override
+    @SuppressWarnings("rawtypes") // overriding TestNG API that uses raw types
     public void transform(IConfigurationAnnotation annotation, Class testClass, Constructor testConstructor,
                           Method testMethod) {
         // configuration methods such as BeforeMethod / BeforeClass methods should also be added to the "other" group

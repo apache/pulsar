@@ -206,7 +206,7 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
         for (int i = 0; i < 10; i++) {
             producer.send("msg".getBytes(StandardCharsets.UTF_8));
         }
-        Message message = consumer.receive(1, TimeUnit.SECONDS);
+        Message<?> message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
         consumer.acknowledge(message);
         MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
@@ -319,7 +319,7 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
         Map<String, String> mapShared = new HashMap<>();
         mapShared.put("6", "7");
         // open two consumers with a Shared Subscription
-        Consumer consumerShared1 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+        Consumer<?> consumerShared1 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
                 .subscriptionMode(subscriptionMode)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionProperties(mapShared)
@@ -332,7 +332,7 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
         // add a new consumer, the properties are not updated
         Map<String, String> mapShared2 = new HashMap<>();
         mapShared2.put("8", "9");
-        Consumer consumerShared2 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+        Consumer<?> consumerShared2 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
                 .subscriptionMode(subscriptionMode)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionProperties(mapShared2)
@@ -344,7 +344,7 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
         // add a third consumer, the properties are NOT updated
         Map<String, String> mapShared3 = new HashMap<>();
         mapShared3.put("10", "11");
-        Consumer consumerShared3 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+        Consumer<?> consumerShared3 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
                 .subscriptionMode(subscriptionMode)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionProperties(mapShared3)

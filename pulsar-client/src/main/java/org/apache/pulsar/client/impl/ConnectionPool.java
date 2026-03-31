@@ -90,7 +90,7 @@ public class ConnectionPool implements AutoCloseable {
     /** Do you want to automatically clean up unused connections. **/
     private boolean autoReleaseIdleConnectionsEnabled;
     /** Async release useless connections task. **/
-    private ScheduledFuture asyncReleaseUselessConnectionsTask;
+    private ScheduledFuture<?> asyncReleaseUselessConnectionsTask;
 
     private final Counter connectionsTcpFailureCounter;
     private final Counter connectionsHandshakeFailureCounter;

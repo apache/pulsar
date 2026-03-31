@@ -47,7 +47,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     private volatile long evictionTriggerThreshold;
     private volatile double cacheEvictionWatermark;
     private final AtomicLong currentSize = new AtomicLong(0);
-    private final ConcurrentMap<String, EntryCache> caches = new ConcurrentHashMap();
+    private final ConcurrentMap<String, EntryCache> caches = new ConcurrentHashMap<>();
     private final RangeCacheRemovalQueue rangeCacheRemovalQueue;
     private final RangeEntryCacheManagerEvictionHandler evictionHandler;
 

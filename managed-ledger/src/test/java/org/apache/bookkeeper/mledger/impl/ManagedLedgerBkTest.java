@@ -42,8 +42,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -133,7 +133,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         bkc.close();
         metadataStore.unsetAlwaysFail();
 
-        bkc = new BookKeeperTestClient(baseClientConf);
+        bkc = new PulsarBookKeeperTestClient(baseClientConf);
         int port = startNewBookie();
 
         // Reconnect a new bk client

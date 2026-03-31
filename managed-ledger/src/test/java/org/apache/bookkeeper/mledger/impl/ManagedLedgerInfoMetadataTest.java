@@ -53,6 +53,7 @@ public class ManagedLedgerInfoMetadataTest {
         };
     }
 
+    @SuppressWarnings("deprecation")
     private ManagedLedgerInfo generateManagedLedgerInfo(long ledgerId, int ledgerInfoNumber) {
         ManagedLedgerInfo managedLedgerInfo = new ManagedLedgerInfo();
         for (int i = 0; i < ledgerInfoNumber; i++) {

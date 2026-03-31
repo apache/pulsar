@@ -66,6 +66,7 @@ public class WebSocketWebResourceTest {
     @Mock
     private UriInfo uri;
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setup(Method method) throws Exception {
         MockitoAnnotations.openMocks(this);

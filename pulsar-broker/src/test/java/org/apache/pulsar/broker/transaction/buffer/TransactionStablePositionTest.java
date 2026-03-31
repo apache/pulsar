@@ -173,6 +173,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "enableTransactionAndState")
     public void testSyncNormalPositionWhenTBRecover(boolean clientEnableTransaction,
                                                     TopicTransactionBufferState.State state) throws Exception {

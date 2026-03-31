@@ -23,7 +23,6 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
-import com.google.protobuf.ByteString;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,8 +49,10 @@ import org.apache.pulsar.common.policies.data.SinkStatus;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.PackageLocationMetaData;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionFilePackage;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
@@ -69,7 +70,7 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerService> {
 
     public SinksImpl(Supplier<PulsarWorkerService> workerServiceSupplier) {
-        super(workerServiceSupplier, Function.FunctionDetails.ComponentType.SINK);
+        super(workerServiceSupplier, FunctionDetails.ComponentType.SINK);
     }
 
     @Override
@@ -136,7 +137,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                     String.format("%s %s already exists", ComponentTypeUtils.toString(componentType), sinkName));
         }
 
-        Function.FunctionDetails functionDetails;
+        FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
@@ -175,14 +176,14 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             }
 
             // function state
-            Function.FunctionMetaData.Builder functionMetaDataBuilder = Function.FunctionMetaData.newBuilder()
-                    .setFunctionDetails(functionDetails)
-                    .setCreateTime(System.currentTimeMillis())
-                    .setVersion(0);
+            FunctionMetaData functionMetaDataObj = new FunctionMetaData();
+            functionMetaDataObj.setFunctionDetails().copyFrom(functionDetails);
+            functionMetaDataObj.setCreateTime(System.currentTimeMillis());
+            functionMetaDataObj.setVersion(0);
 
             // cache auth if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
-                Function.FunctionDetails finalFunctionDetails = functionDetails;
+                FunctionDetails finalFunctionDetails = functionDetails;
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
@@ -193,10 +194,9 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                                     .cacheAuthData(finalFunctionDetails,
                                             authParams.getClientAuthenticationDataSource());
 
-                            functionAuthData.ifPresent(authData -> functionMetaDataBuilder.setFunctionAuthSpec(
-                                    Function.FunctionAuthenticationSpec.newBuilder()
-                                            .setData(ByteString.copyFrom(authData.getData()))
-                                            .build()));
+                            functionAuthData.ifPresent(authData ->
+                                    functionMetaDataObj.setFunctionAuthSpec()
+                                            .setData(authData.getData()));
                         } catch (Exception e) {
                             log.error("Error caching authentication data for {} {}/{}/{}",
                                     ComponentTypeUtils.toString(componentType), tenant, namespace, sinkName, e);
@@ -210,9 +210,9 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 });
             }
 
-            Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
+            PackageLocationMetaData packageLocationMetaData;
             try {
-                packageLocationMetaDataBuilder = getFunctionPackageLocation(functionMetaDataBuilder.build(),
+                packageLocationMetaData = getFunctionPackageLocation(functionMetaDataObj,
                         sinkPkgUrl, fileDetail, componentPackageFile);
             } catch (Exception e) {
                 log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType), tenant,
@@ -220,14 +220,14 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
 
-            functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+            functionMetaDataObj.setPackageLocation().copyFrom(packageLocationMetaData);
 
             String transformFunction = sinkConfig.getTransformFunction();
             if (isNotBlank(transformFunction)) {
-                setTransformFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
+                setTransformFunctionPackageLocation(functionMetaDataObj, functionDetails, transformFunction);
             }
 
-            updateRequest(null, functionMetaDataBuilder.build());
+            updateRequest(null, functionMetaDataObj);
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if (sinkPkgUrl == null || !sinkPkgUrl.startsWith(Utils.FILE)) {
@@ -274,7 +274,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                     String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), sinkName));
         }
 
-        Function.FunctionMetaData existingComponent =
+        FunctionMetaData existingComponent =
                 functionMetaDataManager.getFunctionMetaData(tenant, namespace, sinkName);
 
         if (!InstanceUtils.calculateSubjectType(existingComponent.getFunctionDetails()).equals(componentType)) {
@@ -303,7 +303,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
 
-        Function.FunctionDetails functionDetails;
+        FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
@@ -338,13 +338,13 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             }
 
             // merge from existing metadata
-            Function.FunctionMetaData.Builder functionMetaDataBuilder =
-                    Function.FunctionMetaData.newBuilder().mergeFrom(existingComponent)
-                            .setFunctionDetails(functionDetails);
+            FunctionMetaData functionMetaDataObj = new FunctionMetaData();
+            functionMetaDataObj.copyFrom(existingComponent);
+            functionMetaDataObj.setFunctionDetails().copyFrom(functionDetails);
 
             // update auth data if need
             if (worker().getWorkerConfig().isAuthenticationEnabled()) {
-                Function.FunctionDetails finalFunctionDetails = functionDetails;
+                FunctionDetails finalFunctionDetails = functionDetails;
                 worker().getFunctionRuntimeManager()
                         .getRuntimeFactory()
                         .getAuthProvider().ifPresent(functionAuthProvider -> {
@@ -352,9 +352,9 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                             && updateOptions.isUpdateAuthData()) {
                         // get existing auth data if it exists
                         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
-                        if (functionMetaDataBuilder.hasFunctionAuthSpec()) {
+                        if (functionMetaDataObj.hasFunctionAuthSpec()) {
                             existingFunctionAuthData = Optional.ofNullable(getFunctionAuthData(
-                                    Optional.ofNullable(functionMetaDataBuilder.getFunctionAuthSpec())));
+                                    Optional.ofNullable(functionMetaDataObj.getFunctionAuthSpec())));
                         }
 
                         try {
@@ -363,12 +363,10 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                                             authParams.getClientAuthenticationDataSource());
 
                             if (newFunctionAuthData.isPresent()) {
-                                functionMetaDataBuilder.setFunctionAuthSpec(
-                                        Function.FunctionAuthenticationSpec.newBuilder()
-                                                .setData(ByteString.copyFrom(newFunctionAuthData.get().getData()))
-                                                .build());
+                                functionMetaDataObj.setFunctionAuthSpec()
+                                        .setData(newFunctionAuthData.get().getData());
                             } else {
-                                functionMetaDataBuilder.clearFunctionAuthSpec();
+                                functionMetaDataObj.clearFunctionAuthSpec();
                             }
                         } catch (Exception e) {
                             log.error("Error updating authentication data for {} {}/{}/{}",
@@ -381,12 +379,12 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 });
             }
 
-            Function.PackageLocationMetaData.Builder packageLocationMetaDataBuilder;
+            PackageLocationMetaData packageLocationMetaData;
             if (isNotBlank(sinkPkgUrl) || uploadedInputStream != null) {
-                Function.FunctionMetaData metaData = functionMetaDataBuilder.build();
-                metaData = FunctionMetaDataUtils.incrMetadataVersion(metaData, metaData);
+                FunctionMetaData metaData = FunctionMetaDataUtils.incrMetadataVersion(functionMetaDataObj,
+                        functionMetaDataObj);
                 try {
-                    packageLocationMetaDataBuilder = getFunctionPackageLocation(metaData,
+                    packageLocationMetaData = getFunctionPackageLocation(metaData,
                             sinkPkgUrl, fileDetail, componentPackageFile);
                 } catch (Exception e) {
                     log.error("Failed process {} {}/{}/{} package: ", ComponentTypeUtils.toString(componentType),
@@ -394,19 +392,19 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                     throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 }
             } else {
-                packageLocationMetaDataBuilder =
-                        Function.PackageLocationMetaData.newBuilder().mergeFrom(existingComponent.getPackageLocation());
+                packageLocationMetaData = new PackageLocationMetaData();
+                packageLocationMetaData.copyFrom(existingComponent.getPackageLocation());
             }
 
-            functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+            functionMetaDataObj.setPackageLocation().copyFrom(packageLocationMetaData);
 
             String transformFunction = mergedConfig.getTransformFunction();
             if (isNotBlank(transformFunction)
                     && !transformFunction.equals(existingSinkConfig.getTransformFunction())) {
-                setTransformFunctionPackageLocation(functionMetaDataBuilder, functionDetails, transformFunction);
+                setTransformFunctionPackageLocation(functionMetaDataObj, functionDetails, transformFunction);
             }
 
-            updateRequest(existingComponent, functionMetaDataBuilder.build());
+            updateRequest(existingComponent, functionMetaDataObj);
         } finally {
             if (componentPackageFile != null && componentPackageFile.exists()) {
                 if ((sinkPkgUrl != null && !sinkPkgUrl.startsWith(Utils.FILE)) || uploadedInputStream != null) {
@@ -416,21 +414,21 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         }
     }
 
-    private void setTransformFunctionPackageLocation(Function.FunctionMetaData.Builder functionMetaDataBuilder,
-                                                 Function.FunctionDetails functionDetails, String transformFunction) {
+    private void setTransformFunctionPackageLocation(FunctionMetaData functionMetaDataObj,
+                                                 FunctionDetails functionDetails, String transformFunction) {
         File functionPackageFile = null;
         try {
             String builtin = functionDetails.getBuiltin();
             if (isBlank(builtin)) {
                 functionPackageFile =
-                        getPackageFile(Function.FunctionDetails.ComponentType.FUNCTION, transformFunction);
+                        getPackageFile(FunctionDetails.ComponentType.FUNCTION, transformFunction);
             }
-            Function.PackageLocationMetaData.Builder functionPackageLocation =
-                    getFunctionPackageLocation(functionMetaDataBuilder.build(),
+            PackageLocationMetaData functionPackageLocation =
+                    getFunctionPackageLocation(functionMetaDataObj,
                             transformFunction, null, functionPackageFile,
                             functionDetails.getName() + "__sink-function",
-                            Function.FunctionDetails.ComponentType.FUNCTION, builtin);
-            functionMetaDataBuilder.setTransformFunctionPackageLocation(functionPackageLocation);
+                            FunctionDetails.ComponentType.FUNCTION, builtin);
+            functionMetaDataObj.setTransformFunctionPackageLocation().copyFrom(functionPackageLocation);
         } catch (Exception e) {
             log.error("Failed process {} {}/{}/{} extra function package: ",
                     ComponentTypeUtils.toString(componentType), functionDetails.getTenant(),
@@ -458,11 +456,11 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
 
         @Override
         public SinkStatus.SinkInstanceStatus.SinkInstanceStatusData fromFunctionStatusProto(
-                InstanceCommunication.FunctionStatus status,
+                org.apache.pulsar.functions.proto.FunctionStatus status,
                 String assignedWorkerId) {
             SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData =
                     new SinkStatus.SinkInstanceStatus.SinkInstanceStatusData();
-            sinkInstanceStatusData.setRunning(status.getRunning());
+            sinkInstanceStatusData.setRunning(status.isRunning());
             sinkInstanceStatusData.setError(status.getFailureException());
             sinkInstanceStatusData.setNumRestarts(status.getNumRestarts());
             sinkInstanceStatusData.setNumReadFromPulsar(status.getNumReceived());
@@ -471,30 +469,30 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
             sinkInstanceStatusData.setNumSystemExceptions(status.getNumSystemExceptions()
                     + status.getNumUserExceptions() + status.getNumSourceExceptions());
             List<ExceptionInformation> systemExceptionInformationList = new LinkedList<>();
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry :
-                    status.getLatestUserExceptionsList()) {
-                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
+            for (int i = 0; i < status.getLatestUserExceptionsCount(); i++) {
+                ExceptionInformation exceptionInformation =
+                        getExceptionInformation(status.getLatestUserExceptionAt(i));
                 systemExceptionInformationList.add(exceptionInformation);
             }
 
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry :
-                    status.getLatestSystemExceptionsList()) {
-                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
+            for (int i = 0; i < status.getLatestSystemExceptionsCount(); i++) {
+                ExceptionInformation exceptionInformation =
+                        getExceptionInformation(status.getLatestSystemExceptionAt(i));
                 systemExceptionInformationList.add(exceptionInformation);
             }
 
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry :
-                    status.getLatestSourceExceptionsList()) {
-                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
+            for (int i = 0; i < status.getLatestSourceExceptionsCount(); i++) {
+                ExceptionInformation exceptionInformation =
+                        getExceptionInformation(status.getLatestSourceExceptionAt(i));
                 systemExceptionInformationList.add(exceptionInformation);
             }
             sinkInstanceStatusData.setLatestSystemExceptions(systemExceptionInformationList);
 
             sinkInstanceStatusData.setNumSinkExceptions(status.getNumSinkExceptions());
             List<ExceptionInformation> sinkExceptionInformationList = new LinkedList<>();
-            for (InstanceCommunication.FunctionStatus.ExceptionInformation exceptionEntry :
-                    status.getLatestSinkExceptionsList()) {
-                ExceptionInformation exceptionInformation = getExceptionInformation(exceptionEntry);
+            for (int i = 0; i < status.getLatestSinkExceptionsCount(); i++) {
+                ExceptionInformation exceptionInformation =
+                        getExceptionInformation(status.getLatestSinkExceptionAt(i));
                 sinkExceptionInformationList.add(exceptionInformation);
             }
             sinkInstanceStatusData.setLatestSinkExceptions(sinkExceptionInformationList);
@@ -523,10 +521,10 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         public SinkStatus getStatus(final String tenant,
                                     final String namespace,
                                     final String name,
-                                    final Collection<Function.Assignment> assignments,
+                                    final Collection<Assignment> assignments,
                                     final URI uri) throws PulsarAdminException {
             SinkStatus sinkStatus = new SinkStatus();
-            for (Function.Assignment assignment : assignments) {
+            for (Assignment assignment : assignments) {
                 boolean isOwner = worker().getWorkerConfig().getWorkerId().equals(assignment.getWorkerId());
                 SinkStatus.SinkInstanceStatus.SinkInstanceStatusData sinkInstanceStatusData;
                 if (isOwner) {
@@ -601,8 +599,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         }
     }
 
-    private ExceptionInformation getExceptionInformation(InstanceCommunication.FunctionStatus.ExceptionInformation
-                                                                 exceptionEntry) {
+    private ExceptionInformation getExceptionInformation(
+            org.apache.pulsar.functions.proto.FunctionStatus.ExceptionInformation exceptionEntry) {
         ExceptionInformation exceptionInformation =
                 new ExceptionInformation();
         exceptionInformation.setTimestampMs(exceptionEntry.getMsSinceEpoch());
@@ -666,7 +664,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                                   final String componentName,
                                   final AuthenticationParameters authParams) {
         componentStatusRequestValidate(tenant, namespace, componentName, authParams);
-        Function.FunctionMetaData functionMetaData =
+        FunctionMetaData functionMetaData =
                 worker().getFunctionMetaDataManager().getFunctionMetaData(tenant, namespace, componentName);
         return SinkConfigUtils.convertFromDetails(functionMetaData.getFunctionDetails());
     }
@@ -695,7 +693,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         return retval;
     }
 
-    private Function.FunctionDetails validateUpdateRequestParams(final String tenant,
+    private FunctionDetails validateUpdateRequestParams(final String tenant,
                                                                  final String namespace,
                                                                  final String sinkName,
                                                                  final SinkConfig sinkConfig,
@@ -746,7 +744,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                 transformFunctionPackage =
                         getBuiltinFunctionPackage(sinkConfig.getTransformFunction());
                 if (transformFunctionPackage == null) {
-                    File functionPackageFile = getPackageFile(Function.FunctionDetails.ComponentType.FUNCTION,
+                    File functionPackageFile = getPackageFile(FunctionDetails.ComponentType.FUNCTION,
                             sinkConfig.getTransformFunction());
                     transformFunctionPackage =
                             new FunctionFilePackage(functionPackageFile, workerConfig.getNarExtractionDirectory(),

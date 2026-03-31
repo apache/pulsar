@@ -52,6 +52,7 @@ public class AutoCloseUselessClientConProxyTest extends AutoCloseUselessClientCo
     private PulsarClient proxiedClient;
     private AtomicInteger connectionCreationCounter = new AtomicInteger(0);
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void additionalSetup() throws Exception {
         proxyConfig = new ProxyConfiguration();

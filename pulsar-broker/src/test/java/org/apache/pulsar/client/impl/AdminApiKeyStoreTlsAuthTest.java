@@ -66,6 +66,7 @@ import org.testng.annotations.Test;
 public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     private final String clusterName = "test";
     Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+    @SuppressWarnings("deprecation")
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String CLIENTUSER_TOKEN =
             AuthTokenUtils.createToken(SECRET_KEY, "clientuser", Optional.empty());

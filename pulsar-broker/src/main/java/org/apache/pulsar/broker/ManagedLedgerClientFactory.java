@@ -140,16 +140,13 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             }
 
             // find or create bk-client in cache for a specific ensemblePlacementPolicy
+            @SuppressWarnings("unchecked")
+            Optional<Class<? extends EnsemblePlacementPolicy>> policyClass =
+                    (Optional) Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass());
             return bkEnsemblePolicyToBkClientMap.get(ensemblePlacementPolicyConfig,
-                    (config, executor) -> {
-                        @SuppressWarnings("unchecked")
-                        Class<? extends EnsemblePlacementPolicy> policyClass =
-                                (Class<? extends EnsemblePlacementPolicy>)
-                                        ensemblePlacementPolicyConfig.getPolicyClass();
-                        return bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
-                                Optional.ofNullable(policyClass),
-                                ensemblePlacementPolicyConfig.getProperties(), statsLogger);
-                    });
+                    (config, executor) -> bookkeeperProvider.create(conf, metadataStore, eventLoopGroup,
+                            policyClass,
+                            ensemblePlacementPolicyConfig.getProperties(), statsLogger));
         };
 
         try {

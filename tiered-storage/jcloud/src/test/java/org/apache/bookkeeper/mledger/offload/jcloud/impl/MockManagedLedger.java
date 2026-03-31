@@ -342,6 +342,7 @@ public class MockManagedLedger implements ManagedLedger {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void rollCurrentLedgerIfFull() {
 

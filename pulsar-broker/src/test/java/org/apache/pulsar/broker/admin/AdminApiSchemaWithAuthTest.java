@@ -51,6 +51,7 @@ import org.testng.annotations.Test;
 /**
  * Unit tests for schema admin api.
  */
+@SuppressWarnings("deprecation")
 @Slf4j
 @Test(groups = "broker-admin")
 public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {

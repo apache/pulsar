@@ -57,7 +57,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setField4(bar);
         foo.setColor(SchemaTestUtils.Color.RED);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = keyValueSchema.decode(
                 encodeBytes, new byte[10]);
         Assert.assertEquals(keyValue.getKey().getField1(), foo.getField1());
@@ -96,7 +96,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setField4(bar);
         foo.setColor(SchemaTestUtils.Color.RED);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl) keyValueSchema).decode(
                 fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());
@@ -125,7 +125,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setField4(bar);
         foo.setColor(SchemaTestUtils.Color.RED);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = keyValueSchema.decode(
                 encodeBytes, new byte[10]);
         Assert.assertEquals(keyValue.getKey().getField1(), foo.getField1());
@@ -159,7 +159,7 @@ public class SupportVersioningKeyValueSchemaTest {
         foo.setField4(bar);
         foo.setColor(SchemaTestUtils.Color.RED);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar> keyValue = ((KeyValueSchemaImpl) keyValueSchema).decode(
                 fooSchema.encode(foo), encodeBytes, new byte[10]);
         Assert.assertTrue(keyValue.getValue().isField1());

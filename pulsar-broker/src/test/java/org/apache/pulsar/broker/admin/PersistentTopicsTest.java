@@ -644,6 +644,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 Response.Status.PRECONDITION_FAILED.getStatusCode());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testCreatePartitionedTopicHavingNonPartitionTopicWithPartitionSuffix()
             throws KeeperException, InterruptedException {
@@ -1406,6 +1407,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetMessageById() throws Exception {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
@@ -1444,6 +1446,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetMessageById4SpecialPropsInMsg() throws Exception {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));

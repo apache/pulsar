@@ -221,6 +221,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
                                 .withPojo(Schemas.PersonThree.class).build()))
                 .topic(topicName).create();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testUpdateSchemaCompatibilityStrategyRepeatedly()

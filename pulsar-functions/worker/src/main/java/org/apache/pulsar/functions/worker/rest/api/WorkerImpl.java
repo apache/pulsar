@@ -43,7 +43,8 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -119,9 +120,9 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         throwIfNotSuperUser(authParams, "get cluster assignments");
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-        Map<String, Map<String, Function.Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
+        Map<String, Map<String, Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
         Map<String, Collection<String>> ret = new HashMap<>();
-        for (Map.Entry<String, Map<String, Function.Assignment>> entry : assignments.entrySet()) {
+        for (Map.Entry<String, Map<String, Assignment>> entry : assignments.entrySet()) {
             ret.put(entry.getKey(), entry.getValue().keySet());
         }
         return ret;
@@ -173,7 +174,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
 
             if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
-                Function.FunctionDetails functionDetails =
+                FunctionDetails functionDetails =
                         functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
                 int parallelism = functionDetails.getParallelism();
                 for (int i = 0; i < parallelism; ++i) {

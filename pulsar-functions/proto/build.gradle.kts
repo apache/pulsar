@@ -18,32 +18,14 @@
  */
 
 plugins {
-    alias(libs.plugins.protobuf)
+    id("pulsar.java-conventions")
+    alias(libs.plugins.lightproto)
 }
 
 dependencies {
-    implementation(libs.protobuf.java)
+    implementation(libs.netty.buffer)
     implementation(libs.grpc.all) {
         exclude(group = "io.netty")
     }
     runtimeOnly(libs.perfmark.api)
-}
-
-protobuf {
-    protoc {
-        val protocVersion = providers.gradleProperty("protobufVersion").getOrElse(libs.versions.protobuf.get())
-        artifact = "com.google.protobuf:protoc:$protocVersion"
-    }
-    plugins {
-        create("grpc") {
-            artifact = "io.grpc:protoc-gen-grpc-java:${libs.versions.grpc.get()}"
-        }
-    }
-    generateProtoTasks {
-        all().forEach { task ->
-            task.plugins {
-                create("grpc")
-            }
-        }
-    }
 }

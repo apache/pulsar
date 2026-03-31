@@ -18,6 +18,7 @@
  */
 
 plugins {
+    id("pulsar.java-conventions")
     alias(libs.plugins.lightproto)
 }
 

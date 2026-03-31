@@ -61,6 +61,7 @@ public class AuditorCheckAllLedgersTaskTest extends BookKeeperClusterTestCase {
         baseConf.setAutoRecoveryDaemonEnabled(false);
     }
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     @Override
     public void setUp() throws Exception {

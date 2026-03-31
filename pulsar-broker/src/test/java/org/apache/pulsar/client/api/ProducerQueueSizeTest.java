@@ -37,6 +37,7 @@ public class ProducerQueueSizeTest extends SharedPulsarBaseTest {
                 {Boolean.TRUE, Boolean.TRUE},
         };
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "matrix")
     public void testRemoveMaxQueueLimit(boolean blockIfQueueFull, boolean partitioned) throws Exception {

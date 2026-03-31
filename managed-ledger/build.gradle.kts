@@ -18,6 +18,7 @@
  */
 
 plugins {
+    id("pulsar.java-conventions")
     alias(libs.plugins.lightproto)
 }
 
@@ -25,9 +26,7 @@ dependencies {
     api(project(":pulsar-common"))
     api(project(":pulsar-metadata"))
     implementation(project(":pulsar-opentelemetry"))
-    implementation(libs.bookkeeper.server) {
-        exclude(group = "org.slf4j")
-    }
+    implementation(libs.bookkeeper.server)
     implementation(libs.guava)
     implementation(libs.roaringbitmap)
     implementation(libs.jctools.core)
@@ -42,5 +41,4 @@ dependencies {
     testImplementation(libs.opentelemetry.sdk.testing)
     testImplementation(libs.opentelemetry.sdk.extension.autoconfigure)
     testImplementation(libs.zookeeper) { artifact { classifier = "tests" } }
-    testImplementation(project(path = ":", configuration = "filteredBkServerTestJar"))
 }

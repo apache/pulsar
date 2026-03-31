@@ -36,9 +36,9 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
+import org.apache.pulsar.functions.proto.MetricsData;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -91,7 +91,7 @@ public class ThreadRuntime implements Runtime {
                   Optional<ConnectorsManager> connectorsManager,
                   Optional<FunctionsManager> functionsManager) {
         this.instanceConfig = instanceConfig;
-        if (instanceConfig.getFunctionDetails().getRuntime() != Function.FunctionDetails.Runtime.JAVA) {
+        if (instanceConfig.getFunctionDetails().getRuntime() != FunctionDetails.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
         }
 
@@ -118,20 +118,20 @@ public class ThreadRuntime implements Runtime {
                                                       FunctionCacheManager fnCache,
                                                       Optional<ConnectorsManager> connectorsManager,
                                                       Optional<FunctionsManager> functionsManager,
-                                                      Function.FunctionDetails.ComponentType componentType)
+                                                      FunctionDetails.ComponentType componentType)
             throws Exception {
         if (FunctionCommon.isFunctionCodeBuiltin(instanceConfig.getFunctionDetails(), componentType)) {
-            if (componentType == Function.FunctionDetails.ComponentType.FUNCTION && functionsManager.isPresent()) {
+            if (componentType == FunctionDetails.ComponentType.FUNCTION && functionsManager.isPresent()) {
                 return functionsManager.get()
                         .getFunction(instanceConfig.getFunctionDetails().getBuiltin())
                         .getFunctionPackage().getClassLoader();
             }
-            if (componentType == Function.FunctionDetails.ComponentType.SOURCE && connectorsManager.isPresent()) {
+            if (componentType == FunctionDetails.ComponentType.SOURCE && connectorsManager.isPresent()) {
                 return connectorsManager.get()
                         .getConnector(instanceConfig.getFunctionDetails().getSource().getBuiltin())
                         .getConnectorFunctionPackage().getClassLoader();
             }
-            if (componentType == Function.FunctionDetails.ComponentType.SINK && connectorsManager.isPresent()) {
+            if (componentType == FunctionDetails.ComponentType.SINK && connectorsManager.isPresent()) {
                 return connectorsManager.get()
                         .getConnector(instanceConfig.getFunctionDetails().getSink().getBuiltin())
                         .getConnectorFunctionPackage().getClassLoader();
@@ -203,7 +203,7 @@ public class ThreadRuntime implements Runtime {
 
         ClassLoader transformFunctionClassLoader = transformFunctionFile == null ? null : getFunctionClassLoader(
                 instanceConfig, instanceConfig.getTransformFunctionId(), transformFunctionFile, narExtractionDirectory,
-                fnCache, connectorsManager, functionsManager, Function.FunctionDetails.ComponentType.FUNCTION);
+                fnCache, connectorsManager, functionsManager, FunctionDetails.ComponentType.FUNCTION);
 
         // re-initialize JavaInstanceRunnable so that variables in constructor can be re-initialized
         this.javaInstanceRunnable = new JavaInstanceRunnable(
@@ -277,29 +277,29 @@ public class ThreadRuntime implements Runtime {
     public CompletableFuture<FunctionStatus> getFunctionStatus(int instanceId) {
         CompletableFuture<FunctionStatus> statsFuture = new CompletableFuture<>();
         if (!isAlive()) {
-            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
-            functionStatusBuilder.setRunning(false);
+            FunctionStatus functionStatus = new FunctionStatus();
+            functionStatus.setRunning(false);
             Throwable ex = getDeathException();
             if (ex != null && ex.getMessage() != null) {
-                functionStatusBuilder.setFailureException(ex.getMessage());
+                functionStatus.setFailureException(ex.getMessage());
             }
-            statsFuture.complete(functionStatusBuilder.build());
+            statsFuture.complete(functionStatus);
             return statsFuture;
         }
-        FunctionStatus.Builder functionStatusBuilder = javaInstanceRunnable.getFunctionStatus();
-        functionStatusBuilder.setRunning(true);
-        statsFuture.complete(functionStatusBuilder.build());
+        FunctionStatus functionStatus = javaInstanceRunnable.getFunctionStatus();
+        functionStatus.setRunning(true);
+        statsFuture.complete(functionStatus);
         return statsFuture;
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
+    public CompletableFuture<MetricsData> getAndResetMetrics() {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getAndResetMetrics());
     }
 
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
+    public CompletableFuture<MetricsData> getMetrics(int instanceId) {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getMetrics());
     }
 

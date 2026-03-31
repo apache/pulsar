@@ -99,6 +99,7 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private List<TopicName> createAndLoadTopics(boolean isPartition, int partitionCount)
             throws PulsarAdminException, PulsarClientException {
         String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);

@@ -360,7 +360,7 @@ public class AsyncSemaphoreImplTest {
         }
 
         // Wait for all threads to complete
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
                 .get(30, TimeUnit.SECONDS);
     }
 

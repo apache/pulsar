@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     compileOnly(project(":pulsar-common")) {
         exclude(group = "io.prometheus", module = "simpleclient_caffeine")

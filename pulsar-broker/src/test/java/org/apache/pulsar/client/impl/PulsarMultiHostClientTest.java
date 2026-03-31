@@ -51,6 +51,7 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
     public void setTestMethodName(Method m) {
         methodName = m.getName();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testGetPartitionedTopicMetaData() {
@@ -79,6 +80,7 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
 
         log.info("-- Exiting {} test --", methodName);
     }
+    @SuppressWarnings("deprecation")
 
     @Test (timeOut = 15000)
     public void testGetPartitionedTopicDataTimeout() {
@@ -113,6 +115,7 @@ public class PulsarMultiHostClientTest extends SharedPulsarBaseTest {
             throw new UncheckedIOException(e);
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testMultiHostUrlRetrySuccess() throws Exception {

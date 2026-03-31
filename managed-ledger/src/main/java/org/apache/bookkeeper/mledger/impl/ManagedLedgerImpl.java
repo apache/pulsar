@@ -395,7 +395,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.entryCache = factory.getEntryCacheManager().getEntryCache(this);
         this.waitingCursors = Queues.newConcurrentLinkedQueue();
         this.waitingEntryCallBacks = Queues.newConcurrentLinkedQueue();
-        this.uninitializedCursors = new HashMap();
+        this.uninitializedCursors = new HashMap<>();
         this.clock = config.getClock();
 
         // Get the next rollover time. Add a random value upto 5% to avoid rollover multiple ledgers at the same time
@@ -435,7 +435,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
 
                 if (mlInfo.getPropertiesCount() > 0) {
-                    propertiesMap = new HashMap();
+                    propertiesMap = new HashMap<>();
                     for (int i = 0; i < mlInfo.getPropertiesCount(); i++) {
                         KeyValue property = mlInfo.getPropertyAt(i);
                         propertiesMap.put(property.getKey(), property.getValue());
@@ -1700,7 +1700,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void closeAllCursors(CloseCallback callback, final Object ctx) {
         // Close all cursors in parallel
-        List<CompletableFuture<Void>> futures = new ArrayList();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (ManagedCursor cursor : cursors) {
             Futures.CloseFuture closeFuture = new Futures.CloseFuture();
             cursor.asyncClose(closeFuture, null);
@@ -3024,7 +3024,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             long slowestReaderLedgerId = -1;
             final LazyLoadableValue<Long> slowestNonDurationLedgerId =
-                    new LazyLoadableValue(() -> getTheSlowestNonDurationReadPosition().getLedgerId());
+                    new LazyLoadableValue<>(() -> getTheSlowestNonDurationReadPosition().getLedgerId());
             final long retentionSizeInMB = config.getRetentionSizeInMB();
             final long retentionTimeMs = config.getRetentionTimeMillis();
             final long totalSizeOfML = TOTAL_SIZE_UPDATER.get(this);
@@ -4607,7 +4607,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
-        ScheduledFuture timeoutChecker = scheduledExecutor.schedule(() -> {
+        ScheduledFuture<?> timeoutChecker = scheduledExecutor.schedule(() -> {
             if (!ledgerFutureHook.isDone()
                     && ledgerFutureHook.completeExceptionally(new TimeoutException(name + " Create ledger timeout"))) {
                 if (log.isDebugEnabled()) {
@@ -4634,10 +4634,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * check if ledger-op task is already completed by timeout-task. If completed then delete the created ledger
      * @return
      */
+    @SuppressWarnings("unchecked")
     protected boolean checkAndCompleteLedgerOpTask(int rc, LedgerHandle lh, Object ctx) {
         if (ctx instanceof CompletableFuture) {
             // ledger-creation is already timed out and callback is already completed so, delete this ledger and return.
-            if (((CompletableFuture) ctx).complete(lh) || rc == BKException.Code.TimeoutException) {
+            if (((CompletableFuture<LedgerHandle>) ctx).complete(lh) || rc == BKException.Code.TimeoutException) {
                 return false;
             } else {
                 if (rc == BKException.Code.OK) {
@@ -4861,7 +4862,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // after the managed ledger is deleted.
     private CompletableFuture<Void> asyncTruncate(boolean ignoreCursorFailure) {
 
-        final List<CompletableFuture<Void>> futures = new ArrayList();
+        final List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (ManagedCursor cursor : cursors) {
             final CompletableFuture<Void> future = new CompletableFuture<>();
             cursor.asyncClearBacklog(new AsyncCallbacks.ClearBacklogCallback() {
@@ -4882,7 +4883,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }, null);
             futures.add(future);
         }
-        CompletableFuture<Void> future = new CompletableFuture();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         FutureUtil.waitForAll(futures).thenAccept(p -> {
             internalTrimLedgers(true, future);
         }).exceptionally(e -> {
@@ -4914,7 +4915,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         stats.lastConfirmedEntry = this.getLastConfirmedEntry().toString();
         stats.state = this.getState().toString();
 
-        stats.cursors = new HashMap();
+        stats.cursors = new HashMap<>();
         this.getCursors().forEach(c -> {
             ManagedCursorImpl cursor = (ManagedCursorImpl) c;
             PersistentTopicInternalStats.CursorStats cs = new PersistentTopicInternalStats.CursorStats();
@@ -4940,7 +4941,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         List<LedgerInfo> ledgersInfos = new ArrayList<>(this.getLedgersInfo().values());
 
         // add asynchronous metadata retrieval operations to a hashmap
-        Map<Long, CompletableFuture<LedgerMetadata>> ledgerMetadataFutures = new HashMap();
+        Map<Long, CompletableFuture<LedgerMetadata>> ledgerMetadataFutures = new HashMap<>();
         if (includeLedgerMetadata) {
             ledgersInfos.forEach(li -> {
                 long ledgerId = li.getLedgerId();

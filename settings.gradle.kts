@@ -22,6 +22,7 @@ pluginManagement {
         gradlePluginPortal()
         mavenCentral()
     }
+    includeBuild("build-logic")
 }
 
 dependencyResolutionManagement {
@@ -40,8 +41,7 @@ dependencyResolutionManagement {
 rootProject.name = "pulsar"
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Core modules (equivalent to Maven -Pcore-modules)
-// Build only these with: ./gradlew assemble -PcoreModules
+// Core modules
 // ──────────────────────────────────────────────────────────────────────────────
 
 // Enforced platform for dependency version management (Maven dependencyManagement equivalent)
@@ -187,78 +187,64 @@ include("distribution:pulsar-server-distribution")
 project(":distribution:pulsar-server-distribution").projectDir = file("distribution/server")
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Extra modules (excluded when building with -PcoreModules)
+// Extra modules
 // ──────────────────────────────────────────────────────────────────────────────
 
-if (!settings.extra.has("coreModules")) {
-    // Functions — localrun-shaded (not in Maven core-modules)
-    include("pulsar-functions:pulsar-functions-local-runner-shaded")
-    project(":pulsar-functions:pulsar-functions-local-runner-shaded").projectDir = file("pulsar-functions/localrun-shaded")
+// Functions — localrun-shaded
+include("pulsar-functions:pulsar-functions-local-runner-shaded")
+project(":pulsar-functions:pulsar-functions-local-runner-shaded").projectDir = file("pulsar-functions/localrun-shaded")
 
-    // Tiered storage
-    include("jclouds-shaded")
-    include("tiered-storage:tiered-storage-jcloud")
-    project(":tiered-storage:tiered-storage-jcloud").projectDir = file("tiered-storage/jcloud")
-    include("tiered-storage:tiered-storage-file-system")
-    project(":tiered-storage:tiered-storage-file-system").projectDir = file("tiered-storage/file-system")
+// Tiered storage
+include("jclouds-shaded")
+include("tiered-storage:tiered-storage-jcloud")
+project(":tiered-storage:tiered-storage-jcloud").projectDir = file("tiered-storage/jcloud")
+include("tiered-storage:tiered-storage-file-system")
+project(":tiered-storage:tiered-storage-file-system").projectDir = file("tiered-storage/file-system")
 
-    // Athenz auth
-    include("pulsar-broker-auth-athenz")
-    include("pulsar-client-auth-athenz")
+// Athenz auth
+include("pulsar-broker-auth-athenz")
+include("pulsar-client-auth-athenz")
 
-    // Distribution — extra (shell, offloaders)
-    include("distribution:pulsar-shell-distribution")
-    project(":distribution:pulsar-shell-distribution").projectDir = file("distribution/shell")
-    include("distribution:pulsar-offloader-distribution")
-    project(":distribution:pulsar-offloader-distribution").projectDir = file("distribution/offloaders")
+// Distribution — extra (shell, offloaders)
+include("distribution:pulsar-shell-distribution")
+project(":distribution:pulsar-shell-distribution").projectDir = file("distribution/shell")
+include("distribution:pulsar-offloader-distribution")
+project(":distribution:pulsar-offloader-distribution").projectDir = file("distribution/offloaders")
 
-    // Misc
-    include("microbench")
-}
+// Misc
+include("microbench")
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Docker modules (enabled with -Pdocker)
+// Docker modules
 // ──────────────────────────────────────────────────────────────────────────────
 
-// Also auto-enable when running docker-related tasks (e.g., ./gradlew docker)
-val dockerRequested = settings.extra.has("docker") ||
-    gradle.startParameter.taskNames.any { it.contains("docker", ignoreCase = true) }
-if (dockerRequested) {
-    include("docker:pulsar-docker-image")
-    project(":docker:pulsar-docker-image").projectDir = file("docker/pulsar")
+include("docker:pulsar-docker-image")
+project(":docker:pulsar-docker-image").projectDir = file("docker/pulsar")
 
-    // Test Docker images
-    include("tests:java-test-functions")
-    project(":tests:java-test-functions").projectDir = file("tests/docker-images/java-test-functions")
-    include("tests:java-test-plugins")
-    project(":tests:java-test-plugins").projectDir = file("tests/docker-images/java-test-plugins")
-    include("tests:java-test-image")
-    project(":tests:java-test-image").projectDir = file("tests/docker-images/java-test-image")
-    include("tests:latest-version-image")
-    project(":tests:latest-version-image").projectDir = file("tests/docker-images/latest-version-image")
-}
+// Test Docker images
+include("tests:java-test-functions")
+project(":tests:java-test-functions").projectDir = file("tests/docker-images/java-test-functions")
+include("tests:java-test-plugins")
+project(":tests:java-test-plugins").projectDir = file("tests/docker-images/java-test-plugins")
+include("tests:java-test-image")
+project(":tests:java-test-image").projectDir = file("tests/docker-images/java-test-image")
+include("tests:latest-version-image")
+project(":tests:latest-version-image").projectDir = file("tests/docker-images/latest-version-image")
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Integration test modules (enabled with -PintegrationTests)
+// Integration test modules
 // ──────────────────────────────────────────────────────────────────────────────
 
-val integrationTestsRequested = settings.extra.has("integrationTests") ||
-    gradle.startParameter.taskNames.any { it.contains("integrationTest", ignoreCase = false) }
-if (integrationTestsRequested) {
-    include("tests:integration")
-    project(":tests:integration").projectDir = file("tests/integration")
-}
+include("tests:integration")
+project(":tests:integration").projectDir = file("tests/integration")
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Shade test modules (only included when their tasks are invoked)
+// Shade test modules
 // ──────────────────────────────────────────────────────────────────────────────
 
-val shadeTestsRequested = gradle.startParameter.taskNames.any { it.contains("shade-test") }
-if (shadeTestsRequested) {
-    include("tests:pulsar-client-shade-test")
-    project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
-    include("tests:pulsar-client-admin-shade-test")
-    project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")
-    include("tests:pulsar-client-all-shade-test")
-    project(":tests:pulsar-client-all-shade-test").projectDir = file("tests/pulsar-client-all-shade-test")
-}
+include("tests:pulsar-client-shade-test")
+project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
+include("tests:pulsar-client-admin-shade-test")
+project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")
+include("tests:pulsar-client-all-shade-test")
+project(":tests:pulsar-client-all-shade-test").projectDir = file("tests/pulsar-client-all-shade-test")

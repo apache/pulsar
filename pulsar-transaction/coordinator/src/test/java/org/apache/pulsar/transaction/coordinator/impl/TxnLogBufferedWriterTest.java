@@ -197,7 +197,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
          *   2. Store the param-context and param-position of callback function for verify.
          */
         // Create TxLogBufferedWriter.
-        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<Integer>(
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<>(
                     managedLedger, ((ManagedLedgerImpl) managedLedger).getExecutor(), transactionTimer,
                     dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
                     batchedWriteMaxDelayInMillis, batchEnabled, DISABLED_BUFFERED_WRITER_METRICS);
@@ -397,7 +397,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
         // Cache the data flush to Bookie for Asserts.
         List<Integer> dataArrayFlushedToBookie = Collections.synchronizedList(new ArrayList<>());
-        Mockito.doAnswer(new Answer() {
+        Mockito.doAnswer(new Answer<Object>() {
             @Override
             @SuppressWarnings("unchecked")
             public Object answer(InvocationOnMock invocation) throws Throwable {
@@ -914,6 +914,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     @SuppressWarnings("unchecked")
     public void testFailWhenAddData() throws Exception {
         int batchedWriteMaxSize = 1024;
+        @SuppressWarnings("rawtypes")
         TxnLogBufferedWriter.DataSerializer dataSerializer =
                 new WrongDataSerializer(batchedWriteMaxSize, true, true, true);
         int writeCount = 100;
@@ -1032,7 +1033,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         AtomicInteger writeCounter = new AtomicInteger();
         ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
         Mockito.when(managedLedger.getName()).thenReturn(mlName);
-        Mockito.doAnswer(new Answer() {
+        Mockito.doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 writeCounter.incrementAndGet();

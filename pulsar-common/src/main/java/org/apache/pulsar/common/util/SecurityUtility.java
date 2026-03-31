@@ -169,11 +169,11 @@ public class SecurityUtility {
             HostnameVerifier hostnameVerifier = new TlsHostnameVerifier();
             Object wrappedHostnameVerifier = conscryptClazz
                     .getMethod("wrapHostnameVerifier",
-                            new Class[]{HostnameVerifier.class}).invoke(null, hostnameVerifier);
+                            new Class<?>[]{HostnameVerifier.class}).invoke(null, hostnameVerifier);
             Method setDefaultHostnameVerifierMethod =
                     conscryptClazz
                             .getMethod("setDefaultHostnameVerifier",
-                                    new Class[]{Class.forName("org.conscrypt.ConscryptHostnameVerifier")});
+                                    new Class<?>[]{Class.forName("org.conscrypt.ConscryptHostnameVerifier")});
             setDefaultHostnameVerifierMethod.invoke(null, wrappedHostnameVerifier);
         } catch (Exception e) {
             log.warn("Unable to set default hostname verifier for Conscrypt", e);
@@ -191,7 +191,7 @@ public class SecurityUtility {
      * Throw Exception if failed.
      */
     public static Provider getBCProviderFromClassPath() throws Exception {
-        Class clazz;
+        Class<?> clazz;
         try {
             // prefer non FIPS, for backward compatibility concern.
             clazz = Class.forName(BC_NON_FIPS_PROVIDER_CLASS);
@@ -427,12 +427,12 @@ public class SecurityUtility {
             try {
                 Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
                 Object hostnameVerifier = conscryptClazz.getMethod("getHostnameVerifier",
-                        new Class[]{TrustManager.class}).invoke(null, trustManager);
+                        new Class<?>[]{TrustManager.class}).invoke(null, trustManager);
                 if (hostnameVerifier == null) {
                     Object defaultHostnameVerifier = conscryptClazz.getMethod("getDefaultHostnameVerifier",
-                            new Class[]{TrustManager.class}).invoke(null, trustManager);
+                            new Class<?>[]{TrustManager.class}).invoke(null, trustManager);
                     if (defaultHostnameVerifier != null) {
-                        conscryptClazz.getMethod("setHostnameVerifier", new Class[]{
+                        conscryptClazz.getMethod("setHostnameVerifier", new Class<?>[]{
                                 TrustManager.class,
                                 Class.forName("org.conscrypt.ConscryptHostnameVerifier")
                         }).invoke(null, trustManager, defaultHostnameVerifier);
@@ -470,6 +470,7 @@ public class SecurityUtility {
                 inStream.reset();
             }
             cf = CertificateFactory.getInstance("X.509");
+            @SuppressWarnings("unchecked") // CertificateFactory.getInstance("X.509") returns X509Certificate instances
             Collection<X509Certificate> collection = (Collection<X509Certificate>) cf.generateCertificates(inStream);
             return collection.toArray(new X509Certificate[collection.size()]);
         } catch (CertificateException | IOException e) {

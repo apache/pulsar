@@ -187,37 +187,37 @@ There is also a guide for [setting up the tooling for building Pulsar](https://p
 Compile and assemble:
 
 ```bash
-$ ./gradlew assemble
+./gradlew assemble
+```
+
+Check source code license headers and formatting:
+
+```bash
+./gradlew rat spotlessCheck checkstyleMain checkstyleTest
 ```
 
 Compile and assemble individual module:
 
 ```bash
-$ ./gradlew :pulsar-broker:assemble
-```
-
-### Minimal build (core modules only, skips external connectors and tiered storage handlers)
-
-```bash
-$ ./gradlew assemble -PcoreModules
+./gradlew :pulsar-broker:assemble
 ```
 
 Run Unit Tests:
 
 ```bash
-$ ./gradlew test
+./gradlew test
 ```
 
 Run Individual Unit Test:
 
 ```bash
-$ ./gradlew :pulsar-client-original:test --tests "ConsumerBuilderImplTest"
+./gradlew :pulsar-client-original:test --tests "ConsumerBuilderImplTest"
 ```
 
 Run Selected Test packages:
 
 ```bash
-$ ./gradlew :pulsar-broker:test --tests "org.apache.pulsar.*"
+./gradlew :pulsar-broker:test --tests "org.apache.pulsar.*"
 ```
 
 Start standalone Pulsar service:
@@ -239,7 +239,7 @@ Here are some general instructions for building custom docker images:
 The following command builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`:
 
 ```bash
-$ ./gradlew docker-all
+./gradlew docker-all
 ```
 
 After the images are built, they can be tagged and pushed to your custom repository. Here's an example of a bash script that tags the docker images with the current version and git revision and pushes them to `localhost:32000/apachepulsar`.

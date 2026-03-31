@@ -52,7 +52,7 @@ import org.testng.annotations.Test;
 
 public class ProducerBuilderFactoryTest {
     private PulsarClient pulsarClient;
-    private ProducerBuilder producerBuilder;
+    private ProducerBuilder<?> producerBuilder;
 
     @BeforeMethod
     @SuppressWarnings("unchecked")
@@ -129,6 +129,7 @@ public class ProducerBuilderFactoryTest {
         verifyNoMoreInteractions(producerBuilder);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testCreateProducerBuilderWithAdvancedProducerConfig() {
         ProducerConfig producerConfig = new ProducerConfig();
@@ -181,6 +182,7 @@ public class ProducerBuilderFactoryTest {
         verifyNoMoreInteractions(producerBuilder);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testCreateProducerBuilderWithBatchingDisabled() {
         ProducerConfig producerConfig = new ProducerConfig();

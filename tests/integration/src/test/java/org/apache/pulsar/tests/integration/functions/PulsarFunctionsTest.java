@@ -629,7 +629,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             // java and python supports schema
-            publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
+            publishAndConsumeLogMessages(inputTopicName, outputTopicName, numMessages);
         } else {
             // Does Go support schema? Maybe we need a switch instead for the Go case.
 
@@ -764,7 +764,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // publish and consume result
         if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             // java supports schema
-            publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
+            publishAndConsumeLogMessages(inputTopicName, outputTopicName, numMessages);
         } else {
             // golang doesn't support schema
             publishAndConsumeMessagesBytes(inputTopicName, outputTopicName, numMessages);
@@ -1414,9 +1414,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(totalMessagesSuccessfullyProcessed, numMessages);
     }
 
-    private void publishAndConsumeMessages(String inputTopic,
-                                           String outputTopic,
-                                           int numMessages) throws Exception {
+    private void publishAndConsumeLogMessages(String inputTopic,
+                                              String outputTopic,
+                                              int numMessages) throws Exception {
         @Cleanup PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
@@ -1776,7 +1776,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 Collections.singletonMap("publish-topic", outputTopicName), null, null, null, null, null, null);
 
         // publish and consume result
-        publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
+        publishAndConsumeLogMessages(inputTopicName, outputTopicName, numMessages);
 
         // delete function
         deleteFunction(functionName);
@@ -1806,6 +1806,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
             admin.topics().createNonPartitionedTopic(inputTopicName);
             admin.topics().createNonPartitionedTopic(logTopicName);
+            admin.topics().createSubscription(logTopicName, "test-sub", MessageId.earliest);
         }
 
         String functionName = "test-logging-fn-" + randomName(8);
@@ -1823,7 +1824,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         try {
             // publish and consume result
-            publishAndConsumeMessages(inputTopicName, logTopicName, numMessages, "-log");
+            publishAndConsumeLogMessages(inputTopicName, logTopicName, numMessages, "-log");
         } finally {
             // dump function logs so that it's easier to investigate failures
             pulsarCluster.dumpFunctionLogs(functionName);
@@ -1875,10 +1876,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStdout().contains("Created successfully"));
     }
 
-    private void publishAndConsumeMessages(String inputTopic,
-                                           String outputTopic,
-                                           int numMessages,
-                                           String messagePostfix) throws Exception {
+    private void publishAndConsumeLogMessages(String inputTopic,
+                                              String outputTopic,
+                                              int numMessages,
+                                              String messagePostfix) throws Exception {
         @Cleanup PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build();
@@ -1902,7 +1903,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             expectedMessages.add("message-" + i + messagePostfix);
         }
 
-        for (int i = 0; i < numMessages; i++) {
+        int i = 0;
+        while (i < numMessages) {
             Message<byte[]> msg = consumer.receive(30, TimeUnit.SECONDS);
             if (msg == null) {
                 log.info("Input topic stats: {}",
@@ -1920,9 +1922,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             } else {
                 String logMsg = new String(msg.getValue(), UTF_8);
                 log.info("Received message: '{}'", logMsg);
-                assertTrue(expectedMessages.contains(logMsg), "Message '" + logMsg + "' not expected");
-                expectedMessages.remove(logMsg);
+                if (logMsg.endsWith(messagePostfix)) {
+                    assertTrue(expectedMessages.contains(logMsg), "Message '" + logMsg + "' not expected");
+                    expectedMessages.remove(logMsg);
+                } else {
+                    // logs contain everything that gets logged, just ignore other messages
+                    log.info("Skipping unrelated log message: '{}'", logMsg);
+                    continue;
+                }
             }
+            i++;
         }
 
         consumer.close();

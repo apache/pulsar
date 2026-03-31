@@ -94,6 +94,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
             return "BasicAuthentication";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public AuthenticationDataProvider getAuthData() throws PulsarClientException {
             try {
@@ -103,6 +104,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
             }
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             this.authParam = authParams.get("authParam");
@@ -120,6 +122,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }
@@ -129,6 +132,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
             return "BasicAuthentication";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             if (authData.hasDataFromCommand()) {

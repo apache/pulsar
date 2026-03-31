@@ -175,11 +175,13 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         messageDispatchCount.incrementAndGet();
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void messageAcked(ServerCnx cnx, Consumer consumer,
                               CommandAck ack) {
         messageAckCount.incrementAndGet();
     }
+    @SuppressWarnings("deprecation")
 
     @Override
     public void beforeSendMessage(Subscription subscription,

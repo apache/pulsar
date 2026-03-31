@@ -52,6 +52,7 @@ public class TokensCliUtilsTest {
                 {"1y", 31536000}
         };
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCreateToken() {
@@ -91,6 +92,7 @@ public class TokensCliUtilsTest {
             System.setOut(oldStream);
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "desiredExpireTime")
     public void commandCreateToken_WhenCreatingATokenWithExpiryTime_ShouldHaveTheDesiredExpireTime(String expireTime,

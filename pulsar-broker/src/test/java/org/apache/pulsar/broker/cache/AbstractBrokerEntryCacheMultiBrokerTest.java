@@ -256,6 +256,7 @@ public abstract class AbstractBrokerEntryCacheMultiBrokerTest extends MultiBroke
     }
 
 
+    @SuppressWarnings("deprecation")
     protected PulsarClientImpl createPulsarClient(EventLoopGroup eventLoopGroup, LongSupplier connectionDelaySupplier)
             throws Exception {
         return InjectedClientCnxClientBuilder.builder()

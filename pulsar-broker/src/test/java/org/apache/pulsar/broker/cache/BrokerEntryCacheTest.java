@@ -161,6 +161,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers on the tail (reading from latest)
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -301,6 +302,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
     }
 
     // change enabled to true to run the test
+    @SuppressWarnings("deprecation")
     @Test(enabled = false)
     @SuppressWarnings("unchecked")
     public void testCatchUpReadsWithFailureProxyDisconnectingAllConnections() throws Exception {
@@ -333,6 +335,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers in paused state with receiver queue size of 50
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -494,6 +497,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers on the tail (reading from latest)
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -606,6 +610,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers on the tail (reading from latest)
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)

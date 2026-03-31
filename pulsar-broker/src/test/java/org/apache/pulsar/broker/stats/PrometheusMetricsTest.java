@@ -112,6 +112,7 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker")
 public class PrometheusMetricsTest extends BrokerTestBase {
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -1555,6 +1556,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
         return null;
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testAuthMetrics() throws IOException, AuthenticationException {
@@ -1619,6 +1621,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
         Assert.assertTrue(haveFailed);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testExpiredTokenMetrics() throws Exception {
@@ -1662,6 +1665,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         provider.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testExpiringTokenMetrics() throws Exception {

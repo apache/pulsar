@@ -361,6 +361,7 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         message = retryTopicConsumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 60000)
     public void testRetryTopicProperties() throws Exception {

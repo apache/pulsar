@@ -96,7 +96,7 @@ public class PersistentTopicProtectedMethodsTest extends ProducerConsumerBase {
             // moving the cursor's mark-delete position past the LAC (e.g., 10:-1 vs 9:1).
             assertTrue(cursor.getMarkDeletedPosition().compareTo(ml.getLastConfirmedEntry()) >= 0);
         });
-        CompletableFuture completableFuture = new CompletableFuture();
+        CompletableFuture completableFuture = new CompletableFuture<>();
         ml.trimConsumedLedgersInBackground(completableFuture);
         completableFuture.join();
         Awaitility.await().untilAsserted(() -> {

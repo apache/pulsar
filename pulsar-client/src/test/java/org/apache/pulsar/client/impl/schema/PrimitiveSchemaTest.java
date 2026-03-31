@@ -56,7 +56,7 @@ public class PrimitiveSchemaTest {
         // we are not using a static initialization block, see here:
         // https://github.com/apache/pulsar/issues/11037
 
-        final Map<Schema, List<Object>> testData = new HashMap() {
+        final Map<Schema<?>, List<Object>> testData = new HashMap<>() {
             {
                 put(BooleanSchema.of(), Arrays.asList(false, true));
                 put(StringSchema.utf8(), Arrays.asList("my string"));
@@ -83,7 +83,7 @@ public class PrimitiveSchemaTest {
             }
         };
 
-        final Map<Schema, List<Object>> testData2 = new HashMap() {
+        final Map<Schema<?>, List<Object>> testData2 = new HashMap<>() {
             {
                 put(Schema.BOOL, Arrays.asList(false, true));
                 put(Schema.STRING, Arrays.asList("my string"));
@@ -109,10 +109,10 @@ public class PrimitiveSchemaTest {
             }
         };
 
-        for (Schema schema : testData.keySet()) {
+        for (Schema<?> schema : testData.keySet()) {
             assertNotNull(schema);
         }
-        for (Schema schema : testData2.keySet()) {
+        for (Schema<?> schema : testData2.keySet()) {
             assertNotNull(schema);
         }
 
@@ -120,7 +120,7 @@ public class PrimitiveSchemaTest {
     }
 
     @Test(dataProvider = "schemas")
-    public void allSchemasShouldSupportNull(Map<Schema, List<Object>> testData) {
+    public void allSchemasShouldSupportNull(Map<Schema<?>, List<Object>> testData) {
         for (Schema<?> schema : testData.keySet()) {
             byte[] bytes = null;
             ByteBuf byteBuf =  null;
@@ -138,7 +138,7 @@ public class PrimitiveSchemaTest {
     }
 
     @Test(dataProvider = "schemas")
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void allSchemasShouldRoundtripInput(Map<Schema, List<Object>> testData) {
         for (Map.Entry<Schema, List<Object>> test : testData.entrySet()) {
             log.info("Test schema {}", test.getKey());

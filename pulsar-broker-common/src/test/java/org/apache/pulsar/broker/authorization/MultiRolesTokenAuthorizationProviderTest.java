@@ -41,6 +41,7 @@ import org.testng.annotations.Test;
 
 public class MultiRolesTokenAuthorizationProviderTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiRolesAuthz() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -84,6 +85,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         }).get());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiRolesAuthzWithEmptyRoles() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -112,6 +114,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         assertFalse(provider.authorize("test", ads, role -> CompletableFuture.completedFuture(false)).get());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiRolesAuthzWithSingleRole() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -146,6 +149,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         }).get());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiRolesAuthzWithoutClaim() throws Exception {
         final SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -227,6 +231,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         assertFalse(provider.authorize("test", ads, role -> CompletableFuture.completedFuture(false)).get());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiRolesAuthzWithCustomRolesClaims() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -267,6 +272,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         }).get());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiRolesAuthzWithSuperUser() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -315,6 +321,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
      * -> Returns true (exception is swallowed)
      * Scenario 2: All roles throw subscription prefix mismatch exception -> Returns false
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiRolesAuthzWithSubscriptionPrefixMismatchException() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -370,6 +377,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
      * Single role throws subscription prefix mismatch exception -> Should throw the original exception
      * (Single role keeps original behavior, does not swallow exception)
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testSingleRoleAuthzWithSubscriptionPrefixMismatchException() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);

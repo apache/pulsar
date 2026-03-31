@@ -55,6 +55,7 @@ public class CustomizedManagedLedgerTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @SuppressWarnings("deprecation")
     protected void doInitConf() throws Exception {
         super.doInitConf();
         conf.setManagedLedgerStorageClassName(

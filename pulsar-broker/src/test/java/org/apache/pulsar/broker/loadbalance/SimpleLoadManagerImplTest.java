@@ -439,6 +439,7 @@ public class SimpleLoadManagerImplTest {
     }
 
     // Test that bundles belonging to the same namespace are evenly distributed.
+    @SuppressWarnings("deprecation")
     @Test
     public void testEvenBundleDistribution() throws Exception {
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils

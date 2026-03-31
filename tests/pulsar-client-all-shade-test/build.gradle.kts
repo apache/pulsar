@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 // Use the shadow JAR from pulsar-client-all which contains relocated netty/jackson/etc classes.
 
 dependencies {

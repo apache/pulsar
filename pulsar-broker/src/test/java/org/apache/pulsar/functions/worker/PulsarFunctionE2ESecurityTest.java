@@ -114,6 +114,7 @@ public class PulsarFunctionE2ESecurityTest {
     public Object[][] validRoleName() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod
     void setup(Method method) throws Exception {
@@ -292,6 +293,7 @@ public class PulsarFunctionE2ESecurityTest {
         PulsarWorkerService workerService = new PulsarWorkerService();
         return workerService;
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,

@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     api(project(":pulsar-io:pulsar-io-core"))
     implementation(libs.spring.context)

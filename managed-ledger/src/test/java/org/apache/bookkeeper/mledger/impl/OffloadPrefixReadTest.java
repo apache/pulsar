@@ -254,7 +254,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
         config.setRetentionTime(0, TimeUnit.MILLISECONDS);
         config.setRetentionSizeInMB(0);
-        CompletableFuture trimFuture = new CompletableFuture();
+        CompletableFuture<Void> trimFuture = new CompletableFuture<>();
         ledger.trimConsumedLedgersInBackground(trimFuture);
         trimFuture.join();
         Awaitility.await().untilAsserted(() -> {

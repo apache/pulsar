@@ -26,14 +26,10 @@ import static org.apache.commons.lang3.StringUtils.left;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.gson.Gson;
-import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.stub.StreamObserver;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.JSON;
@@ -77,10 +73,12 @@ import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.proto.Empty;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.proto.MetricsData;
+import org.apache.pulsar.functions.proto.Resources;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
@@ -125,7 +123,7 @@ public class KubernetesRuntime implements Runtime {
     private List<String> processArgs;
     @Getter
     private ManagedChannel[] channel;
-    private InstanceControlGrpc.InstanceControlFutureStub[] stub;
+    private InstanceControlGrpc.InstanceControlStub[] stub;
     private InstanceConfig instanceConfig;
     private final String jobNamespace;
     private final String jobName;
@@ -247,7 +245,7 @@ public class KubernetesRuntime implements Runtime {
         this.processArgs = new LinkedList<>();
         this.processArgs.addAll(RuntimeUtils.getArgsBeforeCmd(instanceConfig, extraDependenciesDir));
 
-        if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.GO) {
+        if (instanceConfig.getFunctionDetails().getRuntime() == FunctionDetails.Runtime.GO) {
             // before we run the command, make sure the go executable with correct permissions
             this.processArgs.add("chmod");
             this.processArgs.add("777");
@@ -317,7 +315,7 @@ public class KubernetesRuntime implements Runtime {
     private synchronized void setupGrpcChannelIfNeeded() {
         if (channel == null || stub == null) {
             channel = new ManagedChannel[instanceConfig.getFunctionDetails().getParallelism()];
-            stub = new InstanceControlGrpc.InstanceControlFutureStub[instanceConfig.getFunctionDetails()
+            stub = new InstanceControlGrpc.InstanceControlStub[instanceConfig.getFunctionDetails()
                     .getParallelism()];
 
             String jobName = createJobName(instanceConfig.getFunctionDetails(), this.jobName);
@@ -326,7 +324,7 @@ public class KubernetesRuntime implements Runtime {
                 channel[i] = ManagedChannelBuilder.forAddress(address, grpcPort)
                         .usePlaintext()
                         .build();
-                stub[i] = InstanceControlGrpc.newFutureStub(channel[i]);
+                stub[i] = InstanceControlGrpc.newStub(channel[i]);
             }
         }
     }
@@ -376,29 +374,31 @@ public class KubernetesRuntime implements Runtime {
             retval.completeExceptionally(new RuntimeException("Invalid InstanceId"));
             return retval;
         }
-        ListenableFuture<FunctionStatus> response =
-                stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
-                        .getFunctionStatus(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
+        stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
+                .getFunctionStatus(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
-                FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-                builder.setRunning(false);
-                builder.setFailureException(throwable.getMessage());
-                retval.complete(builder.build());
+            public void onNext(FunctionStatus t) {
+                retval.complete(t);
             }
 
             @Override
-            public void onSuccess(FunctionStatus t) {
-                retval.complete(t);
+            public void onError(Throwable throwable) {
+                FunctionStatus status = new FunctionStatus();
+                status.setRunning(false);
+                status.setFailureException(throwable.getMessage());
+                retval.complete(status);
             }
-        }, MoreExecutors.directExecutor());
+
+            @Override
+            public void onCompleted() {
+            }
+        });
         return retval;
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
-        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+    public CompletableFuture<MetricsData> getAndResetMetrics() {
+        CompletableFuture<MetricsData> retval = new CompletableFuture<>();
         retval.completeExceptionally(
                 new RuntimeException("Kubernetes Runtime doesn't support getAndReset metrics via rest"));
         return retval;
@@ -413,8 +413,8 @@ public class KubernetesRuntime implements Runtime {
     }
 
     @Override
-    public CompletableFuture<InstanceCommunication.MetricsData> getMetrics(int instanceId) {
-        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+    public CompletableFuture<MetricsData> getMetrics(int instanceId) {
+        CompletableFuture<MetricsData> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
             return retval;
@@ -425,21 +425,22 @@ public class KubernetesRuntime implements Runtime {
             return retval;
         }
 
-        ListenableFuture<InstanceCommunication.MetricsData> response =
-                stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
-                        .getMetrics(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
+        stub[instanceId].withDeadlineAfter(GRPC_TIMEOUT_SECS, TimeUnit.SECONDS)
+                .getMetrics(new Empty(), new StreamObserver<>() {
             @Override
-            public void onFailure(Throwable throwable) {
-                InstanceCommunication.MetricsData.Builder builder = InstanceCommunication.MetricsData.newBuilder();
-                retval.complete(builder.build());
+            public void onNext(MetricsData t) {
+                retval.complete(t);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.MetricsData t) {
-                retval.complete(t);
+            public void onError(Throwable throwable) {
+                retval.complete(new MetricsData());
             }
-        }, MoreExecutors.directExecutor());
+
+            @Override
+            public void onCompleted() {
+            }
+        });
         return retval;
     }
 
@@ -814,7 +815,7 @@ public class KubernetesRuntime implements Runtime {
         return Arrays.asList("sh", "-c", String.join(" ", cmds));
     }
 
-    private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath,
+    private List<String> getDownloadCommand(FunctionDetails functionDetails, String userCodeFilePath,
                                             boolean transformFunction) {
         return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
                 functionDetails.getName(), userCodeFilePath, transformFunction);
@@ -940,9 +941,9 @@ public class KubernetesRuntime implements Runtime {
         }
     }
 
-    private Map<String, String> getLabels(Function.FunctionDetails functionDetails) {
+    private Map<String, String> getLabels(FunctionDetails functionDetails) {
         final Map<String, String> labels = new HashMap<>();
-        Function.FunctionDetails.ComponentType componentType = InstanceUtils.calculateSubjectType(functionDetails);
+        FunctionDetails.ComponentType componentType = InstanceUtils.calculateSubjectType(functionDetails);
         String component;
         switch (componentType) {
             case FUNCTION:
@@ -969,7 +970,7 @@ public class KubernetesRuntime implements Runtime {
         return labels;
     }
 
-    private V1PodSpec getPodSpec(List<String> instanceCommand, Function.Resources resource) {
+    private V1PodSpec getPodSpec(List<String> instanceCommand, Resources resource) {
         final V1PodSpec podSpec = new V1PodSpec();
 
         // set the termination period to 0 so pods can be deleted quickly
@@ -1006,10 +1007,10 @@ public class KubernetesRuntime implements Runtime {
     }
 
     @VisibleForTesting
-    V1Container getFunctionContainer(List<String> instanceCommand, Function.Resources resource) {
+    V1Container getFunctionContainer(List<String> instanceCommand, Resources resource) {
         final V1Container container = new V1Container().name(PULSARFUNCTIONS_CONTAINER_NAME);
 
-        Function.FunctionDetails.Runtime runtime = instanceConfig.getFunctionDetails().getRuntime();
+        FunctionDetails.Runtime runtime = instanceConfig.getFunctionDetails().getRuntime();
 
         String imageName = null;
         if (functionDockerImages != null) {
@@ -1109,7 +1110,7 @@ public class KubernetesRuntime implements Runtime {
         return port;
     }
 
-    public static String createJobName(Function.FunctionDetails functionDetails, String jobName) {
+    public static String createJobName(FunctionDetails functionDetails, String jobName) {
         return jobName == null ? createJobName(functionDetails.getTenant(),
                 functionDetails.getNamespace(), functionDetails.getName()) :
                 createJobName(jobName, functionDetails.getTenant(),
@@ -1150,7 +1151,7 @@ public class KubernetesRuntime implements Runtime {
         return String.format("%s-%d.%s.%s.svc.cluster.local", jobName, instanceId, jobName, jobNamespace);
     }
 
-    public static void doChecks(Function.FunctionDetails functionDetails, String overridenJobName) {
+    public static void doChecks(FunctionDetails functionDetails, String overridenJobName) {
         final String jobName = createJobName(functionDetails, overridenJobName);
         if (!jobName.equals(jobName.toLowerCase())) {
             throw new RuntimeException("Kubernetes does not allow upper case jobNames.");

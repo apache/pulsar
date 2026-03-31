@@ -196,9 +196,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Field taskQueueField = SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.class
                 .getDeclaredField("taskQueue");
         taskQueueField.setAccessible(true);
-        Supplier<CompletableFuture<Void>> task = CompletableFuture::new;
+        Supplier<?> task = CompletableFuture::new;
         @SuppressWarnings({"unchecked", "rawtypes"})
-        Queue queue = (Queue) taskQueueField.get(persistentWorker);
+        Queue<Object> queue = (Queue) taskQueueField.get(persistentWorker);
         queue.add(new MutablePair<>(SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.OperationType.WriteSegment,
                 new MutablePair<>(new CompletableFuture<>(), task)));
         try {

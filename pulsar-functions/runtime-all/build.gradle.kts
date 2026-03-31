@@ -17,6 +17,11 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+    alias(libs.plugins.shadow)
+}
+
 dependencies {
     implementation(project(":pulsar-io:pulsar-io-core"))
     implementation(project(":pulsar-functions:pulsar-functions-api"))
@@ -24,7 +29,6 @@ dependencies {
     implementation(libs.avro)
     implementation(libs.jackson.databind)
     implementation(libs.protobuf.java)
-    implementation(libs.protobuf.java.util)
     implementation(libs.gson)
     implementation(libs.slf4j.api)
     implementation(libs.log4j.slf4j2.impl)
@@ -32,18 +36,15 @@ dependencies {
     implementation(libs.log4j.core)
 }
 
-// Build a fat JAR as java-instance.jar
-tasks.jar {
+// Build a fat JAR as java-instance.jar using the Shadow plugin.
+// Shadow handles dependency resolution lazily, avoiding configuration cache invalidation
+// that occurred with the previous manual dependsOn(runtimeClasspath) + zipTree() approach.
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveFileName.set("java-instance.jar")
-    // Use provider to properly declare task dependencies on upstream jars
-    val runtimeCp = configurations.runtimeClasspath
-    dependsOn(runtimeCp)
-    from(provider { runtimeCp.get().map { if (it.isDirectory) it else zipTree(it) } }) {
-        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
-    }
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    mergeServiceFiles()
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
-tasks.withType<Test> {
-    dependsOn(tasks.jar)
+tasks.withType<Test>().configureEach {
+    dependsOn(tasks.named("shadowJar"))
 }

@@ -34,7 +34,7 @@ public class ProducerCacheTest {
     @SuppressWarnings("unchecked")
     public void shouldTolerateAlreadyClosedExceptionInClose() {
         ProducerCache cache = new ProducerCache();
-        Producer producer = mock(Producer.class);
+        Producer<?> producer = mock(Producer.class);
         when(producer.flushAsync()).thenReturn(CompletableFuture.completedFuture(null));
         when(producer.closeAsync()).thenReturn(
                 CompletableFuture.failedFuture(new PulsarClientException.AlreadyClosedException("Already closed")));
@@ -47,7 +47,7 @@ public class ProducerCacheTest {
     @SuppressWarnings("unchecked")
     public void shouldTolerateRuntimeExceptionInClose() {
         ProducerCache cache = new ProducerCache();
-        Producer producer = mock(Producer.class);
+        Producer<?> producer = mock(Producer.class);
         when(producer.flushAsync()).thenReturn(CompletableFuture.completedFuture(null));
         when(producer.closeAsync()).thenThrow(new RuntimeException("Some exception"));
         cache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE, "topic", "key",
@@ -59,7 +59,7 @@ public class ProducerCacheTest {
     @SuppressWarnings("unchecked")
     public void shouldTolerateRuntimeExceptionInFlush() {
         ProducerCache cache = new ProducerCache();
-        Producer producer = mock(Producer.class);
+        Producer<?> producer = mock(Producer.class);
         when(producer.flushAsync()).thenThrow(new RuntimeException("Some exception"));
         when(producer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
         cache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE, "topic", "key",
@@ -71,7 +71,7 @@ public class ProducerCacheTest {
     @SuppressWarnings("unchecked")
     public void shouldCompleteFlushBeforeCloseAndWaitForClosing() {
         ProducerCache cache = new ProducerCache();
-        Producer producer = mock(Producer.class);
+        Producer<?> producer = mock(Producer.class);
         AtomicBoolean flushCompleted = new AtomicBoolean(false);
         when(producer.flushAsync()).thenReturn(CompletableFuture.supplyAsync(() -> {
             try {

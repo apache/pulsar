@@ -354,6 +354,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             try {
                 f.setAccessible(true);
                 if ("managedLedgerExtraConfigurations".equals(f.getName())) {
+                    @SuppressWarnings("unchecked") // field type is Map<String, String>
                     Map<String, String> extraConfig = (Map<String, String>) f.get(this);
                     extraConfig.forEach((key, value) -> {
                         setProperty(properties, EXTRA_CONFIG_PREFIX + key, value);

@@ -834,7 +834,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = ledger.openCursor("c1");
 
         for (int i = 0; i < 100; i++) {
-            ledger.addEntry(new byte[(int) (1024)]);
+            ledger.addEntry(new byte[1024]);
         }
 
         // Since https://github.com/apache/pulsar/pull/23931 improved the performance of delivery, the consumer

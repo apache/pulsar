@@ -538,6 +538,7 @@ public class InflightReadsLimiterTest {
                 .isEqualTo(maxReadsInFlightSize);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPrometheusMetrics() throws Exception {
         long maxReadsInFlightSize = 100;
@@ -545,8 +546,8 @@ public class InflightReadsLimiterTest {
         InflightReadsLimiter limiter = new InflightReadsLimiter(maxReadsInFlightSize, ACQUIRE_QUEUE_SIZE,
                 ACQUIRE_TIMEOUT_MILLIS, mock(ScheduledExecutorService.class), OpenTelemetry.noop());
 
-        Assertions.assertThat(limiter.PULSAR_ML_READS_BUFFER_SIZE.get()).isZero();
-        Assertions.assertThat(limiter.PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE.get())
+        Assertions.assertThat(InflightReadsLimiter.PULSAR_ML_READS_BUFFER_SIZE.get()).isZero();
+        Assertions.assertThat(InflightReadsLimiter.PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE.get())
                 .isEqualTo(maxReadsInFlightSize);
     }
 

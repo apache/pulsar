@@ -390,7 +390,7 @@ public class PulsarClientImpl implements PulsarClient {
         return createProducerAsync(conf, schema, null);
     }
 
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema,
                                                                   ProducerInterceptors interceptors) {
         if (conf == null) {
@@ -539,6 +539,7 @@ public class PulsarClientImpl implements PulsarClient {
      *
      * @return a producer instance
      */
+    @SuppressWarnings("unchecked")
     protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex,
                                                   ProducerConfigurationData conf,
                                                   Schema<T> schema,
@@ -850,7 +851,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private void closeUrlLookupMap() {
-        Map<String, LookupService> closedUrlLookupServices = new HashMap(urlLookupMap.size());
+        Map<String, LookupService> closedUrlLookupServices = new HashMap<>(urlLookupMap.size());
         urlLookupMap.entrySet().forEach(e -> {
             try {
                 e.getValue().close();

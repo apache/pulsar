@@ -176,7 +176,7 @@ class RangeCache {
      * @return a collections of the value found in cache
      */
     public Collection<ReferenceCountedEntry> getRange(Position first, Position last) {
-        List<ReferenceCountedEntry> values = new ArrayList();
+        List<ReferenceCountedEntry> values = new ArrayList<>();
 
         // Return the values of the entries found in cache
         for (Map.Entry<Position, RangeCacheEntryWrapper> entry : entries.subMap(first, true, last, true)

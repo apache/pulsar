@@ -684,6 +684,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
             });
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testGetPartitionsForTopic() throws Exception {
@@ -911,6 +912,7 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
     *
     * @throws Exception
     */
+    @SuppressWarnings("deprecation")
     @Test
     @SuppressWarnings("unchecked")
     public void testPartitionedTopicInterceptor() throws Exception {

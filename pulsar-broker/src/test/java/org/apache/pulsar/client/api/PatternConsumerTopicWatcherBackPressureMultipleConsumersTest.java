@@ -71,6 +71,7 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 60 * 1000)
     public void testPatternConsumerWithLargeAmountOfConcurrentClientConnections()
