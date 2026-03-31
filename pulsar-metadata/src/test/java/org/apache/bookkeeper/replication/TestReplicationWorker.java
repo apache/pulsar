@@ -1035,9 +1035,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         testRepairedNotAdheringPlacementPolicyLedgerFragments(
                 RackawareEnsemblePlacementPolicy.class, checkReplicationStats);
     }
-    @SuppressWarnings("deprecation")
-
-    @SuppressWarnings("try")
+    @SuppressWarnings({"deprecation", "try"})
     private void testRepairedNotAdheringPlacementPolicyLedgerFragments(
             Class<? extends EnsemblePlacementPolicy> placementPolicyClass,
             BiConsumer<Boolean, ReplicationWorker> checkReplicationStats) throws Exception {

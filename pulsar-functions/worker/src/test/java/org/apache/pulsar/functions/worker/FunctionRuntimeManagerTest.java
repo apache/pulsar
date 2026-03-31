@@ -896,9 +896,8 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "try"})
     @Test
-    @SuppressWarnings("try")
     public void testFunctionRuntimeFactoryConfigsBackwardsCompatibility() throws Exception {
 
         // Test kubernetes runtime
@@ -1083,9 +1082,8 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "try"})
     @Test
-    @SuppressWarnings("try")
     public void testKubernetesFunctionInstancesRestart() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
