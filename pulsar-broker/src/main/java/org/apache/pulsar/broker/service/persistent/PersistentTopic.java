@@ -1730,8 +1730,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 transferring = true;
                 this.closeFutures = new CloseFutures(new CompletableFuture<>(), null, null);
             } else {
-                this.closeFutures =
-                        new CloseFutures(new CompletableFuture<>(), new CompletableFuture<>(), new CompletableFuture<>());
+                this.closeFutures = new CloseFutures(
+                        new CompletableFuture<>(), new CompletableFuture<>(), new CompletableFuture<>());
             }
         } finally {
             lock.writeLock().unlock();
