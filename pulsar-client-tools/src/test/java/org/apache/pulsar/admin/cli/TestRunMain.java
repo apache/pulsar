@@ -102,7 +102,7 @@ public class TestRunMain {
         boolean prevValue = PulsarAdminTool.allowSystemExit;
         PulsarAdminTool.allowSystemExit = false;
 
-        String argStr = argStr = argStrTemp.format(argStrTemp, testConfigFile.getAbsolutePath(),
+        String argStr = String.format(argStrTemp, testConfigFile.getAbsolutePath(),
                 "--tls-trust-cert-path " + tlsTrustCertsFilePathInArg);
         PulsarAdminTool tool = PulsarAdminTool.execute(argStr.split(" "));
         assertNotNull(tool);

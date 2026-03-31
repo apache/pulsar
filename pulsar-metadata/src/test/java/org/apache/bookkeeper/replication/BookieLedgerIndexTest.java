@@ -79,6 +79,7 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
     }
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         super.setUp();
@@ -148,7 +149,6 @@ public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
     /**
      * Verify ledger index with failed bookies and throws exception.
      */
-    @SuppressWarnings("deprecation")
 //    @Test
 //    public void testWithoutZookeeper() throws Exception {
 //        // This test case is for ledger metadata that stored in ZooKeeper. As

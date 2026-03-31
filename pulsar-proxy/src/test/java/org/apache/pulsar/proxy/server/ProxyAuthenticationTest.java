@@ -110,6 +110,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             return "BasicAuthentication";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public AuthenticationDataProvider getAuthData() throws PulsarClientException {
             try {
@@ -119,6 +120,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             }
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             this.authParam = String.format("{\"entityType\": \"%s\", \"expiryTime\": \"%s\"}",
@@ -171,6 +173,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             return authRole;
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
             return null; // Authentication complete
@@ -186,6 +189,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             return authenticationDataSource;
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public boolean isComplete() {
             return authRole != null;
@@ -203,6 +207,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }

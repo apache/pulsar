@@ -108,7 +108,7 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
                 });
     }
 
-    @SuppressWarnings("try")
+    @SuppressWarnings({"try", "deprecation"})
     private PulsarClient buildClient() throws Exception {
         return PulsarClient.builder()
                 .serviceUrlProvider(new ServiceUrlProvider() {

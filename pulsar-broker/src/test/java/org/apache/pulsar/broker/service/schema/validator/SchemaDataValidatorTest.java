@@ -64,6 +64,7 @@ public class SchemaDataValidatorTest {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @DataProvider(name = "clientSchemas")
     public static Object[][] clientSchemas() {
         return new Object[][] {

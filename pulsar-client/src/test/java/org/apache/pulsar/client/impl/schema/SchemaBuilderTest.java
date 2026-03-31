@@ -164,6 +164,7 @@ public class SchemaBuilderTest {
         SchemaInfo schemaInfo = recordSchemaBuilder.build(
             SchemaType.AVRO
         );
+        @SuppressWarnings("rawtypes")
         GenericSchema schema = Schema.generic(schemaInfo);
         GenericRecord record = schema.newRecordBuilder()
             .set("intField", 32)
@@ -503,7 +504,7 @@ public class SchemaBuilderTest {
      * @param decoder the schema used for reading
      * @param writer the schema used for writing
      */
-    private static void injectWriterSchema(Schema decoder, Schema writer) {
+    private static void injectWriterSchema(Schema<?> decoder, Schema<?> writer) {
         AvroSchema<?> avroSchema = (AvroSchema<?>) decoder;
         avroSchema.setReader(new MultiVersionAvroReader<>(
                 AvroSchema.of(SchemaDefinition.

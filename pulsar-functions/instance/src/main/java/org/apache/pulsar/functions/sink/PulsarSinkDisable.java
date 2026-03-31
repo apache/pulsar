@@ -27,6 +27,7 @@ import org.apache.pulsar.io.core.SinkContext;
 @Slf4j
 public class PulsarSinkDisable<T> implements Sink<T> {
 
+    @SuppressWarnings("rawtypes") // singleton instance used for all type parameters
     public static final PulsarSinkDisable INSTANCE = new PulsarSinkDisable();
 
     @Override

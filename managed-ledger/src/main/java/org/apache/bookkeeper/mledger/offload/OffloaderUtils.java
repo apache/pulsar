@@ -48,8 +48,8 @@ public class OffloaderUtils {
      * @return the offloader class name
      * @throws IOException when fail to retrieve the pulsar offloader class
      */
-    static Pair<NarClassLoader, LedgerOffloaderFactory> getOffloaderFactory(String narPath,
-                                                                            String narExtractionDirectory)
+    static Pair<NarClassLoader, LedgerOffloaderFactory<?>> getOffloaderFactory(String narPath,
+                                                                              String narExtractionDirectory)
             throws IOException {
         // need to load offloader NAR to the classloader that also loaded LedgerOffloaderFactory in case
         // LedgerOffloaderFactory is loaded by a classloader that is not the default classloader
@@ -70,8 +70,8 @@ public class OffloaderUtils {
 
         try {
             // Try to load offloader factory class and check it implements Offloader interface
-            Class factoryClass = ncl.loadClass(conf.getOffloaderFactoryClass());
-            CompletableFuture<LedgerOffloaderFactory> loadFuture = new CompletableFuture<>();
+            Class<?> factoryClass = ncl.loadClass(conf.getOffloaderFactoryClass());
+            CompletableFuture<LedgerOffloaderFactory<?>> loadFuture = new CompletableFuture<>();
             Thread loadingThread = new Thread(() -> {
                 Thread.currentThread().setContextClassLoader(ncl);
                 try {
@@ -80,7 +80,7 @@ public class OffloaderUtils {
                         throw new IOException("Class " + conf.getOffloaderFactoryClass() + " does not implement "
                                 + "interface " + LedgerOffloaderFactory.class.getName());
                     }
-                    loadFuture.complete((LedgerOffloaderFactory) offloader);
+                    loadFuture.complete((LedgerOffloaderFactory<?>) offloader);
                 } catch (Throwable t) {
                     loadFuture.completeExceptionally(t);
                 }
@@ -143,7 +143,7 @@ public class OffloaderUtils {
 
                     if (!StringUtils.isEmpty(definition.getOffloaderFactoryClass())) {
                         // Validate offloader factory class to be present and of the right type
-                        Pair<NarClassLoader,  LedgerOffloaderFactory> offloaderFactoryPair =
+                        Pair<NarClassLoader, LedgerOffloaderFactory<?>> offloaderFactoryPair =
                             getOffloaderFactory(archive.toString(), narExtractionDirectory);
                         if (null != offloaderFactoryPair) {
                             offloaders.getOffloaders().add(offloaderFactoryPair);

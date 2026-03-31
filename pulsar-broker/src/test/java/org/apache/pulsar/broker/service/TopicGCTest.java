@@ -88,7 +88,7 @@ public class TopicGCTest extends ProducerConsumerBase {
         };
     }
 
-    private void setSubscribeTopic(ConsumerBuilder consumerBuilder, SubscribeTopicType subscribeTopicType,
+    private void setSubscribeTopic(ConsumerBuilder<?> consumerBuilder, SubscribeTopicType subscribeTopicType,
                                    String topicName, String topicPattern) {
         if (subscribeTopicType.equals(SubscribeTopicType.MULTI_PARTITIONED_TOPIC)) {
             consumerBuilder.topic(topicName);

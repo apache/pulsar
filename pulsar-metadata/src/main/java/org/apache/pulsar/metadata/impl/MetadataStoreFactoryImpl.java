@@ -74,6 +74,7 @@ public class MetadataStoreFactoryImpl {
 
         for (String className : Splitter.on(',').trimResults().omitEmptyStrings().split(factoryClasses)) {
             try {
+                @SuppressWarnings("unchecked")
                 Class<? extends MetadataStoreProvider> clazz =
                         (Class<? extends MetadataStoreProvider>) Class.forName(className);
                 MetadataStoreProvider provider = clazz.getConstructor().newInstance();

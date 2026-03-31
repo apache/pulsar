@@ -188,7 +188,7 @@ public interface MetadataStore extends AutoCloseable {
      *          the cache configuration to be used
      * @return the metadata cache object
      */
-    <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig);
+    <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig<?> cacheConfig);
 
     /**
      * Create a metadata cache specialized for a specific class.
@@ -212,7 +212,7 @@ public interface MetadataStore extends AutoCloseable {
      *          the cache configuration to be used
      * @return the metadata cache object
      */
-    <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig);
+    <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig<?> cacheConfig);
 
     /**
      * Create a metadata cache specialized for a specific class.
@@ -238,7 +238,7 @@ public interface MetadataStore extends AutoCloseable {
      * @return the metadata cache object
      */
     @Deprecated
-    default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
+    default <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig<?> cacheConfig) {
         return getMetadataCache("serde", serde, cacheConfig);
     }
 
@@ -263,7 +263,7 @@ public interface MetadataStore extends AutoCloseable {
      * @return the metadata cache object
      */
     default <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
-                                                  MetadataCacheConfig cacheConfig) {
+                                                  MetadataCacheConfig<?> cacheConfig) {
         return getMetadataCache(serde, cacheConfig);
     }
 
@@ -292,7 +292,7 @@ public interface MetadataStore extends AutoCloseable {
      *
      * @return default metadata cache config
      */
-    default MetadataCacheConfig getDefaultMetadataCacheConfig() {
+    default MetadataCacheConfig<?> getDefaultMetadataCacheConfig() {
         return MetadataCacheConfig.builder().build();
     }
 }

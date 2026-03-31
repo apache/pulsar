@@ -24,6 +24,7 @@ import org.testng.annotations.Test;
 
 public class ConcurrentBitSetRecyclableTest {
 
+    @SuppressWarnings("deprecation")
     @Test(priority = 0)
     public void testRecycle() {
         ConcurrentBitSetRecyclable bitset1 = ConcurrentBitSetRecyclable.create();
@@ -36,6 +37,7 @@ public class ConcurrentBitSetRecyclableTest {
         Assert.assertNotSame(bitset3, bitset1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(priority = 1)
     public void testGenerateByBitSet() {
         BitSet bitSet = new BitSet();

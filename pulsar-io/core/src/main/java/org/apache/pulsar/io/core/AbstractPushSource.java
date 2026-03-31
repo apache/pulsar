@@ -26,20 +26,20 @@ import org.apache.pulsar.functions.api.Record;
  */
 public abstract class AbstractPushSource<T> {
 
-    private static class NullRecord implements Record {
+    private static class NullRecord<T> implements Record<T> {
         @Override
-        public Object getValue() {
+        public T getValue() {
             return null;
         }
     }
 
-    private static class ErrorNotifierRecord implements Record {
+    private static class ErrorNotifierRecord<T> implements Record<T> {
         private final Exception e;
         public ErrorNotifierRecord(Exception e) {
             this.e = e;
         }
         @Override
-        public Object getValue() {
+        public T getValue() {
             return null;
         }
 
@@ -50,7 +50,7 @@ public abstract class AbstractPushSource<T> {
 
     private LinkedBlockingQueue<Record<T>> queue;
     private static final int DEFAULT_QUEUE_LENGTH = 1000;
-    private final NullRecord nullRecord = new NullRecord();
+    private final NullRecord<T> nullRecord = new NullRecord<>();
 
     public AbstractPushSource() {
         this.queue = new LinkedBlockingQueue<>(this.getQueueLength());

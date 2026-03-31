@@ -77,6 +77,7 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
         mockZkStoreRef = MetadataStoreFactory.create(mockZkUrl, MetadataStoreConfig.builder().build());
     }
 
+    @SuppressWarnings("deprecation")
     @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {

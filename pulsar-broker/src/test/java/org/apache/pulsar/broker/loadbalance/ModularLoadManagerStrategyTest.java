@@ -114,6 +114,7 @@ public class ModularLoadManagerStrategyTest {
     }
 
     // Test that least resource usage with weight works correctly.
+    @SuppressWarnings("deprecation")
     public void testLeastResourceUsageWithWeight() {
         BundleData bundleData = new BundleData();
         BrokerData brokerData1 = initBrokerData(10, 100);
@@ -192,6 +193,7 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("3"));
     }
 
+    @SuppressWarnings("deprecation")
     public void testLeastResourceUsageWithWeightWithArithmeticException()
             throws NoSuchFieldException, IllegalAccessException {
         BundleData bundleData = new BundleData();
@@ -233,7 +235,7 @@ public class ModularLoadManagerStrategyTest {
     }
 
     public void testRoundRobinBrokerSelector() throws IllegalAccessException {
-        Set<String> brokers = new LinkedHashSet(Arrays.asList("1", "2", "3"));
+        Set<String> brokers = new LinkedHashSet<>(Arrays.asList("1", "2", "3"));
         int n = brokers.size();
         RoundRobinBrokerSelector strategy = new RoundRobinBrokerSelector();
 
@@ -245,13 +247,13 @@ public class ModularLoadManagerStrategyTest {
             assertEquals(strategy.selectBroker(brokers, null, null, null), Optional.of(id));
         }
 
-        Set<String> brokers2 = new LinkedHashSet(Arrays.asList("2", "3", "1"));
+        Set<String> brokers2 = new LinkedHashSet<>(Arrays.asList("2", "3", "1"));
         for (; i < 20; i++) {
             String id = (i % n) + 1 + "";
             assertEquals(strategy.selectBroker(brokers2, null, null, null), Optional.of(id));
         }
 
-        Set<String> brokers3 = new LinkedHashSet(Arrays.asList("1", "2", "4"));
+        Set<String> brokers3 = new LinkedHashSet<>(Arrays.asList("1", "2", "4"));
         assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("4"));
         assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("1"));
         assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("2"));
@@ -259,7 +261,7 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("1"));
         assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("2"));
 
-        Set<String> brokers4 = new LinkedHashSet(Arrays.asList("2", "4"));
+        Set<String> brokers4 = new LinkedHashSet<>(Arrays.asList("2", "4"));
         assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("2"));
         assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("4"));
         assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("2"));

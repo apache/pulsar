@@ -29,6 +29,7 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker-api")
 public class ServiceUrlProviderTest extends SharedPulsarBaseTest {
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCreateClientWithServiceUrlProvider() throws Exception {
@@ -65,6 +66,7 @@ public class ServiceUrlProviderTest extends SharedPulsarBaseTest {
         producer.close();
         consumer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCreateClientWithAutoChangedServiceUrlProvider() throws Exception {

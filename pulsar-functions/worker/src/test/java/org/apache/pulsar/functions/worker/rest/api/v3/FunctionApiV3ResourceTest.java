@@ -261,6 +261,7 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetFunctionSuccess() throws IOException {
         mockInstanceUtils();

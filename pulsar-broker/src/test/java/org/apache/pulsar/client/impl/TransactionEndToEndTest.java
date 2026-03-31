@@ -930,6 +930,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .build()
                 .get();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void txnMetadataHandlerRecoverTest() throws Exception {

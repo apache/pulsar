@@ -133,9 +133,9 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         //  - ack all messages that consumer1 or consumer2 received.
         //  - do not ack messages that consumer2 received.
         ackAllMessages(consumer1, consumer2);
-        Position mdPosition = (Position) cursor.getMarkDeletedPosition();
-        Position readPosition = (Position) cursor.getReadPosition();
-        Position lastConfirmed = (Position) ml.getLastConfirmedEntry();
+        Position mdPosition = cursor.getMarkDeletedPosition();
+        Position readPosition = cursor.getReadPosition();
+        Position lastConfirmed = ml.getLastConfirmedEntry();
         assertTrue(readPosition.compareTo(lastConfirmed) >= 0);
         Position firstWaitingAckPos = ml.getNextValidPosition(mdPosition);
         log.info("md-pos {}:{}", mdPosition.getLedgerId(), mdPosition.getEntryId());
@@ -149,11 +149,11 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         LedgerHandle spyFirstLedger = spy(firstLedger);
         CountDownLatch replyReadSignal = new CountDownLatch(1);
         AtomicBoolean replayReadWasTriggered = new AtomicBoolean();
-        Answer answer = invocation -> {
+        Answer<?> answer = invocation -> {
             long firstEntry = (long) invocation.getArguments()[0];
             if (firstEntry == firstWaitingAckPos.getEntryId()) {
                 replayReadWasTriggered.set(true);
-                final CompletableFuture res = new CompletableFuture<>();
+                final CompletableFuture<Object> res = new CompletableFuture<>();
                 threadFactory.newThread(() -> {
                     try {
                         replyReadSignal.await();
@@ -223,9 +223,9 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
             }
             log.info("recent-joined-consumers {} {}", i, dispatcher.getRecentlyJoinedConsumers().size());
             if (dispatcher.getRecentlyJoinedConsumers().size() > 0) {
-                Position mdPosition2 = (Position) cursor.getMarkDeletedPosition();
-                Position readPosition2 = (Position) cursor.getReadPosition();
-                Position lastConfirmed2 = (Position) ml.getLastConfirmedEntry();
+                Position mdPosition2 = cursor.getMarkDeletedPosition();
+                Position readPosition2 = cursor.getReadPosition();
+                Position lastConfirmed2 = ml.getLastConfirmedEntry();
                 assertTrue(readPosition.compareTo(lastConfirmed) >= 0);
                 Position firstWaitingAckPos2 = ml.getNextValidPosition(mdPosition);
                 if (readPosition2.compareTo(firstWaitingAckPos) > 0) {
@@ -246,6 +246,7 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         consumerList.get(consumerList.size() - 1).join();
 
         synchronized (dispatcher) {
+            @SuppressWarnings("rawtypes")
             LinkedHashMap recentJoinedConsumers = dispatcher.getRecentlyJoinedConsumers();
             assertTrue(verifyMapItemsAreInOrder(recentJoinedConsumers));
         }
@@ -272,9 +273,9 @@ public class NonEntryCacheKeySharedSubscriptionV30Test extends ProducerConsumerB
         Position posAfter = null;
         for (Map.Entry<org.apache.pulsar.broker.service.Consumer, Position> entry : map.entrySet()) {
             if (posPre == null) {
-                posPre = (Position) entry.getValue();
+                posPre = entry.getValue();
             } else {
-                posAfter = (Position) entry.getValue();
+                posAfter = entry.getValue();
             }
             if (posPre != null && posAfter != null) {
                 if (posPre.compareTo(posAfter) > 0) {

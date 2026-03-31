@@ -88,6 +88,7 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
             Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             for (Map.Entry<String, Object> entry : secretsMap.entrySet()) {
                 final V1EnvVar secretEnv = new V1EnvVar();
+                @SuppressWarnings("unchecked") // secret values are expected to be Map<String, String>
                 Map<String, String> kv = (Map<String, String>) entry.getValue();
                 secretEnv.name(entry.getKey())
                         .valueFrom(new V1EnvVarSource()
@@ -122,6 +123,7 @@ public class KubernetesSecretsProviderConfigurator implements SecretsProviderCon
 
             for (Object object : secretsMap.values()) {
                 if (object instanceof Map) {
+                    @SuppressWarnings("unchecked") // secret values are expected to be Map<String, String>
                     Map<String, String> kubernetesSecret = (Map<String, String>) object;
                     if (kubernetesSecret.size() < 2) {
                         throw new IllegalArgumentException("Kubernetes Secret should contain id and key");

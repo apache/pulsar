@@ -157,7 +157,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     protected volatile long lastSequenceIdPushed;
     private volatile boolean isLastSequenceIdPotentialDuplicated;
 
-    private final MessageCrypto msgCrypto;
+    private final MessageCrypto<?, ?> msgCrypto;
 
     private ScheduledFuture<?> keyGeneratorTask = null;
 
@@ -237,7 +237,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 this.msgCrypto = conf.getMessageCrypto();
             } else {
                 // default to use MessageCryptoBc;
-                MessageCrypto msgCryptoBc;
+                MessageCrypto<?, ?> msgCryptoBc;
                 try {
                     msgCryptoBc = new MessageCryptoBc(logCtx, true);
                 } catch (Exception e) {
@@ -964,6 +964,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return cnx.sendGetOrCreateSchema(request, requestId);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     protected ByteBuf encryptMessage(MessageMetadata msgMetadata, ByteBuf compressedPayload)
             throws PulsarClientException {
 
@@ -976,8 +977,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             ByteBuf encryptedPayload = PulsarByteBufAllocator.DEFAULT.buffer(maxSize);
             ByteBuffer targetBuffer = encryptedPayload.nioBuffer(0, maxSize);
 
-            msgCrypto.encrypt(conf.getEncryptionKeys(), conf.getCryptoKeyReader(), () -> msgMetadata,
-                    compressedPayload.nioBuffer(), targetBuffer);
+            ((MessageCrypto) msgCrypto).encrypt(conf.getEncryptionKeys(), conf.getCryptoKeyReader(),
+                    () -> msgMetadata, compressedPayload.nioBuffer(), targetBuffer);
 
             encryptedPayload.writerIndex(targetBuffer.remaining());
             compressedPayload.release();

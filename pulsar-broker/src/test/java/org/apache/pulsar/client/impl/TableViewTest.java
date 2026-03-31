@@ -158,6 +158,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
      * 1. multi-partition topic, p1, p2 has new message, p3 has no new messages.
      * 2. Call new `refresh` API, it will be completed after read new messages.
      */
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "partition")
     public void testRefreshAPI(int partition) throws Exception {
         // 1. Prepare resource.
@@ -261,6 +262,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
         Awaitility.await().untilAsserted(() -> assertTrue(completedExceptionally.get()));
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000)
     public void testTableView() throws Exception {
@@ -327,6 +329,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         });
         assertEquals(tv.keySet(), keys);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000, dataProvider = "topicDomain")
     public void testTableViewUpdatePartitions(String topicDomain) throws Exception {
@@ -368,6 +371,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         });
         assertEquals(tv.keySet(), keys2);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000, dataProvider = "topicDomain")
     public void testPublishNullValue(String topicDomain) throws Exception {
@@ -414,6 +418,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     public static Object[][] partitioned() {
         return new Object[][] {{true}, {false}};
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000, dataProvider = "partitionedTopic")
     public void testAck(boolean partitionedTopic) throws Exception {
@@ -462,6 +467,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
 
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000)
     public void testListen() throws Exception {
@@ -509,6 +515,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(mockAction.acceptedCount, 5);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30 * 1000)
     public void testTableViewWithEncryptedMessages() throws Exception {

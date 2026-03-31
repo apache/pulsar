@@ -164,7 +164,7 @@ public class JavaInstanceStarter implements AutoCloseable {
     private ThreadRuntimeFactory containerFactory;
     private Long lastHealthCheckTs = null;
     private HTTPServer metricsServer;
-    private ScheduledFuture healthCheckTimer;
+    private ScheduledFuture<?> healthCheckTimer;
 
     public JavaInstanceStarter() {
     }

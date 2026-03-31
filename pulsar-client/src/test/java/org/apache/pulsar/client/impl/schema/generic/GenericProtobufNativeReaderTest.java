@@ -37,7 +37,7 @@ public class GenericProtobufNativeReaderTest {
     private TestMessage message;
     private GenericRecord genericmessage;
     private GenericProtobufNativeSchema genericProtobufNativeSchema;
-    private ProtobufNativeSchema clazzBasedProtobufNativeSchema;
+    private ProtobufNativeSchema<?> clazzBasedProtobufNativeSchema;
 
 
     @BeforeMethod

@@ -295,7 +295,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         dispatcher.readMoreEntries();
 
         // shared consumer should not receive the redelivered aborted transaction messages
-        Message message = sharedConsumer.receive(5, TimeUnit.SECONDS);
+        Message<?> message = sharedConsumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
 
         log.info("TransactionConsumeTest testMessageRedelivery finish.");

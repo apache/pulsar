@@ -791,7 +791,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 }
 
                 if (pbInfo.getPropertiesCount() > 0) {
-                    info.properties = new TreeMap();
+                    info.properties = new TreeMap<>();
                     for (int i = 0; i < pbInfo.getPropertiesCount(); i++) {
                         KeyValue property = pbInfo.getPropertyAt(i);
                         info.properties.put(property.getKey(), property.getValue());
@@ -846,7 +846,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                             }
 
                                             if (pbCursorInfo.getPropertiesCount() > 0) {
-                                                cursorInfo.properties = new TreeMap();
+                                                cursorInfo.properties = new TreeMap<>();
                                                 for (int i = 0; i < pbCursorInfo.getPropertiesCount(); i++) {
                                                     LongProperty property = pbCursorInfo.getPropertyAt(i);
                                                     cursorInfo.properties.put(property.getName(), property.getValue());

@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /*
  * This file is derived from BookKeeperClusterTestCase from Apache BookKeeper
  * http://bookkeeper.apache.org
@@ -35,7 +36,7 @@ import org.apache.bookkeeper.bookie.LegacyCookieValidation;
 import org.apache.bookkeeper.bookie.ReadOnlyBookie;
 import org.apache.bookkeeper.bookie.UncleanShutdownDetection;
 import org.apache.bookkeeper.bookie.UncleanShutdownDetectionImpl;
-import org.apache.bookkeeper.client.TestStatsProvider;
+import org.apache.bookkeeper.client.PulsarBookKeeperTestStatsProvider;
 import org.apache.bookkeeper.common.allocator.ByteBufAllocatorWithOomHandler;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -94,7 +95,7 @@ public class ServerTester {
     }
 
     private final ServerConfiguration conf;
-    private final TestStatsProvider provider;
+    private final PulsarBookKeeperTestStatsProvider provider;
     private final Bookie bookie;
     private final BookieServer server;
     private final BookieSocketAddress address;
@@ -110,7 +111,7 @@ public class ServerTester {
 
     public ServerTester(ServerConfiguration conf) throws Exception {
         this.conf = conf;
-        provider = new TestStatsProvider();
+        provider = new PulsarBookKeeperTestStatsProvider();
 
         StatsLogger rootStatsLogger = provider.getStatsLogger("");
         StatsLogger bookieStats = rootStatsLogger.scope(BOOKIE_SCOPE);
@@ -154,7 +155,7 @@ public class ServerTester {
 
     public ServerTester(ServerConfiguration conf, Bookie b) throws Exception {
         this.conf = conf;
-        provider = new TestStatsProvider();
+        provider = new PulsarBookKeeperTestStatsProvider();
 
         metadataDriver = null;
         registrationManager = null;
@@ -207,7 +208,7 @@ public class ServerTester {
         return server;
     }
 
-    public TestStatsProvider getStatsProvider() {
+    public PulsarBookKeeperTestStatsProvider getStatsProvider() {
         return provider;
     }
 

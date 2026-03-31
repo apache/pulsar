@@ -66,7 +66,7 @@ public class ConnectorUtils {
 
         try {
             // Try to load source class and check it implements Source interface
-            Class sourceClass = narClassLoader.loadClass(conf.getSourceClass());
+            Class<?> sourceClass = narClassLoader.loadClass(conf.getSourceClass());
             if (!(Source.class.isAssignableFrom(sourceClass) || BatchSource.class.isAssignableFrom(sourceClass))) {
                 throw new IOException(String.format("Class %s does not implement interface %s or %s",
                         conf.getSourceClass(), Source.class.getName(), BatchSource.class.getName()));
@@ -90,7 +90,7 @@ public class ConnectorUtils {
 
         try {
             // Try to load sink class and check it implements Sink interface
-            Class sinkClass = narClassLoader.loadClass(conf.getSinkClass());
+            Class<?> sinkClass = narClassLoader.loadClass(conf.getSinkClass());
             if (!(Sink.class.isAssignableFrom(sinkClass))) {
                 throw new IOException(
                         "Class " + conf.getSinkClass() + " does not implement interface " + Sink.class.getName());

@@ -33,6 +33,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.concurrent.GenericFutureListener;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -245,7 +246,8 @@ public class AsyncDualMemoryLimiterUtilTest {
         });
 
         when(channelFuture.addListener(any())).thenAnswer(invocation -> {
-            io.netty.util.concurrent.GenericFutureListener listener = invocation.getArgument(0);
+            @SuppressWarnings("unchecked")
+            GenericFutureListener<ChannelFuture> listener = invocation.getArgument(0);
             listenerCalled.set(true);
             // Simulate successful write
             listener.operationComplete(channelFuture);
@@ -415,13 +417,15 @@ public class AsyncDualMemoryLimiterUtilTest {
 
         when(ctx.writeAndFlush(any(ByteBuf.class))).thenReturn(channelFuture);
         when(channelFuture.addListener(any())).thenAnswer(invocation -> {
-            io.netty.util.concurrent.GenericFutureListener listener = invocation.getArgument(0);
+            @SuppressWarnings("unchecked")
+            GenericFutureListener<ChannelFuture> listener = invocation.getArgument(0);
             listener.operationComplete(channelFuture);
             return channelFuture;
         });
         when(channelFuture.isSuccess()).thenReturn(true);
 
         int numRequests = 10;
+        @SuppressWarnings({"unchecked", "rawtypes"})
         CompletableFuture<Void>[] futures = new CompletableFuture[numRequests];
 
         for (int i = 0; i < numRequests; i++) {
@@ -451,7 +455,8 @@ public class AsyncDualMemoryLimiterUtilTest {
 
         when(ctx.writeAndFlush(any(ByteBuf.class))).thenReturn(channelFuture);
         when(channelFuture.addListener(any())).thenAnswer(invocation -> {
-            io.netty.util.concurrent.GenericFutureListener listener = invocation.getArgument(0);
+            @SuppressWarnings("unchecked")
+            GenericFutureListener<ChannelFuture> listener = invocation.getArgument(0);
             // Simulate write failure
             when(channelFuture.isSuccess()).thenReturn(false);
             when(channelFuture.cause()).thenReturn(new RuntimeException("Write to socket failed"));
@@ -482,6 +487,7 @@ public class AsyncDualMemoryLimiterUtilTest {
     @Test
     public void testWithPermitsFutureMultipleConcurrent() throws Exception {
         int numOperations = 20;
+        @SuppressWarnings({"unchecked", "rawtypes"})
         CompletableFuture<String>[] futures = new CompletableFuture[numOperations];
         AtomicInteger releaseCount = new AtomicInteger(0);
 

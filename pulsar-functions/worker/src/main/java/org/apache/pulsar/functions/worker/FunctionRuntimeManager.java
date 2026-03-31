@@ -198,19 +198,22 @@ public class FunctionRuntimeManager implements AutoCloseable {
         } else {
             if (workerConfig.getThreadContainerFactory() != null) {
                 this.runtimeFactory = new ThreadRuntimeFactory();
-                workerConfig.setFunctionRuntimeFactoryConfigs(
-                        ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                                workerConfig.getThreadContainerFactory(), Map.class));
+                @SuppressWarnings("unchecked")
+                Map<String, Object> threadConfig = ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
+                        workerConfig.getThreadContainerFactory(), Map.class);
+                workerConfig.setFunctionRuntimeFactoryConfigs(threadConfig);
             } else if (workerConfig.getProcessContainerFactory() != null) {
                 this.runtimeFactory = new ProcessRuntimeFactory();
-                workerConfig.setFunctionRuntimeFactoryConfigs(
-                        ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                                workerConfig.getProcessContainerFactory(), Map.class));
+                @SuppressWarnings("unchecked")
+                Map<String, Object> processConfig = ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
+                        workerConfig.getProcessContainerFactory(), Map.class);
+                workerConfig.setFunctionRuntimeFactoryConfigs(processConfig);
             } else if (workerConfig.getKubernetesContainerFactory() != null) {
                 this.runtimeFactory = new KubernetesRuntimeFactory();
-                workerConfig.setFunctionRuntimeFactoryConfigs(
-                        ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
-                                workerConfig.getKubernetesContainerFactory(), Map.class));
+                @SuppressWarnings("unchecked")
+                Map<String, Object> k8sConfig = ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
+                        workerConfig.getKubernetesContainerFactory(), Map.class);
+                workerConfig.setFunctionRuntimeFactoryConfigs(k8sConfig);
             } else {
                 throw new RuntimeException("A Function Runtime Factory needs to be set");
             }

@@ -156,6 +156,7 @@ public abstract class ExtensibleLoadManagerImplBaseTest extends MockedPulsarServ
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static PulsarClient pulsarClient(String url, int intervalInMillis) throws PulsarClientException {
         return
                 PulsarClient.builder()

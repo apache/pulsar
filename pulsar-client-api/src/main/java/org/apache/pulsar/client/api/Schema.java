@@ -375,6 +375,7 @@ public interface Schema<T> extends Cloneable {
      * @param schemaDefinition the definition of the schema
      * @return a Schema instance
      */
+    @SuppressWarnings({"rawtypes", "unchecked"})
     static <T> Schema<T> JSON(SchemaDefinition schemaDefinition) {
         return DefaultImplementation.getDefaultImplementation().newJSONSchema(schemaDefinition);
     }

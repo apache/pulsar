@@ -186,13 +186,13 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             case PROTOBUF_NATIVE:
                     return genericRecordToMap((GenericRecord) value, displayHex);
             case KEY_VALUE:
-                    return keyValueToMap((KeyValue) value.getNativeObject(), displayHex);
+                    return keyValueToMap((KeyValue<?, ?>) value.getNativeObject(), displayHex);
             default:
                 return primitiveValueToMap(value.getNativeObject(), displayHex);
         }
     }
 
-    protected static Map<String, Object> keyValueToMap(KeyValue value, boolean displayHex) throws IOException {
+    protected static Map<String, Object> keyValueToMap(KeyValue<?, ?> value, boolean displayHex) throws IOException {
         if (value == null) {
             return Map.of("value", "NULL");
         }

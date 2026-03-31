@@ -89,6 +89,7 @@ public class SinkConfigUtilsTest {
 
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAutoAckConvertFailed() throws IOException {
 
@@ -102,6 +103,7 @@ public class SinkConfigUtilsTest {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConvertBackFidelity() throws IOException, JSONException  {
         SinkConfig sinkConfig = new SinkConfig();
@@ -596,6 +598,7 @@ public class SinkConfigUtilsTest {
                 .contains("Could not validate sink config: Field 'configParameter' cannot be null!"));
     }
 
+    @SuppressWarnings("deprecation")
     private SinkConfig createSinkConfig() {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant("test-tenant");

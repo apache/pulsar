@@ -379,6 +379,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
             return isAuthorizedFuture;
         }
     }
+    @SuppressWarnings("deprecation")
 
     public static class ClientAuthentication implements Authentication {
         String user;
@@ -431,6 +432,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
         }
 
     }
+    @SuppressWarnings("deprecation")
 
     public static class TestAuthenticationProvider implements AuthenticationProvider {
 

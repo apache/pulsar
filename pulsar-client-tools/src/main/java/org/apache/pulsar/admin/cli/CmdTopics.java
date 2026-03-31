@@ -1149,8 +1149,8 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            MessageImpl message =
-                    (MessageImpl) getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
+            MessageImpl<?> message =
+                    (MessageImpl<?>) getTopics().examineMessage(persistentTopic, initialPosition, messagePosition);
 
             if (message.getMessageId() instanceof BatchMessageIdImpl) {
                 BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
@@ -1206,7 +1206,7 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
 
-            MessageImpl message = (MessageImpl) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
+            MessageImpl<?> message = (MessageImpl<?>) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
             if (message == null) {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
@@ -1351,7 +1351,7 @@ public class CmdTopics extends CmdBase {
         }
         int position = 0;
         for (Message<byte[]> msg : messages) {
-            MessageImpl message = (MessageImpl) msg;
+            MessageImpl<?> message = (MessageImpl<?>) msg;
             if (++position != 1) {
                 System.out.println("-------------------------------------------------------------------------\n");
             }
@@ -1414,7 +1414,7 @@ public class CmdTopics extends CmdBase {
                 throw new PulsarAdminException("Topic doesn't have any data");
             }
 
-            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList(stats.ledgers);
+            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList<>(stats.ledgers);
             ledgers.get(ledgers.size() - 1).size = stats.currentLedgerSize; // doesn't get filled in now it seems
             MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
 

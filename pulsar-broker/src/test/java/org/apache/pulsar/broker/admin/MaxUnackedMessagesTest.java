@@ -47,6 +47,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class MaxUnackedMessagesTest extends SharedPulsarBaseTest {
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testMaxUnackedMessagesOnSubscriptionApi() throws Exception {
         final String topicName = newTopicName();
@@ -64,6 +65,7 @@ public class MaxUnackedMessagesTest extends SharedPulsarBaseTest {
                 -> assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName)));
         assertNull(admin.topics().getMaxUnackedMessagesOnSubscription(topicName));
     }
+    @SuppressWarnings("deprecation")
 
     // See https://github.com/apache/pulsar/issues/5438
     @Test(timeOut = 20000)
@@ -158,6 +160,7 @@ public class MaxUnackedMessagesTest extends SharedPulsarBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testMaxUnackedMessagesOnConsumerApi() throws Exception {
         final String topicName = newTopicName();
@@ -176,6 +179,7 @@ public class MaxUnackedMessagesTest extends SharedPulsarBaseTest {
         assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testMaxUnackedMessagesOnConsumerAppliedApi() throws Exception {
         final String topicName = newTopicName();
@@ -204,6 +208,7 @@ public class MaxUnackedMessagesTest extends SharedPulsarBaseTest {
         assertEquals(max.intValue(), 20);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMaxUnackedMessagesOnSubApplied() throws Exception {
         final String topicName = newTopicName();
@@ -233,6 +238,7 @@ public class MaxUnackedMessagesTest extends SharedPulsarBaseTest {
                 Integer.valueOf(getConfig().getMaxUnackedMessagesPerSubscription()));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testMaxUnackedMessagesOnConsumer() throws Exception {
         final String topicName = newTopicName();

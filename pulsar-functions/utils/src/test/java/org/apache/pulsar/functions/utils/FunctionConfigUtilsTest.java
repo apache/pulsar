@@ -73,6 +73,7 @@ public class FunctionConfigUtilsTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAutoAckConvertFailed() {
 
@@ -85,6 +86,7 @@ public class FunctionConfigUtilsTest {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConvertBackFidelity() throws JSONException {
         FunctionConfig functionConfig = new FunctionConfig();
@@ -131,6 +133,7 @@ public class FunctionConfigUtilsTest {
         );
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConvertWindow() {
         FunctionConfig functionConfig = new FunctionConfig();
@@ -528,6 +531,7 @@ public class FunctionConfigUtilsTest {
         );
     }
 
+    @SuppressWarnings("deprecation")
     private FunctionConfig createFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant("test-tenant");
@@ -593,6 +597,7 @@ public class FunctionConfigUtilsTest {
         assertFalse(detailsJson.contains("forwardSourceMessageProperty"));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testFunctionConfigConvertFromDetails() {
         String name = "test1";

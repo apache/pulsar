@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     implementation(project(":pulsar-client-api"))
     implementation(project(":pulsar-client-original"))

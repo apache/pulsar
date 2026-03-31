@@ -61,6 +61,7 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker-impl")
 public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsumerBase {
+    @SuppressWarnings("deprecation")
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String CLIENT_USER_TOKEN =
             AuthTokenUtils.createToken(SECRET_KEY, "clientuser", Optional.empty());
@@ -136,6 +137,7 @@ public class KeyStoreTlsProducerConsumerTestWithAuthTest extends ProducerConsume
         conf.setBrokerClientTlsProtocols(tlsProtocols);
 
     }
+    @SuppressWarnings("deprecation")
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
         if (pulsarClient != null) {

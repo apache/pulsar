@@ -56,7 +56,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant(this.testTenant, tenantInfo);
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of(testCluster));
         admin.topics().createPartitionedTopic(testTopic, 2);
-        Producer producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/"
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(testTenant + "/" + testNamespace + "/"
                 + "dummy-topic").create();
         producer.close();
         waitForZooKeeperWatchers();
@@ -68,6 +68,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetThenRemoveMessageTTL() throws Exception {
         admin.topics().setMessageTTL(testTopic, 100);
@@ -85,6 +86,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(messageTTL);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetInvalidMessageTTL() throws Exception {
         try {
@@ -102,6 +104,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetMessageTTL() throws Exception {
         // Check default topic level message TTL.
@@ -117,6 +120,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         log.info("Message TTL {} get on topic: {}", testTopic, messageTTL);
         Assert.assertEquals(messageTTL.intValue(), 200);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTopicPolicyDisabled() throws Exception {
@@ -184,6 +188,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
                 -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testDifferentLevelPolicyApplied() throws Exception {
         final String topicName = testTopic + UUID.randomUUID();

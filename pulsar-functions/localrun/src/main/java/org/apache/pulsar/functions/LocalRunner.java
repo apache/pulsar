@@ -639,7 +639,10 @@ public class LocalRunner implements AutoCloseable {
                     .createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
             Map<String, String> config = null;
             if (secretsProviderConfig != null) {
-                config = (Map<String, String>) new Gson().fromJson(secretsProviderConfig, Map.class);
+                @SuppressWarnings("unchecked") // Gson deserialization of Map
+                Map<String, String> parsedConfig = (Map<String, String>) new Gson().fromJson(secretsProviderConfig,
+                        Map.class);
+                config = parsedConfig;
             }
             secretsProvider.init(config);
         } else {
@@ -779,7 +782,10 @@ public class LocalRunner implements AutoCloseable {
         if (secretsProviderClassName != null) {
             Map<String, String> config = null;
             if (secretsProviderConfig != null) {
-                config = (Map<String, String>) new Gson().fromJson(secretsProviderConfig, Map.class);
+                @SuppressWarnings("unchecked") // Gson deserialization of Map
+                Map<String, String> parsedConfig = (Map<String, String>) new Gson().fromJson(secretsProviderConfig,
+                        Map.class);
+                config = parsedConfig;
             }
             secretsProviderConfigurator =
                     new NameAndConfigBasedSecretsProviderConfigurator(secretsProviderClassName, config);

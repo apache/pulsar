@@ -17,6 +17,11 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+    id("pulsar.test-certs-conventions")
+}
+
 dependencies {
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-admin-original"))
@@ -37,9 +42,7 @@ dependencies {
     implementation(libs.zookeeper) {
         exclude(group = "org.slf4j")
     }
-    implementation(libs.bookkeeper.server) {
-        exclude(group = "org.slf4j")
-    }
+    implementation(libs.bookkeeper.server)
     implementation(libs.re2j)
     implementation(libs.gson)
     implementation(libs.jetty.client)

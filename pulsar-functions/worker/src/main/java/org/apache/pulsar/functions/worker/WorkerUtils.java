@@ -380,7 +380,7 @@ public final class WorkerUtils {
         }
     }
 
-    public static Reader<byte[]> createReader(ReaderBuilder readerBuilder,
+    public static Reader<byte[]> createReader(ReaderBuilder<byte[]> readerBuilder,
                                               String readerName,
                                               String topic,
                                               MessageId startMessageId) throws PulsarClientException {

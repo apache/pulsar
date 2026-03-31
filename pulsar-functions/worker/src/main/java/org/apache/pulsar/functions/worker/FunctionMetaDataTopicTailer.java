@@ -43,7 +43,7 @@ public class FunctionMetaDataTopicTailer
     private CompletableFuture<Void> exitFuture = new CompletableFuture<>();
 
     public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
-                                       ReaderBuilder readerBuilder, WorkerConfig workerConfig,
+                                       ReaderBuilder<byte[]> readerBuilder, WorkerConfig workerConfig,
                                        MessageId lastMessageSeen,
                                        ErrorNotifier errorNotifier)
             throws PulsarClientException {
@@ -121,9 +121,9 @@ public class FunctionMetaDataTopicTailer
         log.info("Stopped function metadata tailer");
     }
 
-    public static Reader createReader(WorkerConfig workerConfig, ReaderBuilder readerBuilder,
+    public static Reader<byte[]> createReader(WorkerConfig workerConfig, ReaderBuilder<byte[]> readerBuilder,
                                       MessageId startMessageId) throws PulsarClientException {
-        ReaderBuilder builder = readerBuilder
+        ReaderBuilder<byte[]> builder = readerBuilder
                 .topic(workerConfig.getFunctionMetadataTopic())
                 .startMessageId(startMessageId)
                 .readerName(workerConfig.getWorkerId() + "-function-metadata-tailer")

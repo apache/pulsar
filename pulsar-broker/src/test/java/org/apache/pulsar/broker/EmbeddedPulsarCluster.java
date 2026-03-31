@@ -99,6 +99,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         return serviceUrl;
     }
 
+    @SuppressWarnings("deprecation")
     private ServiceConfiguration getConf() {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setAdvertisedAddress("localhost");

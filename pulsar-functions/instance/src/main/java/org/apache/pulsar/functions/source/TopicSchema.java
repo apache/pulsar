@@ -149,6 +149,7 @@ public class TopicSchema {
         return newSchemaInstance(clazz, type, new ConsumerConfig());
     }
 
+    @SuppressWarnings("unchecked") // schema type casts are safe for the given schema type
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type, ConsumerConfig conf) {
         switch (type) {
         case NONE:

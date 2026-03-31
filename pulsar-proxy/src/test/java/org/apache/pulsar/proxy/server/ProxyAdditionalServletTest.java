@@ -115,6 +115,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
     }
 
     // this is for nar package test
+    @SuppressWarnings("deprecation")
     private void addServletNar() {
         Properties properties = new Properties();
         properties.setProperty("basePath", "/metrics-prometheus/broker");
@@ -200,6 +201,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void test() throws IOException {
         int httpPort = proxyWebServer.getListenPortHTTP().get();

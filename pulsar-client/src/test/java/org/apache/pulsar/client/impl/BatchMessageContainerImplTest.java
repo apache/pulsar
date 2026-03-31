@@ -145,7 +145,7 @@ public class BatchMessageContainerImplTest {
 
     @Test
     public void testMessagesSize() throws Exception {
-        ProducerImpl producer = mock(ProducerImpl.class);
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
 
         final ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setCompressionType(CompressionType.NONE);

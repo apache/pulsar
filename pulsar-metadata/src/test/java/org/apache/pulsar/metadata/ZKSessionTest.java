@@ -93,7 +93,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.SessionLost);
 
         zks.start();
-        boolean zkServerReady = zks.waitForServerUp(zks.getConnectionString(), 30_000);
+        boolean zkServerReady = TestZKServer.waitForServerUp(zks.getConnectionString(), 30_000);
         assertTrue(zkServerReady);
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
@@ -127,7 +127,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.SessionLost);
 
         zks.start();
-        boolean zkServerReady = zks.waitForServerUp(zks.getConnectionString(), 30_000);
+        boolean zkServerReady = TestZKServer.waitForServerUp(zks.getConnectionString(), 30_000);
         assertTrue(zkServerReady);
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);

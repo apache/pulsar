@@ -2145,6 +2145,7 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         Assert.assertTrue(execFlag.get());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     @SneakyThrows
     public void testSchemaAutoUpdateCompatibilityStrategy() {

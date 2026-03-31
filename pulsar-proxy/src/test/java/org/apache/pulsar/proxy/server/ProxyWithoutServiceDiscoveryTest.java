@@ -155,6 +155,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testDiscoveryService() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -204,6 +205,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @SuppressWarnings("deprecation")
     protected final PulsarClient createPulsarClient(Authentication auth, String lookupUrl) throws Exception {
         closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())

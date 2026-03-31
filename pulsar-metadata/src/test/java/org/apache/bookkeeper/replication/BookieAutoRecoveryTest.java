@@ -31,8 +31,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
-import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.LedgerManager;
@@ -431,7 +431,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
     public void testLedgerMetadataContainsIpAddressAsBookieID()
             throws Exception {
         stopBKCluster();
-        bkc = new BookKeeperTestClient(baseClientConf);
+        bkc = new PulsarBookKeeperTestClient(baseClientConf);
         // start bookie with useHostNameAsBookieID=false, as old bookie
         ServerConfiguration serverConf1 = newServerConfiguration();
         // start 2 more bookies with useHostNameAsBookieID=true
@@ -507,7 +507,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
             throws Exception {
         stopBKCluster();
 
-        bkc = new BookKeeperTestClient(baseClientConf);
+        bkc = new PulsarBookKeeperTestClient(baseClientConf);
         // start bookie with useHostNameAsBookieID=false, as old bookie
         ServerConfiguration serverConf1 = newServerConfiguration();
         // start 2 more bookies with useHostNameAsBookieID=true
@@ -552,7 +552,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
                 watchUrLedgerNode(urLedgerZNode, latch));
 
         // creates new bkclient
-        bkc = new BookKeeperTestClient(baseClientConf);
+        bkc = new PulsarBookKeeperTestClient(baseClientConf);
         // starting the replication service, so that he will be able to act as
         // target bookie
         ServerConfiguration serverConf = newServerConfiguration();

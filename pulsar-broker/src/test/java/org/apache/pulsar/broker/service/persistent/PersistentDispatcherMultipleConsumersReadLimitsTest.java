@@ -71,6 +71,7 @@ public class PersistentDispatcherMultipleConsumersReadLimitsTest extends Produce
         BrokerTestInterceptor.INSTANCE.reset();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30 * 1000)
     public void testDispatcherMaxReadSizeBytes() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName(

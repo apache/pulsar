@@ -142,6 +142,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         log.info("Send result messageId: {}", messageId2);
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testProducerInterceptorsWithExceptions() throws PulsarClientException {
@@ -172,6 +173,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         Assert.assertNotNull(messageId);
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testProducerInterceptorsWithErrors() throws PulsarClientException {
@@ -202,6 +204,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         Assert.assertNotNull(messageId);
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testProducerInterceptorAccessMessageData() throws PulsarClientException {

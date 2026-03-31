@@ -32,6 +32,7 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
 
@@ -43,6 +44,7 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
         return "mockauth";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         // Return super user role

@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     api(libs.opentelemetry.api)
     implementation(libs.opentelemetry.exporter.otlp)

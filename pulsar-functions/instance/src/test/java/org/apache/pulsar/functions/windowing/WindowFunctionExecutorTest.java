@@ -136,6 +136,7 @@ public class WindowFunctionExecutorTest {
         windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATMOST_ONCE);
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context)
                 .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+        @SuppressWarnings("rawtypes")
         Record record = mock(Record.class);
         when(context.getCurrentRecord()).thenReturn(record);
         doReturn(Optional.of("test-topic")).when(record).getTopicName();
@@ -145,11 +146,13 @@ public class WindowFunctionExecutorTest {
         verify(record, times(1)).ack();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testWindowFunctionWithAtleastOnce() throws Exception {
 
         WindowConfig config = new WindowConfig();
         config.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        @SuppressWarnings("rawtypes")
         WindowFunctionExecutor windowFunctionExecutor = spy(WindowFunctionExecutor.class);
         windowFunctionExecutor.windowConfig = config;
         doNothing().when(windowFunctionExecutor).initialize(any());
@@ -253,6 +256,7 @@ public class WindowFunctionExecutorTest {
         windowConfig.setLateDataTopic("$late");
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);
         when(typedMessageBuilder.value(any())).thenReturn(typedMessageBuilder);
         when(typedMessageBuilder.sendAsync()).thenReturn(CompletableFuture.anyOf());

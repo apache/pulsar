@@ -149,6 +149,7 @@ public class UnloadSubscriptionTest extends SharedPulsarBaseTest {
         consumer1.close();
         consumer2.close();
     }
+    @SuppressWarnings("deprecation")
 
     private static String toString(List<MessageId> messageIds){
         List<String> messageIdStrings = new ArrayList<>(messageIds.size());

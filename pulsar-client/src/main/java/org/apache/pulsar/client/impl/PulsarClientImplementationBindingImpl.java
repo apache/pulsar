@@ -206,20 +206,24 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return LocalDateTimeSchema.of();
     }
 
+    @SuppressWarnings("rawtypes")
     public <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
         return AvroSchema.of(schemaDefinition);
     }
 
+    @SuppressWarnings("rawtypes")
     public <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufSchema.of(schemaDefinition);
     }
 
+    @SuppressWarnings("rawtypes")
     public <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufNativeSchema.of(schemaDefinition);
     }
 
+    @SuppressWarnings("rawtypes")
     public <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
         return JSONSchema.of(schemaDefinition);
     }

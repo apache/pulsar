@@ -304,6 +304,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         validatingLogInfo(consumer, producer, true);
         log.info("-- Exiting {} test --", methodName);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "batch")
     public void testSendTimeout(int batchMessageDelayMs) throws Exception {
@@ -381,6 +382,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         consumer.unsubscribe();
         log.info("-- Exiting {} test --", methodName);
     }
+    @SuppressWarnings("deprecation")
 
     private void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount)
             throws InterruptedException {
@@ -468,6 +470,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
      * This test verifies partitioned topic stats for producer and consumer.
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testPartitionTopicStats() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -565,6 +568,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testRetryLetterAndDeadLetterStats() throws PulsarClientException, InterruptedException {
@@ -610,6 +614,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
             assertEquals(deadLetterStats.getTotalMsgsSent(), 1);
         });
     }
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeadLetterStats() throws PulsarClientException, InterruptedException {
         final String topicName = "persistent://my-property/my-ns/testDeadLetterStats";
@@ -649,6 +654,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
             assertEquals(dlqStats.getTotalMsgsSent(), 1);
         });
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testPartitionedRetryLetterAndDeadLetterStats()

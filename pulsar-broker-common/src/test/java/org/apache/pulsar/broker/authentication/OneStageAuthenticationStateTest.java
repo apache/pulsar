@@ -42,6 +42,7 @@ public class OneStageAuthenticationStateTest {
     public static class CountingAuthenticationProvider implements AuthenticationProvider {
         public LongAdder authCallCount = new LongAdder();
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }

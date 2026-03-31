@@ -66,6 +66,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticatedProducerConsumerTest.class);
 
     private static final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
+    @SuppressWarnings("deprecation")
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
@@ -119,6 +120,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         conf.setNumExecutorThreadPoolSize(5);
         super.init();
     }
+    @SuppressWarnings("deprecation")
 
     protected final void internalSetup(Authentication auth) throws Exception {
         closeAdmin();
@@ -180,6 +182,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         consumer.acknowledgeCumulative(msg);
         consumer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "batch")
     public void testTlsSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
@@ -238,6 +241,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "batch")
     public void testAnonymousSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
@@ -286,6 +290,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthenticationFilterNegative() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -319,6 +324,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testInternalServerExceptionOnLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -358,6 +364,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         mockZooKeeperGlobal.unsetAlwaysFail();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testDeleteAuthenticationPoliciesOfTopic() throws Exception {
@@ -461,6 +468,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         @Cleanup
         Producer<byte[]> ignored = client.newProducer().topic(topicName).create();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCleanupEmptyTopicAuthenticationMap() throws Exception {
@@ -502,6 +510,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                     .get().auth_policies.getTopicAuthentication().containsKey(topic));
         });
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCleanupEmptySubscriptionAuthenticationMap() throws Exception {

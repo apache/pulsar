@@ -78,12 +78,12 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
     }
 
     @Override
-    public boolean eligible(Message message) {
+    public boolean eligible(Message<?> message) {
         return tracer != null && propagator != null;
     }
 
     @Override
-    public Message beforeSend(Producer producer, Message message) {
+    public Message<?> beforeSend(Producer<?> producer, Message<?> message) {
         // Initialize tracer from producer on first call
         initializeIfNeeded(producer);
 
@@ -115,7 +115,7 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
     }
 
     @Override
-    public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId, Throwable exception) {
+    public void onSendAcknowledgement(Producer<?> producer, Message<?> message, MessageId msgId, Throwable exception) {
         if (!(message instanceof TraceableMessage)) {
             return;
         }

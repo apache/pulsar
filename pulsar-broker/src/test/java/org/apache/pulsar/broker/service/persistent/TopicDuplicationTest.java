@@ -77,6 +77,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         admin.namespaces().removeDeduplicationStatus(myNamespace);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testDuplicationApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
@@ -96,6 +97,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNull(admin.topics().getDeduplicationEnabled(topicName));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testTopicDuplicationApi2() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
@@ -115,6 +117,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNull(admin.topics().getDeduplicationStatus(topicName));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testTopicDuplicationAppliedApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
@@ -137,6 +140,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
                 conf.isBrokerDeduplicationEnabled()));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testDeduplicationPriority() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
@@ -214,6 +218,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         }).get();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testDuplicationSnapshotApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
@@ -310,6 +315,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(position, markDeletedPosition);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testDuplicationMethod() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();

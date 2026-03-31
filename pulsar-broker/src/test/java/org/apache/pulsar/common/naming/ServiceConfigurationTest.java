@@ -57,6 +57,7 @@ public class ServiceConfigurationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testInit() throws Exception {
         final String zookeeperServer = "localhost:2184";
@@ -274,6 +275,7 @@ public class ServiceConfigurationTest {
             assertEquals(conf.getBookkeeperClientNumIoThreads(), 1);
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testSubscriptionTypesEnableWins() throws Exception {

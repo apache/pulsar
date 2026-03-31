@@ -44,6 +44,7 @@ import org.testng.annotations.Test;
 
 public class KubernetesSecretsTokenAuthProviderTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConfigureAuthDataStatefulSet() {
         byte[] testBytes = new byte[]{0, 1, 2, 3, 4};
@@ -78,6 +79,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
                 .get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConfigureAuthDataStatefulSetNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
@@ -110,6 +112,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
                 .get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testCacheAuthData() throws ApiException {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
@@ -138,6 +141,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
         Assert.assertTrue(StringUtils.isNotBlank(new String(functionAuthData.get().getData())));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void configureAuthenticationConfig() {
         byte[] testBytes = new byte[]{0, 1, 2, 3, 4};
@@ -155,6 +159,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
         Assert.assertEquals(authenticationConfig.getTlsTrustCertsFilePath(), "/etc/auth/ca.pem");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void configureAuthenticationConfigNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
@@ -172,6 +177,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testUpdateAuthData() throws Exception {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);

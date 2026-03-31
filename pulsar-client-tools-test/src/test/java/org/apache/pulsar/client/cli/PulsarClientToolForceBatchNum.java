@@ -66,6 +66,7 @@ public class PulsarClientToolForceBatchNum extends PulsarClientTool{
         replaceProducerCommand(produceCommand);
     }
 
+    @SuppressWarnings("rawtypes")
     private ClientBuilder mockClientBuilder(ClientBuilder newBuilder) throws Exception {
         PulsarClientImpl client = (PulsarClientImpl) newBuilder.build();
         ProducerBuilder<byte[]> producerBuilder = client.newProducer()

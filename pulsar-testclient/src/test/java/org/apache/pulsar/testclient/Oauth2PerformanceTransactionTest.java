@@ -124,6 +124,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     }
 
     // setup both admin and pulsar client
+    @SuppressWarnings("deprecation")
     protected final void clientSetup() throws Exception {
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
         log.info("Credentials File path: {}", path);

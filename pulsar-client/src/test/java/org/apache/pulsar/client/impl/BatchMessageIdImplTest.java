@@ -68,6 +68,7 @@ public class BatchMessageIdImplTest {
         assertEquals(msgId, batchMsgId4);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void notEqualsMultiTest() {
         BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(0, 0, 0, 0);

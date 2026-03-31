@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     implementation(project(":pulsar-functions:pulsar-functions-proto"))
     implementation(libs.kubernetes.client.java)

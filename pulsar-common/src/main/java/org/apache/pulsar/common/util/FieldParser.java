@@ -182,7 +182,9 @@ public final class FieldParser {
                     throw new IllegalArgumentException(format("unsupported non-primitive Optional<%s> for %s",
                             typeClazz.getClass(), field.getName()));
                 }
-                return Optional.ofNullable(convert(strValue, (Class) typeClazz));
+                @SuppressWarnings("unchecked") // typeClazz is verified to be a non-parameterized Class
+                Optional<?> result = Optional.ofNullable(convert(strValue, (Class<?>) typeClazz));
+                return result;
             } else {
                 throw new IllegalArgumentException(
                         format("unsupported field-type %s for %s", field.getType(), field.getName()));

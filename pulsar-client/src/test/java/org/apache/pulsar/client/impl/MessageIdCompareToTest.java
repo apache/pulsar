@@ -183,6 +183,7 @@ public class MessageIdCompareToTest  {
         assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiMessageIdEqual() {
         // null
@@ -259,6 +260,7 @@ public class MessageIdCompareToTest  {
         assertNotEquals(item7, item5);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiMessageIdCompareto() {
         // null

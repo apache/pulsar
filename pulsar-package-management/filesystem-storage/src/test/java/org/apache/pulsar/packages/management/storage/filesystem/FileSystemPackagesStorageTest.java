@@ -85,6 +85,7 @@ public class FileSystemPackagesStorageTest {
         assertEquals(testData, readResult);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60000)
     public void testReadWriteLargeDataOperations() throws ExecutionException, InterruptedException {
         byte[] data = RandomUtils.nextBytes(8192 * 3 + 4096);

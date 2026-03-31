@@ -72,7 +72,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     // The producer of the metadata topic when we are the leader.
     // Note that this variable serves a double duty. A non-null value
     // implies we are the leader, while a null value means we are not the leader
-    private Producer exclusiveLeaderProducer;
+    private Producer<byte[]> exclusiveLeaderProducer;
     @Getter
     private volatile MessageId lastMessageSeen = MessageId.earliest;
 
@@ -101,7 +101,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
      * We create a new reader
      */
     public synchronized void initialize() {
-        try (Reader reader = FunctionMetaDataTopicTailer.createReader(
+        try (Reader<byte[]> reader = FunctionMetaDataTopicTailer.createReader(
                 workerConfig, pulsarClient.newReader(), MessageId.earliest)) {
             // read all existing messages
             while (reader.hasMessageAvailable()) {
@@ -230,7 +230,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             toWrite = serviceRequest.toByteArray();
         }
         try {
-            TypedMessageBuilder builder = exclusiveLeaderProducer.newMessage()
+            TypedMessageBuilder<byte[]> builder = exclusiveLeaderProducer.newMessage()
                     .value(toWrite)
                     .property(versionTag, Long.toString(functionMetaData.getVersion()));
             if (workerConfig.getUseCompactedMetadataTopic()) {

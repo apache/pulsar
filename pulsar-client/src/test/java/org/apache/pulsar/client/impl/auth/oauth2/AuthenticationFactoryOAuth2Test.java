@@ -60,6 +60,7 @@ public class AuthenticationFactoryOAuth2Test {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testClientCredentials() throws IOException {
         URL issuerUrl = new URL("http://localhost");

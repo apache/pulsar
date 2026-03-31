@@ -133,7 +133,7 @@ public class TopicOwnerTest {
         }
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @SneakyThrows(IllegalAccessException.class)
     private MutableObject<PulsarService> spyLeaderNamespaceServiceForAuthorizedBroker() {
         // Spy leader namespace service to inject authorized broker for namespace-bundle from leader,
@@ -141,6 +141,7 @@ public class TopicOwnerTest {
         // currently. Namespace-bundle ownership contention is an atomic operation through zookeeper.
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
         NamespaceService spyLeaderNamespaceService = spy(leaderNamespaceService);
+        @SuppressWarnings("deprecation")
         final MutableObject<PulsarService> leaderAuthorizedBroker = new MutableObject<>();
         Answer<CompletableFuture<Optional<LookupResult>>> answer = invocation -> {
             PulsarService pulsarService = leaderAuthorizedBroker.getValue();

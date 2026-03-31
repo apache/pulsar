@@ -1118,6 +1118,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         retryStrategically((test) -> subscription.getNumberOfEntriesInBacklog(false) == 0, 5, 200);
         assertEquals(subscription.getNumberOfEntriesInBacklog(false), 0);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = testTimeout)
     public void testGetLastMessageId() throws Exception {

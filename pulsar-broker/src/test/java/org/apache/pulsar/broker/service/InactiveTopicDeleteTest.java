@@ -393,6 +393,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testTopicLevelInActiveTopicApi() throws Exception {
         super.baseSetup();
@@ -419,6 +420,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                 -> assertNull(admin.topics().getInactiveTopicPolicies(topicName)));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testTopicLevelInactivePolicyUpdateAndClean() throws Exception {
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
@@ -497,6 +499,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testDeleteWhenNoSubscriptionsWithTopicLevelPolicies() throws Exception {
         final String namespace = "prop/ns-abc";
@@ -551,6 +554,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Assert.assertFalse(admin.topics().getList(namespace).contains(topic));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testInactiveTopicApplied() throws Exception {
         super.baseSetup();

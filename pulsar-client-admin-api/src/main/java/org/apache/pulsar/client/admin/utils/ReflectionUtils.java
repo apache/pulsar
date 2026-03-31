@@ -29,6 +29,7 @@ public class ReflectionUtils {
         T get() throws Exception;
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> T newBuilder(String className) {
         return catchExceptions(
                 () -> (T) ReflectionUtils.getStaticMethod(

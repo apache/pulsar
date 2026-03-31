@@ -2856,6 +2856,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 100000)
     public void testCryptoWithChunking() throws Exception {
@@ -4966,6 +4967,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 {false}
         };
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "enableBatchSend")
     public void testPublishWithCreateMessageManually(boolean enableBatchSend) throws Exception {

@@ -126,6 +126,7 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
@@ -306,6 +307,7 @@ public class BrokerBookieIsolationTest {
         return ledgerManager;
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetRackInfoAndAffinityGroupDuringProduce() throws Exception {
         final String tenant1 = "tenant1";
@@ -446,6 +448,7 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testStrictBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
@@ -612,6 +615,7 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testBookieIsolationWithSecondaryGroup() throws Exception {
         final String tenant1 = "tenant1";

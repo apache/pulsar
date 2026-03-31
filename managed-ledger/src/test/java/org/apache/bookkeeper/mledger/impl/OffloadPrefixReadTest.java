@@ -254,7 +254,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         }
         config.setRetentionTime(0, TimeUnit.MILLISECONDS);
         config.setRetentionSizeInMB(0);
-        CompletableFuture trimFuture = new CompletableFuture();
+        CompletableFuture<Void> trimFuture = new CompletableFuture<>();
         ledger.trimConsumedLedgersInBackground(trimFuture);
         trimFuture.join();
         Awaitility.await().untilAsserted(() -> {
@@ -383,7 +383,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     @SuppressWarnings("try")
     static class MockOffloadReadHandle implements ReadHandle, OffloadedLedgerHandle {
         final long id;
-        final List<ByteBuf> entries = new ArrayList();
+        final List<ByteBuf> entries = new ArrayList<>();
         final LedgerMetadata metadata;
         long lastAccessTimestamp = System.currentTimeMillis();
 
@@ -415,7 +415,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
 
         @Override
         public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-            List<LedgerEntry> readEntries = new ArrayList();
+            List<LedgerEntry> readEntries = new ArrayList<>();
             for (long eid = firstEntry; eid <= lastEntry; eid++) {
                 ByteBuf buf = entries.get((int) eid).retainedSlice();
                 readEntries.add(LedgerEntryImpl.create(id, eid, buf.readableBytes(), buf));

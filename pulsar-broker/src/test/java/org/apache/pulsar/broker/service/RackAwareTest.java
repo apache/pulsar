@@ -65,6 +65,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
     public Object[][] forceMinRackNumProvider() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
+    @SuppressWarnings("deprecation")
 
     @Override
     protected void configurePulsar(ServiceConfiguration config) throws Exception {

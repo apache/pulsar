@@ -38,7 +38,9 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected final FunctionCollectorRegistry collectorRegistry;
 
-    protected final EvictingQueue emptyQueue = EvictingQueue.create(0);
+    @SuppressWarnings("unchecked") // empty queue is used as a typed return value
+    protected final EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> emptyQueue =
+            EvictingQueue.create(0);
 
     public static final String USER_METRIC_PREFIX = "user_metric_";
 

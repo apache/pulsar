@@ -17,7 +17,11 @@
  * under the License.
  */
 
-sourceSets["test"].resources.srcDir(rootProject.layout.projectDirectory.dir("tests"))
+plugins {
+    id("pulsar.java-conventions")
+    id("pulsar.test-certs-conventions")
+}
+
 
 // Exclude the non-FIPS BouncyCastle module — this module tests with FIPS provider only.
 // Having both bc (bcprov) and bcfips (bc-fips) causes CryptoServicesRegistrar conflicts.

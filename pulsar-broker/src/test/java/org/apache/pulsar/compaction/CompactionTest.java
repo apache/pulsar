@@ -2063,6 +2063,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             }
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testDeleteCompactedLedger() throws Exception {

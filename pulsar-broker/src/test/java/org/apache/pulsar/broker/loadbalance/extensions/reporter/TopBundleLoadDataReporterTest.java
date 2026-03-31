@@ -55,6 +55,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TopBundleLoadDataReporterTest {
     PulsarService pulsar;
+    @SuppressWarnings("rawtypes")
     LoadDataStore store;
     BrokerService brokerService;
     PulsarStats pulsarStats;
@@ -132,7 +133,7 @@ public class TopBundleLoadDataReporterTest {
         expected.update(bundleStats, 0);
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
-        doReturn(new HashMap()).when(brokerService).getBundleStats();
+        doReturn(new HashMap<>()).when(brokerService).getBundleStats();
         FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0L, true);
         expected = new TopKBundles(pulsar);
         assertEquals(target.generateLoadData(), expected.getLoadData());

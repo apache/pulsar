@@ -18,7 +18,8 @@
  */
 
 plugins {
-    alias(libs.plugins.nar)
+    id("pulsar.java-conventions")
+    id("pulsar.nar-conventions")
 }
 dependencies {
     compileOnly(project(":managed-ledger"))
@@ -39,7 +40,6 @@ dependencies {
     testImplementation(project(":testmocks"))
     testImplementation(libs.guava)
     testImplementation(libs.netty.buffer)
-    testImplementation(libs.bookkeeper.server)
     testCompileOnly(libs.jclouds.blobstore)
     testCompileOnly(libs.jclouds.allblobstore)
     // The "transient" blobstore provider (for in-memory tests) is registered via

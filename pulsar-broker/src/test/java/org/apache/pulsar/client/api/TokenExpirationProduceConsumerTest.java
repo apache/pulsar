@@ -85,9 +85,12 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
+    @SuppressWarnings("deprecation")
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    @SuppressWarnings("deprecation")
     public static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
 
     public String getExpireToken(String role, Date date) {
         return Jwts.builder().setSubject(role).signWith(SECRET_KEY)
@@ -114,6 +117,7 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
         conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
                 + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
     }
+    @SuppressWarnings("deprecation")
 
     private PulsarClient getClient(String token) throws Exception {
         ClientBuilder clientBuilder = PulsarClient.builder()

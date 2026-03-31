@@ -489,6 +489,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
      * Send some messages before transaction buffer ready and then send some messages after transaction buffer ready,
      * these messages should be received in order.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testMessagePublishInOrder() throws Exception {
         // 1. Prepare test environment.

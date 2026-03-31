@@ -127,6 +127,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
                 .setLedgerManagerFactoryClassName(ledgerManagerFactoryClass);
     }
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         super.setUp();

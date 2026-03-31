@@ -76,6 +76,7 @@ public class ClientCnxTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         this.executorService.shutdownNow();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testRemoveAndHandlePendingRequestInCnx() throws Exception {

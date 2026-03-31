@@ -323,6 +323,7 @@ public class FunctionsImplTest {
                         .originalPrincipal("test-non-admin-user").build()));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testIsSuperUser() throws PulsarAdminException {
 

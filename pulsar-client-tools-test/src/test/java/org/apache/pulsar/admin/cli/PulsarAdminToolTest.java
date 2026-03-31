@@ -1557,6 +1557,7 @@ public class PulsarAdminToolTest {
         verify(mockGlobalTopicsPolicies).removeAutoSubscriptionCreation("persistent://prop/ns1/ds1");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void topicsSetOffloadPolicies() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
@@ -1588,6 +1589,7 @@ public class PulsarAdminToolTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void topics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
@@ -1813,6 +1815,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).peekMessages("persistent://myprop/ns1/ds1", "sub1", 3,
                 false, TransactionIsolationLevel.READ_COMMITTED);
 
+        @SuppressWarnings("rawtypes")
         MessageImpl message = mock(MessageImpl.class);
         when(message.getData()).thenReturn(new byte[]{});
         when(message.getMessageId()).thenReturn(new MessageIdImpl(1L, 1L, 1));
@@ -2289,6 +2292,7 @@ public class PulsarAdminToolTest {
                 longThat(new TimestampMatcher()));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void nonPersistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
@@ -2581,7 +2585,7 @@ public class PulsarAdminToolTest {
         cmdSchemas.run(split("extract -j " + jarFile + " -c " + className + " -t json persistent://tn1/ns1/tp1"));
         File file = new File(jarFile);
         ClassLoader cl = new URLClassLoader(new URL[]{file.toURI().toURL()});
-        Class cls = cl.loadClass(className);
+        Class<?> cls = cl.loadClass(className);
         SchemaDefinition<Object> schemaDefinition =
                 SchemaDefinition.builder()
                         .withPojo(cls)

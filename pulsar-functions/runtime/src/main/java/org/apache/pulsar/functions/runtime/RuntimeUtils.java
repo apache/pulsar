@@ -363,6 +363,12 @@ public class RuntimeUtils {
                 args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, systemFunctionInstanceClasspath));
             }
             args.add("-Dlog4j.configurationFile=" + logConfigFile);
+            // Use a single LoggerContext for the function process. The default
+            // ClassLoaderContextSelector creates separate contexts per classloader,
+            // which causes the LogAppender (added from the instance classloader) to
+            // miss log events from the SLF4J logger (resolved via the root classloader).
+            args.add("-Dlog4j2.contextSelector="
+                    + "org.apache.logging.log4j.core.selector.BasicContextSelector");
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
                     "%s-%s",

@@ -31,10 +31,10 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 @Data
 public class Offloaders implements AutoCloseable {
 
-    private final List<Pair<NarClassLoader, LedgerOffloaderFactory>> offloaders = new ArrayList<>();
+    private final List<Pair<NarClassLoader, LedgerOffloaderFactory<?>>> offloaders = new ArrayList<>();
 
-    public LedgerOffloaderFactory getOffloaderFactory(String driverName) throws IOException {
-        for (Pair<NarClassLoader, LedgerOffloaderFactory> factory : offloaders) {
+    public LedgerOffloaderFactory<?> getOffloaderFactory(String driverName) throws IOException {
+        for (Pair<NarClassLoader, LedgerOffloaderFactory<?>> factory : offloaders) {
             if (factory.getRight().isDriverSupported(driverName)) {
                 return factory.getRight();
             }

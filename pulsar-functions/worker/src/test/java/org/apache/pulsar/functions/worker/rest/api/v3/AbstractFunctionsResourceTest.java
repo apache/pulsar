@@ -92,7 +92,7 @@ public abstract class AbstractFunctionsResourceTest {
     private static final String SYSTEM_PROPERTY_NAME_INVALID_NAR_FILE_PATH = "pulsar-io-invalid.nar.path";
     private static final String SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH =
             "pulsar-functions-api-examples.nar.path";
-    protected static Map<String, MockedStatic> mockStaticContexts = new HashMap<>();
+    protected static Map<String, MockedStatic<?>> mockStaticContexts = new HashMap<>();
 
     static {
         TOPICS_TO_SER_DE_CLASS_NAME.put("test_src", DEFAULT_SERDE);
@@ -234,8 +234,9 @@ public abstract class AbstractFunctionsResourceTest {
         mockStatic(classStatic, withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS), consumer);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private <T> void mockStatic(Class<T> classStatic, MockSettings mockSettings, Consumer<MockedStatic<T>> consumer) {
-        final MockedStatic<T> mockedStatic = mockStaticContexts.computeIfAbsent(classStatic.getName(),
+        final MockedStatic<T> mockedStatic = (MockedStatic) mockStaticContexts.computeIfAbsent(classStatic.getName(),
                 name -> Mockito.mockStatic(classStatic, mockSettings));
         consumer.accept(mockedStatic);
     }

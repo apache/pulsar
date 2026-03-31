@@ -87,6 +87,7 @@ public class PulsarFunctionAdminTest {
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     private static final Logger log = LoggerFactory.getLogger(PulsarFunctionAdminTest.class);
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
@@ -190,6 +191,7 @@ public class PulsarFunctionAdminTest {
             bkEnsemble = null;
         }
     }
+    @SuppressWarnings("deprecation")
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
         workerConfig = new WorkerConfig();

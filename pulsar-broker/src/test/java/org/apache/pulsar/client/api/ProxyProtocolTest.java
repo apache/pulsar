@@ -40,6 +40,7 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         super.setup();
         internalSetUpForNamespace();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testSniProxyProtocol() throws Exception {
@@ -62,6 +63,7 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         // should be able to create producer successfully
         pulsarClient.newProducer().topic(topicName).create();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testSniProxyProtocolWithInvalidProxyUrl() throws Exception {

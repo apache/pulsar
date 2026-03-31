@@ -120,7 +120,7 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         doReturn(namespaceBundleFactory).when(namespaceService).getNamespaceBundleFactory();
         doReturn(brokerRegistry).when(loadManagerContext).brokerRegistry();
         doReturn(broker).when(brokerRegistry).getBrokerId();
-        doReturn(new AtomicReference(loadManagerWrapper)).when(pulsar).getLoadManager();
+        doReturn(new AtomicReference<>(loadManagerWrapper)).when(pulsar).getLoadManager();
         doReturn(loadManager).when(loadManagerWrapper).get();
         doReturn(channel).when(loadManager).getServiceUnitStateChannel();
         doReturn(true).when(channel).isOwner(any());

@@ -359,7 +359,9 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         NamespaceBundle bundle = pulsar1.getNamespaceService().getBundle(topicName);
         primaryLoadManager.assign(Optional.empty(), bundle, LookupOptions.builder().build()).get();
 
+        @SuppressWarnings("rawtypes")
         CompletableFuture future1 = new CompletableFuture();
+        @SuppressWarnings("rawtypes")
         CompletableFuture future2 = new CompletableFuture();
         try {
             pulsar1.getBrokerService().getTopics().put(topicName.toString(), future1);
@@ -692,6 +694,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 admin, lookupUrl.toString(), pulsar1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(enabled = false)
     public static void testUnloadClientReconnectionWithLookup(List<PulsarClient> clients,
                                                               TopicDomain topicDomain,
@@ -786,6 +789,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 pulsar2);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(enabled = false)
     public static void testOptimizeUnloadDisable(List<PulsarClient> clients,
                                                  TopicDomain topicDomain,
@@ -1823,6 +1827,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 .get(3, TimeUnit.SECONDS);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(priority = Integer.MIN_VALUE)
     public void testGetMetrics() throws Exception {
         {

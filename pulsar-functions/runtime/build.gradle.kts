@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 // Include parent module's test resources (YAML config files used by WorkerApiV2ResourceConfigTest)
 // This mirrors Maven's maven-antrun-plugin that copies pulsar-functions/src/test/resources/*.yml
 sourceSets {
