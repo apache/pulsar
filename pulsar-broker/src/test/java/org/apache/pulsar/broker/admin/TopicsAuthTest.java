@@ -64,10 +64,14 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     private final String testTenant = "my-tenant";
     private final String testNamespace = "my-namespace";
     private final String testTopicName = "my-topic";
+@SuppressWarnings("deprecation")
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    @SuppressWarnings("deprecation")
     private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
     private static final String PRODUCE_TOKEN = Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
     private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
 
     @Override

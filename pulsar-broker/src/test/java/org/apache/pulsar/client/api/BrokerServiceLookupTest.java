@@ -1184,6 +1184,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     }
 
     /**** helper classes. ****/
+    @SuppressWarnings("deprecation")
 
     public static class MockAuthenticationProvider implements AuthenticationProvider {
         @Override

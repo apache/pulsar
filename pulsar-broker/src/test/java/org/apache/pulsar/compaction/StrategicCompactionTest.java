@@ -96,6 +96,7 @@ public class StrategicCompactionTest extends MockedPulsarServiceBaseTest {
     private long compact(String topic) throws ExecutionException, InterruptedException {
         return (long) compactor.compact(topic, strategy).get();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testNumericOrderCompaction() throws Exception {

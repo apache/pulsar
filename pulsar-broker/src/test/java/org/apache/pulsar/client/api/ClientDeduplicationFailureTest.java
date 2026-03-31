@@ -282,6 +282,7 @@ public class ClientDeduplicationFailureTest {
         assertNotNull(prevMessage);
         assertEquals(prevMessage.getSequenceId(), producerThread.getLastSeqId());
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 300000)
     public void testClientDeduplicationWithBkFailure() throws  Exception {

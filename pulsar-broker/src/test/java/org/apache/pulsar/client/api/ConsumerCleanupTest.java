@@ -34,6 +34,7 @@ public class ConsumerCleanupTest extends SharedPulsarBaseTest {
     public Object[][] ackReceiptEnabled() {
         return new Object[][] { { true }, { false } };
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "ackReceiptEnabled")
     public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackReceiptEnabled)

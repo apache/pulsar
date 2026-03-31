@@ -45,7 +45,6 @@ import lombok.Cleanup;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -65,12 +64,16 @@ public class PartitionedProducerImplTest {
 
     private static final String TOPIC_NAME = "testTopicName";
     private PulsarClientImpl client;
+    @SuppressWarnings("rawtypes")
     private ProducerBuilderImpl producerBuilderImpl;
+    @SuppressWarnings("rawtypes")
     private Schema schema;
     private ProducerInterceptors producerInterceptors;
-    private CompletableFuture<Producer> producerCreatedFuture;
+    @SuppressWarnings("rawtypes")
+    private CompletableFuture producerCreatedFuture;
 
     @BeforeMethod(alwaysRun = true)
+    @SuppressWarnings("rawtypes")
     public void setup() {
         client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
@@ -164,6 +167,7 @@ public class PartitionedProducerImplTest {
         assertNotEquals(actualHashList, expectedHashList);
     }
 
+    @SuppressWarnings("rawtypes")
     private MessageRouter getMessageRouter(ProducerConfigurationData producerConfigurationData)
             throws NoSuchFieldException, IllegalAccessException {
         PartitionedProducerImpl impl = new PartitionedProducerImpl(
@@ -205,7 +209,7 @@ public class PartitionedProducerImplTest {
 
         assertEquals(Long.parseLong("100"), clientImpl.getConfiguration().getStatsIntervalSeconds());
 
-        PartitionedProducerImpl impl = new PartitionedProducerImpl(
+        PartitionedProducerImpl<?> impl = new PartitionedProducerImpl<>(
             clientImpl, topicName, producerConfData,
             1, null, null, null);
 
@@ -265,14 +269,14 @@ public class PartitionedProducerImplTest {
         producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
         producerConfData.setCustomMessageRouter(new CustomMessageRouter());
 
-        PartitionedProducerImpl partitionedProducerImpl = new PartitionedProducerImpl(
+        PartitionedProducerImpl<?> partitionedProducerImpl = new PartitionedProducerImpl<>(
                 clientImpl, topicName, producerConfData, 1, null, null, null);
 
         assertEquals(partitionedProducerImpl.getNumOfPartitions(), 1);
 
         String nonPartitionedTopicName = "test-get-num-of-partitions-for-non-partitioned-topic";
         ProducerConfigurationData producerConfDataNonPartitioned = new ProducerConfigurationData();
-        ProducerImpl producerImpl = new ProducerImpl(clientImpl, nonPartitionedTopicName,
+        ProducerImpl<?> producerImpl = new ProducerImpl<>(clientImpl, nonPartitionedTopicName,
                 producerConfDataNonPartitioned, null, 0, null, null, Optional.empty());
         assertEquals(producerImpl.getNumOfPartitions(), 0);
     }
@@ -296,21 +300,21 @@ public class PartitionedProducerImplTest {
         producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
         producerConfData.setCustomMessageRouter(new CustomMessageRouter());
         producerConfData.setMaxPendingMessages(10);
-        PartitionedProducerImpl partitionedProducerImpl = new PartitionedProducerImpl(
+        PartitionedProducerImpl<?> partitionedProducerImpl = new PartitionedProducerImpl<>(
                 clientImpl, topicName, producerConfData, 1, null, null, null);
         assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 10);
 
         // Test set MaxPendingMessagesAcrossPartitions=5
         producerConfData.setMaxPendingMessages(ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES);
         producerConfData.setMaxPendingMessagesAcrossPartitions(5);
-        partitionedProducerImpl = new PartitionedProducerImpl(
+        partitionedProducerImpl = new PartitionedProducerImpl<>(
                 clientImpl, topicName, producerConfData, 1, null, null, null);
         assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 5);
 
         // Test set maxPendingMessage=10 and MaxPendingMessagesAcrossPartitions=10 with 2 partitions
         producerConfData.setMaxPendingMessages(10);
         producerConfData.setMaxPendingMessagesAcrossPartitions(10);
-        partitionedProducerImpl = new PartitionedProducerImpl(
+        partitionedProducerImpl = new PartitionedProducerImpl<>(
                 clientImpl, topicName, producerConfData, 2, null, null, null);
         assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 5);
     }
@@ -334,12 +338,12 @@ public class PartitionedProducerImplTest {
         producerConfData.setCustomMessageRouter(new CustomMessageRouter());
         producerConfData.setAutoUpdatePartitionsIntervalSeconds(1, TimeUnit.MILLISECONDS);
 
-        PartitionedProducerImpl impl = new PartitionedProducerImpl(
+        PartitionedProducerImpl<?> impl = new PartitionedProducerImpl<>(
                 clientImpl, topicName, producerConfData, 1, null, null, null);
 
         impl.setState(HandlerState.State.Ready);
         Thread.sleep(1000);
-        CompletableFuture future = impl.getPartitionsAutoUpdateFuture();
+        CompletableFuture<?> future = impl.getPartitionsAutoUpdateFuture();
 
         // When null is returned in method thenCompose we will encounter an NPE exception.
         // Because the returned value will be applied to the next stage.

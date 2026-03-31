@@ -1149,7 +1149,7 @@ public class ModularLoadManagerImplTest {
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getBrokerServiceUrl()).build();
 
         // create a lot of topic to fully distributed among bundles.
-        List<Consumer> consumers = new ArrayList<>();
+        List<Consumer<?>> consumers = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             String topicNameI = topicName + i;
             admin1.topics().createPartitionedTopic(topicNameI, 20);
@@ -1175,7 +1175,7 @@ public class ModularLoadManagerImplTest {
         primaryLoadManager.updateAll();
         Assert.assertFalse(loadData.getBundleData().containsKey(bundleKey));
 
-        for (Consumer consumer : consumers) {
+        for (Consumer<?> consumer : consumers) {
             consumer.close();
         }
     }

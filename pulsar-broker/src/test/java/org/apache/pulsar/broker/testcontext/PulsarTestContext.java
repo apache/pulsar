@@ -288,6 +288,7 @@ public class PulsarTestContext implements AutoCloseable {
          * This is used to run tests with smaller thread pools and shorter timeouts by default.
          * You can use <pre>{@code .configCustomizer(null)}</pre> to disable this behavior
          */
+        @SuppressWarnings("deprecation")
         protected void defaultOverrideServiceConfiguration(ServiceConfiguration svcConfig) {
             ServiceConfiguration unconfiguredDefaults = new ServiceConfiguration();
 

@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     compileOnly(project(":pulsar-client-tools"))
     compileOnly(project(":pulsar-broker"))

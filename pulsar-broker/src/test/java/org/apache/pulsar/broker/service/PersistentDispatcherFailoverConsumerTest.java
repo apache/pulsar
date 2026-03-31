@@ -464,6 +464,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         return res.get();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAddRemoveConsumerNonPartitionedTopic() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddRemoveConsumerNonPartitionedTopic ---");

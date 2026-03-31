@@ -102,8 +102,9 @@ public class TestZKServer implements AutoCloseable {
         return zkServer;
     }
 
+    @SuppressWarnings("deprecation")
     @SneakyThrows
-    private static <T> T readField(Class clazz, String field, Object object) {
+    private static <T> T readField(Class<?> clazz, String field, Object object) {
         Field declaredField = clazz.getDeclaredField(field);
         boolean accessible = declaredField.isAccessible();
         if (!accessible) {

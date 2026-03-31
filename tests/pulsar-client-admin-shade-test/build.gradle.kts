@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 // Use the shadow JAR which contains relocated netty/jackson/etc classes.
 // In Maven, pulsar-client-admin-shaded produces the "pulsar-client-admin" artifact,
 // so the Maven shade test depends on the shaded JAR, not the original.

@@ -18,7 +18,8 @@
  */
 
 plugins {
-    alias(libs.plugins.nar)
+    id("pulsar.java-conventions")
+    id("pulsar.nar-conventions")
 }
 
 dependencies {

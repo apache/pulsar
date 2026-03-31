@@ -108,6 +108,7 @@ public abstract class AbstractPulsarE2ETest {
     public Object[][] validRoleName() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     public void setup(Method method) throws Exception {
@@ -275,6 +276,7 @@ public abstract class AbstractPulsarE2ETest {
             }
         }
     }
+    @SuppressWarnings("deprecation")
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config)
             throws IOException, URISyntaxException {

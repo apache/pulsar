@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     implementation(libs.picocli)
     implementation(libs.commons.lang3)

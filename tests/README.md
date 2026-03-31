@@ -26,9 +26,8 @@ The integration tests use a framework called [Test Containers](https://www.testc
 The tests require that docker is installed and running. To run the tests:
 ```shell
 # in the top level directory
-pulsar/ $ ./gradlew assemble                                          # builds all modules
-pulsar/ $ ./gradlew -Pdocker :tests:latest-version-image:dockerBuild  # builds the docker test image
-pulsar/ $ ./gradlew :tests:integration:integrationTest                # runs the integration tests
+pulsar/ $ ./gradlew :tests:latest-version-image:dockerBuild   # builds the docker test image
+pulsar/ $ ./gradlew :tests:integration:integrationTest        # runs the integration tests
 ```
 
 The directories are as follows:

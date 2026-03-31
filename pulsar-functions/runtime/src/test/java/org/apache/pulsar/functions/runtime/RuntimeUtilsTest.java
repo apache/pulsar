@@ -59,6 +59,7 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(result[2], "-Dfoo=\"bar foo\"");
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "k8sRuntime")
     public void getGoInstanceCmd(boolean k8sRuntime) throws IOException {
         HashMap<String, String> goInstanceConfig;

@@ -142,6 +142,7 @@ public class AdminApiDelayedDeliveryTest extends MockedPulsarServiceBaseTest {
                 -> assertNull(admin.namespaces().getDelayedDelivery(namespace)));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testDelayedDeliveryApplied() throws Exception {
         cleanup();

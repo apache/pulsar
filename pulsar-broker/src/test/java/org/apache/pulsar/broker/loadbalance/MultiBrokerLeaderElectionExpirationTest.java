@@ -64,11 +64,13 @@ public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBa
 
     MetadataStoreExtended changeDefaultMetadataCacheConfig(MetadataStoreExtended metadataStore) {
         MetadataStoreExtended spy = spy(metadataStore);
-        doReturn(MetadataCacheConfig
+        @SuppressWarnings("unchecked")
+        MetadataCacheConfig<Object> config = (MetadataCacheConfig<Object>) MetadataCacheConfig
                 .builder()
                 .refreshAfterWriteMillis(REFRESH_AFTER_WRITE_MILLIS_IN_TEST)
                 .expireAfterWriteMillis(EXPIRE_AFTER_WRITE_MILLIS_IN_TEST)
-                .build()).when(spy).getDefaultMetadataCacheConfig();
+                .build();
+        doReturn(config).when(spy).getDefaultMetadataCacheConfig();
         return spy;
     }
 

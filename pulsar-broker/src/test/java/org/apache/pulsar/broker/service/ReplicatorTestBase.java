@@ -334,6 +334,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(metricReader));
     }
 
+    @SuppressWarnings("deprecation")
     public void setConfig3DefaultValue() {
         setConfigDefaults(config3, cluster3, bkEnsemble3);
         config3.setTlsEnabled(true);
@@ -491,6 +492,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         resetConfig3();
         resetConfig4();
     }
+    @SuppressWarnings("deprecation")
 
     protected void updateTenantInfo(String tenant, TenantInfoImpl tenantInfo) throws Exception {
         if (!admin1.tenants().getTenants().contains(tenant)) {
@@ -507,6 +509,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         PulsarClient client;
         Producer<byte[]> producer;
 
+        @SuppressWarnings("deprecation")
         MessageProducer(URL url, final TopicName dest) throws Exception {
             this.url = url;
             this.namespace = dest.getNamespace();
@@ -524,6 +527,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             }
         }
 
+        @SuppressWarnings("deprecation")
         MessageProducer(URL url, final TopicName dest, boolean batch) throws Exception {
             this.url = url;
             this.namespace = dest.getNamespace();
@@ -596,6 +600,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
             this(url, dest, "sub-id");
         }
 
+        @SuppressWarnings("deprecation")
         MessageConsumer(URL url, final TopicName dest, String subId) throws Exception {
             this.url = url;
             this.namespace = dest.getNamespace();

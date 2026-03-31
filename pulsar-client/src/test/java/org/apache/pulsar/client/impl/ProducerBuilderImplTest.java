@@ -369,17 +369,20 @@ public class ProducerBuilderImplTest {
         producerBuilderImpl.sendTimeout(-1, TimeUnit.SECONDS);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalid() {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
             "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalidErrorMessages() {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testProducerBuilderImplWhenNumericPropertiesAreValid() {
         producerBuilderImpl.batchingMaxPublishDelay(1, TimeUnit.SECONDS);

@@ -58,6 +58,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-replication")
 public class AbstractReplicatorTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testRetryStartProducerStoppedByTopicRemove() throws Exception {
         final String localCluster = "localCluster";

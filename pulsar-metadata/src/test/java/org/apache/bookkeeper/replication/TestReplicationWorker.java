@@ -49,11 +49,11 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.client.ClientUtil;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.ZoneawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -991,6 +991,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         testRepairedNotAdheringPlacementPolicyLedgerFragments(RackawareEnsemblePlacementPolicy.class, null);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicationStats() throws Exception {
         BiConsumer<Boolean, ReplicationWorker> checkReplicationStats = (first, rw) -> {
@@ -1033,6 +1034,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         testRepairedNotAdheringPlacementPolicyLedgerFragments(
                 RackawareEnsemblePlacementPolicy.class, checkReplicationStats);
     }
+    @SuppressWarnings("deprecation")
 
     private void testRepairedNotAdheringPlacementPolicyLedgerFragments(
             Class<? extends EnsemblePlacementPolicy> placementPolicyClass,
@@ -1048,7 +1050,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         baseClientConf.setProperty("reppDnsResolverClass", StaticDNSResolver.class.getName());
         baseClientConf.setProperty("enforceStrictZoneawarePlacement", false);
         bkc.close();
-        bkc = new BookKeeperTestClient(baseClientConf) {
+        bkc = new PulsarBookKeeperTestClient(baseClientConf) {
             @Override
             protected EnsemblePlacementPolicy initializeEnsemblePlacementPolicy(ClientConfiguration conf,
                                                                          DNSToSwitchMapping dnsResolver,
@@ -1111,7 +1113,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         assertNotNull(stat);
 
         baseConf.setRepairedPlacementPolicyNotAdheringBookieEnable(true);
-        BookKeeper bookKeeper = new BookKeeperTestClient(baseClientConf) {
+        BookKeeper bookKeeper = new PulsarBookKeeperTestClient(baseClientConf) {
             @Override
             protected EnsemblePlacementPolicy initializeEnsemblePlacementPolicy(ClientConfiguration conf,
                                                                          DNSToSwitchMapping dnsResolver,

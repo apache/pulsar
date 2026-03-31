@@ -1127,6 +1127,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
 
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 20000)
     public void testHasMessageAvailable() throws Exception {

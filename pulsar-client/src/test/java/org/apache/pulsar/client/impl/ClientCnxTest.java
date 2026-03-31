@@ -252,7 +252,7 @@ public class ClientCnxTest {
         long consumerId = 1;
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         when(pulsarClient.getConfiguration()).thenReturn(conf);
-        ConsumerImpl consumer = mock(ConsumerImpl.class);
+        ConsumerImpl<?> consumer = mock(ConsumerImpl.class);
         when(consumer.getClient()).thenReturn(pulsarClient);
         cnx.registerConsumer(consumerId, consumer);
         assertEquals(cnx.consumers.size(), 1);
@@ -276,7 +276,7 @@ public class ClientCnxTest {
         long producerId = 1;
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
         when(pulsarClient.getConfiguration()).thenReturn(conf);
-        ProducerImpl producer = mock(ProducerImpl.class);
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
         when(producer.getClient()).thenReturn(pulsarClient);
         cnx.registerProducer(producerId, producer);
         assertEquals(cnx.producers.size(), 1);

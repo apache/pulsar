@@ -25,6 +25,9 @@ plugins {
     `java-platform`
 }
 
+group = "org.apache.pulsar"
+version = the<VersionCatalogsExtension>().named("libs").findVersion("pulsar").get().requiredVersion
+
 // Allow the platform to depend on other projects
 javaPlatform {
     allowDependencies()
@@ -96,11 +99,15 @@ dependencies {
         api(project(":bouncy-castle:bouncy-castle-bc"))
         api(project(":bouncy-castle:bcfips"))
 
-        // Modules only available in full build (not -PcoreModules)
-        findProject(":pulsar-client-auth-athenz")?.let { api(it) }
-        findProject(":pulsar-broker-auth-athenz")?.let { api(it) }
-        findProject(":pulsar-functions:pulsar-functions-local-runner-shaded")?.let { api(it) }
-        findProject(":tiered-storage:tiered-storage-jcloud")?.let { api(it) }
-        findProject(":tiered-storage:tiered-storage-file-system")?.let { api(it) }
+        // Athenz auth
+        api(project(":pulsar-client-auth-athenz"))
+        api(project(":pulsar-broker-auth-athenz"))
+
+        // Functions
+        api(project(":pulsar-functions:pulsar-functions-local-runner-shaded"))
+
+        // Tiered storage
+        api(project(":tiered-storage:tiered-storage-jcloud"))
+        api(project(":tiered-storage:tiered-storage-file-system"))
     }
 }

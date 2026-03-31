@@ -54,6 +54,7 @@ public class TopicMessageIdImplTest {
         assertNotEquals(topicMsgId1, topicMsgId2);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeprecatedMethods() {
         BatchMessageIdImpl msgId = new BatchMessageIdImpl(1, 2, 3, 4);

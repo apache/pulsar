@@ -289,7 +289,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(6, errorCnt);
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        Future startFuture = executor.submit(() -> {
+        Future<?> startFuture = executor.submit(() -> {
             try {
                 channel.start();
             } catch (PulsarServerException e) {
@@ -304,7 +304,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 ServiceUnitStateChannelImpl.ChannelState.LeaderElectionServiceStarted, true);
         assertNotNull(channel.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get());
 
-        Future closeFuture = executor.submit(() -> {
+        Future<?> closeFuture = executor.submit(() -> {
             try {
                 channel.close();
             } catch (PulsarServerException e) {
@@ -812,7 +812,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     public void handleBrokerCreationEventTest() throws IllegalAccessException {
         var cleanupJobs = getCleanupJobs(channel1);
         String broker = brokerId2;
-        var future = new CompletableFuture();
+        var future = new CompletableFuture<Void>();
         cleanupJobs.put(broker, future);
         ((ServiceUnitStateChannelImpl) channel1).handleBrokerRegistrationEvent(broker, NotificationType.Created);
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -1842,7 +1842,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         // case 5: the owner lookup gets delayed
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1000, true);
-        var delayedFuture = new CompletableFuture();
+        var delayedFuture = new CompletableFuture<Object>();
         doReturn(delayedFuture).when(registry).lookupAsync(eq(broker));
         CompletableFuture.runAsync(() -> {
             try {
@@ -2101,6 +2101,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     private static void waitUntilNewChannelOwner(ServiceUnitStateChannel channel, String oldOwner) {
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -2115,6 +2116,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     private static void waitUntilOwnerChanges(ServiceUnitStateChannel channel, String serviceUnit, String oldOwner) {
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -2128,6 +2130,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     private static void waitUntilNewOwner(ServiceUnitStateChannel channel, String serviceUnit, String newOwner) {
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)

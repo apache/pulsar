@@ -48,7 +48,7 @@ public class TableViewImplTest {
     @Test
     public void testTableViewImpl() {
         data.setCryptoKeyReader(mock(CryptoKeyReader.class));
-        TableView tableView = new TableViewImpl(client, Schema.BYTES, data);
+        TableView<?> tableView = new TableViewImpl<>(client, Schema.BYTES, data);
 
         assertNotNull(tableView);
     }

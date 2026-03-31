@@ -154,6 +154,7 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
                 .create();
 
         // Create consumers in paused state with receiver queue size of 50
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         List<PulsarClient> consumerPulsarClients = new ArrayList<>();
         @Cleanup

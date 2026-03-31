@@ -57,9 +57,9 @@ public class MangedLedgerInterceptorImpl2Test extends MockedBookKeeperTestCase {
 
         // Registry interceptor.
         ManagedLedgerConfig config = new ManagedLedgerConfig();
-        Set<ManagedLedgerPayloadProcessor> processors = new HashSet();
+        Set<ManagedLedgerPayloadProcessor> processors = new HashSet<>();
         processors.add(new TestPayloadProcessor());
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet(), processors);
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet<>(), processors);
         config.setManagedLedgerInterceptor(interceptor);
         config.setMaxEntriesPerLedger(100);
 

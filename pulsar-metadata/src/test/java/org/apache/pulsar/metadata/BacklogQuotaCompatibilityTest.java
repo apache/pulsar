@@ -59,6 +59,7 @@ public class BacklogQuotaCompatibilityTest {
         Assert.assertEquals(readBacklogQuota.getPolicy(), testPolicy);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testV28ClientSetV28BrokerRead() throws Exception {
         Policies writePolicy = new Policies();

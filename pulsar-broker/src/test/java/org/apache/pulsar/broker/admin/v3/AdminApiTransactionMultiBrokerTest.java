@@ -66,6 +66,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
      *     4. Create a admin connected to broker x, and use the admin to call ` getCoordinatorInternalStats`.
      * </p>
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testRedirectOfGetCoordinatorInternalStats() throws Exception {
         PulsarAdmin localAdmin = this.admin;

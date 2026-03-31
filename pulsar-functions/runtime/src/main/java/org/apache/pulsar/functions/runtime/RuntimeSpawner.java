@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /*
  * RuntimeSpawner is the module responsible for running one particular instance servicing one
  * function. It is responsible for starting/stopping the instance and passing data to the

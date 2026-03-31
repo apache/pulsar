@@ -48,6 +48,7 @@ public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseT
     protected int numberOfAdditionalBrokers() {
         return BROKER_COUNT - 1;
     }
+    @SuppressWarnings("deprecation")
 
     @Override
     protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {

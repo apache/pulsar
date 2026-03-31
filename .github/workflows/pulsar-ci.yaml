@@ -176,7 +176,7 @@ jobs:
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
         with:
           develocity-injection-enabled: true
           develocity-url: https://develocity.apache.org
@@ -186,7 +186,7 @@ jobs:
         # --no-configuration-cache: Shadow plugin's filesMatching { filter { } } lambdas
         # capture Gradle script references that can't be serialized by the configuration cache.
         run: >-
-          ./gradlew assemble rat licenseMain licenseTest checkstyleMain checkstyleTest
+          ./gradlew assemble rat spotlessCheck checkstyleMain checkstyleTest
           --no-configuration-cache
 
       - name: Check binary licenses
@@ -303,7 +303,7 @@ jobs:
           java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
         with:
           develocity-injection-enabled: true
           develocity-url: https://develocity.apache.org
@@ -409,7 +409,7 @@ jobs:
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
         with:
           develocity-injection-enabled: true
           develocity-url: https://develocity.apache.org
@@ -448,7 +448,7 @@ jobs:
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
         with:
           develocity-injection-enabled: true
           develocity-url: https://develocity.apache.org
@@ -463,7 +463,7 @@ jobs:
         run: tar xf gradle-build-outputs.tar
 
       - name: Build java-test-image Docker image
-        run: ./gradlew -Pdocker :tests:java-test-image:dockerBuild
+        run: ./gradlew :tests:java-test-image:dockerBuild
 
       - name: Save docker image to file
         run: |
@@ -515,19 +515,16 @@ jobs:
             group: SHADE_RUN
             upload_name: SHADE_RUN_17
             runtime_jdk: 17
-            setup: ./pulsar-build/run_integration_group_gradle.sh SHADE_BUILD
 
           - name: Shade on Java 21
             group: SHADE_RUN
             upload_name: SHADE_RUN_21
             runtime_jdk: 21
-            setup: ./pulsar-build/run_integration_group_gradle.sh SHADE_BUILD
 
           - name: Shade on Java 24
             group: SHADE_RUN
             upload_name: SHADE_RUN_24
             runtime_jdk: 24
-            setup: ./pulsar-build/run_integration_group_gradle.sh SHADE_BUILD
 
           - name: Standalone
             group: STANDALONE
@@ -565,7 +562,7 @@ jobs:
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
         with:
           develocity-injection-enabled: true
           develocity-url: https://develocity.apache.org
@@ -687,7 +684,7 @@ jobs:
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
         with:
           develocity-injection-enabled: true
           develocity-url: https://develocity.apache.org
@@ -702,7 +699,7 @@ jobs:
         run: tar xf gradle-build-outputs.tar
 
       - name: Build pulsar-test-latest-version Docker image
-        run: ./gradlew -Pdocker :tests:latest-version-image:dockerBuild
+        run: ./gradlew :tests:latest-version-image:dockerBuild
 
       - name: Check binary licenses
         run: |
@@ -805,7 +802,7 @@ jobs:
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
         with:
           develocity-injection-enabled: true
           develocity-url: https://develocity.apache.org
@@ -921,7 +918,7 @@ jobs:
           java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        uses: gradle/actions/setup-gradle@39e147cb9de83bb9910b8ef8bd7fff0ee20fcd6f
         with:
           develocity-injection-enabled: true
           develocity-url: https://develocity.apache.org
@@ -933,7 +930,7 @@ jobs:
           languages: ${{ env.CODEQL_LANGUAGE }}
 
       - name: Build Java code
-        run: ./gradlew assemble -PcoreModules
+        run: ./gradlew assemble
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

@@ -29,10 +29,11 @@ import org.testng.annotations.Test;
 public class SinkRecordTest {
 
     @Test
+    @SuppressWarnings("rawtypes")
     public void testCustomAck() {
 
         PulsarRecord pulsarRecord = Mockito.mock(PulsarRecord.class);
-        SinkRecord sinkRecord = new SinkRecord<>(pulsarRecord, new Object());
+        SinkRecord sinkRecord = new SinkRecord(pulsarRecord, new Object());
 
         sinkRecord.cumulativeAck();
         Mockito.verify(pulsarRecord, Mockito.times(1)).cumulativeAck();

@@ -117,6 +117,7 @@ public class PulsarFunctionPublishTest {
     public Object[][] validRoleName() {
         return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod
     void setup(Method method) throws Exception {
@@ -245,6 +246,7 @@ public class PulsarFunctionPublishTest {
             }
         }
     }
+    @SuppressWarnings("deprecation")
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
@@ -291,6 +293,7 @@ public class PulsarFunctionPublishTest {
         PulsarWorkerService workerService = new PulsarWorkerService();
         return workerService;
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName,
                                                      String sourceTopic, String publishTopic, String subscriptionName) {
@@ -404,6 +407,7 @@ public class PulsarFunctionPublishTest {
 
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testMultipleAddress() throws Exception {

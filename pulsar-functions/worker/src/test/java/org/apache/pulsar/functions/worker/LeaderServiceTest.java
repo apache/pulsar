@@ -52,14 +52,15 @@ public class LeaderServiceTest {
     AtomicReference<ConsumerEventListener> listenerHolder;
     private LeaderService leaderService;
     private PulsarClientImpl mockClient;
+    @SuppressWarnings("rawtypes")
     private ConsumerImpl mockConsumer;
     private FunctionAssignmentTailer functionAssignmentTailer;
     private SchedulerManager schedulerManager;
     private FunctionRuntimeManager functionRuntimeManager;
     private FunctionMetaDataManager functionMetadataManager;
-    private CompletableFuture metadataManagerInitFuture;
-    private CompletableFuture runtimeManagerInitFuture;
-    private CompletableFuture readToTheEndAndExitFuture;
+    private CompletableFuture<Void> metadataManagerInitFuture;
+    private CompletableFuture<Void> runtimeManagerInitFuture;
+    private CompletableFuture<Void> readToTheEndAndExitFuture;
     private MembershipManager membershipManager;
 
     public LeaderServiceTest() {

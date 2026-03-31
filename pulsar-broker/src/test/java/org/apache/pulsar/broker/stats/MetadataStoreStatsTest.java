@@ -47,6 +47,7 @@ import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
 public class MetadataStoreStatsTest extends BrokerTestBase {
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     @Override

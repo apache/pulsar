@@ -106,6 +106,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
             .lookupTimeout(10, TimeUnit.SECONDS)
             .build();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testGetPartitionedMetadataRetries() throws Exception {

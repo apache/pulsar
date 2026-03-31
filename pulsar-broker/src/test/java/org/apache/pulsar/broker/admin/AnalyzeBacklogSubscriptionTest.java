@@ -105,7 +105,7 @@ public class AnalyzeBacklogSubscriptionTest extends SharedPulsarBaseTest {
         verifyBacklog(topic, "from-middle", numEntries / 2, numMessages / 2);
 
 
-        try (Consumer consumer = pulsarClient
+        try (Consumer<?> consumer = pulsarClient
                 .newConsumer()
                 .topic(topic)
                 // we want to wait for the server to process acks, in order to not have a flaky test
@@ -113,11 +113,11 @@ public class AnalyzeBacklogSubscriptionTest extends SharedPulsarBaseTest {
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe()) {
-            Message receive1 = consumer.receive();
-            Message receive2 = consumer.receive();
-            Message receive3 = consumer.receive();
-            Message receive4 = consumer.receive();
-            Message receive5 = consumer.receive();
+            Message<?> receive1 = consumer.receive();
+            Message<?> receive2 = consumer.receive();
+            Message<?> receive3 = consumer.receive();
+            Message<?> receive4 = consumer.receive();
+            Message<?> receive5 = consumer.receive();
 
             verifyBacklog(topic, subName, numEntries, numMessages);
 
@@ -141,7 +141,7 @@ public class AnalyzeBacklogSubscriptionTest extends SharedPulsarBaseTest {
 
             int count = numMessages - 5;
             while (count-- > 0) {
-                Message m = consumer.receive();
+                Message<?> m = consumer.receive();
                 consumer.acknowledge(m);
             }
 

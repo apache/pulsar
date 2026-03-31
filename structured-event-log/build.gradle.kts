@@ -17,6 +17,10 @@
  * under the License.
  */
 
+plugins {
+    id("pulsar.java-conventions")
+}
+
 dependencies {
     implementation(libs.slf4j.api)
     compileOnly(libs.log4j.core)

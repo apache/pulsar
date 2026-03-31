@@ -94,6 +94,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
     private String urLedgerPath;
     private ExecutorService executor;
 
+    @SuppressWarnings("deprecation")
     private void methodSetup(Supplier<String> urlSupplier) throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
         String ledgersRoot = "/ledgers-" + UUID.randomUUID();

@@ -97,6 +97,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30 * 1000, dataProvider = "topicTypes")
     public void testTopicLookup(TopicDomain topicDomain, boolean isPartition) throws Exception {
         PulsarAdmin admin0 = getAllAdmins().get(0);
@@ -130,6 +131,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         Assert.assertEquals(lookupResultSet.size(), 1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(groups = "flaky")
     public void testForceDeletePartitionedTopicWithSub() throws Exception {
         final int numPartitions = 10;

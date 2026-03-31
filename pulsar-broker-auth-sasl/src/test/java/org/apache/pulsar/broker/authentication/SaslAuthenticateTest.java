@@ -164,6 +164,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         assertFalse(kerberosWorkDir.exists());
     }
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -261,6 +262,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     }
 
     // Test sasl server/client auth.
+    @SuppressWarnings("deprecation")
     @Test
     public void testSaslServerAndClientAuth() throws Exception {
         log.info("-- {} -- start", methodName);

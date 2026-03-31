@@ -86,6 +86,7 @@ public class SharedPulsarCluster {
         return instance;
     }
 
+    @SuppressWarnings("deprecation")
     private void start() throws Exception {
         log.info("Starting SharedPulsarCluster");
 

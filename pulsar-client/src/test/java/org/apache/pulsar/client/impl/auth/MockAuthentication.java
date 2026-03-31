@@ -33,11 +33,13 @@ public class MockAuthentication implements Authentication {
         return null;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         return null;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void configure(Map<String, String> authParams) {
         authParamsMap = authParams;

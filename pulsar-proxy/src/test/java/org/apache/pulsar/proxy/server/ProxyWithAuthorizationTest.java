@@ -66,6 +66,7 @@ import org.testng.collections.Maps;
 public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
     private static final String CLUSTER_NAME = "proxy-authorization";
+@SuppressWarnings("deprecation")
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "Client", Optional.empty());
@@ -534,6 +535,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "tlsTransportWithAuth")
     public void testProxyTlsTransportWithAuth(Authentication auth) throws Exception {
         log.info("-- Starting {} test --", methodName);

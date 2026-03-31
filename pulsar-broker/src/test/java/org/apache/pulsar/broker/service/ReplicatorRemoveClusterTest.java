@@ -69,6 +69,7 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testRemoveClusterFromNamespace() throws Exception {
         admin1.tenants().createTenant("pulsar1",

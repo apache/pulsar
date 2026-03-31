@@ -54,6 +54,7 @@ public class ByteBufPairTest {
         assertEquals(b2.refCnt(), 0);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testEncoder() throws Exception {
         ByteBuf b1 = Unpooled.wrappedBuffer("hello".getBytes());

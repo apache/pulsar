@@ -84,7 +84,7 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
-        ConsumerImpl consumer = (ConsumerImpl) pulsarClient
+        ConsumerImpl<?> consumer = (ConsumerImpl) pulsarClient
                 .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
@@ -100,7 +100,7 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
         }
 
         int receiveCounter = 0;
-        Message message;
+        Message<?> message;
         while ((message = consumer.receive(3, TimeUnit.SECONDS)) != null) {
             receiveCounter++;
             consumer.acknowledge(message);

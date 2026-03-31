@@ -88,6 +88,7 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
     }
 
 
+    @SuppressWarnings("deprecation")
     private String generateToken(KeyPair kp, String subject) {
         PrivateKey pkey = kp.getPrivate();
         long expMillis = System.currentTimeMillis() + Duration.ofHours(1).toMillis();

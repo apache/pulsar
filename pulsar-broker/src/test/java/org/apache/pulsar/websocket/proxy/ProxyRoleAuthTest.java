@@ -67,6 +67,7 @@ import org.testng.annotations.Test;
  * 1. testWebSocketProxyProduceConsumeWithAuthorization: Positive test with authorized tokens
  * 2. testWebSocketProxyWithUnauthorizedToken: Negative test with unauthorized tokens
  */
+@SuppressWarnings("deprecation")
 @Test(groups = "websocket")
 public class ProxyRoleAuthTest extends ProducerConsumerBase {
 

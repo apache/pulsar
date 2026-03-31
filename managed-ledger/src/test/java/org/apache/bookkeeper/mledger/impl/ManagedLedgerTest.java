@@ -1493,7 +1493,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         c2.close();
         ledger.deleteCursor("c2");
-        assertEquals(Sets.newHashSet(ledger.getCursors()), new HashSet());
+        assertEquals(Sets.newHashSet(ledger.getCursors()), new HashSet<>());
     }
 
     @Test
@@ -1621,7 +1621,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void ledgersList() throws Exception {
         MetaStore store = factory.getMetaStore();
 
-        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet());
+        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet<>());
         ManagedLedger ledger1 = factory.open("ledger1");
         assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet("ledger1"));
         ManagedLedger ledger2 = factory.open("ledger2");
@@ -1629,7 +1629,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger1.delete();
         assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet("ledger2"));
         ledger2.delete();
-        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet());
+        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet<>());
     }
 
     @Test
@@ -2490,8 +2490,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < totalMessage; i++) {
             position = ml.addEntry(message);
         }
-        // all ledgers are not delete yet since no entry has been acked for c1
-        assertEquals(ml.getLedgersInfoAsList().size(), totalMessage);
+        // all ledgers are not deleted yet since no entry has been acked for c1
+        // Use >= because the current (empty) ledger may or may not have been created yet
+        assertTrue(ml.getLedgersInfoAsList().size() >= totalMessage);
 
         List<Entry> entryList = c1.readEntries(totalMessage);
         if (null != position) {
@@ -3225,7 +3226,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);
         assertTrue(ctxHolder.get() instanceof CompletableFuture);
-        CompletableFuture ledgerCreateHook = (CompletableFuture) ctxHolder.get();
+        CompletableFuture<?> ledgerCreateHook = (CompletableFuture<?>) ctxHolder.get();
         assertTrue(ledgerCreateHook.isCompletedExceptionally());
 
         ledger.close();
@@ -3479,6 +3480,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
      * @param checkOwnershipFlag
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "checkOwnershipFlag")
     public void recoverMLWithBadVersion(boolean checkOwnershipFlag) throws Exception {
 
@@ -3519,6 +3521,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         log.info("Test completed");
     }
 
+    @SuppressWarnings("deprecation")
     private boolean updateCusorMetadataByCreatingMetadataLedger(MutableObject<ManagedCursorImpl> cursor2)
             throws InterruptedException {
         MutableObject<Boolean> failed = new MutableObject<>();
@@ -3650,7 +3653,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(config.getProperties().get("key"), "value");
     }
 
-    private void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
+    private void setFieldValue(Class<?> clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(classObj, fieldValue);
@@ -4530,7 +4533,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             BlockingQueue<Runnable> queue =  WhiteboxImpl.getInternalState(boundedScheduledExecutorService, "queue");
             for (Runnable r : queue) {
                 if (r instanceof FutureTask) {
-                    FutureTask futureTask = (FutureTask) r;
+                    FutureTask<?> futureTask = (FutureTask<?>) r;
                     if (!futureTask.isCancelled() && !futureTask.isDone()) {
                         taskCounter++;
                     }

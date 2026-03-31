@@ -118,6 +118,7 @@ public class BKStateStoreImplTest {
 
     @Test
     public void testGetStateValue() throws Exception {
+        @SuppressWarnings("rawtypes")
         KeyValue returnedKeyValue = mock(KeyValue.class);
         ByteBuf returnedValue = Unpooled.copiedBuffer("test-value", UTF_8);
         when(returnedKeyValue.value()).thenReturn(returnedValue);

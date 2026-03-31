@@ -16,6 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+plugins {
+    id("pulsar.java-conventions")
+}
 // Distribution module — no Java compilation needed
 tasks.named("compileJava") { enabled = false }
 tasks.named("compileTestJava") { enabled = false }

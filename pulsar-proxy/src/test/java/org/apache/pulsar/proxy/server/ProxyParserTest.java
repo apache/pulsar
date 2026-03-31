@@ -220,6 +220,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testProtocolVersionAdvertisement() throws Exception {
         final String topic = "persistent://public/default/protocol-version-advertisement";

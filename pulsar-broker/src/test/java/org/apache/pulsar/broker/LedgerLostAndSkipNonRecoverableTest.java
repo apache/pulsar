@@ -92,7 +92,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
         ConsumerAndReceivedMessages consumerAndReceivedMessages1 =
                 waitConsumeAndAllMessages(topicName, subName, enabledBatch, false);
         List<MessageIdImpl>[] messageIds = consumerAndReceivedMessages1.messageIds;
-        Consumer consumer = consumerAndReceivedMessages1.consumer;
+        Consumer<?> consumer = consumerAndReceivedMessages1.consumer;
         MessageIdImpl individualPosition = messageIds[1].get(messageCountPerEntry - 1);
         MessageIdImpl expectedMarkDeletedPosition =
                 new MessageIdImpl(messageIds[0].get(0).getLedgerId(), messageIds[0].get(0).getEntryId(), -1);
@@ -153,7 +153,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
 
     private List<MessageIdImpl>[] sendManyMessages(String topicName, int ledgerCount, int messageCountPerLedger,
                                                    int messageCountPerEntry) throws Exception {
-        List<MessageIdImpl>[] messageIds = new List[ledgerCount];
+        @SuppressWarnings({"unchecked", "rawtypes"})        List<MessageIdImpl>[] messageIds = new List[ledgerCount];
         for (int i = 0; i < ledgerCount; i++){
             admin.topics().unload(topicName);
             if (messageCountPerEntry == 1) {
@@ -221,9 +221,9 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
                                                             final boolean enabledBatch,
                                                             boolean ack) throws Exception {
         List<MessageIdImpl> messageIds = new ArrayList<>();
-        final Consumer consumer = createConsumer(topicName, subName, enabledBatch);
+        final Consumer<?> consumer = createConsumer(topicName, subName, enabledBatch);
         while (true){
-            Message message = consumer.receive(5, TimeUnit.SECONDS);
+            Message<?> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null){
                 messageIds.add((MessageIdImpl) message.getMessageId());
                 if (ack) {
@@ -239,13 +239,14 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
 
     @AllArgsConstructor
     private static class ConsumerAndReceivedMessages {
-        private Consumer consumer;
+        private Consumer<?> consumer;
         private List<MessageIdImpl>[] messageIds;
     }
 
     private List<MessageIdImpl>[] sortMessageId(List<MessageIdImpl> messageIds, boolean enabledBatch){
         Map<Long, List<MessageIdImpl>> map = messageIds.stream().collect(Collectors.groupingBy(v -> v.getLedgerId()));
         TreeMap<Long, List<MessageIdImpl>> sortedMap = new TreeMap<>(map);
+        @SuppressWarnings({"unchecked", "rawtypes"})
         List<MessageIdImpl>[] res = new List[sortedMap.size()];
         Iterator<Map.Entry<Long, List<MessageIdImpl>>> iterator = sortedMap.entrySet().iterator();
         for (int i = 0; i < sortedMap.size(); i++){

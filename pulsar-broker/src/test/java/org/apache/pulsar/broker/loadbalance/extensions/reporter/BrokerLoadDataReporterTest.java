@@ -55,6 +55,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BrokerLoadDataReporterTest {
     PulsarService pulsar;
+    @SuppressWarnings("rawtypes")
     LoadDataStore store;
     BrokerService brokerService;
     PulsarStats pulsarStats;

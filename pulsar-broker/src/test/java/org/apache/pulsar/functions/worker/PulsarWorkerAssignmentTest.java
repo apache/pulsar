@@ -341,6 +341,7 @@ public class PulsarWorkerAssignmentTest {
             assertEquals(admin.functions().getFunction(tenant, namespacePortion, functionName).getLogTopic(), logTopic);
         }
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,

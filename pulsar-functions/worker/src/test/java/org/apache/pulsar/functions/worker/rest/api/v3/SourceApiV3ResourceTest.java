@@ -1304,6 +1304,7 @@ public class SourceApiV3ResourceTest extends AbstractFunctionsResourceTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetSourceSuccess() {
         when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(source))).thenReturn(true);

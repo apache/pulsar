@@ -48,6 +48,7 @@ import org.testng.annotations.Test;
 public class PrometheusMetricsLabelsTest extends BrokerTestBase {
 
     private static final Set<String> ALLOWED_CUSTOM_METRIC_LABEL_KEYS = Set.of("sla_tier", "app_owner");
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     @Override

@@ -125,6 +125,7 @@ public class OwnershipCacheTest {
         assertNotNull(cache.getOwnedBundles());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDisableOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);

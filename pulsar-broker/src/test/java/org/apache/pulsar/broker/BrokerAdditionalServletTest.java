@@ -118,6 +118,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         Mockito.when(pulsar.getBrokerAdditionalServlets()).thenReturn(brokerAdditionalServlets);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void test() throws IOException {
         int httpPort = pulsar.getWebService().getListenPortHTTP().get();

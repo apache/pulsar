@@ -86,6 +86,7 @@ public class MinimumBacklogCacheStrategyTest extends ProducerConsumerBase {
         final String topicName = "cache-read";
         final String sub1 = "sub";
         int totalSub = 10;
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<byte[]>[] consumers = new Consumer[totalSub];
 
         for (int i = 0; i < totalSub; i++) {

@@ -37,9 +37,9 @@ function gradle_test() {
     local failfast_args=""
     local continue_args=""
     if [ $use_fail_fast -eq 1 ]; then
-      failfast_args="-DtestFailFast=true"
+      failfast_args="-PtestFailFast=true"
     else
-      failfast_args="-DtestFailFast=false"
+      failfast_args="-PtestFailFast=false"
       # When fail-fast is off, use --continue so Gradle runs all test tasks
       # even if one module's tests fail (similar to Maven's --fail-at-end).
       continue_args="--continue"
@@ -140,6 +140,9 @@ function test_group_other() {
     -x :pulsar-io:pulsar-io-data-generator:test \
     -x :pulsar-io:pulsar-io-batch-data-generator:test \
     -x :pulsar-io:pulsar-io-batch-discovery-triggerers:test \
+    -x :tests:pulsar-client-admin-shade-test:test \
+    -x :tests:pulsar-client-all-shade-test:test \
+    -x :tests:pulsar-client-shade-test:test \
     test
 
   # Run DnsResolverTest separately since it relies on static field values

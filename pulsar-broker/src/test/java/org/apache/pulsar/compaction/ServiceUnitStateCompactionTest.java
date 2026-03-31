@@ -323,6 +323,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             Assert.assertTrue(all.isEmpty());
         }
     }
+    @SuppressWarnings("deprecation")
 
 
     @Test
@@ -520,6 +521,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             Assert.assertEquals(m.getValue(), testValues.get(2));
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testSlowTableviewAfterCompaction() throws Exception {
@@ -641,6 +643,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         pulsar2.close();
 
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testSlowReceiveTableviewAfterCompaction() throws Exception {

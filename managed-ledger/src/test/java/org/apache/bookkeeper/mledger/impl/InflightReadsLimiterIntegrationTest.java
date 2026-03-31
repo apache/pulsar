@@ -102,7 +102,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
         LedgerHandle currentLedger = ml.currentLedger;
         LedgerHandle spyCurrentLedger = Mockito.spy(currentLedger);
         ml.currentLedger = spyCurrentLedger;
-        Answer answer = invocation -> {
+        Answer<?> answer = invocation -> {
             long firstEntry = (long) invocation.getArguments()[0];
             log.info("reading entry: {}", firstEntry);
             if (firstEntry == start1) {
@@ -112,7 +112,7 @@ public class InflightReadsLimiterIntegrationTest extends MockedBookKeeperTestCas
                 Object res = invocation.callRealMethod();
                 return res;
             } else if (secondReadEntries.contains(firstEntry)) {
-                final CompletableFuture res = new CompletableFuture<>();
+                final CompletableFuture<Object> res = new CompletableFuture<>();
                 threadFactory.newThread(() -> {
                     try {
                         readCompleteSignal2.await();

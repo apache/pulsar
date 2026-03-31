@@ -62,6 +62,7 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
             {false}
         };
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "enabledTls", timeOut = 240 * 1000)
     public void testAutoClusterFailover(boolean enabledTls) throws Exception {

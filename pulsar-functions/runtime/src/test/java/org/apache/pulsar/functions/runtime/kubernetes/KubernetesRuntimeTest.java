@@ -457,14 +457,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 52;
-            portArg = 39;
-            metricsPortArg = 41;
+            totalArgs = 53;
+            portArg = 40;
+            metricsPortArg = 42;
         } else {
             extraDepsEnv = "";
-            portArg = 38;
-            metricsPortArg = 40;
-            totalArgs = 51;
+            portArg = 39;
+            metricsPortArg = 41;
+            totalArgs = 52;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -491,7 +491,8 @@ public class KubernetesRuntimeTest {
         String expectedArgs = "exec java -cp " + classpath
                 + extraDepsEnv
                 + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
-                + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml "
+                + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml"
+                + " -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/"
                 + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
@@ -1013,7 +1014,7 @@ public class KubernetesRuntimeTest {
         assertEquals(args.size(), totalArgs,
                 "Actual args : " + StringUtils.join(args, " "));
 
-        HashMap goInstanceConfig = new ObjectMapper().readValue(args.get(7).replaceAll("^\'|\'$",
+        HashMap<?, ?> goInstanceConfig = new ObjectMapper().readValue(args.get(7).replaceAll("^\'|\'$",
                 ""), HashMap.class);
 
         assertEquals(args.get(0), "chmod");

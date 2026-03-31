@@ -331,7 +331,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 5, TimeUnit.SECONDS).get();
 
-        for (Producer producer : producerSet) {
+        for (Producer<byte[]> producer : producerSet) {
             producer.close();
         }
     }
@@ -360,7 +360,7 @@ public class PersistentTopicTest extends BrokerTestBase {
          * The other 19 calls: get the cached value which related {@link PersistentTopic#closeFutures}.
          */
         assertTrue(futureMap.size() <= 3);
-        for (List list : futureMap.values()){
+        for (List<?> list : futureMap.values()){
             if (list.size() == 1){
                 // This is the first call, the future is the return value of `topic.close`.
             } else {
@@ -589,7 +589,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         doReturn(brokerService).when(pulsar).getBrokerService();
 
         // Create a sub, and send one message.
-        Consumer consumer1 = pulsarClient.newConsumer(Schema.STRING).topic(fullyTopicName).subscriptionName("sub1")
+        Consumer<?> consumer1 = pulsarClient.newConsumer(Schema.STRING).topic(fullyTopicName).subscriptionName("sub1")
                 .subscribe();
         consumer1.close();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(fullyTopicName).create();
@@ -618,7 +618,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         }
 
         // Assert topic works after deleting failure.
-        Consumer consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(fullyTopicName).subscriptionName("sub1")
+        Consumer<?> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(fullyTopicName).subscriptionName("sub1")
                 .subscribe();
         org.testng.Assert.assertEquals("1", consumer2.receive(2, TimeUnit.SECONDS).getValue());
         consumer2.close();
