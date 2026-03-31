@@ -1678,6 +1678,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         return asyncDeleteRequest(path);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public SchemaAutoUpdateCompatibilityStrategy getSchemaAutoUpdateCompatibilityStrategy(String namespace)
             throws PulsarAdminException {
@@ -1690,6 +1691,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void setSchemaAutoUpdateCompatibilityStrategy(String namespace,
             SchemaAutoUpdateCompatibilityStrategy strategy)

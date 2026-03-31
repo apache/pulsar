@@ -22,6 +22,11 @@ plugins {
     alias(libs.plugins.lightproto)
 }
 
+// Suppress warnings in LightProto generated code
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("-Xlint:-dep-ann")
+}
+
 dependencies {
     implementation(libs.netty.buffer)
     implementation(libs.grpc.all) {

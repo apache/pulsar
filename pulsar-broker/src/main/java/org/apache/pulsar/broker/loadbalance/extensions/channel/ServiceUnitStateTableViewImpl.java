@@ -52,6 +52,7 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
     private volatile TableView<ServiceUnitStateData> tableview;
 
     @Override
+    @SuppressWarnings("deprecation")
     public void start(PulsarService pulsar,
                       BiConsumer<String, ServiceUnitStateData> tailItemListener,
                       BiConsumer<String, ServiceUnitStateData> existingItemListener,

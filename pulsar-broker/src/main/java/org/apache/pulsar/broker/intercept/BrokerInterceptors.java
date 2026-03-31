@@ -109,6 +109,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void beforeSendMessage(Subscription subscription,
                                   Entry entry,
                                   long[] ackSet,

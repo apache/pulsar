@@ -255,6 +255,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Map<Long, Integer> getMsgNumInSubReceiverQueue() {
         if (consumer instanceof MultiTopicsConsumerImpl) {
             List<ConsumerImpl<?>> consumerList = ((MultiTopicsConsumerImpl) consumer).getConsumers();

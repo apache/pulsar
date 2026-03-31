@@ -103,6 +103,7 @@ public class HttpLookupService implements LookupService {
      * @param topicName topic-name
      * @return broker-socket-address that serves given topic
      */
+    @SuppressWarnings("deprecation")
     @Override
     public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties) {
         if (lookupProperties == null) {

@@ -140,6 +140,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected boolean replicateEntries(List<Entry> entries, final InFlightTask inFlightTask) {
         boolean atLeastOneMessageSentForReplication = false;
         boolean isEnableReplicatedSubscriptions =

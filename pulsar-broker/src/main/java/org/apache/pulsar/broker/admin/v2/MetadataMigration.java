@@ -30,5 +30,6 @@ import org.apache.pulsar.broker.admin.impl.MetadataMigrationBase;
 @Path("/metadata/migration")
 @Api(value = "/metadata/migration", description = "Metadata store migration admin APIs", tags = "metadata-migration")
 @Produces(MediaType.APPLICATION_JSON)
+@SuppressWarnings("deprecation")
 public class MetadataMigration extends MetadataMigrationBase {
 }

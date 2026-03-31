@@ -43,6 +43,7 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/resource-quotas", description = "Quota admin APIs", tags = "resource-quotas")
+@SuppressWarnings("deprecation")
 public class ResourceQuotas extends ResourceQuotasBase {
 
     @GET

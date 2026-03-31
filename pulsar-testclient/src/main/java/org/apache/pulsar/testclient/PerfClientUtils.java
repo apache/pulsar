@@ -67,6 +67,7 @@ public class PerfClientUtils {
                 FileUtils.byteCountToDisplaySize(Runtime.getRuntime().maxMemory()));
     }
 
+    @SuppressWarnings("deprecation")
     public static ClientBuilder createClientBuilderFromArguments(PerformanceBaseArguments arguments)
             throws PulsarClientException.UnsupportedAuthenticationException {
 

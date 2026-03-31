@@ -1132,6 +1132,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private static final byte[] emptyArray = new byte[0];
 
     @Override
+    @SuppressWarnings("deprecation")
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Start);
 

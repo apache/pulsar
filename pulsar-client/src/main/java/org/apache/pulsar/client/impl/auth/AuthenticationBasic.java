@@ -42,6 +42,7 @@ public class AuthenticationBasic implements Authentication, EncodedAuthenticatio
         return AUTH_METHOD_NAME;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         try {

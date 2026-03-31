@@ -50,6 +50,7 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
     }
 
     // A broker's max resource usage with weight using its historical load and short-term load data with weight.
+    @SuppressWarnings("deprecation")
     private double getMaxResourceUsageWithWeight(final String broker, final BrokerData brokerData,
                                          final ServiceConfiguration conf) {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
@@ -87,6 +88,7 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
      * @param conf       The service configuration.
      * @return the max resource usage with weight of broker
      */
+    @SuppressWarnings("deprecation")
     private double updateAndGetMaxResourceUsageWithWeight(String broker, BrokerData brokerData,
                                                           ServiceConfiguration conf) {
         final double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();

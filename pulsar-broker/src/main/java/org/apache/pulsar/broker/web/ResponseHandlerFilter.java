@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Objects;
 import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
@@ -32,7 +33,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.slf4j.Logger;
@@ -103,8 +103,12 @@ public class ResponseHandlerFilter implements Filter {
     }
 
     private void handleInterceptor(ServletRequest request, ServletResponse response) {
-        if (!StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
-                && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.APPLICATION_OCTET_STREAM)) {
+        String contentType = request.getContentType();
+        if (contentType == null
+                || (!contentType.toLowerCase(Locale.ROOT).contains(
+                        MediaType.MULTIPART_FORM_DATA.toLowerCase(Locale.ROOT))
+                && !contentType.toLowerCase(Locale.ROOT).contains(
+                        MediaType.APPLICATION_OCTET_STREAM.toLowerCase(Locale.ROOT)))) {
             try {
                 interceptor.onWebserviceResponse(request, response);
             } catch (Exception e) {

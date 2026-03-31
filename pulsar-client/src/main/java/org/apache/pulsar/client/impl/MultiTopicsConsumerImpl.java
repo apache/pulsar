@@ -1207,6 +1207,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // handling failure during subscribe new topic, unsubscribe success created partitions
+    @SuppressWarnings("unchecked")
     protected void handleSubscribeOneTopicError(String topicName,
                                               Throwable error,
                                               CompletableFuture<Void> subscribeFuture) {

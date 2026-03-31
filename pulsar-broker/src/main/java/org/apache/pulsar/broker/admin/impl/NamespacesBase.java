@@ -1668,6 +1668,7 @@ public abstract class NamespacesBase extends AdminResource {
         }));
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalDeleteTopicDispatchRateAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.WRITE)
                 .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
@@ -2022,6 +2023,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    @SuppressWarnings("deprecation")
     protected Boolean internalGetEncryptionRequired() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.ENCRYPTION, PolicyOperation.READ);
         Policies policies = getNamespacePolicies(namespaceName);
@@ -2607,6 +2609,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     private <T> void mutatePolicy(Function<Policies, Policies> policyTransformation,
                                   Function<Policies, T> getter,
                                   String policyName) {
@@ -2920,6 +2923,7 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("resource_group_name", rgName);
     }
 
+    @SuppressWarnings("deprecation")
     protected void internalScanOffloadedLedgers(OffloaderObjectsScannerUtils.ScannerResultSink sink)
             throws Exception {
         log.info("internalScanOffloadedLedgers {}", namespaceName);

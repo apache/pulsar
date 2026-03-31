@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 @Path("/non-persistent")
 @Produces(MediaType.APPLICATION_JSON)
 @Api(value = "/non-persistent", description = "Non-Persistent topic admin apis", tags = "non-persistent topic")
+@SuppressWarnings("deprecation")
 public class ExtNonPersistentTopics extends PersistentTopicsBase {
 
     @PUT

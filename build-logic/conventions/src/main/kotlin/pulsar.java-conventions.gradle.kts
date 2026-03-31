@@ -30,7 +30,7 @@ version = catalog.findVersion("pulsar").get().requiredVersion
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.release.set(17)
-    options.compilerArgs.addAll(listOf("-parameters"))
+    options.compilerArgs.addAll(listOf("-parameters", "-Xlint:deprecation", "-Xlint:unchecked"))
 }
 
 configurations.all {

@@ -27,5 +27,6 @@ import org.apache.pulsar.broker.admin.impl.ClustersBase;
 @Path("/clusters")
 @Api(value = "/clusters", description = "Cluster admin apis", tags = "clusters")
 @Produces(MediaType.APPLICATION_JSON)
+@SuppressWarnings("deprecation")
 public class Clusters extends ClustersBase {
 }

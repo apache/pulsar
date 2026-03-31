@@ -112,6 +112,7 @@ public class WebService implements AutoCloseable {
                 .setSkipUnknownProperty(!httpRequestsFailOnUnknownPropertiesEnabled);
     }
 
+    @SuppressWarnings("deprecation")
     public WebService(PulsarService pulsar) throws PulsarServerException {
         this.handlers = new ArrayList<>();
         this.pulsar = pulsar;

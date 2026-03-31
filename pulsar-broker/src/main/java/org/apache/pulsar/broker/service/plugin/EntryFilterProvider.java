@@ -177,6 +177,7 @@ public class EntryFilterProvider implements AutoCloseable {
         );
     }
 
+    @SuppressWarnings("unchecked")
     protected EntryFilter load(EntryFilterMetaData metadata)
             throws IOException {
         final EntryFilterDefinition def = metadata.getDefinition();

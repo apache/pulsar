@@ -84,28 +84,28 @@ public final class MultipleListenerValidator {
             for (final String strUri : entry.getValue()) {
                 try {
                     URI uri = URI.create(strUri);
-                    if (StringUtils.equalsIgnoreCase(uri.getScheme(), "pulsar")) {
+                    if ("pulsar".equalsIgnoreCase(uri.getScheme())) {
                         if (pulsarAddress == null) {
                             pulsarAddress = uri;
                         } else {
                             throw new IllegalArgumentException("there are redundant configure for listener `"
                                     + entry.getKey() + "`");
                         }
-                    } else if (StringUtils.equalsIgnoreCase(uri.getScheme(), "pulsar+ssl")) {
+                    } else if ("pulsar+ssl".equalsIgnoreCase(uri.getScheme())) {
                         if (pulsarSslAddress == null) {
                             pulsarSslAddress = uri;
                         } else {
                             throw new IllegalArgumentException("there are redundant configure for listener `"
                                     + entry.getKey() + "`");
                         }
-                    } else if (StringUtils.equalsIgnoreCase(uri.getScheme(), "http")) {
+                    } else if ("http".equalsIgnoreCase(uri.getScheme())) {
                         if (pulsarHttpAddress == null) {
                             pulsarHttpAddress = uri;
                         } else {
                             throw new IllegalArgumentException("there are redundant configure for listener `"
                                     + entry.getKey() + "`");
                         }
-                    } else if (StringUtils.equalsIgnoreCase(uri.getScheme(), "https")) {
+                    } else if ("https".equalsIgnoreCase(uri.getScheme())) {
                         if (pulsarHttpsAddress == null) {
                             pulsarHttpsAddress = uri;
                         } else {

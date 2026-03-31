@@ -138,6 +138,7 @@ public abstract class ResourceGroupsBase extends AdminResource {
         }
     }
 
+    @SuppressWarnings("deprecation")
     protected boolean internalCheckRgInUse(String rgName) {
         try {
             for (String tenant : tenantResources().listTenants()) {

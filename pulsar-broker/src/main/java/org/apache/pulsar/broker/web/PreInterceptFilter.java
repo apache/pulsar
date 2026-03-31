@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Objects;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -29,7 +30,6 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.MediaType;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.common.intercept.InterceptException;
 
@@ -58,9 +58,11 @@ public class PreInterceptFilter implements Filter {
                     servletRequest.getServletContext().getContextPath(),
                     servletRequest.getContentType());
         }
-        if (StringUtils.containsIgnoreCase(servletRequest.getContentType(), MediaType.MULTIPART_FORM_DATA)
-                || StringUtils.containsIgnoreCase(servletRequest.getContentType(),
-                MediaType.APPLICATION_OCTET_STREAM)) {
+        String contentType = servletRequest.getContentType();
+        if (contentType != null && (contentType.toLowerCase(Locale.ROOT).contains(
+                MediaType.MULTIPART_FORM_DATA.toLowerCase(Locale.ROOT))
+                || contentType.toLowerCase(Locale.ROOT).contains(
+                MediaType.APPLICATION_OCTET_STREAM.toLowerCase(Locale.ROOT)))) {
             // skip multipart request at this moment
             filterChain.doFilter(servletRequest, servletResponse);
             return;

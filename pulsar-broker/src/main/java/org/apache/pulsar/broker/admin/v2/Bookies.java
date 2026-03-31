@@ -56,6 +56,7 @@ import org.apache.pulsar.common.policies.data.RawBookieInfo;
 @Api(value = "/bookies", description = "Configure bookies rack placement", tags = "bookies")
 @Produces(MediaType.APPLICATION_JSON)
 @Slf4j
+@SuppressWarnings("deprecation")
 public class Bookies extends AdminResource {
     private static final String PATH_SEPARATOR = "/";
 

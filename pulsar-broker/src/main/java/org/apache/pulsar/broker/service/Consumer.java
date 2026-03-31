@@ -960,6 +960,7 @@ public class Consumer {
         stats.chunkedMessageRate = chunkedMessageRate.getRate();
     }
 
+    @SuppressWarnings("deprecation")
     public void updateStats(ConsumerStatsImpl consumerStats) {
         msgOutCounter.add(consumerStats.msgOutCounter);
         bytesOutCounter.add(consumerStats.bytesOutCounter);
@@ -977,6 +978,7 @@ public class Consumer {
         avgMessagesPerEntry.set(consumerStats.avgMessagesPerEntry);
     }
 
+    @SuppressWarnings("deprecation")
     public ConsumerStatsImpl getStats() {
         stats.msgOutCounter = msgOutCounter.longValue();
         stats.bytesOutCounter = bytesOutCounter.longValue();

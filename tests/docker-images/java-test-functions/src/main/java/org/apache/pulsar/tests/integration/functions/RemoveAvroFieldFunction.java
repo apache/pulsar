@@ -44,6 +44,7 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
     private static final String FIELD_TO_REMOVE = "age";
 
     @Override
+    @SuppressWarnings({"deprecation", "unchecked"})
     public Void process(GenericObject genericObject, Context context) throws Exception {
         Record<?> currentRecord = context.getCurrentRecord();
         log.info("apply to {} {}", genericObject, genericObject.getNativeObject());

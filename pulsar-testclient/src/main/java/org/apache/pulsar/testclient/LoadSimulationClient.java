@@ -327,6 +327,7 @@ public class LoadSimulationClient extends CmdBase{
      *
      */
     @Override
+    @SuppressWarnings("deprecation")
     public void run() throws Exception {
         admin = PulsarAdmin.builder()
                 .serviceHttpUrl(this.serviceURL)

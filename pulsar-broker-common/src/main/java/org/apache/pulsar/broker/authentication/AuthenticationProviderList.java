@@ -36,6 +36,7 @@ import org.apache.pulsar.common.api.AuthData;
  * An authentication provider wraps a list of auth providers.
  */
 @Slf4j
+@SuppressWarnings("deprecation")
 public class AuthenticationProviderList implements AuthenticationProvider {
 
     private AuthenticationMetrics authenticationMetrics;

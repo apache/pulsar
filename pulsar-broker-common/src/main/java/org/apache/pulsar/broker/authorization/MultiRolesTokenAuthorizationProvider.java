@@ -151,6 +151,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                 });
     }
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     private Set<String> getRoles(String role, AuthenticationDataSource authData) {
         if (authData == null || (authData instanceof AuthenticationDataSubscription
                 && ((AuthenticationDataSubscription) authData).getAuthData() == null)) {

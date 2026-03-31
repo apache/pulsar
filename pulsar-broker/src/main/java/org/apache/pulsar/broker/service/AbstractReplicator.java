@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.commons.lang3.StringUtils;
+import java.util.Objects;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -107,6 +107,7 @@ public abstract class AbstractReplicator implements Replicator {
         Terminated;
     }
 
+    @SuppressWarnings("deprecation")
     public AbstractReplicator(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
                               String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient,
                               PulsarAdmin replicationAdmin)
@@ -125,9 +126,9 @@ public abstract class AbstractReplicator implements Replicator {
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
         this.replicatorId = String.format("%s | %s",
-                StringUtils.equals(localTopicName, remoteTopicName) ? localTopicName :
+                Objects.equals(localTopicName, remoteTopicName) ? localTopicName :
                         localTopicName + "-->" + remoteTopicName,
-                StringUtils.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster
+                Objects.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster
         );
         this.producerBuilder = replicationClient.newProducer(Schema.AUTO_PRODUCE_BYTES()) //
                 .topic(remoteTopicName)
@@ -350,6 +351,7 @@ public abstract class AbstractReplicator implements Replicator {
     /**
      * This method only be used by {@link PersistentTopic#checkGC} now.
      */
+    @SuppressWarnings("unchecked")
     protected CompletableFuture<Void> closeProducerAsync(boolean closeTheStartingProducer) {
         Pair<Boolean, State> setDisconnectingRes = compareSetAndGetState(State.Started, State.Disconnecting);
         if (!setDisconnectingRes.getLeft()) {
@@ -427,6 +429,7 @@ public abstract class AbstractReplicator implements Replicator {
 
     protected abstract void beforeTerminate();
 
+    @SuppressWarnings("unchecked")
     public CompletableFuture<Void> terminate() {
         if (!tryChangeStatusToTerminating()) {
             log.info("[{}] Skip current termination since other thread is doing termination, state : {}", replicatorId,

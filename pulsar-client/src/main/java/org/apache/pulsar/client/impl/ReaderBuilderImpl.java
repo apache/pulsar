@@ -115,6 +115,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ReaderBuilder<T> loadConf(Map<String, Object> config) {
         MessageId startMessageId = conf.getStartMessageId();
         conf = ConfigurationDataUtils.loadData(config, conf, ReaderConfigurationData.class);
@@ -272,7 +273,8 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
-    public ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors) {
+    @SafeVarargs
+    public final ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors) {
         if (interceptors != null) {
             this.conf.setReaderInterceptorList(Arrays.asList(interceptors));
         }

@@ -394,6 +394,7 @@ public class LocalBookkeeperEnsemble {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public void start(boolean enableStreamStorage) throws  Exception {
         LOG.debug("Local ZK/BK starting ...");
         ServerConfiguration conf = new ServerConfiguration();

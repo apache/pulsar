@@ -50,6 +50,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 @Api(value = "/functions", description = "Functions admin apis", tags = "functions", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@SuppressWarnings("deprecation")
 public class Functions extends AdminResource {
 
     FunctionsV2<? extends WorkerService> functions() {

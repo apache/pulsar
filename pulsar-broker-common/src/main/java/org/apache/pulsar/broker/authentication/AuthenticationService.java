@@ -119,6 +119,7 @@ public class AuthenticationService implements Closeable {
         return providerToUse;
     }
 
+    @SuppressWarnings("deprecation")
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response)
             throws Exception {
         String authMethodName = getAuthMethodName(request);

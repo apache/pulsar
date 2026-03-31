@@ -274,6 +274,7 @@ public class PulsarStandalone implements AutoCloseable {
 
     private boolean usingNewDefaultsPIP117;
 
+    @SuppressWarnings("deprecation")
     public void start() throws Exception {
         if (config == null) {
             log.error("Failed to load configuration");

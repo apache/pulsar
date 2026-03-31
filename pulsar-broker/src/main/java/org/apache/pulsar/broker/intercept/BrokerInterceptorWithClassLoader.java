@@ -54,6 +54,7 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     private final NarClassLoader narClassLoader;
 
     @Override
+    @SuppressWarnings("deprecation")
     public void beforeSendMessage(Subscription subscription,
                                   Entry entry,
                                   long[] ackSet,
@@ -69,6 +70,7 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void beforeSendMessage(Subscription subscription,
                                   Entry entry,
                                   long[] ackSet,

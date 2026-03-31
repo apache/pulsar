@@ -974,6 +974,7 @@ public class PersistentTopicsBase extends AdminResource {
        });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<DelayedDeliveryPolicies> internalGetDelayedDeliveryPolicies(boolean applied,
                                                                                             boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
@@ -1004,6 +1005,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<OffloadPoliciesImpl> internalGetOffloadPolicies(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> {
@@ -1019,6 +1021,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPoliciesImpl offloadPoliciesToSet,
                                                                  boolean isGlobal) {
         return pulsar().getTopicPoliciesService()
@@ -1027,6 +1030,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<InactiveTopicPolicies> internalGetInactiveTopicPolicies
             (boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
@@ -1051,6 +1055,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnSubscription(boolean applied,
                                                                                      boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
@@ -1078,6 +1083,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnConsumer(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getMaxUnackedMessagesOnConsumer)
@@ -3116,6 +3122,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>> internalGetBacklogQuota(
             boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
@@ -3351,6 +3358,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }));
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Boolean> internalGetDeduplication(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getDeduplicationEnabled)
@@ -3370,6 +3378,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetSubscriptionExpirationTime(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenApply(op -> op.map(TopicPolicies::getSubscriptionExpirationTimeInMinutes)
@@ -3426,6 +3435,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenApply(policies -> policies.retention_policies);
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getRetentionPolicies).orElseGet(() -> {
@@ -3495,6 +3505,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .orElse(false));
 }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getPersistence)
@@ -3548,6 +3559,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenApply(op -> op.map(TopicPolicies::getMaxMessageSize));
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetMaxProducers(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getMaxProducerPerTopic)
@@ -3589,6 +3601,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<DispatchRateImpl> internalGetReplicatorDispatchRate(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getReplicatorDispatchRate)
@@ -3645,6 +3658,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetMaxConsumers(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getMaxConsumerPerTopic)
@@ -4266,7 +4280,7 @@ public class PersistentTopicsBase extends AdminResource {
      */
     public static CompletableFuture<PartitionedTopicMetadata> unsafeGetPartitionedTopicMetadataAsync(
         PulsarService pulsar, TopicName topicName) {
-        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture();
+        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
@@ -4541,6 +4555,7 @@ public class PersistentTopicsBase extends AdminResource {
         return FutureUtil.waitForAll(futures).thenAccept(asyncResponse::resume);
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<DispatchRateImpl> internalGetDispatchRate(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getDispatchRate)
@@ -4569,6 +4584,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<DispatchRate> internalGetSubscriptionDispatchRate(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getSubscriptionDispatchRate)
@@ -4663,6 +4679,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Long> internalGetCompactionThreshold(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getCompactionThreshold)
@@ -4735,6 +4752,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<SubscribeRate> internalGetSubscribeRate(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getSubscribeRate)
@@ -5096,6 +5114,7 @@ public class PersistentTopicsBase extends AdminResource {
                         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Boolean> internalGetSchemaValidationEnforced(boolean applied) {
         // Schema validation enforced is typically a local policy
         return getTopicPoliciesAsyncWithRetry(topicName)
@@ -5215,6 +5234,7 @@ public class PersistentTopicsBase extends AdminResource {
                         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<AutoSubscriptionCreationOverride> internalGetAutoSubscriptionCreation(boolean applied,
                                                                                                     boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)

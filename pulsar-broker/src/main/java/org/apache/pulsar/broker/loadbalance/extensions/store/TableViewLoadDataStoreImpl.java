@@ -165,6 +165,7 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
         }
     }
     @Override
+    @SuppressWarnings("deprecation")
     public synchronized void startTableView() throws LoadDataStoreException {
         validateState();
         if (tableView == null) {

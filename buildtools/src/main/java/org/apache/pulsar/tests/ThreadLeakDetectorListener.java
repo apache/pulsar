@@ -19,10 +19,10 @@
 
 package org.apache.pulsar.tests;
 
-import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.time.ZonedDateTime;
@@ -172,7 +172,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                     File threaddumpFile =
                             new File(DUMP_DIR, "threaddump" + datetimePart + firstTestClassName + ".txt");
                     try {
-                        Files.asCharSink(threaddumpFile, Charsets.UTF_8)
+                        Files.asCharSink(threaddumpFile, StandardCharsets.UTF_8)
                                 .write(ThreadDumpUtil.buildThreadDiagnosticString());
                     } catch (IOException e) {
                         LOG.error("Cannot write thread dump", e);

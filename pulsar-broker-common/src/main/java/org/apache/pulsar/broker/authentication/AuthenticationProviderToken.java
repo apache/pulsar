@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToke
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 
+@SuppressWarnings({"deprecation", "unchecked"})
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
     static final String HTTP_HEADER_NAME = "Authorization";

@@ -447,6 +447,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
         }
     }
 
+    @SuppressWarnings("unchecked")
     static IMessageFormatter getMessageFormatter(String formatterClass) {
         try {
             ClassLoader classLoader = PerformanceProducer.class.getClassLoader();
@@ -460,6 +461,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
         }
     }
 
+    @SuppressWarnings("deprecation")
     ProducerBuilder<byte[]> createProducerBuilder(PulsarClient client, int producerId) {
         ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
                 .sendTimeout(this.sendTimeout, TimeUnit.SECONDS) //

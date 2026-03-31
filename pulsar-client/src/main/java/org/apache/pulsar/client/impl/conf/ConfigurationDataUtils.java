@@ -44,6 +44,7 @@ public final class ConfigurationDataUtils {
 
     private ConfigurationDataUtils() {}
 
+    @SuppressWarnings("unchecked")
     public static <T> T loadData(Map<String, Object> config,
                                  T existingData,
                                  Class<T> dataCls) {

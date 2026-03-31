@@ -1544,6 +1544,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return config.getStatusFilePath();
     }
 
+    @SuppressWarnings("deprecation")
     public InternalConfigurationData getInternalConfigurationData() {
         return new InternalConfigurationData(
             config.getMetadataStoreUrl(),
@@ -2000,6 +2001,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void startWorkerService(AuthenticationService authenticationService,
                                     AuthorizationService authorizationService)
             throws Exception {
@@ -2078,6 +2080,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return monotonicClock;
     }
 
+    @SuppressWarnings("deprecation")
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);

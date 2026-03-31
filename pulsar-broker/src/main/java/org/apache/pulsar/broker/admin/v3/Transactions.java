@@ -63,6 +63,7 @@ import org.jspecify.annotations.Nullable;
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/transactions", description = "Transactions admin apis", tags = "transactions")
 @Slf4j
+@SuppressWarnings("deprecation")
 public class Transactions extends TransactionsBase {
 
     @GET

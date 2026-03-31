@@ -117,6 +117,7 @@ class ProtocolHandlerUtils {
      * @param metadata the protocol handler definition.
      * @return
      */
+    @SuppressWarnings("unchecked")
     static ProtocolHandlerWithClassLoader load(ProtocolHandlerMetadata metadata,
                                                String narExtractionDirectory) throws IOException {
         final File narFile = metadata.getArchivePath().toAbsolutePath().normalize().toFile();

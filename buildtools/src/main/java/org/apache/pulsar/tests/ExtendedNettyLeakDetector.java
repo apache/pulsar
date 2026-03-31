@@ -102,14 +102,17 @@ public class ExtendedNettyLeakDetector<T> extends ResourceLeakDetector<T> {
         buffer.release();
     }
 
+    @SuppressWarnings("deprecation")
     public ExtendedNettyLeakDetector(Class<?> resourceType, int samplingInterval, long maxActive) {
         super(resourceType, samplingInterval, maxActive);
     }
 
+    @SuppressWarnings("deprecation")
     public ExtendedNettyLeakDetector(Class<?> resourceType, int samplingInterval) {
         super(resourceType, samplingInterval);
     }
 
+    @SuppressWarnings("deprecation")
     public ExtendedNettyLeakDetector(String resourceType, int samplingInterval, long maxActive) {
         super(resourceType, samplingInterval, maxActive);
     }

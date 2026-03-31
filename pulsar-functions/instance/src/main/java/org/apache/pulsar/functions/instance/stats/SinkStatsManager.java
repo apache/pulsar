@@ -24,7 +24,6 @@ import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
-import lombok.Getter;
 import org.apache.pulsar.functions.proto.FunctionStatus;
 
 public class SinkStatsManager extends ComponentStatsManager {
@@ -82,10 +81,8 @@ public class SinkStatsManager extends ComponentStatsManager {
     private Counter.Child statTotalSinkExceptionsChild1min;
     private Counter.Child statTotalWrittenChild1min;
 
-    @Getter
     private EvictingQueue<FunctionStatus.ExceptionInformation> latestSystemExceptions =
             EvictingQueue.create(10);
-    @Getter
     private EvictingQueue<FunctionStatus.ExceptionInformation> latestSinkExceptions =
             EvictingQueue.create(10);
 

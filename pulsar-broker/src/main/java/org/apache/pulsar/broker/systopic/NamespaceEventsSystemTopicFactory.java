@@ -68,6 +68,7 @@ public class NamespaceEventsSystemTopicFactory {
         return nonPartitionedExists.thenCombine(partition0Exists, (a, b) -> a | b);
     }
 
+    @SuppressWarnings("unchecked")
     public <T> TransactionBufferSnapshotBaseSystemTopicClient<T> createTransactionBufferSystemTopicClient(
             TopicName systemTopicName, SystemTopicTxnBufferSnapshotService<T>
             systemTopicTxnBufferSnapshotService, Class<T> schemaType) {

@@ -48,6 +48,7 @@ public class BacklogQuotaManager {
     private final BacklogQuotaImpl defaultQuota;
     private final NamespaceResources namespaceResources;
 
+    @SuppressWarnings("deprecation")
     public BacklogQuotaManager(PulsarService pulsar) {
         double backlogQuotaGB = pulsar.getConfiguration().getBacklogQuotaDefaultLimitGB();
         this.defaultQuota = BacklogQuotaImpl.builder()

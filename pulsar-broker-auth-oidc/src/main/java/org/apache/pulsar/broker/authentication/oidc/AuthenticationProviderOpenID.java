@@ -148,6 +148,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     private AuthenticationMetrics authenticationMetrics;
 
+    @SuppressWarnings("deprecation")
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
         initialize(Context.builder().config(config).build());

@@ -228,10 +228,10 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             return CompletableFuture.completedFuture(Pair.of(info.toByteArray(), context));
                         });
                 }))).whenComplete((v, ex) -> {
-                    var latencyMs = this.clock.millis() - start.getValue();
+                    var latencyMs = this.clock.millis() - start.longValue();
                     if (ex != null) {
                         log.error("[{}] Put schema failed", schemaId, ex);
-                        if (start.getValue() != 0) {
+                        if (start.longValue() != 0) {
                             this.stats.recordPutFailed(schemaId, latencyMs);
                         }
                         promise.completeExceptionally(ex);
@@ -242,8 +242,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         // The schema storage will return null schema version if no schema is persisted to the storage
                         if (v != null) {
                             promise.complete(v);
-                            if (start.getValue() != 0) {
-                                this.stats.recordPutLatency(schemaId, this.clock.millis() - start.getValue());
+                            if (start.longValue() != 0) {
+                                this.stats.recordPutLatency(schemaId, this.clock.millis() - start.longValue());
                             }
                         }
                     }

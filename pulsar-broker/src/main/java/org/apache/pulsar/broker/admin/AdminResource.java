@@ -786,6 +786,7 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsyncWithoutAuth() {
         CompletableFuture<SchemaCompatibilityStrategy> future = getTopicPoliciesAsyncWithRetry(topicName)
                 .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));

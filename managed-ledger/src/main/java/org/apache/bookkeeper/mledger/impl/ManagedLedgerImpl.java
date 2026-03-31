@@ -2005,6 +2005,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @VisibleForTesting
+    @SuppressWarnings("deprecation")
     @Override
     public void rollCurrentLedgerIfFull() {
         log.info("[{}] Start checking if current ledger is full", name);

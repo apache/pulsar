@@ -235,9 +235,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         });
 
         log.info("[{}] Recover delayed message index bucket snapshot finish, buckets: {}, numberDelayedMessages: {}",
-                dispatcher.getName(), immutableBucketMap.size(), numberDelayedMessages.getValue());
+                dispatcher.getName(), immutableBucketMap.size(), numberDelayedMessages.longValue());
 
-        return numberDelayedMessages.getValue();
+        return numberDelayedMessages.longValue();
     }
 
     /**
