@@ -1431,9 +1431,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
         nonPersistentProducer2.close();
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
-    @SuppressWarnings("unchecked")
     public void testCleanupTopic() throws Exception {
 
         final String cluster1 = pulsar1.getConfig().getClusterName();

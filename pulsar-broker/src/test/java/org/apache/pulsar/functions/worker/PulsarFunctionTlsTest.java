@@ -91,10 +91,9 @@ public class PulsarFunctionTlsTest {
     protected String testNamespace = testTenant + "/my-ns";
     private PulsarFunctionTestTemporaryDirectory[] tempDirectories =
             new PulsarFunctionTestTemporaryDirectory[BROKER_COUNT];
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     @BeforeMethod(alwaysRun = true)
-    @SuppressWarnings("unchecked")
     void setup() throws Exception {
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble

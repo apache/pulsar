@@ -230,9 +230,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
      * (before https://github.com/apache/pulsar/pull/14384) while the Worker already uses the new one.
      * @throws Exception
      */
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
-    @SuppressWarnings("unchecked")
     public void internalConfigurationRetroCompatibility() throws Exception {
         OldInternalConfigurationData oldDataModel = new OldInternalConfigurationData(
                 MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL(conf.getMetadataStoreUrl()),
@@ -820,9 +819,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
-    @SuppressWarnings("unchecked")
     public void persistentTopics() throws Exception {
 
         final String tenant = "prop-xyz";
@@ -945,9 +943,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 false, 10);
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
-    @SuppressWarnings("unchecked")
     public void test500Error() throws Exception {
         final String tenant = "prop-xyz";
         final String cluster = "use";

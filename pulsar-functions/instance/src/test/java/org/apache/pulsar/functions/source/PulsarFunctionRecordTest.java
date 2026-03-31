@@ -29,9 +29,8 @@ import org.testng.annotations.Test;
 
 public class PulsarFunctionRecordTest {
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
-    @SuppressWarnings("unchecked")
     public void testAck() {
         Record<?> record = mock(Record.class);
         FunctionDetails functionDetails = new FunctionDetails()

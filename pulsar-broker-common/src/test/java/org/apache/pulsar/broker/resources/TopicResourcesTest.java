@@ -151,9 +151,8 @@ public class TopicResourcesTest {
         verify(listener).onTopicEvent("persistent://tenant/name.pace/topic", NotificationType.Created);
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
-    @SuppressWarnings("unchecked")
     public void testBiConsumerListenerNotInvokedAfterDeregistered() {
         BiConsumer<String, NotificationType> listener = mock(BiConsumer.class);
         topicResources.registerPersistentTopicListener(NamespaceName.get("tenant/namespace"), listener);

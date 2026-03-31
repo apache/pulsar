@@ -1818,9 +1818,8 @@ public class TransactionTest extends TransactionTestBase {
     }
 
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test(timeOut = 10_000)
-    @SuppressWarnings("unchecked")
     public void testTBSnapshotWriter() throws Exception {
         String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);
         admin.namespaces().createNamespace(namespace, 16);

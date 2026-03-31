@@ -203,9 +203,8 @@ public class PulsarFunctionTlsTest {
             }
         }
     }
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
 
-    @SuppressWarnings("unchecked")
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
                                                            PulsarAdmin mockPulsarAdmin) {
         workerConfig = new WorkerConfig();

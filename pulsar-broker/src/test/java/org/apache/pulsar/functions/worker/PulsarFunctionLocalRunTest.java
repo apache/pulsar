@@ -345,9 +345,8 @@ public class PulsarFunctionLocalRunTest {
             }
         }
     }
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
 
-    @SuppressWarnings("unchecked")
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,

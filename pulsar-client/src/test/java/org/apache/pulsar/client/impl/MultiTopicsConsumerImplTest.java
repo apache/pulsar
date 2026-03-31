@@ -87,9 +87,8 @@ public class MultiTopicsConsumerImplTest {
         }
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
-    @SuppressWarnings("unchecked")
     public void testGetStats() throws Exception {
         String topicName = "test-stats";
         ClientConfigurationData conf = new ClientConfigurationData();

@@ -418,10 +418,9 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     public static Object[][] partitioned() {
         return new Object[][] {{true}, {false}};
     }
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     @Test(timeOut = 30 * 1000, dataProvider = "partitionedTopic")
-    @SuppressWarnings("unchecked")
     public void testAck(boolean partitionedTopic) throws Exception {
         String topic = null;
         if (partitionedTopic) {

@@ -147,9 +147,8 @@ public class WindowFunctionExecutorTest {
         verify(record, times(1)).ack();
     }
 
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
-    @SuppressWarnings("unchecked")
     public void testWindowFunctionWithAtleastOnce() throws Exception {
 
         WindowConfig config = new WindowConfig();

@@ -912,9 +912,8 @@ public class PartitionedProducerConsumerTest extends SharedPulsarBaseTest {
     *
     * @throws Exception
     */
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
-    @SuppressWarnings("unchecked")
     public void testPartitionedTopicInterceptor() throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = newTopicName();
