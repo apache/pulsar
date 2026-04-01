@@ -399,24 +399,27 @@ public class PulsarClientImpl implements PulsarClient {
             if (autoProduceBytesSchema.hasUserProvidedSchema()) {
                 return createProducerAsync(topic, conf, schema, interceptors);
             }
-            return lookup.getSchema(TopicName.get(conf.getTopicName()))
-                    .thenCompose(schemaInfoOptional -> {
-                        if (schemaInfoOptional.isPresent()) {
-                            SchemaInfo schemaInfo = schemaInfoOptional.get();
-                            if (schemaInfo.getType() == SchemaType.PROTOBUF) {
-                                autoProduceBytesSchema.setSchema(new GenericAvroSchema(schemaInfo));
-                            } else {
-                                autoProduceBytesSchema.setSchema(Schema.getSchema(schemaInfo));
-                            }
-                        } else {
-                            autoProduceBytesSchema.setSchema(Schema.BYTES);
-                        }
-                        return createProducerAsync(topic, conf, schema, interceptors);
-                    });
+            return reloadSchemaForAutoProduceProducer(topic, autoProduceBytesSchema)
+                    .thenCompose(schemaInfoOptional -> createProducerAsync(topic, conf, schema, interceptors));
         } else {
             return createProducerAsync(topic, conf, schema, interceptors);
         }
 
+    }
+
+    public CompletableFuture<Void> reloadSchemaForAutoProduceProducer(String topic, AutoProduceBytesSchema autoSchema) {
+        return lookup.getSchema(TopicName.get(topic)).thenAccept(schemaInfoOptional -> {
+            if (schemaInfoOptional.isPresent()) {
+                SchemaInfo schemaInfo = schemaInfoOptional.get();
+                if (schemaInfo.getType() == SchemaType.PROTOBUF) {
+                    autoSchema.setSchema(new GenericAvroSchema(schemaInfo));
+                } else {
+                    autoSchema.setSchema(Schema.getSchema(schemaInfo));
+                }
+            } else {
+                autoSchema.setSchema(Schema.BYTES);
+            }
+        });
     }
 
     private CompletableFuture<Integer> checkPartitions(String topic, boolean forceNoPartitioned,

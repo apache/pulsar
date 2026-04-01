@@ -85,6 +85,7 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.client.impl.metrics.UpDownCounter;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -1991,6 +1992,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 cnx.channel().close();
                 future.complete(null);
                 return null;
+            }
+
+            if (cause instanceof PulsarClientException.IncompatibleSchemaException
+                    && schema instanceof AutoProduceBytesSchema) {
+                AutoProduceBytesSchema autoProduceBytesSchema = (AutoProduceBytesSchema) schema;
+                if (!autoProduceBytesSchema.hasUserProvidedSchema()) {
+                    client.reloadSchemaForAutoProduceProducer(topic, autoProduceBytesSchema)
+                            .whenComplete((__, throwable) -> {
+                                future.completeExceptionally(cause);
+                            });
+                    return null;
+                }
             }
 
             if (cause instanceof TimeoutException) {
