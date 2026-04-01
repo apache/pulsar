@@ -300,9 +300,18 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             partitionOffset.put(tp.partition(), e.getValue().offset());
         }
 
+        int ackRequestedCount = 0;
         for (Record<GenericObject> r : pendingFlushQueue) {
-            final String topic = sanitizeNameIfNeeded(r.getTopicName().orElse(topicName), sanitizeTopicName);
-            final int partition = r.getPartitionIndex().orElse(0);
+            final String topic;
+            final int partition;
+            if (shouldCollapsePartitionedTopic(r)) {
+                TopicName tn = TopicName.get(r.getTopicName().get());
+                partition = tn.getPartitionIndex();
+                topic = sanitizeNameIfNeeded(tn.getPartitionedTopicName(), sanitizeTopicName);
+            } else {
+                partition = r.getPartitionIndex().orElse(0);
+                topic = sanitizeNameIfNeeded(r.getTopicName().orElse(topicName), sanitizeTopicName);
+            }
 
             Long lastCommittedOffset = null;
             if (topicOffsets.containsKey(topic)) {
@@ -326,15 +335,26 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             }
 
             cb.accept(r);
+            ackRequestedCount++;
             pendingFlushQueue.remove(r);
             currentBatchSize.addAndGet(-1 * r.getMessage().get().size());
             if (r == lastNotFlushed) {
                 break;
             }
         }
+        if (log.isDebugEnabled()) {
+            log.debug("ackRequestedCount: {}, committedOffsets: {}", ackRequestedCount, committedOffsets);
+        }
     }
 
-    private long getMessageOffset(Record<GenericObject> sourceRecord) {
+    private boolean shouldCollapsePartitionedTopic(Record<GenericObject> r) {
+        return collapsePartitionedTopics
+                && r.getTopicName().isPresent()
+                && TopicName.get(r.getTopicName().get()).isPartitioned();
+    }
+
+    @VisibleForTesting
+    long getMessageOffset(Record<GenericObject> sourceRecord) {
 
         if (sourceRecord.getMessage().isPresent()) {
             // Use index added by org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor if present.
@@ -440,9 +460,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         final int partition;
         final String topic;
 
-        if (collapsePartitionedTopics
-                && sourceRecord.getTopicName().isPresent()
-                && TopicName.get(sourceRecord.getTopicName().get()).isPartitioned()) {
+        if (shouldCollapsePartitionedTopic(sourceRecord)) {
             TopicName tn = TopicName.get(sourceRecord.getTopicName().get());
             partition = tn.getPartitionIndex();
             topic = sanitizeNameIfNeeded(tn.getPartitionedTopicName(), sanitizeTopicName);
