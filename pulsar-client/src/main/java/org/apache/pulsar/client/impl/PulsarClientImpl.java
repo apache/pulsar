@@ -423,7 +423,7 @@ public class PulsarClientImpl implements PulsarClient {
         if (isScalableDomain(topic)) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidTopicNameException(
-                    "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                    "Scalable topics (topic://) require the V5 client SDK."
                     + " Topic: '" + topic + "'"));
         }
 
@@ -482,6 +482,34 @@ public class PulsarClientImpl implements PulsarClient {
             return null;
         });
         return checkPartitions;
+    }
+
+    /**
+     * Create a producer bypassing the scalable domain check.
+     * This is intended for internal use by the V5 client to create segment producers.
+     */
+    public <T> CompletableFuture<Producer<T>> createSegmentProducerAsync(
+            ProducerConfigurationData conf, Schema<T> schema) {
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
+        }
+        String topic = conf.getTopicName();
+        if (!TopicName.isValid(topic)) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+        }
+        return createProducerAsync(topic, conf, schema, null);
+    }
+
+    /**
+     * Reject {@code topic://} (PIP-460 scalable topics) — users on the V4 SDK must switch
+     * to the V5 SDK for those. The {@code segment://} domain is <em>internal</em>: it is
+     * how the V5 client talks to the individual backing topics of a scalable topic, so we
+     * deliberately let it through here.
+     */
+    private static boolean isScalableDomain(String topic) {
+        return TopicName.get(topic).isScalable();
     }
 
     private <T> CompletableFuture<Producer<T>> createProducerAsync(String topic,
@@ -592,7 +620,7 @@ public class PulsarClientImpl implements PulsarClient {
             if (isScalableDomain(topic)) {
                 return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidTopicNameException(
-                        "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                        "Scalable topics (topic://) require the V5 client SDK."
                         + " Topic: '" + topic + "'"));
             }
         }
@@ -765,7 +793,7 @@ public class PulsarClientImpl implements PulsarClient {
             if (isScalableDomain(topic)) {
                 return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidTopicNameException(
-                        "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                        "Scalable topics (topic://) require the V5 client SDK."
                         + " Topic: '" + topic + "'"));
             }
         }
@@ -1285,6 +1313,14 @@ public class PulsarClientImpl implements PulsarClient {
 
         try {
             TopicName topicName = TopicName.get(topic);
+            // Segment topics are internal storage units of a scalable topic and are never
+            // partitioned. Skip the broker partitioned-metadata lookup — the standard path
+            // isn't set up for the 4-component segment://tenant/ns/parent/descriptor name
+            // and will time out.
+            if (topicName.isSegment()) {
+                metadataFuture.complete(new PartitionedTopicMetadata(0));
+                return metadataFuture;
+            }
             AtomicLong opTimeoutMs = new AtomicLong(conf.getLookupTimeoutMs());
             Backoff backoff = Backoff.builder()
                     .initialDelay(Duration.ofNanos(conf.getInitialBackoffIntervalNanos()))
@@ -1468,10 +1504,5 @@ public class PulsarClientImpl implements PulsarClient {
 
     NameResolver<InetAddress> getNameResolver() {
         return DnsResolverUtil.adaptToNameResolver(addressResolver);
-    }
-
-    private static boolean isScalableDomain(String topic) {
-        TopicName topicName = TopicName.get(topic);
-        return topicName.isScalable() || topicName.isSegment();
     }
 }

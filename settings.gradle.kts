@@ -91,6 +91,7 @@ project(":pulsar-client-original").projectDir = file("pulsar-client")
 include("pulsar-metadata")
 include("pulsar-opentelemetry")
 include("pulsar-client-messagecrypto-bc")
+include("pulsar-client-v5")
 
 
 // Tier 4
