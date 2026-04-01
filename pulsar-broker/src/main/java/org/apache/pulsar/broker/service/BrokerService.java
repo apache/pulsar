@@ -321,6 +321,9 @@ public class BrokerService implements Closeable {
     @Getter
     private final BundlesQuotas bundlesQuotas;
 
+    @Getter
+    private volatile org.apache.pulsar.broker.service.scalable.ScalableTopicService scalableTopicService;
+
     private PulsarChannelInitializer.Factory pulsarChannelInitFactory = PulsarChannelInitializer.DEFAULT_FACTORY;
 
     private final List<Channel> listenChannels = new ArrayList<>(2);
@@ -614,6 +617,14 @@ public class BrokerService implements Closeable {
     public void start() throws Exception {
         this.producerNameGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
                 PRODUCER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
+
+        // Initialize scalable topic service
+        var scalableTopicResources = pulsar.getPulsarResources().getScalableTopicResources();
+        if (scalableTopicResources != null) {
+            this.scalableTopicService = new org.apache.pulsar.broker.service.scalable.ScalableTopicService(
+                    this, scalableTopicResources, pulsar.getCoordinationService());
+            this.scalableTopicService.start();
+        }
 
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
         List<BindAddress> bindAddresses = BindAddressValidator.validateBindAddresses(serviceConfig,
@@ -1215,7 +1226,7 @@ public class BrokerService implements Closeable {
             if (tp != null) {
                 return tp;
             }
-            final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
+            final boolean isPersistentTopic = topicName.isPersistent();
             if (isPersistentTopic) {
                 if (!pulsar.getConfiguration().isEnablePersistentTopics()) {
                     log.debug().attr("topic", topicName).log("Broker is unable to load persistent topic");
