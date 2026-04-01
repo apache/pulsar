@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import io.github.merlimat.slog.Logger;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -32,6 +35,8 @@ import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 
@@ -43,8 +48,10 @@ import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
  * ensured by leader election via the metadata store. The leader stores its broker URL
  * so that clients can discover and connect to it.
  */
-@Slf4j
 public class ScalableTopicController {
+
+    private static final Logger LOG = Logger.get(ScalableTopicController.class);
+    private final Logger log;
 
     @Getter
     private final TopicName topicName;
@@ -60,14 +67,35 @@ public class ScalableTopicController {
     @Getter
     private volatile LeaderElectionState leaderState = LeaderElectionState.NoLeader;
 
+    private volatile boolean closed = false;
+
     ScalableTopicController(TopicName topicName,
                             ScalableTopicResources resources,
                             BrokerService brokerService,
-                            LeaderElection<String> leaderElection) {
+                            CoordinationService coordinationService) {
         this.topicName = topicName;
         this.resources = resources;
         this.brokerService = brokerService;
-        this.leaderElection = leaderElection;
+        this.log = LOG.with().attr("topic", topicName).build();
+        this.leaderElection = coordinationService.getLeaderElection(
+                String.class,
+                resources.controllerLockPath(topicName),
+                this::onLeaderStateChange);
+    }
+
+    /**
+     * Reacts to leader election state transitions. On {@link LeaderElectionState#NoLeader}
+     * we kick off another {@link #initialize()} so the cluster always converges toward
+     * having a leader.
+     */
+    private void onLeaderStateChange(LeaderElectionState state) {
+        log.info().attr("state", state).log("Leader state change for scalable topic");
+        if (state == LeaderElectionState.NoLeader && !closed) {
+            initialize().exceptionally(ex -> {
+                log.warn().exceptionMessage(ex).log("Failed to re-elect after NoLeader");
+                return null;
+            });
+        }
     }
 
     /**
@@ -122,8 +150,9 @@ public class ScalableTopicController {
                     SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
                             subscription, this::createCoordinator);
                     coordinator.restoreConsumers(consumerNames);
-                    log.info("[{}] restored subscription {} with {} consumer(s)",
-                            topicName, subscription, consumerNames.size());
+                    log.info().attr("subscription", subscription)
+                            .attr("consumerCount", consumerNames.size())
+                            .log("Restored subscription");
                 });
     }
 
@@ -146,7 +175,8 @@ public class ScalableTopicController {
         return leaderElection.elect(brokerId)
                 .thenAccept(state -> {
                     this.leaderState = state;
-                    log.info("Leader election for scalable topic {}: state={}", topicName, state);
+                    log.info().attr("state", state)
+                            .log("Leader election for scalable topic");
                 });
     }
 
@@ -168,6 +198,94 @@ public class ScalableTopicController {
 
     public CompletableFuture<SegmentLayout> getLayout() {
         return CompletableFuture.completedFuture(currentLayout);
+    }
+
+    /**
+     * Split an active segment at its midpoint.
+     *
+     * <p>Critical ordering: child segment topics and their subscription cursors are created
+     * BEFORE the metadata update. This ensures that when producers discover the new segments
+     * (via DAG watch) and start writing, all subscription cursors already exist. Without this,
+     * messages published before a consumer subscribes would be missed.
+     */
+    public CompletableFuture<SegmentLayout> splitSegment(long segmentId) {
+        checkLeader();
+
+        // Compute the new layout locally to derive child segment info
+        SegmentLayout newLayout = currentLayout.splitSegment(segmentId);
+        SegmentInfo child1 = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 2);
+        SegmentInfo child2 = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 1);
+        SegmentInfo parent = currentLayout.getAllSegments().get(segmentId);
+        String parentTopicName = toSegmentPersistentName(parent);
+
+        // Step 1: Discover subscriptions on the parent segment, then create child
+        // segment topics with those subscriptions (routed to owning brokers via admin API)
+        return discoverSubscriptions(parentTopicName)
+          .thenCompose(parentSubs -> {
+              var subList = new java.util.ArrayList<>(parentSubs);
+              return createSegmentTopic(child1, subList)
+                      .thenCompose(__ -> createSegmentTopic(child2, subList));
+          })
+
+          // Step 3: Terminate the parent segment topic so producers get TopicTerminated
+          .thenCompose(__ -> terminateSegmentTopic(parentTopicName))
+
+          // Step 4: Atomic metadata update (only after topics + cursors are ready + parent terminated)
+          .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
+              SegmentLayout latest = SegmentLayout.fromMetadata(md);
+              SegmentLayout updated = latest.splitSegment(segmentId);
+              return updated.toMetadata(md.getProperties());
+          }))
+          .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
+          .thenCompose(optMd -> {
+              currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+
+              // Step 5: Notify subscriptions of layout change (triggers consumer reassignment)
+              return notifySubscriptions(currentLayout);
+          }).thenApply(__ -> currentLayout);
+    }
+
+    /**
+     * Merge two adjacent active segments.
+     *
+     * <p>Same ordering invariant as split: merged segment topic and subscription cursors
+     * are created before the metadata update.
+     */
+    public CompletableFuture<SegmentLayout> mergeSegments(long segmentId1, long segmentId2) {
+        checkLeader();
+
+        // Compute the new layout locally to derive merged segment info
+        SegmentLayout newLayout = currentLayout.mergeSegments(segmentId1, segmentId2);
+        SegmentInfo merged = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 1);
+        SegmentInfo parent1 = currentLayout.getAllSegments().get(segmentId1);
+        SegmentInfo parent2 = currentLayout.getAllSegments().get(segmentId2);
+        String parent1Topic = toSegmentPersistentName(parent1);
+        String parent2Topic = toSegmentPersistentName(parent2);
+
+        // Step 1: Discover subscriptions from both parents (union), then create merged segment
+        return discoverSubscriptions(parent1Topic)
+          .thenCombine(discoverSubscriptions(parent2Topic), (subs1, subs2) -> {
+              Set<String> allSubs = new LinkedHashSet<>(subs1);
+              allSubs.addAll(subs2);
+              return allSubs;
+          })
+          .thenCompose(parentSubs -> createSegmentTopic(merged, new java.util.ArrayList<>(parentSubs)))
+
+          // Step 2: Terminate both parent segment topics
+          .thenCompose(__ -> terminateSegmentTopic(parent1Topic))
+          .thenCompose(__ -> terminateSegmentTopic(parent2Topic))
+
+          // Step 3: Atomic metadata update (only after topic + cursors are ready + parents terminated)
+          .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
+              SegmentLayout latest = SegmentLayout.fromMetadata(md);
+              SegmentLayout updated = latest.mergeSegments(segmentId1, segmentId2);
+              return updated.toMetadata(md.getProperties());
+          }))
+          .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
+          .thenCompose(optMd -> {
+              currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+              return notifySubscriptions(currentLayout);
+          }).thenApply(__ -> currentLayout);
     }
 
     // --- Consumer management ---
@@ -229,9 +347,172 @@ public class ScalableTopicController {
         }
     }
 
+    // --- Subscription management ---
+
+    /**
+     * Create a subscription on the scalable topic. Persists the {@code SubscriptionMetadata}
+     * entry and then propagates the subscription to every active segment topic, creating a
+     * cursor at the earliest position on each so that no messages are lost.
+     *
+     * <p>Idempotent: re-creating an existing subscription succeeds and is a no-op on the
+     * metadata store; per-segment cursor creation tolerates already-existing subscriptions.
+     */
+    public CompletableFuture<Void> createSubscription(String subscription,
+            org.apache.pulsar.broker.resources.SubscriptionType type) {
+        checkLeader();
+        return resources.createSubscriptionAsync(topicName, subscription, type)
+                .exceptionally(ex -> {
+                    Throwable cause = org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException) {
+                        return null;
+                    }
+                    throw org.apache.pulsar.common.util.FutureUtil.wrapToCompletionException(cause);
+                })
+                .thenCompose(__ -> createSubscriptionOnActiveSegments(subscription));
+    }
+
+    /**
+     * Delete a subscription from the scalable topic. Unregisters any in-memory consumers on
+     * this leader, deletes the persisted {@code SubscriptionMetadata} (and all its consumer
+     * registration children), and removes the subscription from every segment topic.
+     */
+    public CompletableFuture<Void> deleteSubscription(String subscription) {
+        checkLeader();
+        // Remove in-memory coordinator first so no new consumers attach during teardown.
+        SubscriptionCoordinator coordinator = subscriptions.remove(subscription);
+        CompletableFuture<Void> coordinatorClosed =
+                coordinator == null
+                        ? CompletableFuture.completedFuture(null)
+                        : dropAllConsumers(coordinator);
+        return coordinatorClosed
+                .thenCompose(__ -> resources.deleteSubscriptionAsync(topicName, subscription))
+                .thenCompose(__ -> deleteSubscriptionOnAllSegments(subscription));
+    }
+
+    private CompletableFuture<Void> dropAllConsumers(SubscriptionCoordinator coordinator) {
+        CompletableFuture<?>[] futures = coordinator.getConsumers().stream()
+                .map(session -> coordinator.unregisterConsumer(session.getConsumerName()))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(futures);
+    }
+
+    private CompletableFuture<Void> createSubscriptionOnActiveSegments(String subscription) {
+        CompletableFuture<?>[] futures = currentLayout.getActiveSegments().values().stream()
+                .map(segment -> createSubscriptionOnSegment(segment, subscription))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(futures);
+    }
+
+    private CompletableFuture<Void> deleteSubscriptionOnAllSegments(String subscription) {
+        // Delete from every segment in the DAG, including sealed ones, so catch-up readers
+        // aren't left with orphaned cursors.
+        CompletableFuture<?>[] futures = currentLayout.getAllSegments().values().stream()
+                .map(segment -> deleteSubscriptionOnSegment(segment, subscription))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(futures);
+    }
+
+    private CompletableFuture<Void> createSubscriptionOnSegment(SegmentInfo segment, String subscription) {
+        String persistentName = toSegmentUnderlyingPersistentName(segment);
+        try {
+            return brokerService.getPulsar().getAdminClient()
+                    .topics().createSubscriptionAsync(persistentName, subscription,
+                            org.apache.pulsar.client.api.MessageId.earliest)
+                    .exceptionally(ex -> {
+                        Throwable cause = org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException.ConflictException) {
+                            // Subscription already exists on this segment — treat as success.
+                            return null;
+                        }
+                        throw org.apache.pulsar.common.util.FutureUtil.wrapToCompletionException(cause);
+                    });
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private CompletableFuture<Void> deleteSubscriptionOnSegment(SegmentInfo segment, String subscription) {
+        String persistentName = toSegmentUnderlyingPersistentName(segment);
+        try {
+            return brokerService.getPulsar().getAdminClient()
+                    .topics().deleteSubscriptionAsync(persistentName, subscription, true)
+                    .exceptionally(ex -> {
+                        Throwable cause = org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException) {
+                            return null;
+                        }
+                        log.warn().attr("subscription", subscription)
+                                .attr("segment", persistentName).exceptionMessage(cause)
+                                .log("Failed to delete subscription from segment");
+                        return null;
+                    });
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    // --- Stats ---
+
+    /**
+     * Build an aggregated snapshot of the scalable topic's state: segment counts, per-segment
+     * layout info, and per-subscription consumer counts (loaded from the persisted
+     * registrations so the numbers are consistent across controller leader failovers).
+     */
+    public CompletableFuture<org.apache.pulsar.common.policies.data.ScalableTopicStats> getStats() {
+        SegmentLayout layout = this.currentLayout;
+        var statsBuilder = org.apache.pulsar.common.policies.data.ScalableTopicStats.builder()
+                .epoch(layout.getEpoch());
+
+        Map<Long, org.apache.pulsar.common.policies.data.ScalableTopicStats.SegmentStats> segmentStats =
+                new java.util.LinkedHashMap<>();
+        int active = 0;
+        int sealed = 0;
+        for (SegmentInfo segment : layout.getAllSegments().values()) {
+            boolean isActive = segment.state() == org.apache.pulsar.common.scalable.SegmentState.ACTIVE;
+            if (isActive) {
+                active++;
+            } else {
+                sealed++;
+            }
+            String segmentName = SegmentTopicName.fromParent(
+                    topicName, segment.hashRange(), segment.segmentId()).toString();
+            segmentStats.put(segment.segmentId(),
+                    new org.apache.pulsar.common.policies.data.ScalableTopicStats.SegmentStats(
+                            segmentName, segment.state().name()));
+        }
+        statsBuilder
+                .totalSegments(layout.getAllSegments().size())
+                .activeSegments(active)
+                .sealedSegments(sealed)
+                .segments(segmentStats);
+
+        // Load persisted subscription + consumer counts. This gives a consistent picture
+        // regardless of which broker currently holds the controller leadership.
+        return resources.listSubscriptionsAsync(topicName)
+                .thenCompose(subNames -> {
+                    if (subNames.isEmpty()) {
+                        return CompletableFuture.completedFuture(statsBuilder.build());
+                    }
+                    Map<String, org.apache.pulsar.common.policies.data.ScalableTopicStats.SubscriptionStats>
+                            subStats = new java.util.LinkedHashMap<>();
+                    CompletableFuture<?>[] futures = subNames.stream()
+                            .map(subName -> resources.listConsumersAsync(topicName, subName)
+                                    .thenAccept(consumerNames -> subStats.put(subName,
+                                            new org.apache.pulsar.common.policies.data.ScalableTopicStats
+                                                    .SubscriptionStats(consumerNames.size()))))
+                            .toArray(CompletableFuture[]::new);
+                    return CompletableFuture.allOf(futures)
+                            .thenApply(__ -> {
+                                statsBuilder.subscriptions(subStats);
+                                return statsBuilder.build();
+                            });
+                });
+    }
+
     // --- Lifecycle ---
 
     public CompletableFuture<Void> close() {
+        closed = true;
         subscriptions.clear();
         return leaderElection.asyncClose();
     }
@@ -242,6 +523,78 @@ public class ScalableTopicController {
         if (!isLeader()) {
             throw new IllegalStateException("This broker is not the leader for topic: " + topicName);
         }
+    }
+
+    private String toSegmentPersistentName(SegmentInfo segment) {
+        TopicName segmentTopicName = SegmentTopicName.fromParent(
+                topicName, segment.hashRange(), segment.segmentId());
+        return segmentTopicName.toString();
+    }
+
+    /**
+     * Return the {@code persistent://} form of a segment's underlying managed-ledger topic,
+     * suitable for the standard {@link org.apache.pulsar.client.admin.Topics} admin API.
+     * The segment-owning broker is discovered by the admin client's normal bundle routing.
+     */
+    private String toSegmentUnderlyingPersistentName(SegmentInfo segment) {
+        TopicName segmentTopicName = SegmentTopicName.fromParent(
+                topicName, segment.hashRange(), segment.segmentId());
+        return "persistent://" + segmentTopicName.getTenant() + "/"
+                + segmentTopicName.getNamespacePortion() + "/"
+                + segmentTopicName.getLocalName();
+    }
+
+    private CompletableFuture<Void> terminateSegmentTopic(String segmentTopicName) {
+        try {
+            return brokerService.getPulsar().getAdminClient()
+                    .scalableTopics().terminateSegmentAsync(segmentTopicName)
+                    .thenRun(() -> log.info().attr("segment", segmentTopicName)
+                            .log("Terminated segment topic"));
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private CompletableFuture<Void> createSegmentTopic(SegmentInfo segment, java.util.List<String> subscriptions) {
+        String segmentName = toSegmentPersistentName(segment);
+        try {
+            return brokerService.getPulsar().getAdminClient()
+                    .scalableTopics().createSegmentAsync(segmentName, subscriptions)
+                    .thenRun(() -> log.info().attr("segment", segmentName)
+                            .log("Created segment topic"));
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * Discover all subscription names on a segment topic. Works whether the topic is
+     * on this broker or a remote one by using the admin client.
+     */
+    private CompletableFuture<Set<String>> discoverSubscriptions(String segmentTopicName) {
+        // Try local first (avoids RPC if the segment is on this broker)
+        return brokerService.getTopicIfExists(segmentTopicName)
+                .thenCompose(optTopic -> {
+                    if (optTopic.isPresent()) {
+                        return CompletableFuture.completedFuture(
+                                new LinkedHashSet<>(optTopic.get().getSubscriptions().keySet()));
+                    }
+                    // Topic is on a remote broker — use admin client
+                    try {
+                        return brokerService.getPulsar().getAdminClient()
+                                .topics().getSubscriptionsAsync(segmentTopicName)
+                                .thenApply(LinkedHashSet::new);
+                    } catch (PulsarServerException e) {
+                        return CompletableFuture.failedFuture(e);
+                    }
+                });
+    }
+
+    private CompletableFuture<Void> notifySubscriptions(SegmentLayout layout) {
+        CompletableFuture<?>[] futures = subscriptions.values().stream()
+                .map(coordinator -> coordinator.onLayoutChange(layout))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(futures);
     }
 
     /**

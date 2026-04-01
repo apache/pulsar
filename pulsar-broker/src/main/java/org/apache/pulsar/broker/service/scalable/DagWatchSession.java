@@ -230,10 +230,19 @@ public class DagWatchSession {
                     if (optValue.isEmpty()) {
                         return CompletableFuture.completedFuture(Optional.<String>empty());
                     }
-                    // The leader-election value is the brokerId of the controller leader.
-                    // Resolve it to a pulsar:// service URL via NamespaceService so clients
-                    // can connect to the controller broker for scalable-topic subscribe.
-                    String brokerId = new String(optValue.get().getValue());
+                    // The leader-election value is the brokerId of the controller leader,
+                    // JSON-encoded by LeaderElection.elect(...). Decode it, then resolve
+                    // to a pulsar:// service URL via NamespaceService so clients can
+                    // connect to the controller broker for scalable-topic subscribe.
+                    String brokerId;
+                    try {
+                        brokerId = org.apache.pulsar.common.util.ObjectMapperFactory.getMapper()
+                                .reader().readValue(optValue.get().getValue(), String.class);
+                    } catch (java.io.IOException e) {
+                        log.warn().exceptionMessage(e)
+                                .log("Invalid controller-leader znode value");
+                        return CompletableFuture.completedFuture(Optional.<String>empty());
+                    }
                     return brokerService.getPulsar().getNamespaceService()
                             .createLookupResult(brokerId, false, null)
                             .thenApply(lookupResult ->
