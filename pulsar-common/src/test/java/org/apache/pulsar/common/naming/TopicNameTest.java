@@ -21,9 +21,11 @@ package org.apache.pulsar.common.naming;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.util.Codec;
 import org.testng.annotations.Test;
 
@@ -296,6 +298,209 @@ public class TopicNameTest {
         TopicName tp2 = tp1.getPartition(0);
         assertNotEquals(tp2.toString(), tp1.toString());
         assertEquals(tp2.toString(), "persistent://tenant1/namespace1/tp1-partition-0-DLQ-partition-0");
+    }
+
+    @Test
+    public void testScalableTopicDomain() {
+        // topic:// domain - basic parsing
+        TopicName tn = TopicName.get("topic://tenant/namespace/my-topic");
+        assertEquals(tn.getDomain(), TopicDomain.topic);
+        assertEquals(tn.getTenant(), "tenant");
+        assertEquals(tn.getNamespacePortion(), "namespace");
+        assertEquals(tn.getLocalName(), "my-topic");
+        assertEquals(tn.toString(), "topic://tenant/namespace/my-topic");
+        assertTrue(tn.isScalable());
+        assertFalse(tn.isSegment());
+        assertFalse(tn.getSegmentRange().isPresent());
+
+        // topic:// equality and factory methods
+        assertEquals(TopicName.get("topic://tenant/namespace/my-topic"),
+                TopicName.get("topic", "tenant", "namespace", "my-topic"));
+
+        // topic:// namespace
+        assertEquals(TopicName.get("topic://t/ns/x").getNamespace(), "t/ns");
+
+        // topic:// isValid
+        assertTrue(TopicName.isValid("topic://tenant/namespace/my-topic"));
+        assertTrue(TopicName.isValid("segment://tenant/namespace/my-topic/0000-ffff-0"));
+
+        // topic:// blank local name rejected
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("topic://tenant/namespace/"));
+
+        // topic:// missing namespace rejected
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("topic://tenant"));
+
+        // Partitioned topic with topic:// domain
+        tn = TopicName.get("topic://tenant/namespace/my-topic-partition-3");
+        assertTrue(tn.isPartitioned());
+        assertEquals(tn.getPartitionIndex(), 3);
+        assertEquals(tn.getPartitionedTopicName(), "topic://tenant/namespace/my-topic");
+
+        // Non-partitioned with topic:// domain
+        tn = TopicName.get("topic://tenant/namespace/my-topic");
+        assertFalse(tn.isPartitioned());
+        assertEquals(tn.getPartitionIndex(), -1);
+    }
+
+    @Test
+    public void testSegmentDomain() {
+        // segment:// domain - full range
+        TopicName tn = TopicName.get("segment://tenant/namespace/my-topic/0000-ffff-0");
+        assertEquals(tn.getDomain(), TopicDomain.segment);
+        assertTrue(tn.isSegment());
+        assertEquals(tn.getTenant(), "tenant");
+        assertEquals(tn.getNamespacePortion(), "namespace");
+        assertEquals(tn.getLocalName(), "my-topic");
+        assertEquals(tn.getSegmentRange(), java.util.Optional.of(HashRange.of(0x0000, 0xFFFF)));
+        assertEquals(tn.getSegmentId(), 0);
+        assertEquals(tn.toString(), "segment://tenant/namespace/my-topic/0000-ffff-0");
+
+        // segment:// with lower half-range
+        tn = TopicName.get("segment://tenant/namespace/my-topic/0000-7fff-1");
+        assertEquals(tn.getLocalName(), "my-topic");
+        assertEquals(tn.getSegmentRange(), java.util.Optional.of(HashRange.of(0x0000, 0x7FFF)));
+        assertEquals(tn.getSegmentId(), 1);
+
+        // segment:// with upper half-range
+        tn = TopicName.get("segment://tenant/namespace/my-topic/8000-ffff-2");
+        assertEquals(tn.getLocalName(), "my-topic");
+        assertEquals(tn.getSegmentRange(), java.util.Optional.of(HashRange.of(0x8000, 0xFFFF)));
+        assertEquals(tn.getSegmentId(), 2);
+
+        // segment:// missing descriptor rejected
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("segment://tenant/namespace/my-topic"));
+
+        // segment:// blank local name rejected
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("segment://tenant/namespace/"));
+
+        // segment:// invalid descriptor rejected
+        assertThrows(IllegalArgumentException.class,
+                () -> TopicName.get("segment://tenant/namespace/my-topic/bad-descriptor"));
+    }
+
+    @Test
+    public void testScalableTopicPersistence() {
+        // topic:// and segment:// are persistent (backed by managed ledgers)
+        assertTrue(TopicName.get("topic://tenant/namespace/t").isPersistent());
+        assertTrue(TopicName.get("segment://tenant/namespace/t/0000-ffff-0").isPersistent());
+
+        // persistent:// and non-persistent:// are not scalable
+        assertFalse(TopicName.get("persistent://tenant/namespace/t").isScalable());
+        assertFalse(TopicName.get("non-persistent://tenant/namespace/t").isScalable());
+
+        // segment:// is not scalable (it's a segment of a scalable topic)
+        assertFalse(TopicName.get("segment://tenant/namespace/t/0000-ffff-0").isScalable());
+    }
+
+    @Test
+    public void testScalableTopicPersistenceNamingEncoding() {
+        // topic:// persistence encoding (no domain component, no managed ledger)
+        TopicName tn = TopicName.get("topic://tenant/namespace/my-topic");
+        assertEquals(tn.getPersistenceNamingEncoding(), "tenant/namespace/my-topic");
+
+        // segment:// persistence encoding includes descriptor
+        tn = TopicName.get("segment://tenant/namespace/my-topic/0000-ffff-0");
+        assertEquals(tn.getPersistenceNamingEncoding(), "tenant/namespace/segment/my-topic/0000-ffff-0");
+
+        tn = TopicName.get("segment://tenant/namespace/my-topic/0000-7fff-1");
+        assertEquals(tn.getPersistenceNamingEncoding(), "tenant/namespace/segment/my-topic/0000-7fff-1");
+
+        tn = TopicName.get("segment://tenant/namespace/my-topic/8000-ffff-2");
+        assertEquals(tn.getPersistenceNamingEncoding(), "tenant/namespace/segment/my-topic/8000-ffff-2");
+
+        // segment:// with special characters in local name
+        tn = TopicName.get("segment://tenant/namespace/a:b/0000-ffff-0");
+        assertEquals(tn.getPersistenceNamingEncoding(), "tenant/namespace/segment/a%3Ab/0000-ffff-0");
+    }
+
+    @Test
+    public void testScalableTopicFromPersistenceNamingEncoding() {
+        // segment:// round-trip through persistence encoding
+        String segmentTopic = "segment://tenant/namespace/my-topic/0000-ffff-0";
+        TopicName tn = TopicName.get(segmentTopic);
+        String mlName = tn.getPersistenceNamingEncoding();
+        assertEquals(mlName, "tenant/namespace/segment/my-topic/0000-ffff-0");
+        assertEquals(TopicName.fromPersistenceNamingEncoding(mlName), segmentTopic);
+
+        // segment:// with split range
+        segmentTopic = "segment://tenant/namespace/my-topic/0000-7fff-1";
+        tn = TopicName.get(segmentTopic);
+        mlName = tn.getPersistenceNamingEncoding();
+        assertEquals(TopicName.fromPersistenceNamingEncoding(mlName), segmentTopic);
+
+        // segment:// with special characters in local name
+        segmentTopic = "segment://tenant/namespace/a:b/0000-ffff-0";
+        tn = TopicName.get(segmentTopic);
+        mlName = tn.getPersistenceNamingEncoding();
+        assertEquals(TopicName.fromPersistenceNamingEncoding(mlName), segmentTopic);
+
+        // topic:// persistence encoding is 3-part (no domain, no managed ledger)
+        // so fromPersistenceNamingEncoding is not applicable for topic://
+    }
+
+    @Test
+    public void testScalableTopicSchemaName() {
+        // topic:// schema name (uses tenant/namespacePortion/encodedLocalName)
+        TopicName tn = TopicName.get("topic://tenant/namespace/my-topic");
+        assertEquals(tn.getSchemaName(), "tenant/namespace/my-topic");
+
+        // segment:// schema name — should use the parent topic name, not the descriptor
+        tn = TopicName.get("segment://tenant/namespace/my-topic/0000-ffff-0");
+        assertEquals(tn.getSchemaName(), "tenant/namespace/my-topic");
+
+        // Different segment ranges of the same topic share the same schema name
+        TopicName seg1 = TopicName.get("segment://tenant/namespace/my-topic/0000-7fff-1");
+        TopicName seg2 = TopicName.get("segment://tenant/namespace/my-topic/8000-ffff-2");
+        assertEquals(seg1.getSchemaName(), seg2.getSchemaName());
+
+        // topic:// with special characters
+        tn = TopicName.get("topic://tenant/namespace/a:b");
+        assertEquals(tn.getSchemaName(), "tenant/namespace/a%3Ab");
+    }
+
+    @Test
+    public void testScalableTopicLookupName() {
+        // topic:// lookup name
+        TopicName tn = TopicName.get("topic://tenant/namespace/my-topic");
+        assertEquals(tn.getLookupName(), "topic/tenant/namespace/my-topic");
+
+        // segment:// lookup name — includes the parent topic name (not descriptor)
+        tn = TopicName.get("segment://tenant/namespace/my-topic/0000-ffff-0");
+        assertEquals(tn.getLookupName(), "segment/tenant/namespace/my-topic");
+    }
+
+    @Test
+    public void testScalableTopicRestPath() {
+        // topic:// rest path with domain
+        TopicName tn = TopicName.get("topic://tenant/namespace/my-topic");
+        assertEquals(tn.getRestPath(), "topic/tenant/namespace/my-topic");
+        assertEquals(tn.getRestPath(false), "tenant/namespace/my-topic");
+
+        // segment:// rest path with domain
+        tn = TopicName.get("segment://tenant/namespace/my-topic/0000-ffff-0");
+        assertEquals(tn.getRestPath(), "segment/tenant/namespace/my-topic");
+        assertEquals(tn.getRestPath(false), "tenant/namespace/my-topic");
+    }
+
+    @Test
+    public void testSegmentDescriptor() {
+        // segment:// getSegmentDescriptor
+        TopicName tn = TopicName.get("segment://tenant/namespace/my-topic/0000-ffff-0");
+        assertEquals(tn.getSegmentDescriptor(), "0000-ffff-0");
+
+        tn = TopicName.get("segment://tenant/namespace/my-topic/0000-7fff-1");
+        assertEquals(tn.getSegmentDescriptor(), "0000-7fff-1");
+
+        tn = TopicName.get("segment://tenant/namespace/my-topic/8000-ffff-2");
+        assertEquals(tn.getSegmentDescriptor(), "8000-ffff-2");
+
+        // Non-segment domains return null
+        assertNull(TopicName.get("persistent://tenant/namespace/my-topic").getSegmentDescriptor());
+        assertNull(TopicName.get("topic://tenant/namespace/my-topic").getSegmentDescriptor());
     }
 
     @Test

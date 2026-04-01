@@ -415,6 +415,12 @@ public class PulsarClientImpl implements PulsarClient {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
         }
+        if (isScalableDomain(topic)) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidTopicNameException(
+                    "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                    + " Topic: '" + topic + "'"));
+        }
 
         if (schema instanceof AutoProduceBytesSchema) {
             AutoProduceBytesSchema autoProduceBytesSchema = (AutoProduceBytesSchema) schema;
@@ -576,6 +582,12 @@ public class PulsarClientImpl implements PulsarClient {
             if (!TopicName.isValid(topic)) {
                 return FutureUtil.failedFuture(
                         new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+            }
+            if (isScalableDomain(topic)) {
+                return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException(
+                        "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                        + " Topic: '" + topic + "'"));
             }
         }
 
@@ -741,6 +753,12 @@ public class PulsarClientImpl implements PulsarClient {
             if (!TopicName.isValid(topic)) {
                 return FutureUtil.failedFuture(new PulsarClientException
                         .InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+            }
+            if (isScalableDomain(topic)) {
+                return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException(
+                        "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                        + " Topic: '" + topic + "'"));
             }
         }
 
@@ -1430,5 +1448,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     NameResolver<InetAddress> getNameResolver() {
         return DnsResolverUtil.adaptToNameResolver(addressResolver);
+    }
+
+    private static boolean isScalableDomain(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        return topicName.isScalable() || topicName.isSegment();
     }
 }

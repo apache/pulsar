@@ -24,8 +24,10 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.util.Codec;
 
 /**
@@ -48,6 +50,10 @@ public class TopicName implements ServiceUnitId {
     private final NamespaceName namespaceName;
 
     private final int partitionIndex;
+
+    // segment:// fields (null for non-segment domains)
+    private final HashRange segmentRange;
+    private final long segmentId;
 
     private static final ConcurrentHashMap<String, TopicName> cache = new ConcurrentHashMap<>();
 
@@ -132,8 +138,12 @@ public class TopicName implements ServiceUnitId {
 
             String rest = parts.get(1);
 
-            // Expected format: tenant/namespace/<localName>
-            parts = Splitter.on("/").limit(4).splitToList(rest);
+            // Scalable topic domains (topic://, segment://) only support the new format
+            // and local names may contain '/', so use limit(3) to keep the rest as localName.
+            boolean isScalableDomain = this.domain == TopicDomain.topic
+                    || this.domain == TopicDomain.segment;
+            int splitLimit = isScalableDomain ? 3 : 4;
+            parts = Splitter.on("/").limit(splitLimit).splitToList(rest);
             if (parts.size() == 4) {
                 throw new IllegalArgumentException(
                         "V1 topic names (with cluster component) are no longer supported. "
@@ -142,7 +152,35 @@ public class TopicName implements ServiceUnitId {
             } else if (parts.size() == 3) {
                 this.tenant = parts.get(0);
                 this.namespacePortion = parts.get(1);
-                this.localName = parts.get(2);
+                String rawLocalName = parts.get(2);
+
+                // For segment:// domains, split local name into parent topic name + descriptor
+                if (this.domain == TopicDomain.segment) {
+                    int lastSlash = rawLocalName.lastIndexOf('/');
+                    if (lastSlash <= 0) {
+                        throw new IllegalArgumentException(
+                                "Invalid segment topic name: local name must contain"
+                                + " '<parent-topic>/<hashStart>-<hashEnd>-<segmentId>'. Got: "
+                                + completeTopicName);
+                    }
+                    this.localName = rawLocalName.substring(0, lastSlash);
+                    String descriptor = rawLocalName.substring(lastSlash + 1);
+                    String[] descParts = descriptor.split("-");
+                    if (descParts.length != 3) {
+                        throw new IllegalArgumentException(
+                                "Invalid segment descriptor: expected '<hexStart>-<hexEnd>-<segmentId>',"
+                                + " got: '" + descriptor + "'");
+                    }
+                    this.segmentRange = HashRange.of(
+                            Integer.parseInt(descParts[0], 16),
+                            Integer.parseInt(descParts[1], 16));
+                    this.segmentId = Long.parseLong(descParts[2]);
+                } else {
+                    this.localName = rawLocalName;
+                    this.segmentRange = null;
+                    this.segmentId = -1;
+                }
+
                 this.partitionIndex = getPartitionIndex(completeTopicName);
                 this.namespaceName = NamespaceName.get(tenant, namespacePortion);
             } else {
@@ -157,12 +195,56 @@ public class TopicName implements ServiceUnitId {
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Invalid topic name: " + completeTopicName, e);
         }
-        this.completeTopicName = String.format("%s://%s/%s/%s",
-                                               domain, tenant, namespacePortion, localName);
+        if (this.domain == TopicDomain.segment) {
+            this.completeTopicName = String.format("%s://%s/%s/%s/%s",
+                    domain, tenant, namespacePortion, localName,
+                    String.format("%04x-%04x-%d", segmentRange.start(), segmentRange.end(), segmentId));
+        } else {
+            this.completeTopicName = String.format("%s://%s/%s/%s",
+                    domain, tenant, namespacePortion, localName);
+        }
     }
 
     public boolean isPersistent() {
-        return TopicDomain.persistent == domain;
+        return TopicDomain.persistent == domain || TopicDomain.topic == domain || TopicDomain.segment == domain;
+    }
+
+    public boolean isScalable() {
+        return TopicDomain.topic == domain;
+    }
+
+    public boolean isSegment() {
+        return TopicDomain.segment == domain;
+    }
+
+    /**
+     * Get the segment hash range for segment:// topics.
+     *
+     * @return the hash range, or empty for non-segment domains
+     */
+    public Optional<HashRange> getSegmentRange() {
+        return Optional.ofNullable(segmentRange);
+    }
+
+    /**
+     * Get the segment ID for segment:// topics.
+     *
+     * @return the segment ID, or -1 for non-segment domains
+     */
+    public long getSegmentId() {
+        return segmentId;
+    }
+
+    /**
+     * Get the segment descriptor string (e.g. "0000-7fff-1") for segment:// topics.
+     *
+     * @return the descriptor, or null for non-segment domains
+     */
+    public String getSegmentDescriptor() {
+        if (segmentRange == null) {
+            return null;
+        }
+        return String.format("%04x-%04x-%d", segmentRange.start(), segmentRange.end(), segmentId);
     }
 
     /**
@@ -299,6 +381,14 @@ public class TopicName implements ServiceUnitId {
     public String getPersistenceNamingEncoding() {
         // The convention is: domain://tenant/namespace/topic
         // We want to persist in the order: tenant/namespace/domain/topic
+        // For segment topics, include the segment descriptor: tenant/namespace/segment/topic/descriptor
+        if (domain == TopicDomain.segment && segmentRange != null) {
+            return String.format("%s/%s/%s/%s/%04x-%04x-%d", tenant, namespacePortion, domain,
+                    getEncodedLocalName(), segmentRange.start(), segmentRange.end(), segmentId);
+        }
+        if (domain == TopicDomain.topic) {
+            return String.format("%s/%s/%s", tenant, namespacePortion, getEncodedLocalName());
+        }
         return String.format("%s/%s/%s/%s", tenant, namespacePortion, domain, getEncodedLocalName());
     }
 
@@ -325,6 +415,13 @@ public class TopicName implements ServiceUnitId {
             localName = Codec.decode(parts.get(3));
             return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
         } else if (parts.size() == 5) {
+            if ("segment".equals(parts.get(2))) {
+                // Segment topic ML name: tenant/namespace/segment/topic/descriptor
+                tenant = parts.get(0);
+                namespacePortion = parts.get(1);
+                localName = Codec.decode(parts.get(3));
+                return String.format("segment://%s/%s/%s/%s", tenant, namespacePortion, localName, parts.get(4));
+            }
             // Legacy V1 managed ledger name: tenant/cluster/namespace/domain/topic
             // Convert to V2 format, dropping the cluster component
             tenant = parts.get(0);

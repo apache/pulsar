@@ -16,36 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.naming;
+package org.apache.pulsar.common.scalable;
 
 /**
- * Enumeration showing if a topic is persistent.
+ * State of a segment in a scalable topic.
+ *
+ * <p>Split and merge operations are atomic in the metadata store, so there are no
+ * intermediate transition states. A segment is either actively receiving writes
+ * or sealed (no longer receiving writes, but data still accessible until expiry).
  */
-public enum TopicDomain {
-    persistent("persistent"), non_persistent("non-persistent"),
-    topic("topic"), segment("segment");
-
-    private String value;
-
-    private TopicDomain(String value) {
-        this.value = value;
-    }
-
-    public String value() {
-        return this.value;
-    }
-
-    public static TopicDomain getEnum(String value) {
-        for (TopicDomain e : values()) {
-            if (e.value.equalsIgnoreCase(value)) {
-                return e;
-            }
-        }
-        throw new IllegalArgumentException("Invalid topic domain: '" + value + "'");
-    }
-
-    @Override
-    public String toString() {
-        return this.value;
-    }
+public enum SegmentState {
+    ACTIVE,
+    SEALED
 }
