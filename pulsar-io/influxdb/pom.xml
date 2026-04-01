@@ -28,8 +28,23 @@
         <version>4.0.7.6-SNAPSHOT</version>
     </parent>
 
+    <properties>
+        <msgpack.core.version>0.9.11</msgpack.core.version>
+    </properties>
+
     <artifactId>pulsar-io-influxdb</artifactId>
     <name>Pulsar IO :: InfluxDB</name>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Upgrade msgpack-core to fix high severity vulnerability -->
+            <dependency>
+                <groupId>org.msgpack</groupId>
+                <artifactId>msgpack-core</artifactId>
+                <version>${msgpack.core.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <dependency>

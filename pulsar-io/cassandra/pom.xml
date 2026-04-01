@@ -27,8 +27,23 @@
     <version>4.0.7.6-SNAPSHOT</version>
   </parent>
 
+  <properties>
+    <jnr.posix>3.1.8</jnr.posix>
+  </properties>
+
   <artifactId>pulsar-io-cassandra</artifactId>
   <name>Pulsar IO :: Cassandra</name>
+
+  <!-- Upgrade jnr-posix to fix Snyk vulnerability -->
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.github.jnr</groupId>
+        <artifactId>jnr-posix</artifactId>
+        <version>${jnr.posix}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
 

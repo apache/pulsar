@@ -347,6 +347,8 @@ The Apache Software License, Version 2.0
  * Jakarta Bean Validation API
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
+    - javax.activation-javax.activation-api-1.2.0.jar
+    - javax.xml.bind-jaxb-api-2.3.1.jar
  * Log4J
     - org.apache.logging.log4j-log4j-api-2.25.3.jar
     - org.apache.logging.log4j-log4j-core-2.25.3.jar
@@ -426,8 +428,7 @@ The Apache Software License, Version 2.0
      - com.squareup.okio-okio-jvm-3.16.3.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * Kotlin Standard Lib
-     - org.jetbrains.kotlin-kotlin-stdlib-1.8.20.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-common-1.8.20.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-1.9.25.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
     - io.grpc-grpc-all-1.75.0.jar
@@ -620,8 +621,9 @@ Creative Commons Attribution License
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
     - org.bouncycastle-bcpkix-jdk18on-1.81.jar
-    - org.bouncycastle-bcprov-jdk18on-1.78.1.jar
+    - org.bouncycastle-bcprov-jdk18on-1.79.jar
     - org.bouncycastle-bcutil-jdk18on-1.81.jar
+    - bcprov-jdk18on-1.79.jar
 
 ------------------------
 
