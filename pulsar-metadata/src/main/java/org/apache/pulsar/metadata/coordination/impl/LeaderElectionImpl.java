@@ -104,6 +104,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> elect() {
+        if (internalState == InternalState.Closed) {
+            return FutureUtils.exception(new AlreadyClosedException("The leader election was already closed"));
+        }
         // First check if there's already a leader elected
         internalState = InternalState.ElectionInProgress;
         return store.get(path).thenCompose(optLock -> {
@@ -113,6 +116,11 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 return tryToBecomeLeader();
             }
         }).thenCompose(leaderElectionState -> {
+            synchronized (this) {
+                if (internalState == InternalState.Closed) {
+                    return FutureUtils.exception(new AlreadyClosedException("The leader election was already closed"));
+                }
+            }
             // make sure that the cache contains the current leader
             // so that getLeaderValueIfPresent works on all brokers
             cache.refresh(path);
@@ -122,6 +130,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
+        if (internalState == InternalState.Closed) {
+            return FutureUtils.exception(new AlreadyClosedException("The leader election was already closed"));
+        }
         T existingValue;
         try {
             existingValue = serde.deserialize(path, res.getValue(), res.getStat());
@@ -163,6 +174,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized void changeState(LeaderElectionState les) {
+        if (internalState == InternalState.Closed) {
+            return;
+        }
         internalState = InternalState.LeaderIsPresent;
         if (this.leaderElectionState != les) {
             this.leaderElectionState = les;
@@ -175,6 +189,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     }
 
     private synchronized CompletableFuture<LeaderElectionState> tryToBecomeLeader() {
+        if (internalState == InternalState.Closed) {
+            return FutureUtils.exception(new AlreadyClosedException("The leader election was already closed"));
+        }
         T value = proposedValue.get();
         byte[] payload;
         try {
@@ -192,6 +209,11 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                             cache.get(path)
                                     .thenRun(() -> {
                                         synchronized (LeaderElectionImpl.this) {
+                                            if (internalState == InternalState.Closed) {
+                                                result.completeExceptionally(new AlreadyClosedException(
+                                                        "The leader election was already closed"));
+                                                return;
+                                            }
                                             log.info("Acquired leadership on {} with {}", path, value);
                                             internalState = InternalState.LeaderIsPresent;
                                             if (leaderElectionState != LeaderElectionState.Leading) {
@@ -254,7 +276,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     @Override
     public void close() throws Exception {
-        updateCachedValueFuture.cancel(true);
         try {
             asyncClose().join();
         } catch (CompletionException e) {
@@ -268,6 +289,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             return CompletableFuture.completedFuture(null);
         }
 
+        updateCachedValueFuture.cancel(true);
         internalState = InternalState.Closed;
 
         if (leaderElectionState != LeaderElectionState.Leading) {
