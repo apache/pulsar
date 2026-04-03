@@ -26,6 +26,7 @@ val dockerOrganization = providers.gradleProperty("docker.organization").getOrEl
 val dockerImage = providers.gradleProperty("docker.image").getOrElse("pulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
 val dockerPlatforms = providers.gradleProperty("docker.platforms").getOrElse("")
+val dockerPush = providers.gradleProperty("docker.push").isPresent
 val useWolfi = providers.gradleProperty("docker.wolfi").isPresent
 
 // Resolvable configurations for cross-project artifact dependencies.
@@ -59,7 +60,7 @@ val copyOffloaderTarball by tasks.registering(Copy::class) {
 
 val dockerBuild by tasks.registering(Exec::class) {
     group = "docker"
-    description = "Build the Pulsar Docker image"
+    description = "Build the Pulsar Docker image. Use -Pdocker.push to push the image to registry."
 
     dependsOn(copyTarball, copyOffloaderTarball)
 
@@ -88,6 +89,10 @@ val dockerBuild by tasks.registering(Exec::class) {
 
     if (dockerPlatforms.isNotEmpty()) {
         args.addAll(listOf("--platform", dockerPlatforms))
+    }
+
+    if (dockerPush) {
+        args.add("--push")
     }
 
     args.add(".")
