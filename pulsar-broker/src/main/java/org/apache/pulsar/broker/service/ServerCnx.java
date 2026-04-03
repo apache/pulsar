@@ -1876,6 +1876,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              ProducerAccessMode producerAccessMode,
                              Optional<Long> topicEpoch, boolean supportsPartialProducer,
                              CompletableFuture<Producer> producerFuture){
+        // Check if the producer future was already completed (e.g. by a close command)
+        // before adding the producer to the topic. This avoids a race where a closed
+        // producer gets registered on the topic briefly, blocking a subsequent producer
+        // with the same name.
+        if (producerFuture.isDone()) {
+            producers.remove(producerId, producerFuture);
+            return;
+        }
+
         CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
         Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
