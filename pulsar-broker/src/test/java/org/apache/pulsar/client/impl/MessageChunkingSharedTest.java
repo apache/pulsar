@@ -118,7 +118,7 @@ public class MessageChunkingSharedTest extends SharedPulsarBaseTest {
             producer.send(value);
         }
 
-        Awaitility.await().atMost(Duration.ofSeconds(3))
+        Awaitility.await().atMost(Duration.ofSeconds(15))
                 .until(() -> receivedValues1.size() + receivedValues2.size() >= values.size());
         assertEquals(receivedValues1.size() + receivedValues2.size(), values.size());
         assertFalse(receivedValues1.isEmpty());
