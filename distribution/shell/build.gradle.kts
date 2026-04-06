@@ -44,6 +44,7 @@ dependencies {
     distLib(project(":pulsar-client-tools"))
     distLib(libs.log4j.core)
     distLib(libs.log4j.web)
+    distLib(libs.log4j.layout.template.json)
     distLib(libs.log4j.slf4j2.impl)
     distLib(libs.simpleclient.log4j2)
     // Bouncy Castle
