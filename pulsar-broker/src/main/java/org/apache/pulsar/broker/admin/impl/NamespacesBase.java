@@ -70,7 +70,6 @@ import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -1766,8 +1765,14 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetNamespaceAntiAffinityGroupAsync(String antiAffinityGroup) {
-        checkNotNull(antiAffinityGroup, "Anti-affinity group should not be null");
-        checkNotBlank(antiAffinityGroup, "Anti-affinity group can't be empty");
+        if (antiAffinityGroup == null) {
+            return FutureUtil.failedFuture(
+                    new RestException(Status.BAD_REQUEST, "Anti-affinity group should not be null"));
+        }
+        if (StringUtils.isBlank(antiAffinityGroup)) {
+            return FutureUtil.failedFuture(
+                    new RestException(Status.PRECONDITION_FAILED, "Anti-affinity group can't be empty"));
+        }
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync()).thenCompose(
                         __ -> getDefaultBundleDataAsync().thenCompose(
@@ -1805,10 +1810,20 @@ public abstract class NamespacesBase extends AdminResource {
     protected CompletableFuture<List<String>> internalGetAntiAffinityNamespacesAsync(String cluster,
                                                                                      String antiAffinityGroup,
                                                                                      String tenant) {
-        checkNotNull(cluster, "Cluster should not be null");
-        checkNotNull(antiAffinityGroup, "Anti-affinity group should not be null");
-        checkNotNull(tenant, "Tenant should not be null");
-        checkNotBlank(antiAffinityGroup, "Anti-affinity group can't be empty");
+        if (cluster == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Cluster should not be null"));
+        }
+        if (antiAffinityGroup == null) {
+            return FutureUtil.failedFuture(
+                    new RestException(Status.BAD_REQUEST, "Anti-affinity group should not be null"));
+        }
+        if (tenant == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Tenant should not be null"));
+        }
+        if (StringUtils.isBlank(antiAffinityGroup)) {
+            return FutureUtil.failedFuture(
+                    new RestException(Status.PRECONDITION_FAILED, "Anti-affinity group can't be empty"));
+        }
 
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ANTI_AFFINITY, PolicyOperation.READ)
                 .thenCompose(__ -> validateClusterExistsAsync(cluster))

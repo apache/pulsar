@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
@@ -849,12 +848,6 @@ public abstract class AdminResource extends PulsarWebResource {
     protected void checkNotNull(Object o, String errorMessage) {
         if (o == null) {
             throw new RestException(Status.BAD_REQUEST, errorMessage);
-        }
-    }
-
-    protected void checkNotBlank(String str, String errorMessage) {
-        if (isBlank(str)) {
-            throw new RestException(Status.PRECONDITION_FAILED, errorMessage);
         }
     }
 
