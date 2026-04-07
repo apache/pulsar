@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -354,7 +355,8 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
         // 2.set enable migration
         boolean enableMigrationReq = true;
-        namespaces.enableMigration(testTenant, enableMigrationGroupNs, enableMigrationReq);
+        asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs,
+                enableMigrationReq));
 
         // 3.query namespace num bundles, should be conf.getDefaultNumberOfNamespaceBundles()
         BundlesData bundlesData = (BundlesData) asyncRequests(
@@ -378,7 +380,8 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
         // 2.set enable migration
         boolean enableMigrationReq = true;
-        namespaces.enableMigration(testTenant, enableMigrationGroupNs, enableMigrationReq);
+        asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs,
+                enableMigrationReq));
 
         // 3.query namespace num bundles, should be policies.bundles, which we set before
         BundlesData bundlesData = (BundlesData) asyncRequests(
@@ -495,6 +498,24 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
                 namespacesWithAntiAffinityGroup.stream().map(ns -> NamespaceName.get(testTenant, ns))
                         .map(NamespaceName::toString).toList();
         assertEquals(namespacesResp, namespacesWithFullPath);
+    }
+
+    @Test
+    public void testEnableMigrationAndDisableMigration() throws Exception {
+        String enableMigrationGroupNs = "test-enable-migration-disable-migration-ns";
+        asyncRequests(response -> namespaces.createNamespace(response, testTenant, enableMigrationGroupNs, null));
+
+        // Enable migration
+        asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs, true));
+        Policies policiesResp = (Policies) asyncRequests(
+                response -> namespaces.getPolicies(response, testTenant, enableMigrationGroupNs));
+        assertTrue(policiesResp.migrated);
+
+        // Disable migration
+        asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs, false));
+        policiesResp = (Policies) asyncRequests(
+                response -> namespaces.getPolicies(response, testTenant, enableMigrationGroupNs));
+        assertFalse(policiesResp.migrated);
     }
 
 }

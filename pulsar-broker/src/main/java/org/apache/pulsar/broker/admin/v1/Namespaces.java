@@ -1781,12 +1781,20 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Update migration for all topics in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public void enableMigration(@PathParam("property") String property,
+    public void enableMigration(@Suspended AsyncResponse asyncResponse,
+                                @PathParam("property") String property,
                                 @PathParam("cluster") String cluster,
                                 @PathParam("namespace") String namespace,
                                 boolean migrated) {
         validateNamespaceName(property, cluster, namespace);
-        internalEnableMigration(migrated);
+        internalEnableMigrationAsync(migrated)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to update migration, tenant: {}, namespace: {}",
+                            clientAppId(), property, namespace, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT
