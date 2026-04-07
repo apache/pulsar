@@ -3049,11 +3049,19 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 200, message = "Operation successful"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public void enableMigration(@PathParam("tenant") String tenant,
+    public void enableMigration(@Suspended AsyncResponse asyncResponse,
+                                @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace,
                                 boolean migrated) {
         validateNamespaceName(tenant, namespace);
-        internalEnableMigration(migrated);
+        internalEnableMigrationAsync(migrated)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to update migration, tenant: {}, namespace: {}",
+                            clientAppId(), tenant, namespace, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST

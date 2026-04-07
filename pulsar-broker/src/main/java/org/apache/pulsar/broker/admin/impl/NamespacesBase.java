@@ -2866,22 +2866,15 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
-    protected void internalEnableMigration(boolean migrated) {
-        validateSuperUserAccess();
-        try {
-            getLocalPolicies().setLocalPoliciesWithCreate(namespaceName, oldPolicies -> oldPolicies.map(
-                    policies -> new LocalPolicies(policies.bundles,
-                            policies.bookieAffinityGroup,
-                            policies.namespaceAntiAffinityGroup,
-                            migrated))
-                    .orElseGet(() -> new LocalPolicies(getDefaultBundleData(), null, null, migrated)));
-            log.info("Successfully updated migration on namespace {}", namespaceName);
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("Failed to update migration on namespace {}", namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalEnableMigrationAsync(boolean migrated) {
+        return validateSuperUserAccessAsync().thenCompose(__ -> getDefaultBundleDataAsync().thenCompose(
+                        defaultBundleData -> getLocalPolicies().setLocalPoliciesWithCreateAsync(namespaceName,
+                                oldPolicies -> oldPolicies.map(
+                                                policies -> new LocalPolicies(policies.bundles,
+                                                        policies.bookieAffinityGroup,
+                                                        policies.namespaceAntiAffinityGroup, migrated))
+                                        .orElseGet(() -> new LocalPolicies(defaultBundleData, null, null, migrated)))))
+                .thenAccept(__ -> log.info("Successfully updated migration on namespace {}", namespaceName));
     }
 
     protected Policies getDefaultPolicesIfNull(Policies policies) {
@@ -2977,19 +2970,6 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                 }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenApply(policies -> policies.allowed_clusters);
-    }
-
-    // TODO remove this sync method after async refactor
-    @Deprecated
-    private BundlesData getDefaultBundleData() {
-        try {
-            return getDefaultBundleDataAsync().get(config().getMetadataStoreOperationTimeoutSeconds(),
-                    TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespace-policy configuration for namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
     }
 
     private CompletableFuture<BundlesData> getDefaultBundleDataAsync() {

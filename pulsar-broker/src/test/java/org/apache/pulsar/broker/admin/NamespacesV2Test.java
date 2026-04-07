@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -352,7 +353,8 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
         // 2.set enable migration
         boolean enableMigrationReq = true;
-        namespaces.enableMigration(testTenant, enableMigrationGroupNs, enableMigrationReq);
+        asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs,
+                enableMigrationReq));
 
         // 3.query namespace num bundles, should be conf.getDefaultNumberOfNamespaceBundles()
         BundlesData bundlesData = (BundlesData) asyncRequests(
@@ -376,7 +378,8 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
 
         // 2.set enable migration
         boolean enableMigrationReq = true;
-        namespaces.enableMigration(testTenant, enableMigrationGroupNs, enableMigrationReq);
+        asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs,
+                enableMigrationReq));
 
         // 3.query namespace num bundles, should be policies.bundles, which we set before
         BundlesData bundlesData = (BundlesData) asyncRequests(
@@ -418,4 +421,99 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         assertNull(bookieAffinityGroupDataResp);
     }
 
+    @Test
+    public void testSetAndDeleteNamespaceAntiAffinityGroup() throws Exception {
+        // 1. create namespace with empty policies, namespace anti affinity group should be null
+        String setNamespaceAntiAffinityGroupNs = "test-set-namespace-anti-affinity-group-ns";
+        asyncRequests(
+                response -> namespaces.createNamespace(response, testTenant, setNamespaceAntiAffinityGroupNs, null));
+        String namespaceAntiAffinityGroupResp = (String) asyncRequests(
+                response -> namespaces.getNamespaceAntiAffinityGroup(response, testTenant,
+                        setNamespaceAntiAffinityGroupNs));
+        assertNull(namespaceAntiAffinityGroupResp);
+
+        // 2.set namespace anti affinity group
+        String namespaceAntiAffinityGroupReq = "namespace-anti-affinity-group";
+        asyncRequests(response -> namespaces.setNamespaceAntiAffinityGroup(response, testTenant,
+                setNamespaceAntiAffinityGroupNs, namespaceAntiAffinityGroupReq));
+
+        // 3.assert namespace anti affinity group
+        namespaceAntiAffinityGroupResp = (String) asyncRequests(
+                response -> namespaces.getNamespaceAntiAffinityGroup(response, testTenant,
+                        setNamespaceAntiAffinityGroupNs));
+        assertEquals(namespaceAntiAffinityGroupResp, namespaceAntiAffinityGroupReq);
+
+        // 4.delete namespace anti affinity group
+        asyncRequests(response -> namespaces.removeNamespaceAntiAffinityGroup(response, testTenant,
+                setNamespaceAntiAffinityGroupNs));
+
+        // 5.assert namespace anti affinity group
+        namespaceAntiAffinityGroupResp = (String) asyncRequests(
+                response -> namespaces.getNamespaceAntiAffinityGroup(response, testTenant,
+                        setNamespaceAntiAffinityGroupNs));
+        assertNull(namespaceAntiAffinityGroupResp);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testGetClusterAntiAffinityNamespaces() throws Exception {
+        // create 5 namespaces, 3 namespaces are set to the same namespace anti affinity group,
+        // 2 namespaces are not set to any anti affinity group
+        String namespaceWithAntiAffinity1 = "namespace-with-anti-affinity-1";
+        String namespaceWithAntiAffinity2 = "namespace-with-anti-affinity-2";
+        String namespaceWithAntiAffinity3 = "namespace-with-anti-affinity-3";
+        String namespaceWithoutAntiAffinity1 = "namespace-without-anti-affinity-1";
+        String namespaceWithoutAntiAffinity2 = "namespace-without-anti-affinity-2";
+
+        // create namespaces
+        List<String> allNamespaces =
+                List.of(namespaceWithAntiAffinity1, namespaceWithAntiAffinity2, namespaceWithAntiAffinity3,
+                        namespaceWithoutAntiAffinity1, namespaceWithoutAntiAffinity2);
+        for (String namespace : allNamespaces) {
+            asyncRequests(response -> namespaces.createNamespace(response, testTenant, namespace, null));
+        }
+
+        // set namespace anti affinity group
+        String namespaceAntiAffinityGroupReq = "namespace-anti-affinity-group";
+        List<String> namespacesWithAntiAffinityGroup =
+                List.of(namespaceWithAntiAffinity1, namespaceWithAntiAffinity2, namespaceWithAntiAffinity3);
+        for (String namespace : namespacesWithAntiAffinityGroup) {
+            asyncRequests(response -> namespaces.setNamespaceAntiAffinityGroup(response, testTenant, namespace,
+                    namespaceAntiAffinityGroupReq));
+        }
+
+        // assert namespace anti affinity group
+        for (String namespace : namespacesWithAntiAffinityGroup) {
+            String namespaceAntiAffinityGroupResp = (String) asyncRequests(
+                    response -> namespaces.getNamespaceAntiAffinityGroup(response, testTenant, namespace));
+            assertEquals(namespaceAntiAffinityGroupResp, namespaceAntiAffinityGroupReq);
+        }
+
+        // get namespaces in cluster of given anti affinity group
+        List<String> namespacesResp = (List<String>) asyncRequests(
+                response -> namespaces.getAntiAffinityNamespaces(response, testLocalCluster,
+                        namespaceAntiAffinityGroupReq, testTenant));
+        List<String> namespacesWithFullPath =
+                namespacesWithAntiAffinityGroup.stream().map(ns -> NamespaceName.get(testTenant, ns))
+                        .map(NamespaceName::toString).toList();
+        assertEquals(namespacesResp, namespacesWithFullPath);
+    }
+
+    @Test
+    public void testEnableMigrationAndDisableMigration() throws Exception {
+        String enableMigrationGroupNs = "test-enable-migration-disable-migration-ns";
+        asyncRequests(response -> namespaces.createNamespace(response, testTenant, enableMigrationGroupNs, null));
+
+        // Enable migration
+        asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs, true));
+        Policies policiesResp = (Policies) asyncRequests(
+                response -> namespaces.getPolicies(response, testTenant, enableMigrationGroupNs));
+        assertTrue(policiesResp.migrated);
+
+        // Disable migration
+        asyncRequests(response -> namespaces.enableMigration(response, testTenant, enableMigrationGroupNs, false));
+        policiesResp = (Policies) asyncRequests(
+                response -> namespaces.getPolicies(response, testTenant, enableMigrationGroupNs));
+        assertFalse(policiesResp.migrated);
+    }
 }
