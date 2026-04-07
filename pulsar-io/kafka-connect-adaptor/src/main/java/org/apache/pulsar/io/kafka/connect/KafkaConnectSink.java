@@ -39,6 +39,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -88,6 +90,10 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     private final AtomicBoolean isFlushRunning = new AtomicBoolean(false);
     private volatile boolean isRunning = false;
 
+    private final ReentrantLock backpressureLock = new ReentrantLock();
+    private final Condition notFullOrNotStalled = backpressureLock.newCondition();
+    private volatile boolean flushStalled = false;
+
     private final Properties props = new Properties();
     private PulsarKafkaConnectSinkConfig kafkaSinkConfig;
 
@@ -127,6 +133,10 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         // it should always be present in Sink which gets instance of PulsarRecord
         // let's avoid checks for .isPresent() in teh rest of the code
         Preconditions.checkArgument(sourceRecord.getMessage().isPresent());
+        if (!waitForBackpressure(sourceRecord)) {
+            return;
+        }
+
         try {
             SinkRecord record = toSinkRecord(sourceRecord);
             task.put(Lists.newArrayList(record));
@@ -143,6 +153,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     @Override
     public void close() throws Exception {
         isRunning = false;
+        signalWriters();
         flushIfNeeded(true);
         scheduledExecutor.shutdown();
         if (!scheduledExecutor.awaitTermination(10 * lingerMs, TimeUnit.MILLISECONDS)) {
@@ -254,7 +265,15 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             Map<TopicPartition, OffsetAndMetadata> currentOffsets = taskContext.currentOffsets();
             committedOffsets = task.preCommit(currentOffsets);
             if (committedOffsets == null || committedOffsets.isEmpty()) {
-                log.info("Task returned empty committedOffsets map; skipping flush; task will retry later");
+                if (!currentOffsets.isEmpty()) {
+                    backpressureLock.lock();
+                    flushStalled = true;
+                    backpressureLock.unlock();
+                    log.warn("Task returned empty committedOffsets while currentOffsets is non-empty; "
+                            + "stalling writes until flush recovers");
+                } else {
+                    log.info("Task returned empty committedOffsets map; skipping flush; task will retry later");
+                }
                 return;
             }
             if (log.isDebugEnabled() && !areMapsEqual(committedOffsets, currentOffsets)) {
@@ -262,6 +281,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             }
             taskContext.flushOffsets(committedOffsets);
             ackUntil(lastNotFlushed, committedOffsets, Record::ack);
+
+            signalWriters();
+
             log.info("Flush succeeded");
         } catch (Throwable t) {
             log.error("error flushing pending records", t);
@@ -567,4 +589,43 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         }
     }
 
+    private boolean waitForBackpressure(Record<GenericObject> sourceRecord) {
+        if (!flushStalled && currentBatchSize.get() < maxBatchSize && isRunning) {
+            return true;
+        }
+        backpressureLock.lock();
+        try {
+            while (isRunning && (flushStalled || currentBatchSize.get() >= maxBatchSize)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Sink is paused until flush succeeds. currentBatchSize: {}, maxBatchSize:{}, "
+                                    + "flushStalled:{}", currentBatchSize.get(), maxBatchSize, flushStalled);
+                }
+                try {
+                    notFullOrNotStalled.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    sourceRecord.fail();
+                    return false;
+                }
+            }
+
+            if (!isRunning) {
+                sourceRecord.fail();
+                return false;
+            }
+            return true;
+        } finally {
+            backpressureLock.unlock();
+        }
+    }
+
+    private void signalWriters() {
+        backpressureLock.lock();
+        try {
+            flushStalled = false;
+            notFullOrNotStalled.signalAll();
+        } finally {
+            backpressureLock.unlock();
+        }
+    }
 }
