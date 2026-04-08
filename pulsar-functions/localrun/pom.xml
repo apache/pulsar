@@ -26,7 +26,7 @@
     <parent>
         <groupId>com.datastax.oss</groupId>
         <artifactId>pulsar-functions</artifactId>
-        <version>4.0.7.6</version>
+        <version>4.0.7.7-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-functions-local-runner-original</artifactId>
