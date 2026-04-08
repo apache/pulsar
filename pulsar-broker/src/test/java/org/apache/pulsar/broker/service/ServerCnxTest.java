@@ -2139,6 +2139,13 @@ public class ServerCnxTest {
                 producerName, Collections.emptyMap(), false);
         channel.writeInbound(createProducer1);
 
+        // Run pending tasks to ensure the producer is registered in the producers map
+        // before the close command is processed. Without this, the close command may not
+        // find the producer (since registration happens in a thenApplyAsync callback),
+        // causing it to skip cancellation and leading to a race between the first and
+        // second producer creation.
+        channel.runPendingTasks();
+
         ByteBuf closeProducer = Commands.newCloseProducer(1 /* producer id */, 2 /* request id */);
         channel.writeInbound(closeProducer);
 
