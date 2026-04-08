@@ -24,7 +24,7 @@
     <parent>
         <groupId>com.datastax.oss</groupId>
         <artifactId>pulsar-io</artifactId>
-        <version>4.0.7.7-SNAPSHOT</version>
+        <version>4.0.7.7</version>
     </parent>
 
     <artifactId>pulsar-io-http</artifactId>
