@@ -202,7 +202,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         final String managedLedgerName = extraMetadata.get(MANAGED_LEDGER_NAME);
         final String topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(readHandle.getId()).execute(() -> {
+        scheduler.chooseThread(readHandle.getId()).execute(wrapWithContextClassLoaderSwitching(() -> {
             final BlobStore writeBlobStore = getBlobStore(config.getBlobStoreLocation());
             log.info("offload {} uuid {} extraMetadata {} to {} {}", readHandle.getId(), uuid, extraMetadata,
                 config.getBlobStoreLocation(), writeBlobStore);
@@ -332,7 +332,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 promise.completeExceptionally(t);
                 return;
             }
-        });
+        }));
         return promise;
     }
 
@@ -367,11 +367,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         streamingMpu = blobStore
                 .initiateMultipartUpload(config.getBucket(), blob.getMetadata(), new PutOptions());
 
-        scheduler.chooseThread(segmentInfo).execute(() -> {
+        scheduler.chooseThread(segmentInfo).execute(wrapWithContextClassLoaderSwitching(() -> {
             log.info("start offloading segment: {}", segmentInfo);
             streamingOffloadLoop(1, 0);
-        });
-        scheduler.schedule(this::closeSegment, maxSegmentCloseTime.toMillis(), TimeUnit.MILLISECONDS);
+        }));
+        scheduler.schedule(wrapWithContextClassLoaderSwitching(this::closeSegment), maxSegmentCloseTime.toMillis(),
+                TimeUnit.MILLISECONDS);
 
         return CompletableFuture.completedFuture(new OffloadHandle() {
             @Override
@@ -566,7 +567,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
         String key = DataBlockUtils.dataBlockOffloadKey(ledgerId, uid);
         String indexKey = DataBlockUtils.indexBlockOffloadKey(ledgerId, uid);
-        readExecutor.chooseThread(ledgerId).execute(() -> {
+        readExecutor.chooseThread(ledgerId).execute(wrapWithContextClassLoaderSwitching(() -> {
             try {
                 BlobStore readBlobstore = getBlobStore(config.getBlobStoreLocation());
                 promise.complete(BlobStoreBackedReadHandleImpl.open(readExecutor.chooseThread(ledgerId),
@@ -580,8 +581,23 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 log.error("Failed readOffloaded: ", t);
                 promise.completeExceptionally(t);
             }
-        });
+        }));
         return promise;
+    }
+
+    // Changes the context class loader for the duration of the runnable execution
+    // This is to prevent issues such as https://github.com/apache/pulsar/issues/23736
+    private Runnable wrapWithContextClassLoaderSwitching(Runnable runnable) {
+        return () -> {
+            Thread currentThread = Thread.currentThread();
+            ClassLoader previousClassLoader = currentThread.getContextClassLoader();
+            try {
+                currentThread.setContextClassLoader(getClass().getClassLoader());
+                runnable.run();
+            } finally {
+                currentThread.setContextClassLoader(previousClassLoader);
+            }
+        };
     }
 
     @Override
@@ -601,7 +617,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             indexKeys.add(indexKey);
         }
 
-        readExecutor.chooseThread(ledgerId).execute(() -> {
+        readExecutor.chooseThread(ledgerId).execute(wrapWithContextClassLoaderSwitching(() -> {
             try {
                 BlobStore readBlobstore = getBlobStore(config.getBlobStoreLocation());
                 promise.complete(BlobStoreBackedReadHandleImplV2.open(readExecutor.chooseThread(ledgerId),
@@ -614,7 +630,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 log.error("Failed readOffloaded: ", t);
                 promise.completeExceptionally(t);
             }
-        });
+        }));
         return promise;
     }
 
@@ -625,18 +641,18 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         String readBucket = bsKey.getBucket(offloadDriverMetadata);
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(ledgerId).execute(() -> {
+        scheduler.chooseThread(ledgerId).execute(wrapWithContextClassLoaderSwitching(() -> {
             try {
                 BlobStore readBlobstore = getBlobStore(config.getBlobStoreLocation());
                 readBlobstore.removeBlobs(readBucket,
                     ImmutableList.of(DataBlockUtils.dataBlockOffloadKey(ledgerId, uid),
                                      DataBlockUtils.indexBlockOffloadKey(ledgerId, uid)));
                 promise.complete(null);
-            } catch (Throwable t) {
-                log.error("Failed delete Blob", t);
-                promise.completeExceptionally(t);
+            } catch (Throwable t1) {
+                log.error("Failed delete Blob", t1);
+                promise.completeExceptionally(t1);
             }
-        });
+        }));
 
         return promise.whenComplete((__, t) -> {
             if (null != this.ml) {
@@ -652,7 +668,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         String readBucket = bsKey.getBucket(offloadDriverMetadata);
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.execute(() -> {
+        scheduler.execute(wrapWithContextClassLoaderSwitching(() -> {
             try {
                 BlobStore readBlobstore = getBlobStore(config.getBlobStoreLocation());
                 readBlobstore.removeBlobs(readBucket,
@@ -663,7 +679,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 log.error("Failed delete Blob", t);
                 promise.completeExceptionally(t);
             }
-        });
+        }));
 
         return promise.whenComplete((__, t) ->
                 this.offloaderStats.recordDeleteOffloadOps(
