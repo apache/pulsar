@@ -43,6 +43,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     private final AtomicInteger throttledProducersCount = new AtomicInteger(0);
     private final AtomicBoolean processingQueuedProducers = new AtomicBoolean(false);
+    private volatile ScheduledExecutorService lastUnthrottleExecutor;
     private final Consumer<Producer> throttleAction;
     private final Consumer<Producer> unthrottleAction;
 
@@ -88,6 +89,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         // this is to avoid scheduling unthrottling multiple times for concurrent producers
         if (throttledProducersCount.incrementAndGet() == 1) {
             ScheduledExecutorService executor = producer.getCnx().getBrokerService().executor().next();
+            lastUnthrottleExecutor = executor;
             scheduleUnthrottling(executor, calculateThrottlingDurationNanos());
         }
     }
@@ -173,6 +175,12 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         } else {
             tokenBucketOnMessage = null;
             tokenBucketOnByte = null;
+            ScheduledExecutorService executor = lastUnthrottleExecutor;
+            if (executor != null) {
+                // Wake the existing unthrottle path without waiting on an old delay.
+                scheduleUnthrottling(executor, 0L);
+            }
+            // If executor is null, no throttle has happened yet on this limiter
         }
     }
 
