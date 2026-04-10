@@ -212,6 +212,22 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
     }
     @Override
     public void run() throws Exception {
+        // Reset static counters to avoid stale state from previous runs in the same JVM
+        messagesReceived.reset();
+        bytesReceived.reset();
+        totalMessagesReceived.reset();
+        totalBytesReceived.reset();
+        totalNumTxnOpenFail.reset();
+        totalNumTxnOpenSuccess.reset();
+        totalMessageAck.reset();
+        totalMessageAckFailed.reset();
+        messageAck.reset();
+        totalEndTxnOpFailNum.reset();
+        totalEndTxnOpSuccessNum.reset();
+        numTxnOpSuccess.reset();
+        recorder.reset();
+        cumulativeRecorder.reset();
+
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();

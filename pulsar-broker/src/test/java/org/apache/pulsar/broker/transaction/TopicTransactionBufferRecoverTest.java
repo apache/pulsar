@@ -44,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -253,7 +254,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     private void makeTBSnapshotReaderTimeoutIfFirstRead(TopicName topicName) throws Exception {
-        SystemTopicClient.Reader mockReader = mock(SystemTopicClient.Reader.class);
+        SystemTopicClient.Reader<?> mockReader = mock(SystemTopicClient.Reader.class);
         AtomicBoolean isFirstCallOfMethodHasMoreEvents = new AtomicBoolean();
         AtomicBoolean isFirstCallOfMethodHasReadNext = new AtomicBoolean();
         AtomicBoolean isFirstCallOfMethodHasReadNextAsync = new AtomicBoolean();
@@ -275,7 +276,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         }).when(mockReader).readNext();
 
         doAnswer(invocation -> {
-            CompletableFuture<Message> future = new CompletableFuture<>();
+            CompletableFuture<Message<?>> future = new CompletableFuture<>();
             new Thread(() -> {
                 if (isFirstCallOfMethodHasReadNextAsync.compareAndSet(false, true)){
                     // Just stuck the thread.
@@ -295,9 +296,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         for (PulsarService pulsarService : pulsarServiceList){
             // Init prop: lastMessageIdInBroker.
-            final SystemTopicTxnBufferSnapshotService tbSnapshotService =
+            final SystemTopicTxnBufferSnapshotService<?> tbSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
-            SystemTopicTxnBufferSnapshotService spyTbSnapshotService = spy(tbSnapshotService);
+            SystemTopicTxnBufferSnapshotService<?> spyTbSnapshotService = spy(tbSnapshotService);
             doAnswer(invocation -> CompletableFuture.completedFuture(mockReader))
                     .when(spyTbSnapshotService).createReader(topicName);
             Field field =
@@ -461,6 +462,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     PersistentTopic persistentTopic = (PersistentTopic) topic.get();
                     var field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
                     field.setAccessible(true);
+                    @SuppressWarnings("unchecked")
                     NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers =
                             (NavigableMap<Long, ManagedLedgerInfo.LedgerInfo>)
                                     field.get(persistentTopic.getManagedLedger());
@@ -487,6 +489,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                         Field abortsField = SingleSnapshotAbortedTxnProcessorImpl.class.getDeclaredField("aborts");
                         abortsField.setAccessible(true);
 
+                        @SuppressWarnings("unchecked")
                         LinkedMap<TxnID, Position> linkedMap =
                                 (LinkedMap<TxnID, Position>) abortsField.get(abortedTxnProcessor);
                         assertEquals(linkedMap.size(), 1);
@@ -501,6 +504,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertTrue(exist);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "enableSnapshotSegment")
     public void clearTransactionBufferSnapshotTest(Boolean enableSnapshotSegment) throws Exception {
         getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(enableSnapshotSegment);
@@ -553,6 +557,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     private void checkSnapshotCount(TopicName topicName, boolean hasSnapshot,
                                     PersistentTopic persistentTopic, Field field) throws Exception {
         persistentTopic.triggerCompaction();
+        @SuppressWarnings("unchecked")
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(persistentTopic);
         Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
 
@@ -591,7 +596,12 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     @Test(timeOut = 30000)
+    @SuppressWarnings("unchecked")
     public void testTransactionBufferRecoverThrowException() throws Exception {
+        OrderedScheduler scheduler = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(1)
+                .name("pulsar-transaction-snapshot-recover")
+                .build();
         String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowPulsarClientException";
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -620,7 +630,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         doReturn(CompletableFuture.completedFuture(reader))
                 .when(systemTopicTxnBufferSnapshotService).createReader(any());
         doReturn(refCounterWriter).when(systemTopicTxnBufferSnapshotService).getReferenceWriter(any());
-        doReturn(new MockTableView(pulsarServiceList.get(0))).when(systemTopicTxnBufferSnapshotService).getTableView();
+        doReturn(new MockTableView(pulsarServiceList.get(0))).when(systemTopicTxnBufferSnapshotService)
+                .getTableView(scheduler);
         TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactory =
                 mock(TransactionBufferSnapshotServiceFactory.class);
         doReturn(systemTopicTxnBufferSnapshotService)
@@ -836,6 +847,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     //Verify the snapshotSegmentProcessor end to end
+    @SuppressWarnings("deprecation")
     @Test
     public void testSnapshotSegment() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/testSnapshotSegment";

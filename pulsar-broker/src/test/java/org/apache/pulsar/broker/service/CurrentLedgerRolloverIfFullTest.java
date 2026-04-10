@@ -37,6 +37,8 @@ public class CurrentLedgerRolloverIfFullTest extends SharedPulsarBaseTest {
 
     @Test
     public void testCurrentLedgerRolloverIfFull() throws Exception {
+        // Disable dedup so the pulsar.dedup cursor doesn't block ledger trimming
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
         final String topicName = newTopicName();
 
         @Cleanup

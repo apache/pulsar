@@ -50,6 +50,8 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
 
     @Test
     public void testConsumedLedgersTrim() throws Exception {
+        // Disable dedup so the pulsar.dedup cursor doesn't block ledger trimming
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
         // Set infinite retention at namespace level so ledgers are preserved until explicitly trimmed
         admin.namespaces().setRetention(getNamespace(), new RetentionPolicies(-1, -1));
 
@@ -106,6 +108,8 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
 
     @Test
     public void testConsumedLedgersTrimNoSubscriptions() throws Exception {
+        // Disable dedup so the pulsar.dedup cursor doesn't block ledger trimming
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
         // Set infinite retention at namespace level so ledgers are preserved until explicitly trimmed
         admin.namespaces().setRetention(getNamespace(), new RetentionPolicies(-1, -1));
 
@@ -178,6 +182,8 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
 
     @Test
     public void testAdminTrimLedgers() throws Exception {
+        // Disable dedup so the pulsar.dedup cursor doesn't block ledger trimming
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
         final String subscriptionName = "my-sub";
         final int maxEntriesPerLedger = 2;
         final int partitionedNum = 3;
@@ -230,7 +236,6 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
                     "Expected at most 2 ledgers after trim, but found "
                             + managedLedger.getLedgersInfoAsList().size());
         });
-
     }
 
     @Test

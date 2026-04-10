@@ -31,12 +31,11 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
@@ -46,36 +45,18 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.MockedStatic;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class ProducerMemoryLeakTest extends ProducerConsumerBase {
+public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
 
-    private static final String NAMESPACE_NEVER_COMPATIBLE = "public/schema-never-compatible";
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-        admin.namespaces().createNamespace(NAMESPACE_NEVER_COMPATIBLE);
-        admin.namespaces().setSchemaCompatibilityStrategy(NAMESPACE_NEVER_COMPATIBLE,
-                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSendQueueIsFull() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
+        final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         ProducerImpl<String> producer = (ProducerImpl<String>) pulsarClient.newProducer(Schema.STRING)
                 .blockIfQueueFull(false).maxPendingMessages(1)
@@ -125,8 +106,9 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "maxMessageSizeAndCompressions")
+    @SuppressWarnings("unchecked")
     public void testSendMessageSizeExceeded(int maxMessageSize, CompressionType compressionType) throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
+        final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         ProducerImpl<String> producer = (ProducerImpl<String>) pulsarClient.newProducer(Schema.STRING).topic(topicName)
                 .compressionType(compressionType)
@@ -204,8 +186,9 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "maxMessageSizes")
+    @SuppressWarnings("unchecked")
     public void testBatchedSendMessageSizeExceeded(int maxMessageSize) throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
+        final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         ProducerImpl<String> producer = (ProducerImpl<String>) pulsarClient.newProducer(Schema.STRING).topic(topicName)
                 .enableBatching(true)
@@ -248,8 +231,9 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSendAfterClosedProducer() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
+        final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         ProducerImpl<String> producer =
                 (ProducerImpl<String>) pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
@@ -277,9 +261,11 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testBrokenSchema() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + NAMESPACE_NEVER_COMPATIBLE
-                + "/tp");
+        admin.namespaces().setSchemaCompatibilityStrategy(getNamespace(),
+                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         ProducerImpl producer =
                 (ProducerImpl) pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
@@ -331,8 +317,9 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "failedInterceptAt")
+    @SuppressWarnings("unchecked")
     public void testInterceptorError(String method) throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
+        final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         ProducerImpl<String> producer = (ProducerImpl<String>) pulsarClient.newProducer(Schema.STRING).topic(topicName)
                 .intercept(
@@ -362,6 +349,7 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
                     }
 
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
                                                       Throwable exception) {
                         if (method.equals("onSendAcknowledgement")) {
@@ -401,11 +389,13 @@ public class ProducerMemoryLeakTest extends ProducerConsumerBase {
 
         public volatile ByteBuf payload;
 
+        @SuppressWarnings("unchecked")
         public <T> MsgPayloadTouchableMessageBuilder(ProducerBase producer, Schema<T> schema) {
             super(producer, schema);
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Message<T> getMessage() {
             MessageImpl<T> msg = (MessageImpl<T>) super.getMessage();
             payload = msg.getPayload();

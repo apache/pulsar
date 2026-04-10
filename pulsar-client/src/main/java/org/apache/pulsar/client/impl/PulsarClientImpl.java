@@ -106,7 +106,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
     private static final int CLOSE_TIMEOUT_SECONDS = 60;
-    private static final double THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING = 0.95;
+    protected static final double THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING = 0.95;
 
     // default limits for producers when memory limit controller is disabled
     private static final int NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES = 1000;
@@ -171,23 +171,25 @@ public class PulsarClientImpl implements PulsarClient {
     @Getter
     private TransactionCoordinatorClientImpl tcClient;
 
+    private final Runnable memoryLimitTrigger = this::reduceConsumerReceiverQueueSize;
+
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
-        this(conf, null, null, null, null, null, null, null, null);
+        this(conf, null, null, null, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(conf, eventLoopGroup, null, null, null, null, null, null, null);
+        this(conf, eventLoopGroup, null, null, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, null, null, null, null, null, null);
+        this(conf, eventLoopGroup, cnxPool, null, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                             Timer timer)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, timer, null, null, null, null, null);
+        this(conf, eventLoopGroup, cnxPool, timer, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
@@ -196,7 +198,7 @@ public class PulsarClientImpl implements PulsarClient {
                             ScheduledExecutorProvider scheduledExecutorProvider)
             throws PulsarClientException {
         this(conf, eventLoopGroup, connectionPool, timer, externalExecutorProvider, internalExecutorProvider,
-                scheduledExecutorProvider, null, null);
+                scheduledExecutorProvider, null, null, null);
     }
 
     @Builder(builderClassName = "PulsarClientImplBuilder")
@@ -205,8 +207,8 @@ public class PulsarClientImpl implements PulsarClient {
                      ExecutorProvider internalExecutorProvider,
                      ScheduledExecutorProvider scheduledExecutorProvider,
                      ExecutorProvider lookupExecutorProvider,
-                     DnsResolverGroupImpl dnsResolverGroup) throws PulsarClientException {
-
+                     DnsResolverGroupImpl dnsResolverGroup,
+                     MemoryLimitController memoryLimitController) throws PulsarClientException {
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
         try {
@@ -286,14 +288,19 @@ public class PulsarClientImpl implements PulsarClient {
                 }
             }
 
-            memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes(),
-                    (long) (conf.getMemoryLimitBytes() * THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING),
-                    this::reduceConsumerReceiverQueueSize);
-            // Only create memory buffer metrics if memory limiting is enabled
-            if (memoryLimitController.isMemoryLimited()) {
-                memoryBufferStats = new MemoryBufferStats(instrumentProvider, memoryLimitController);
+            if (memoryLimitController == null) {
+                this.memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes(),
+                        (long) (conf.getMemoryLimitBytes() * THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING),
+                        this.memoryLimitTrigger);
             } else {
-                memoryBufferStats = null;
+                this.memoryLimitController = memoryLimitController;
+                this.memoryLimitController.registerTrigger(this.memoryLimitTrigger);
+            }
+            // Only create memory buffer metrics if memory limit controller is local and memory limiting is enabled.
+            if (memoryLimitController == null && this.memoryLimitController.isMemoryLimited()) {
+                this.memoryBufferStats = new MemoryBufferStats(this.instrumentProvider, this.memoryLimitController);
+            } else {
+                this.memoryBufferStats = null;
             }
             state.set(State.Open);
         } catch (Throwable t) {
@@ -330,6 +337,7 @@ public class PulsarClientImpl implements PulsarClient {
         return new ProducerBuilderImpl<>(this, Schema.BYTES);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public <T> ProducerBuilder<T> newProducer(Schema<T> schema) {
         ProducerBuilderImpl<T> producerBuilder = new ProducerBuilderImpl<>(this, schema);
@@ -389,7 +397,7 @@ public class PulsarClientImpl implements PulsarClient {
         return createProducerAsync(conf, schema, null);
     }
 
-    @SuppressWarnings("rawtypes")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema,
                                                                   ProducerInterceptors interceptors) {
         if (conf == null) {
@@ -414,30 +422,39 @@ public class PulsarClientImpl implements PulsarClient {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
         }
+        if (isScalableDomain(topic)) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidTopicNameException(
+                    "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                    + " Topic: '" + topic + "'"));
+        }
 
         if (schema instanceof AutoProduceBytesSchema) {
             AutoProduceBytesSchema autoProduceBytesSchema = (AutoProduceBytesSchema) schema;
             if (autoProduceBytesSchema.hasUserProvidedSchema()) {
                 return createProducerAsync(topic, conf, schema, interceptors);
             }
-            return lookup.getSchema(TopicName.get(conf.getTopicName()))
-                    .thenCompose(schemaInfoOptional -> {
-                        if (schemaInfoOptional.isPresent()) {
-                            SchemaInfo schemaInfo = schemaInfoOptional.get();
-                            if (schemaInfo.getType() == SchemaType.PROTOBUF) {
-                                autoProduceBytesSchema.setSchema(new GenericAvroSchema(schemaInfo));
-                            } else {
-                                autoProduceBytesSchema.setSchema(Schema.getSchema(schemaInfo));
-                            }
-                        } else {
-                            autoProduceBytesSchema.setSchema(Schema.BYTES);
-                        }
-                        return createProducerAsync(topic, conf, schema, interceptors);
-                    });
+            return reloadSchemaForAutoProduceProducer(topic, autoProduceBytesSchema)
+                    .thenCompose(schemaInfoOptional -> createProducerAsync(topic, conf, schema, interceptors));
         } else {
             return createProducerAsync(topic, conf, schema, interceptors);
         }
 
+    }
+
+    public CompletableFuture<Void> reloadSchemaForAutoProduceProducer(String topic, AutoProduceBytesSchema autoSchema) {
+        return lookup.getSchema(TopicName.get(topic)).thenAccept(schemaInfoOptional -> {
+            if (schemaInfoOptional.isPresent()) {
+                SchemaInfo schemaInfo = schemaInfoOptional.get();
+                if (schemaInfo.getType() == SchemaType.PROTOBUF) {
+                    autoSchema.setSchema(new GenericAvroSchema(schemaInfo));
+                } else {
+                    autoSchema.setSchema(Schema.getSchema(schemaInfo));
+                }
+            } else {
+                autoSchema.setSchema(Schema.BYTES);
+            }
+        });
     }
 
     private CompletableFuture<Integer> checkPartitions(String topic, boolean forceNoPartitioned,
@@ -538,6 +555,7 @@ public class PulsarClientImpl implements PulsarClient {
      *
      * @return a producer instance
      */
+    @SuppressWarnings("unchecked")
     protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex,
                                                   ProducerConfigurationData conf,
                                                   Schema<T> schema,
@@ -571,6 +589,12 @@ public class PulsarClientImpl implements PulsarClient {
             if (!TopicName.isValid(topic)) {
                 return FutureUtil.failedFuture(
                         new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+            }
+            if (isScalableDomain(topic)) {
+                return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException(
+                        "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                        + " Topic: '" + topic + "'"));
             }
         }
 
@@ -737,6 +761,12 @@ public class PulsarClientImpl implements PulsarClient {
                 return FutureUtil.failedFuture(new PulsarClientException
                         .InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
             }
+            if (isScalableDomain(topic)) {
+                return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException(
+                        "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                        + " Topic: '" + topic + "'"));
+            }
         }
 
         if (conf.getStartMessageId() == null) {
@@ -849,7 +879,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private void closeUrlLookupMap() {
-        Map<String, LookupService> closedUrlLookupServices = new HashMap(urlLookupMap.size());
+        Map<String, LookupService> closedUrlLookupServices = new HashMap<>(urlLookupMap.size());
         urlLookupMap.entrySet().forEach(e -> {
             try {
                 e.getValue().close();
@@ -980,6 +1010,7 @@ public class PulsarClientImpl implements PulsarClient {
             } catch (PulsarClientException e) {
                 throwable = e;
             }
+
             if (memoryBufferStats != null) {
                 try {
                     memoryBufferStats.close();
@@ -988,6 +1019,11 @@ public class PulsarClientImpl implements PulsarClient {
                     throwable = t;
                 }
             }
+
+            if (memoryLimitController != null) {
+                memoryLimitController.deregisterTrigger(memoryLimitTrigger);
+            }
+
             if (conf != null && conf.getAuthentication() != null) {
                 try {
                     conf.getAuthentication().close();
@@ -1425,5 +1461,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     NameResolver<InetAddress> getNameResolver() {
         return DnsResolverUtil.adaptToNameResolver(addressResolver);
+    }
+
+    private static boolean isScalableDomain(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        return topicName.isScalable() || topicName.isSegment();
     }
 }

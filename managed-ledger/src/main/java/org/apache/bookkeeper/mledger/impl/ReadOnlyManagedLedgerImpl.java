@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import com.google.common.collect.Range;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -39,7 +39,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.metadata.api.Stat;
 
-@Slf4j
+@CustomLog
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
@@ -155,8 +155,11 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             this.getLedgerHandle(position.getLedgerId())
                     .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
                     .exceptionally((ex) -> {
-                        log.error("[{}] Error opening ledger for reading at position {} - {}. Op: {}", this.name,
-                                position, ex.getMessage(), callback);
+                        log.error().attr("ledgerName", this.name)
+                                .attr("position", position)
+                                .attr("errorMessage", ex.getMessage())
+                                .attr("callback", callback)
+                                .log("Error opening ledger for reading at position");
                         callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
                         return null;
                     });

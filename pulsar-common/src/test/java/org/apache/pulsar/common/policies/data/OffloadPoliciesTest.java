@@ -412,9 +412,17 @@ public class OffloadPoliciesTest {
         }
 
         private Class<?> getClass(String name) {
-            String file = name.replace('.', File.separatorChar) + ".class";
-            Path targetPath = Paths.get(getClass().getClassLoader().getResource(".").getPath()).getParent();
-            file = Paths.get(targetPath.toString(), "classes", file).toString();
+            String classFile = name.replace('.', File.separatorChar) + ".class";
+            Path testClassesDir = Paths.get(getClass().getClassLoader().getResource(".").getPath());
+            Path mainClassesDir;
+            if (testClassesDir.endsWith(Paths.get("classes", "java", "test"))) {
+                // Gradle layout: build/classes/java/test -> build/classes/java/main
+                mainClassesDir = testClassesDir.getParent().resolve("main");
+            } else {
+                // Maven layout: target/test-classes -> target/classes
+                mainClassesDir = testClassesDir.getParent().resolve("classes");
+            }
+            String file = mainClassesDir.resolve(classFile).toString();
             byte[] byteArr = null;
             try {
                 byteArr = loadClassData(file);

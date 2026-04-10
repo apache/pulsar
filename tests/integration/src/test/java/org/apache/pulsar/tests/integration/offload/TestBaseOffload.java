@@ -52,6 +52,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         return entry;
     }
 
+    @SuppressWarnings("deprecation")
     protected void testPublishOffloadAndConsumeViaCLI(String serviceUrl, String adminUrl) throws Exception {
         final String tenant = "offload-test-cli-" + randomName(4);
         final String namespace = tenant + "/ns1";
@@ -133,6 +134,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
     }
 
+    @SuppressWarnings("deprecation")
     protected void testPublishOffloadAndConsumeViaThreshold(String serviceUrl, String adminUrl) throws Exception {
         final String tenant = "offload-test-threshold-" + randomName(4);
         final String namespace = tenant + "/ns1";
@@ -269,6 +271,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public boolean ledgerExistsInBookKeeper(long ledgerId) throws Exception {
         ClientConfiguration bkConf = new ClientConfiguration();
         bkConf.setZkServers(pulsarCluster.getZKConnString());

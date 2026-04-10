@@ -129,6 +129,7 @@ public class BlockAwareSegmentInputStreamTest {
         }
     }
 
+    @SuppressWarnings("try")
     class MockReadHandle implements ReadHandle {
         int ledgerId;
         int entrySize;

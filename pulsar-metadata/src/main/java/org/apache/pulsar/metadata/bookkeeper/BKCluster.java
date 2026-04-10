@@ -39,7 +39,6 @@ import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.bookie.Cookie;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
-import org.apache.bookkeeper.common.component.ComponentStarter;
 import org.apache.bookkeeper.common.component.Lifecycle;
 import org.apache.bookkeeper.common.component.LifecycleComponent;
 import org.apache.bookkeeper.common.component.LifecycleComponentStack;
@@ -140,6 +139,11 @@ public class BKCluster implements AutoCloseable {
         baseConf.setJournalRemovePagesFromCache(false);
         baseConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
         baseClientConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
+        // Explicitly trigger class initialization to run static blocks that register
+        // drivers with MetadataDrivers. The .class literal only loads (but does not
+        // initialize) the class, so the static registration block may not have run yet.
+        PulsarMetadataBookieDriver.init();
+        PulsarMetadataClientDriver.init();
         System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
         System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
         startBKCluster(bkClusterConf.numBookies);
@@ -328,7 +332,10 @@ public class BKCluster implements AutoCloseable {
                 org.apache.bookkeeper.server.Main.buildBookieServer(new BookieConfiguration(conf));
 
         BookieId address = BookieImpl.getBookieId(conf);
-        ComponentStarter.startComponent(server);
+        // Start the bookie directly instead of using ComponentStarter.startComponent()
+        // which registers JVM shutdown hooks that are never cleaned up and can cause
+        // System.exit() during test cleanup, killing the test JVM.
+        server.start();
 
         // Wait for up to 30 seconds for the bookie to start
         for (int i = 0; i < 3000; i++) {

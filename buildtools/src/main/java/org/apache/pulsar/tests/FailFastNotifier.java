@@ -33,7 +33,7 @@ import org.testng.SkipException;
 /**
  * Notifies TestNG core skipping remaining tests after first failure has appeared.
  *
- * Enabled when -DtestFailFast=true
+ * Enabled when -PtestFailFast=true
  *
  * This is a workaround for https://issues.apache.org/jira/browse/SUREFIRE-1762 since
  * the bug makes the built-in fast-fast feature `-Dsurefire.skipAfterFailureCount=1` unusable.
@@ -93,6 +93,8 @@ public class FailFastNotifier
     }
 
     static class FailFastSkipException extends SkipException {
+        private static final long serialVersionUID = 1L;
+
         FailFastSkipException(String skipMessage) {
             super(skipMessage);
             reduceStackTrace();

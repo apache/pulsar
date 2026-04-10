@@ -39,36 +39,38 @@ import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Sets;
 
 @Slf4j
 @Test(groups = "broker-impl")
-public class ConsumerAckTest extends ProducerConsumerBase {
+public class ConsumerAckTest extends SharedPulsarBaseTest {
 
     private TransactionImpl transaction;
     private PulsarClient clientWithStats;
+    @SuppressWarnings("deprecation")
 
-    @BeforeClass(alwaysRun = true)
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-        this.clientWithStats = newPulsarClient(lookupUrl.toString(), 30);
+    @BeforeMethod(alwaysRun = true)
+    public void setupConsumerAckTest() throws Exception {
+        this.clientWithStats = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .statsInterval(30, TimeUnit.SECONDS)
+                .build();
         transaction = mock(TransactionImpl.class);
         doReturn(1L).when(transaction).getTxnIdLeastBits();
         doReturn(1L).when(transaction).getTxnIdMostBits();
@@ -79,15 +81,16 @@ public class ConsumerAckTest extends ProducerConsumerBase {
         doReturn(completableFuture).when(transaction).registerAckedTopic(any(), any());
     }
 
-    @AfterClass(alwaysRun = true)
-    public void cleanup() throws Exception {
-        this.clientWithStats.close();
-        super.internalCleanup();
+    @AfterMethod(alwaysRun = true)
+    public void cleanupConsumerAckTest() throws Exception {
+        if (this.clientWithStats != null) {
+            this.clientWithStats.close();
+        }
     }
 
     @Test
     public void testAckResponse() throws PulsarClientException, InterruptedException {
-        String topic = "testAckResponse";
+        String topic = newTopicName();
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
@@ -119,7 +122,7 @@ public class ConsumerAckTest extends ProducerConsumerBase {
     }
     @Test(timeOut = 30000)
     public void testAckReceipt() throws Exception {
-        String topic = "testAckReceipt";
+        String topic = newTopicName();
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
@@ -154,7 +157,7 @@ public class ConsumerAckTest extends ProducerConsumerBase {
 
     @Test
     public void testIndividualAck() throws Exception {
-        @Cleanup AckTestData data = prepareDataForAck("test-individual-ack");
+        @Cleanup AckTestData data = prepareDataForAck(newTopicName());
         for (MessageId messageId : data.messageIds) {
             data.consumer.acknowledge(messageId);
         }
@@ -165,7 +168,7 @@ public class ConsumerAckTest extends ProducerConsumerBase {
 
     @Test
     public void testIndividualAckList() throws Exception {
-        @Cleanup AckTestData data = prepareDataForAck("test-individual-ack-list");
+        @Cleanup AckTestData data = prepareDataForAck(newTopicName());
         data.consumer.acknowledge(data.messageIds);
         assertEquals(data.interceptor.individualAckedMessageIdList, data.messageIds);
         assertEquals(data.consumer.getStats().getNumAcksSent(), data.size());
@@ -174,7 +177,7 @@ public class ConsumerAckTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10000)
     public void testAcknowledgeWithNullMessageId() throws Exception {
-        final String topic = "testAcknowledgeWithNullMessageId";
+        final String topic = newTopicName();
         @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub1")
@@ -218,7 +221,7 @@ public class ConsumerAckTest extends ProducerConsumerBase {
 
     @Test
     public void testCumulativeAck() throws Exception {
-        @Cleanup AckTestData data = prepareDataForAck("test-cumulative-ack");
+        @Cleanup AckTestData data = prepareDataForAck(newTopicName());
         System.out.println(data.size());
         data.consumer.acknowledgeCumulative(data.messageIds.get(data.size() - 1));
         assertEquals(data.interceptor.cumulativeAckedMessageIdList.get(0),
@@ -228,6 +231,7 @@ public class ConsumerAckTest extends ProducerConsumerBase {
     }
 
     // Send 1 non-batched message, then send N-1 messages that are in the same batch
+    @SuppressWarnings("unchecked")
     private AckTestData prepareDataForAck(String topic) throws PulsarClientException {
         final int numMessages = 10;
         @Cleanup Producer<String> batchProducer = pulsarClient.newProducer(Schema.STRING)

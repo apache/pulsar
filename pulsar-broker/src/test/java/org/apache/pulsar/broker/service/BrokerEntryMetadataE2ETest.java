@@ -149,6 +149,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testGetMessageById() throws Exception {
         final String topic = newTopicName();
@@ -214,6 +215,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testBatchMessage() throws Exception {
         final String topic = newTopicName();

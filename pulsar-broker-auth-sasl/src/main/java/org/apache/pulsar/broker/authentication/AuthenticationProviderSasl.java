@@ -68,6 +68,7 @@ import org.apache.pulsar.common.stats.CacheMetricsCollector;
  * provider, the authentication is multi-stage.
  */
 @Slf4j
+@SuppressWarnings("deprecation") // Implements deprecated AuthenticationProvider/AuthenticationState methods
 public class AuthenticationProviderSasl implements AuthenticationProvider {
 
     private Pattern allowedIdsPattern;

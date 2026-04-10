@@ -99,6 +99,7 @@ public class PerformanceReader extends PerformanceTopicListArguments {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public void run() throws Exception {
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);

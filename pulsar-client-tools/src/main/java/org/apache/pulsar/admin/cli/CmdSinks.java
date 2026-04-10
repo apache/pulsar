@@ -444,6 +444,7 @@ public class CmdSinks extends CmdBase {
         }
 
         @Override
+        @SuppressWarnings("deprecation")
         void processArguments() throws Exception {
             super.processArguments();
             // merge deprecated args with new args
@@ -828,6 +829,7 @@ public class CmdSinks extends CmdBase {
     @Command(description = "Get the list of Pulsar IO connector sinks supported by Pulsar cluster")
     public class ListBuiltInSinks extends BaseCommand {
         @Override
+        @SuppressWarnings("deprecation")
         void runCmd() throws Exception {
             getAdmin().sinks().getBuiltInSinks().stream().filter(x -> isNotBlank(x.getSinkClass()))
                     .forEach(connector -> {

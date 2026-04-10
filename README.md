@@ -168,57 +168,59 @@ Docker image Java runtime: 17
 
     | Pulsar Version   |                                   JDK Version                                    |
     |------------------|:--------------------------------------------------------------------------------:|
-    | master and 4.0+  | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) | 
+    | master           | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) or [JDK 25](https://adoptium.net/en-GB/temurin/releases?version=25&os=any&arch=any) |
+    | 4.0+             | [JDK 21](https://adoptium.net/en-GB/temurin/releases?version=21&os=any&arch=any) |
     | 2.11 +           | [JDK 17](https://adoptium.net/en-GB/temurin/releases?version=17&os=any&arch=any) |
     | 2.8 / 2.9 / 2.10 | [JDK 11](https://adoptium.net/en-GB/temurin/releases?version=11&os=any&arch=any) |
     | 2.7 -            |  [JDK 8](https://adoptium.net/en-GB/temurin/releases?version=8&os=any&arch=any)  |
 
-- Maven 3.9.9+
 - zip
 
 There is also a guide for [setting up the tooling for building Pulsar](https://pulsar.apache.org/contribute/setup-buildtools/).
 
 > **Note**:
 >
-> This project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system-installed Maven.
-> Use it by replacing `mvn` by `./mvnw` on Linux and `mvnw.cmd` on Windows in the commands below.    
+> This project includes a [Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html) so no separate Gradle installation is needed.
+> Use `./gradlew` on Linux/macOS and `gradlew.bat` on Windows.
+>
+> For a better developer experience, install [Gradle command-line completion](https://docs.gradle.org/current/userguide/command_line_interface.html#sec:command_line_completion) ([gradle-completion installation](https://github.com/gradle/gradle-completion?tab=readme-ov-file#gradle-completion)) for bash and zsh shells.
 
 ### Build
 
-Compile and install:
+Compile and assemble:
 
 ```bash
-$ mvn install -DskipTests
+./gradlew assemble
 ```
 
-Compile and install individual module
+Check source code license headers and formatting:
 
 ```bash
-$ mvn -pl module-name (e.g: pulsar-broker) install -DskipTests
+./gradlew rat spotlessCheck checkstyleMain checkstyleTest
 ```
 
-### Minimal build (This skips most of external connectors and tiered storage handlers)
+Compile and assemble individual module:
 
 ```bash
-mvn install -Pcore-modules,-main -DskipTests
+./gradlew :pulsar-broker:assemble
 ```
 
 Run Unit Tests:
 
 ```bash
-$ mvn test
+./gradlew test
 ```
 
 Run Individual Unit Test:
 
 ```bash
-$ mvn -pl module-name (e.g: pulsar-client) test -Dtest=unit-test-name (e.g: ConsumerBuilderImplTest)
+./gradlew :pulsar-client-original:test --tests "ConsumerBuilderImplTest"
 ```
 
 Run Selected Test packages:
 
 ```bash
-$ mvn test -pl module-name (for example, pulsar-broker) -Dinclude=org/apache/pulsar/**/*.java
+./gradlew :pulsar-broker:test --tests "org.apache.pulsar.*"
 ```
 
 Start standalone Pulsar service:
@@ -235,25 +237,19 @@ The commands used in the Apache Pulsar release process can be found in the [rele
 
 Here are some general instructions for building custom docker images:
 
-* Docker images must be built with Java 8 for `branch-2.7` or previous branches because of [ISSUE-8445](https://github.com/apache/pulsar/issues/8445).
-* Java 11 is the recommended JDK version in `branch-2.8`, `branch-2.9` and `branch-2.10`.
-* Java 17 is the recommended JDK version in `branch-2.11`, `branch-3.0` and `branch-3.3`.
 * Java 21 is the recommended JDK version since `branch-4.0`.
 
 The following command builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`:
 
 ```bash
-mvn clean install -DskipTests
-# setting DOCKER_CLI_EXPERIMENTAL=enabled is required in some environments with older docker versions
-export DOCKER_CLI_EXPERIMENTAL=enabled
-mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
+./gradlew docker-all
 ```
 
 After the images are built, they can be tagged and pushed to your custom repository. Here's an example of a bash script that tags the docker images with the current version and git revision and pushes them to `localhost:32000/apachepulsar`.
 
 ```bash
 image_repo_and_project=localhost:32000/apachepulsar
-pulsar_version=$(mvn initialize help:evaluate -Dexpression=project.version -pl . -q -DforceStdout)
+pulsar_version=$(src/get-pulsar-version.sh)
 gitrev=$(git rev-parse HEAD | colrm 10)
 tag="${pulsar_version}-${gitrev}"
 echo "Using tag $tag"

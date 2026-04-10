@@ -361,6 +361,7 @@ public class LoadSimulationController extends CmdBase{
     }
 
     // Handle the command line arguments associated with the copy command.
+    @SuppressWarnings("unchecked")
     private void handleCopy(final ShellArguments arguments) throws Exception {
         final List<String> commandArguments = arguments.commandArguments;
         // Copy accepts 3 application arguments: Tenant name, source ZooKeeper and target ZooKeeper connect strings.
@@ -443,6 +444,7 @@ public class LoadSimulationController extends CmdBase{
     }
 
     // Handle the command line arguments associated with the simulate command.
+    @SuppressWarnings("unchecked")
     private void handleSimulate(final ShellArguments arguments) throws Exception {
         final List<String> commandArguments = arguments.commandArguments;
         checkAppArgs(commandArguments.size() - 1, 1);

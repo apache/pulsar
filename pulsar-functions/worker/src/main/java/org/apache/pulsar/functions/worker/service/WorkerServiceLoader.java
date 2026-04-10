@@ -87,7 +87,7 @@ public class WorkerServiceLoader {
         }
 
         try {
-            Class handlerClass = ncl.loadClass(phDef.getHandlerClass());
+            Class<?> handlerClass = ncl.loadClass(phDef.getHandlerClass());
             Object handler = handlerClass.getDeclaredConstructor().newInstance();
             if (!(handler instanceof WorkerService)) {
                 throw new IOException("Class " + phDef.getHandlerClass()

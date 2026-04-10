@@ -131,7 +131,7 @@ public class WssClientSideEncryptUtils {
         try {
             PublicKey pubKey = MessageCryptoBc.loadPublicKey(publicKeyData);
             Cipher dataKeyCipher = loadAndInitCipher(pubKey);
-            return dataKeyCipher.doFinal(msgCrypto.getDataKey().getEncoded());
+            return dataKeyCipher.doFinal(msgCrypto.getEncryptionKey().getEncoded());
         } catch (Exception e) {
             log.error("Failed to encrypt data key. {}", e.getMessage());
             throw new PulsarClientException.CryptoException(e.getMessage());

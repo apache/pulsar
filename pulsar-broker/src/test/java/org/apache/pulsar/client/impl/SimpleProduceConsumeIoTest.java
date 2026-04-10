@@ -36,46 +36,29 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.util.ExecutorProvider;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class SimpleProduceConsumeIoTest extends ProducerConsumerBase {
+public class SimpleProduceConsumeIoTest extends SharedPulsarBaseTest {
 
     private ExecutorService executor;
     private String topic;
     private PulsarClientImpl singleConnectionPerBrokerClient;
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        executor.shutdown();
-        super.internalCleanup();
-    }
-
     @BeforeMethod
     public void setupTopic() throws Exception {
         executor = Executors.newSingleThreadExecutor();
         singleConnectionPerBrokerClient = (PulsarClientImpl) PulsarClient.builder().connectionsPerBroker(1)
-                .serviceUrl(lookupUrl.toString()).build();
-        topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+                .serviceUrl(getBrokerServiceUrl()).build();
+        topic = newTopicName();
         admin.topics().createNonPartitionedTopic(topic);
     }
 

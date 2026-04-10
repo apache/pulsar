@@ -117,6 +117,7 @@ public class BrokerInterceptorUtils {
      *
      * @param metadata the broker interceptors definition.
      */
+    @SuppressWarnings("unchecked")
     BrokerInterceptorWithClassLoader load(BrokerInterceptorMetadata metadata, String narExtractionDirectory)
             throws IOException {
         final File narFile = metadata.getArchivePath().toAbsolutePath().normalize().toFile();

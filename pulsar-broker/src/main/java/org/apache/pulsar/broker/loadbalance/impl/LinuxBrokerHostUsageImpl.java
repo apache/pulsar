@@ -174,6 +174,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         return currentUsage;
     }
 
+    @SuppressWarnings("deprecation")
     private ResourceUsage getMemUsage() {
         double total = ((double) systemBean.getTotalPhysicalMemorySize()) / (1024 * 1024);
         double free = ((double) systemBean.getFreePhysicalMemorySize()) / (1024 * 1024);

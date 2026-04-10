@@ -82,6 +82,7 @@ public class PersistentSubscriptionTest {
     final TxnID txnID1 = new TxnID(1, 1);
     final TxnID txnID2 = new TxnID(1, 2);
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setup() throws Exception {
         pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
@@ -125,6 +126,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCanAcknowledgeAndAbortForTransaction() throws Exception {
         List<MutablePair<Position, Integer>> positionsPair = new ArrayList<>();
         positionsPair.add(new MutablePair<>(PositionFactory.create(2, 1), 0));
@@ -209,6 +211,7 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAcknowledgeUpdateCursorLastActive() throws Exception {
         doAnswer((invocationOnMock) -> {
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])

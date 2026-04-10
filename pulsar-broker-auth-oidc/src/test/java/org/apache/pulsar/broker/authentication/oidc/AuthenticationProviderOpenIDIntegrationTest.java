@@ -87,6 +87,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     String issuerK8s;
     WireMockServer server;
 
+    @SuppressWarnings("deprecation")
     @BeforeClass
     void beforeClass() throws IOException {
 
@@ -578,6 +579,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
      * both kinds of authentication work.
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthenticationProviderListStateSuccess() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -637,7 +639,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
 
         // Build a JWT with a custom claim
-        HashMap<String, Object> claims = new HashMap();
+        HashMap<String, Object> claims = new HashMap<>();
         claims.put("test", "my-role");
         String token = generateToken(validJwk, issuer, "not-my-role", "allowed-audience", 0L,
                 0L, 10000L, claims);

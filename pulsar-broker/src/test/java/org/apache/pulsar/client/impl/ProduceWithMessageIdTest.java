@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.apache.pulsar.client.impl.AbstractBatchMessageContainer.INITIAL_BATCH_BUFFER_SIZE;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
@@ -178,7 +177,9 @@ public class ProduceWithMessageIdTest extends SharedPulsarBaseTest {
 
         cdl.await();
         OpSendMsgStats opSendMsgStats = sendMsgStats.get();
-        Assert.assertEquals(opSendMsgStats.getUncompressedSize(), totalUncompressedSize + INITIAL_BATCH_BUFFER_SIZE);
+        // uncompressedSize includes both message payloads and the batch buffer allocation,
+        // whose actual capacity depends on the allocator and may differ from the requested size
+        Assert.assertTrue(opSendMsgStats.getUncompressedSize() >= totalUncompressedSize);
         Assert.assertEquals(opSendMsgStats.getSequenceId(), 0);
         Assert.assertEquals(opSendMsgStats.getRetryCount(), 1);
         Assert.assertEquals(opSendMsgStats.getBatchSizeByte(), totalReadabled);

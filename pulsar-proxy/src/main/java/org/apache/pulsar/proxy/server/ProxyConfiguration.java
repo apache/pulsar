@@ -936,7 +936,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
         }
     )
 
-    /***** --- Protocol Handlers --- ****/
+    // --- Protocol Handlers ---
     @FieldContext(
             category = CATEGORY_PLUGIN,
             doc = "The directory to locate proxy extensions"

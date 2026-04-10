@@ -308,7 +308,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
-    private final ExecutorProvider transactionSnapshotRecoverExecutorProvider;
+    private final OrderedScheduler transactionSnapshotRecoverExecutorProvider;
     private final MonotonicClock monotonicClock;
     private String brokerId;
     private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
@@ -380,8 +380,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (config.isTransactionCoordinatorEnabled()) {
             this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
                     .getNumTransactionReplayThreadPoolSize(), "pulsar-transaction-executor");
-            this.transactionSnapshotRecoverExecutorProvider = new ExecutorProvider(this.getConfiguration()
-                    .getNumTransactionReplayThreadPoolSize(), "pulsar-transaction-snapshot-recover");
+            this.transactionSnapshotRecoverExecutorProvider = OrderedScheduler.newSchedulerBuilder()
+                    .numThreads(this.getConfiguration().getNumTransactionReplayThreadPoolSize())
+                    .name("pulsar-transaction-snapshot-recover")
+                    .build();
         } else {
             this.transactionExecutorProvider = null;
             this.transactionSnapshotRecoverExecutorProvider = null;
@@ -1542,6 +1544,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return config.getStatusFilePath();
     }
 
+    @SuppressWarnings("deprecation")
     public InternalConfigurationData getInternalConfigurationData() {
         return new InternalConfigurationData(
             config.getMetadataStoreUrl(),
@@ -1998,6 +2001,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void startWorkerService(AuthenticationService authenticationService,
                                     AuthorizationService authorizationService)
             throws Exception {
@@ -2076,6 +2080,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return monotonicClock;
     }
 
+    @SuppressWarnings("deprecation")
     public static WorkerConfig initializeWorkerConfigFromBrokerConfig(ServiceConfiguration brokerConfig,
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);

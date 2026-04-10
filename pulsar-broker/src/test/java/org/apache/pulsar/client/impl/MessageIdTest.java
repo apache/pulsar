@@ -26,7 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
-import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -38,31 +38,17 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.EnumValuesDataProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test
-public class MessageIdTest extends BrokerTestBase {
+public class MessageIdTest extends SharedPulsarBaseTest {
     private static final Logger log = LoggerFactory.getLogger(MessageIdTest.class);
-
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        baseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
-    }
 
     @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
     public void producerSendAsync(TopicType topicType) throws PulsarClientException, PulsarAdminException {
         // Given
         String key = "producerSendAsync-" + topicType;
-        final String topicName = "persistent://my-property/my-ns/topic-" + key;
+        final String topicName = "persistent://" + getNamespace() + "/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePrefix = "my-message-" + key + "-";
         final int numberOfMessages = 30;
@@ -129,7 +115,7 @@ public class MessageIdTest extends BrokerTestBase {
     public void producerSend(TopicType topicType) throws PulsarClientException, PulsarAdminException {
         // Given
         String key = "producerSend-" + topicType;
-        final String topicName = "persistent://my-property/my-ns/topic-" + key;
+        final String topicName = "persistent://" + getNamespace() + "/topic-" + key;
         final String subscriptionName = "my-subscription-" + key;
         final String messagePrefix = "my-message-" + key + "-";
         final int numberOfMessages = 30;

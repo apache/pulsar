@@ -33,6 +33,7 @@ import org.apache.pulsar.functions.api.Record;
 public class GenericObjectFunction implements Function<GenericObject, Void> {
 
     @Override
+    @SuppressWarnings("unchecked")
     public Void process(GenericObject genericObject, Context context) throws Exception {
         Record<?> currentRecord = context.getCurrentRecord();
         log.info("apply to {} {}", genericObject, genericObject.getNativeObject());

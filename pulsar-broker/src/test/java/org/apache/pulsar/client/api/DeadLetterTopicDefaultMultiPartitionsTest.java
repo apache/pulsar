@@ -58,6 +58,7 @@ public class DeadLetterTopicDefaultMultiPartitionsTest extends ProducerConsumerB
         super.internalCleanup();
     }
 
+    @SuppressWarnings("unchecked")
     private void triggerDLQGenerate(String topic, String subscription) throws Exception {
         String dlq = getDLQName(topic, subscription);
         String p0OfDLQ = TopicName.get(dlq).getPartition(0).toString();

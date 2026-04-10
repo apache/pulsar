@@ -48,6 +48,7 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 
 @Slf4j
+@SuppressWarnings("deprecation")
 public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     private final WebTarget sink;

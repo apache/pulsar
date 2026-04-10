@@ -111,6 +111,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
         return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
     }

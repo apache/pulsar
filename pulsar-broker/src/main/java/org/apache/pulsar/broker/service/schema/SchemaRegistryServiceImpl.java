@@ -228,10 +228,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             return CompletableFuture.completedFuture(Pair.of(info.toByteArray(), context));
                         });
                 }))).whenComplete((v, ex) -> {
-                    var latencyMs = this.clock.millis() - start.getValue();
+                    var latencyMs = this.clock.millis() - start.longValue();
                     if (ex != null) {
-                        log.error("[{}] Put schema failed", schemaId, ex);
-                        if (start.getValue() != 0) {
+                        if (ex instanceof IncompatibleSchemaException) {
+                            log.warn("[{}] Put schema failed due to incompatible schema", schemaId, ex);
+                        } else {
+                            log.error("[{}] Put schema failed", schemaId, ex);
+                        }
+                        if (start.longValue() != 0) {
                             this.stats.recordPutFailed(schemaId, latencyMs);
                         }
                         promise.completeExceptionally(ex);
@@ -242,8 +246,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                         // The schema storage will return null schema version if no schema is persisted to the storage
                         if (v != null) {
                             promise.complete(v);
-                            if (start.getValue() != 0) {
-                                this.stats.recordPutLatency(schemaId, this.clock.millis() - start.getValue());
+                            if (start.longValue() != 0) {
+                                this.stats.recordPutLatency(schemaId, this.clock.millis() - start.longValue());
                             }
                         }
                     }
@@ -458,7 +462,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 CompletableFuture<Void> result = new CompletableFuture<>();
                 result.whenComplete((__, t) -> {
                     if (t != null) {
-                        log.error("[{}] Schema is incompatible", schemaId);
+                        log.warn("[{}] Schema is incompatible", schemaId);
                         this.stats.recordSchemaIncompatible(schemaId);
                     } else {
                         if (log.isDebugEnabled()) {
@@ -495,7 +499,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         result.whenComplete((v, t) -> {
             if (t != null) {
                 this.stats.recordSchemaIncompatible(schemaId);
-                log.error("[{}] Schema is incompatible, schema type {}", schemaId, schema.getType());
+                log.warn("[{}] Schema is incompatible, schema type {}", schemaId, schema.getType());
             } else {
                 this.stats.recordSchemaCompatible(schemaId);
                 if (log.isDebugEnabled()) {

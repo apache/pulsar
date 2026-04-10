@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -149,6 +150,7 @@ public class IOConfigUtilsTest {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = false)
     static class DerivedConfig extends TestConfig {
         @FieldDoc(
                 required = true,
@@ -160,6 +162,7 @@ public class IOConfigUtilsTest {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = false)
     static class DerivedDerivedConfig extends DerivedConfig {
         @FieldDoc(
                 required = true,

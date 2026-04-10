@@ -402,6 +402,7 @@ public class PerformanceClient extends CmdBase {
 
     }
 
+    @SuppressWarnings("unchecked")
     static IMessageFormatter getMessageFormatter(String formatterClass) {
         try {
             ClassLoader classLoader = PerformanceClient.class.getClassLoader();

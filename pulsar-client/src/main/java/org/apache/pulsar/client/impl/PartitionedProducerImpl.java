@@ -326,7 +326,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         }
 
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
-        AtomicInteger completed = new AtomicInteger((int) producers.size());
+        AtomicInteger completed = new AtomicInteger(producers.size());
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         for (Producer<T> producer : producers.values()) {
             if (producer != null) {
@@ -436,7 +436,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                     // error happened, remove
                                     log.warn("[{}] fail create producers for extended partitions. old: {}, new: {}",
                                             topic, oldPartitionNumber, currentPartitionNumber);
-                                    IntStream.range(oldPartitionNumber, (int) producers.size())
+                                    IntStream.range(oldPartitionNumber, producers.size())
                                             .forEach(i -> producers.remove(i).closeAsync());
                                     future.completeExceptionally(ex);
                                     return null;

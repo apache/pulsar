@@ -92,6 +92,7 @@ public class ProxyKeyStoreTlsWithoutAuthTest extends MockedPulsarServiceBaseTest
         proxyService.start();
     }
 
+    @SuppressWarnings("deprecation")
     protected PulsarClient internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
         ClientBuilder clientBuilder = PulsarClient.builder()
                 .serviceUrl(lookupUrl)

@@ -32,16 +32,17 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -51,41 +52,20 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class SubscriptionStatsTest extends ProducerConsumerBase {
+public class SubscriptionStatsTest extends SharedPulsarBaseTest {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    protected ServiceConfiguration getDefaultConf() {
-        ServiceConfiguration conf = super.getDefaultConf();
-        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
-        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
-        conf.setBrokerShutdownTimeoutMs(5000L);
-        return conf;
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    private PulsarService getPulsarService() throws Exception {
+        return SharedPulsarCluster.get().getPulsarService();
     }
 
     @Test
     public void testNonContiguousDeletedMessagesRanges() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/testNonContiguousDeletedMessagesRanges-"
-                + UUID.randomUUID().toString();
+        final String topicName = newTopicName();
         final String subName = "my-sub";
 
         @Cleanup
@@ -125,27 +105,21 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
     @DataProvider(name = "testSubscriptionMetrics")
     public Object[][] topicAndSubscription() {
         return new Object[][]{
-                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true, true},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
-                        + UUID.randomUUID(), "my-sub2", true, true},
-                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false, true},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
-                        + UUID.randomUUID(), "my-sub4", false, true},
-
-                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub1", true, false},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
-                        + UUID.randomUUID(), "my-sub2", true, false},
-                {"persistent://my-property/my-ns/testSubscriptionStats-" + UUID.randomUUID(), "my-sub3", false, false},
-                {"non-persistent://my-property/my-ns/testSubscriptionStats-"
-                        + UUID.randomUUID(), "my-sub4", false, false},
+                {true, true},
+                {true, true},
+                {false, true},
+                {false, true},
+                {true, false},
+                {true, false},
+                {false, false},
+                {false, false},
         };
     }
 
     @Test
     public void testSubscriptionStatsDispatchThrottled() throws Exception {
 
-        final String topic = "persistent://my-property/my-ns/testSubscriptionStatsDispatchThrottled-"
-                + UUID.randomUUID();
+        final String topic = newTopicName();
         final String subName = "my-sub";
 
         // Create topic and set subscription level dispatch rate
@@ -190,6 +164,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(stats.getDispatchThrottledMsgEventsByBrokerLimit(), 0);
         Assert.assertEquals(stats.getDispatchThrottledBytesEventsByBrokerLimit(), 0);
 
+        PulsarService pulsar = getPulsarService();
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsTestUtil.generate(pulsar, true, false, false, output);
         String metricsStr = output.toString();
@@ -225,8 +200,10 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "testSubscriptionMetrics")
-    public void testSubscriptionStats(final String topic, final String subName, boolean enableTopicStats,
-                                      boolean setFilter) throws Exception {
+    public void testSubscriptionStats(boolean enableTopicStats, boolean setFilter) throws Exception {
+        final String topic = newTopicName();
+        final String subName = "my-sub-" + UUID.randomUUID().toString().substring(0, 8);
+
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
@@ -240,6 +217,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
                 .subscriptionName(subName)
                 .subscribe();
 
+        PulsarService pulsar = getPulsarService();
         boolean isPersistent = pulsar.getBrokerService().getTopic(topic, false).get().get().isPersistent();
         Dispatcher dispatcher = pulsar.getBrokerService().getTopic(topic, false).get()
                 .get().getSubscription(subName).getDispatcher();

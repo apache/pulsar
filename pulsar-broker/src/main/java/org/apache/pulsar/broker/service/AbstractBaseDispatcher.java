@@ -122,6 +122,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
      * @see AbstractBaseDispatcher#filterEntriesForConsumer(List, EntryBatchSizes, SendMessageInfo,
      *   EntryBatchIndexesAcks, ManagedCursor, boolean, Consumer)
      */
+    @SuppressWarnings("deprecation")
     public int filterEntriesForConsumer(@Nullable MessageMetadata[] metadataArray, int startOffset,
                                         List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                         SendMessageInfo sendMessageInfo,

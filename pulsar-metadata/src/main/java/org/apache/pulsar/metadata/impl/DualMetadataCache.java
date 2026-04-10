@@ -38,14 +38,14 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
     private final TypeReference<T> typeRef;
     private final String cacheName;
     private final MetadataSerde<T> serde;
-    private final MetadataCacheConfig cacheConfig;
+    private final MetadataCacheConfig<?> cacheConfig;
 
     @Getter
     private final AtomicReference<MetadataCache<T>> metadataCache = new AtomicReference<>();
 
     public DualMetadataCache(DualMetadataStore dualMetadataStore, Class<T> clazz, TypeReference<T> typeRef,
                              String cacheName, MetadataSerde<T> serde,
-                             MetadataCacheConfig cacheConfig) {
+                             MetadataCacheConfig<?> cacheConfig) {
         this.dualMetadataStore = dualMetadataStore;
         this.clazz = clazz;
         this.typeRef = typeRef;

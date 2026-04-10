@@ -1132,6 +1132,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private static final byte[] emptyArray = new byte[0];
 
     @Override
+    @SuppressWarnings("deprecation")
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Start);
 
@@ -1875,6 +1876,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              ProducerAccessMode producerAccessMode,
                              Optional<Long> topicEpoch, boolean supportsPartialProducer,
                              CompletableFuture<Producer> producerFuture){
+        if (producerFuture.isCompletedExceptionally()) {
+            log.info("[{}] Skipped producer creation after timeout on client side. producerId={}, producerName={}",
+                    remoteAddress, producerId, producerName);
+            producers.remove(producerId, producerFuture);
+            return;
+        }
+
         CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
         Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,

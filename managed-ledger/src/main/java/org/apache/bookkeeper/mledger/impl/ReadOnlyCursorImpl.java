@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.Range;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Position;
@@ -28,7 +28,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 
-@Slf4j
+@CustomLog
 public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCursor {
 
     public ReadOnlyCursorImpl(BookKeeper bookkeeper, ManagedLedgerImpl ledger,
@@ -53,7 +53,10 @@ public class ReadOnlyCursorImpl extends ManagedCursorImpl implements ReadOnlyCur
 
     @Override
     public void skipEntries(int numEntriesToSkip) {
-        log.info("[{}] Skipping {} entries on read-only cursor {}", ledger.getName(), numEntriesToSkip, getName());
+        log.info().attr("ledgerName", ledger.getName())
+                .attr("numEntriesToSkip", numEntriesToSkip)
+                .attr("cursorName", getName())
+                .log("Skipping entries on read-only cursor");
         Position updatedReadPosition = READ_POSITION_UPDATER.updateAndGet(this, lastRead ->
                 ledger.getPositionAfterN(lastRead, numEntriesToSkip, PositionBound.startIncluded).getNext());
         ledger.onCursorReadPositionUpdated(this, updatedReadPosition);

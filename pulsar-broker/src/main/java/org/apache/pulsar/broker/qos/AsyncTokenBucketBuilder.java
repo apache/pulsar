@@ -27,6 +27,7 @@ public abstract class AsyncTokenBucketBuilder<SELF extends AsyncTokenBucketBuild
     protected AsyncTokenBucketBuilder() {
     }
 
+    @SuppressWarnings("unchecked")
     protected SELF self() {
         return (SELF) this;
     }

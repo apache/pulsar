@@ -47,6 +47,7 @@ import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 class ClientCredentialsFlow extends FlowBase {
     public static final String CONFIG_PARAM_ISSUER_URL = "issuerUrl";
     public static final String CONFIG_PARAM_AUDIENCE = "audience";
+    // Maps to the keyFileUrl
     public static final String CONFIG_PARAM_KEY_FILE = "privateKey";
     public static final String CONFIG_PARAM_SCOPE = "scope";
 
@@ -69,6 +70,7 @@ class ClientCredentialsFlow extends FlowBase {
         this.privateKey = privateKey;
         this.scope = scope;
     }
+
 
     /**
      * Constructs a {@link ClientCredentialsFlow} from configuration parameters.

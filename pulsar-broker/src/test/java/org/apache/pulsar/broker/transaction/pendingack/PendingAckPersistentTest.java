@@ -305,6 +305,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 (PendingAckHandleImpl) field.get(topic.getSubscription(subName));
         field = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture =
                 (CompletableFuture<PendingAckStore>) field.get(pendingAckHandle);
         pendingAckStoreCompletableFuture.get();
@@ -504,6 +505,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 (PendingAckHandleImpl) field.get(topic.getSubscription(subName));
         field = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         CompletableFuture<PendingAckStore> pendingAckStoreCompletableFuture =
                 (CompletableFuture<PendingAckStore>) field.get(pendingAckHandle);
         pendingAckStoreCompletableFuture.get();
@@ -621,7 +623,10 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
         Field field1 = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
         field1.setAccessible(true);
-        PendingAckStore pendingAckStore = ((CompletableFuture<PendingAckStore>) field1.get(pendingAckHandle)).get();
+        @SuppressWarnings("unchecked")
+        CompletableFuture<PendingAckStore> storeFuture =
+                (CompletableFuture<PendingAckStore>) field1.get(pendingAckHandle);
+        PendingAckStore pendingAckStore = storeFuture.get();
 
         Field field3 = MLPendingAckStore.class.getDeclaredField("pendingAckLogIndex");
         Field field4 = MLPendingAckStore.class.getDeclaredField("maxIndexLag");
@@ -629,6 +634,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         field3.setAccessible(true);
         field4.setAccessible(true);
 
+        @SuppressWarnings("unchecked")
         ConcurrentSkipListMap<Position, Position> pendingAckLogIndex =
                 (ConcurrentSkipListMap<Position, Position>) field3.get(pendingAckStore);
         long maxIndexLag = (long) field4.get(pendingAckStore);
@@ -771,6 +777,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         PendingAckHandleImpl oldPendingAckHandle = (PendingAckHandleImpl) field1.get(persistentSubscription);
         Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
         field2.setAccessible(true);
+        @SuppressWarnings("unchecked")
         LinkedMap<TxnID, HashMap<Position, Position>> oldIndividualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<Position, Position>>) field2.get(oldPendingAckHandle);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(oldIndividualAckOfTransaction.size(), 0));
@@ -785,6 +792,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         field3.setAccessible(true);
 
         Awaitility.await().until(() -> {
+            @SuppressWarnings("unchecked")
             CompletableFuture<PendingAckStore> completableFuture =
                     (CompletableFuture<PendingAckStore>) field3.get(pendingAckHandle);
             completableFuture.get();
@@ -792,6 +800,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         });
 
 
+        @SuppressWarnings("unchecked")
         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<Position, Position>>) field2.get(pendingAckHandle);
 

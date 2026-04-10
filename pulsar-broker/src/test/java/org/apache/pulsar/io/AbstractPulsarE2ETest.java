@@ -30,6 +30,7 @@ import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Collections;
@@ -107,6 +108,7 @@ public abstract class AbstractPulsarE2ETest {
     public Object[][] validRoleName() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     public void setup(Method method) throws Exception {
@@ -274,8 +276,10 @@ public abstract class AbstractPulsarE2ETest {
             }
         }
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
-    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) throws IOException {
+    private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config)
+            throws IOException, URISyntaxException {
 
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
@@ -312,9 +316,25 @@ public abstract class AbstractPulsarE2ETest {
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
-        List<String> urlPatterns =
-                List.of(getPulsarApiExamplesJar().getParentFile().toURI() + ".*", "http://127\\.0\\.0\\.1:.*",
-                        tempDirectory.getTempDirectory().toURI() + ".*");
+        // Allow test class directories, examples JAR/NAR directories, and IO NAR directories
+        // as valid function/connector package URLs
+        String testClassesUri = AbstractPulsarE2ETest.class.getProtectionDomain()
+                .getCodeSource().getLocation().toURI().toString();
+        List<String> urlPatterns = new java.util.ArrayList<>(List.of(
+                getPulsarApiExamplesJar().getParentFile().toURI() + ".*",
+                "http://127\\.0\\.0\\.1:.*",
+                tempDirectory.getTempDirectory().toURI() + ".*",
+                testClassesUri + ".*"));
+        // Also allow NAR file directories (may differ from JAR directory in Gradle builds)
+        if (getPulsarApiExamplesNar().getParentFile() != null) {
+            urlPatterns.add(getPulsarApiExamplesNar().getParentFile().toURI() + ".*");
+        }
+        if (getPulsarIODataGeneratorNar().getParentFile() != null) {
+            urlPatterns.add(getPulsarIODataGeneratorNar().getParentFile().toURI() + ".*");
+        }
+        if (getPulsarIOBatchDataGeneratorNar().getParentFile() != null) {
+            urlPatterns.add(getPulsarIOBatchDataGeneratorNar().getParentFile().toURI() + ".*");
+        }
         workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
         workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
 

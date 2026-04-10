@@ -94,6 +94,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
         setupClient();
     }
+    @SuppressWarnings("deprecation")
 
     protected void setupClient() throws Exception {
 

@@ -33,6 +33,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 
+@SuppressWarnings("deprecation")
 public class NonPersistentTopicsImpl extends BaseResource implements NonPersistentTopics {
 
     private final WebTarget adminV2NonPersistentTopics;

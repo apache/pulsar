@@ -84,6 +84,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -135,13 +136,12 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = StandardCharsets.UTF_8;
@@ -834,7 +834,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = ledger.openCursor("c1");
 
         for (int i = 0; i < 100; i++) {
-            ledger.addEntry(new byte[(int) (1024)]);
+            ledger.addEntry(new byte[1024]);
         }
 
         // Since https://github.com/apache/pulsar/pull/23931 improved the performance of delivery, the consumer
@@ -955,7 +955,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             cursor.resetCursor(resetPosition);
             moveStatus.set(true);
         } catch (Exception e) {
-            log.warn("error in reset cursor", e.getCause());
+            log.warn().exception(e.getCause()).log("error in reset cursor");
         }
 
         assertTrue(moveStatus.get());
@@ -988,7 +988,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             cursor.resetCursor(earliest);
             moveStatus.set(true);
         } catch (Exception e) {
-            log.warn("error in reset cursor", e.getCause());
+            log.warn().exception(e.getCause()).log("error in reset cursor");
         }
         assertTrue(moveStatus.get());
         Position earliestPos = PositionFactory.create(actualEarliest.getLedgerId(), -1);
@@ -1001,7 +1001,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             cursor.resetCursor(resetPosition);
             moveStatus.set(true);
         } catch (Exception e) {
-            log.warn("error in reset cursor", e.getCause());
+            log.warn().exception(e.getCause()).log("error in reset cursor");
         }
         assertTrue(moveStatus.get());
         assertEquals(firstInNext, cursor.getReadPosition());
@@ -1013,7 +1013,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             cursor.resetCursor(latest);
             moveStatus.set(true);
         } catch (Exception e) {
-            log.warn("error in reset cursor", e.getCause());
+            log.warn().exception(e.getCause()).log("error in reset cursor");
         }
         assertTrue(moveStatus.get());
         Position lastPos = PositionFactory.create(last.getLedgerId() + 1, 0);
@@ -1028,7 +1028,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             cursor.resetCursor(anotherLast);
             moveStatus.set(true);
         } catch (Exception e) {
-            log.warn("error in reset cursor", e.getCause());
+            log.warn().exception(e.getCause()).log("error in reset cursor");
         }
         assertTrue(moveStatus.get());
         assertEquals(lastPos, cursor.getReadPosition());
@@ -1077,7 +1077,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int messages = 100;
         final int consumers = 5;
 
-        List<Future<AtomicBoolean>> futures = new ArrayList();
+        List<Future<AtomicBoolean>> futures = new ArrayList<>();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(consumers + 1);
@@ -1106,7 +1106,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         public void resetComplete(Object ctx) {
                             moveStatus.set(true);
                             Position pos = (Position) ctx;
-                            log.info("move to [{}] completed for consumer [{}]", pos.toString(), idx);
+                            log.info().attr("position", pos.toString()).attr("consumer", idx).log("move completed");
                             countDownLatch.countDown();
                         }
 
@@ -1114,7 +1114,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         public void resetFailed(ManagedLedgerException exception, Object ctx) {
                             moveStatus.set(false);
                             Position pos = (Position) ctx;
-                            log.warn("move to [{}] failed for consumer [{}]", pos.toString(), idx);
+                            log.warn().attr("position", pos.toString()).attr("consumer", idx).log("move failed");
                             countDownLatch.countDown();
                         }
                     });
@@ -1264,10 +1264,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Position p3 = ledger.addEntry("dummy-entry-3".getBytes(Encoding));
         Position p4 = ledger.addEntry("dummy-entry-4".getBytes(Encoding));
 
-        log.debug("p1: {}", p1);
-        log.debug("p2: {}", p2);
-        log.debug("p3: {}", p3);
-        log.debug("p4: {}", p4);
+        log.debug().attr("p1", p1).log("position p1");
+        log.debug().attr("p2", p2).log("position p2");
+        log.debug().attr("p3", p3).log("position p3");
+        log.debug().attr("p4", p4).log("position p4");
 
         assertEquals(c1.getNumberOfEntries(), 4);
         assertEquals(c1.getNumberOfEntriesInBacklog(false), 4);
@@ -1621,7 +1621,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger = factory2.open("async_mark_delete_blocking_test_ledger");
         ManagedCursor c2 = ledger.openCursor("c1");
 
-        log.info("positions size: {}, positions: {}", positions.size(), positions);
+        log.info().attr("size", positions.size()).attr("positions", positions).log("positions info");
         // To make sure ManagedLedgerImpl.maybeUpdateCursorBeforeTrimmingConsumedLedger() is completed, we should
         // wait until c2.getMarkDeletedPosition() equals 15:-1, see PR https://github.com/apache/pulsar/pull/25087.
         Awaitility.await()
@@ -1703,7 +1703,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
                 @Override
                 public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Failed to markdelete", exception);
+                    log.error().exception(exception).log("Failed to markdelete");
                     latch.countDown();
                 }
             }, null);
@@ -2005,7 +2005,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getNumberOfEntries(), 3);
         assertEquals(cursor.getNumberOfEntriesInBacklog(false), 6);
 
-        log.info("Deleting {}", p5);
+        log.info().attr("position", p5).log("Deleting position");
         cursor.delete(p5);
 
         assertEquals(cursor.getNumberOfEntries(), 2);
@@ -2356,7 +2356,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
                 @Override
                 public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Error reading", exception);
+                    log.error().exception(exception).log("Error reading");
                 }
             }, null, PositionFactory.LATEST);
         }
@@ -2372,7 +2372,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final int messages = 100;
         final int consumers = 10;
 
-        List<Future<Void>> futures = new ArrayList();
+        List<Future<Void>> futures = new ArrayList<>();
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final CyclicBarrier barrier = new CyclicBarrier(consumers + 1);
@@ -3019,7 +3019,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 long publishTime = Long.parseLong(new String(entry.getData()));
                 return publishTime <= timestamp;
             } catch (Exception e) {
-                log.error("Error de-serializing message for message position find", e);
+                log.error().exception(e).log("Error de-serializing message for message position find");
             } finally {
                 entry.release();
             }
@@ -3115,7 +3115,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry("entry4".getBytes(Encoding));
 
         // 1. Replay empty position set should return empty entry set
-        Set<Position> positions = new HashSet();
+        Set<Position> positions = new HashSet<>();
         assertTrue(c1.replayEntries(positions).isEmpty());
 
         positions.add(p1);
@@ -3868,10 +3868,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         long actualBacklogSize = cursor.getEstimatedSizeSinceMarkDeletePosition();
         Position markDeletePos = cursor.getMarkDeletedPosition();
 
-        log.info("Backlog size after individual acks:");
-        log.info("  Expected: {}. Actual: {}", expectedBacklogSize, actualBacklogSize);
-        log.info("  Mark delete position: {}", markDeletePos);
-        log.info("  Individual deleted: {}", ((ManagedCursorImpl) cursor).getIndividuallyDeletedMessagesSet());
+        log.info("Backlog size after individual acks");
+        log.info().attr("expected", expectedBacklogSize).attr("actual", actualBacklogSize)
+                .log("Backlog size comparison");
+        log.info().attr("markDeletePosition", markDeletePos).log("Mark delete position");
+        log.info().attr("individualDeleted",
+                ((ManagedCursorImpl) cursor).getIndividuallyDeletedMessagesSet())
+                .log("Individual deleted messages");
 
         // After fix: backlog size should now correctly account for individual deletions
         assertEquals(actualBacklogSize, expectedBacklogSize,
@@ -3901,12 +3904,13 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         .setMarkDeleteLedgerId(markDeleteLedgerId).setMarkDeleteEntryId(markDeleteEntryId)
                         .setLastActive(0L);
                 Stat stat = mock(Stat.class);
+                @SuppressWarnings("unchecked")
                 MetaStoreCallback<ManagedCursorInfo> callback = (MetaStoreCallback<ManagedCursorInfo>) invocation
                         .getArguments()[2];
                 callback.operationComplete(info, stat);
                 return null;
             }
-        }).when(mockMetaStore).asyncGetCursorInfo(eq(mlName), eq(cursorName), any(MetaStoreCallback.class));
+        }).when(mockMetaStore).asyncGetCursorInfo(eq(mlName), eq(cursorName), any());
 
         ManagedLedgerImpl ml = mock(ManagedLedgerImpl.class);
         when(ml.getName()).thenReturn(mlName);
@@ -4666,8 +4670,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Field field = ManagedLedgerImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
 
-        ((ConcurrentSkipListMap<Long, ManagedLedgerInfo.LedgerInfo>) field.get(ledger))
-                .remove(position.getLedgerId());
+        @SuppressWarnings("unchecked")
+        ConcurrentSkipListMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers =
+                (ConcurrentSkipListMap<Long, ManagedLedgerInfo.LedgerInfo>) field.get(ledger);
+        ledgers.remove(position.getLedgerId());
         field = ManagedCursorImpl.class.getDeclaredField("markDeletePosition");
         field.setAccessible(true);
         field.set(managedCursor, PositionFactory.create(position1.getLedgerId(), -1));
@@ -5805,7 +5811,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
                         @Override
                         public Iterator<org.apache.bookkeeper.client.api.LedgerEntry> iterator() {
-                            return EmptyIterator.INSTANCE;
+                            return EmptyIterator.emptyIterator();
                         }
 
                         @Override
@@ -5867,7 +5873,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         long firstLedgerId = positions.get(0).getLedgerId();
         long secondLedgerId = positions.get(10).getLedgerId();
-        log.info("First ledger id is {}, Second ledger id is {}", firstLedgerId, secondLedgerId);
+        log.info().attr("firstLedgerId", firstLedgerId).attr("secondLedgerId", secondLedgerId).log("Ledger IDs");
 
         ManagedLedgerImpl spyLedger = spy(ledgerImpl);
 
@@ -5888,7 +5894,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
             @Override
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("Read failed", exception);
+                log.error().exception(exception).log("Read failed");
                 readLatch.countDown();
             }
         };
@@ -6026,9 +6032,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(properties.get(propertyKey), lastIndex - 1);
     }
 
+    @SuppressWarnings("try")
     class TestPulsarMockBookKeeper extends PulsarMockBookKeeper {
         Map<Long, Integer> ledgerErrors = new HashMap<>();
 
+        @SuppressWarnings("try")
         public TestPulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
             super(orderedExecutor);
         }
@@ -6056,5 +6064,4 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }

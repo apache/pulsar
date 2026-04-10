@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
 @Path("/")
 @Api(value = "/proxy-stats", description = "Stats for proxy", tags = "proxy-stats", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
+@SuppressWarnings("deprecation")
 public class ProxyStats {
 
     private static final Logger log = LoggerFactory.getLogger(ProxyStats.class);

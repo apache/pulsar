@@ -65,6 +65,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
     public Object[][] forceMinRackNumProvider() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
+    @SuppressWarnings("deprecation")
 
     @Override
     protected void configurePulsar(ServiceConfiguration config) throws Exception {
@@ -96,15 +97,16 @@ public class RackAwareTest extends BkEnsemblesTestBase {
     @Override
     @AfterMethod(alwaysRun = true)
     protected void cleanup() throws Exception {
-        super.cleanup();
-
         for (ServerTester t : servers) {
             t.shutdown();
         }
         servers.clear();
+
+        super.cleanup();
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testPlacement() throws Exception {
         final String group = "default";
         for (int i = 0; i < NUM_BOOKIES; i++) {
@@ -148,6 +150,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
     }
 
     @Test(dataProvider = "forceMinRackNumProvider")
+    @SuppressWarnings("unchecked")
     public void testPlacementMinRackNumsPerWriteQuorum(boolean forceMinRackNums) throws Exception {
         cleanup();
         config = new ServiceConfiguration();
@@ -201,6 +204,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public void testRackUpdate() throws Exception {
         // 1. reset configurations for rack-aware
         cleanup();

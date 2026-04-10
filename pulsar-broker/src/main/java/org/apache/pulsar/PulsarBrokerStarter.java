@@ -328,6 +328,7 @@ public class PulsarBrokerStarter {
     }
 
 
+    @SuppressWarnings("deprecation")
     public static void main(String[] args) throws Exception {
         DateFormat dateFormat = new SimpleDateFormat(
             FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());

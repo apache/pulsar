@@ -183,6 +183,7 @@ public class WebSocketService implements Closeable {
         this.localCluster = clusterData;
     }
 
+    @SuppressWarnings("deprecation")
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
                 .memoryLimit(SizeUnit.MEGA_BYTES.toBytes(config.getWebSocketPulsarClientMemoryLimitInMB()),

@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 public class ProtobufReader<T extends Message> implements SchemaReader<T> {
     private Parser<T> tParser;
 
+    @SuppressWarnings("unchecked")
     public ProtobufReader(T protoMessageInstance) {
         tParser = (Parser<T>) (protoMessageInstance).getParserForType();
     }

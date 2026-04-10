@@ -173,6 +173,21 @@ public class PerformanceTransaction extends PerformanceBaseArguments{
     public void run() throws Exception {
         super.parseCLI();
 
+        // Reset static counters to avoid stale state from previous runs in the same JVM
+        totalNumEndTxnOpFailed.reset();
+        totalNumEndTxnOpSuccess.reset();
+        numTxnOpSuccess.reset();
+        totalNumTxnOpenTxnFail.reset();
+        totalNumTxnOpenTxnSuccess.reset();
+        numMessagesAckFailed.reset();
+        numMessagesAckSuccess.reset();
+        numMessagesSendFailed.reset();
+        numMessagesSendSuccess.reset();
+        messageAckRecorder.reset();
+        messageAckCumulativeRecorder.reset();
+        messageSendRecorder.reset();
+        messageSendRCumulativeRecorder.reset();
+
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();

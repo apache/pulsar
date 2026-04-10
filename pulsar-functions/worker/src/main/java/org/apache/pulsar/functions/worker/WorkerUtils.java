@@ -33,7 +33,6 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
@@ -60,7 +59,7 @@ import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.MetricsData;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -176,6 +175,7 @@ public final class WorkerUtils {
         return URI.create(String.format("distributedlog://%s/pulsar/functions", zookeeperServers));
     }
 
+    @SuppressWarnings("deprecation")
     public static URI initializeDlogNamespace(InternalConfigurationData internalConf) throws IOException {
         final String ledgersRootPath;
         final String ledgersStoreServers;
@@ -274,6 +274,7 @@ public final class WorkerUtils {
                 allowTlsInsecureConnection, enableTlsHostnameVerificationEnable, null);
     }
 
+    @SuppressWarnings("deprecation")
     public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,
                                                Boolean useTls, String tlsTrustCertsFilePath,
                                                Boolean allowTlsInsecureConnection,
@@ -326,7 +327,7 @@ public final class WorkerUtils {
             if (functionRuntime != null) {
                 try {
 
-                    InstanceCommunication.MetricsData metricsData = functionRuntime.getMetrics(instanceId).get();
+                    MetricsData metricsData = functionRuntime.getMetrics(instanceId).get();
                     functionInstanceStats.setInstanceId(instanceId);
 
                     FunctionInstanceStatsDataImpl functionInstanceStatsData = new FunctionInstanceStatsDataImpl();
@@ -341,20 +342,23 @@ public final class WorkerUtils {
                     functionInstanceStatsData.setLastInvocation(
                             metricsData.getLastInvocation() == 0 ? null : metricsData.getLastInvocation());
 
-                    functionInstanceStatsData.oneMin.setReceivedTotal(metricsData.getReceivedTotal1Min());
+                    functionInstanceStatsData.oneMin.setReceivedTotal(metricsData.getReceivedtotal1min());
                     functionInstanceStatsData.oneMin
-                            .setProcessedSuccessfullyTotal(metricsData.getProcessedSuccessfullyTotal1Min());
+                            .setProcessedSuccessfullyTotal(metricsData.getProcessedsuccessfullytotal1min());
                     functionInstanceStatsData.oneMin
-                            .setSystemExceptionsTotal(metricsData.getSystemExceptionsTotal1Min());
-                    functionInstanceStatsData.oneMin.setUserExceptionsTotal(metricsData.getUserExceptionsTotal1Min());
+                            .setSystemExceptionsTotal(metricsData.getSystemexceptionstotal1min());
+                    functionInstanceStatsData.oneMin.setUserExceptionsTotal(metricsData.getUserexceptionstotal1min());
                     functionInstanceStatsData.oneMin.setAvgProcessLatency(
-                            metricsData.getAvgProcessLatency1Min() == 0.0 ? null :
-                                    metricsData.getAvgProcessLatency1Min());
+                            metricsData.getAvgprocesslatency1min() == 0.0 ? null :
+                                    metricsData.getAvgprocesslatency1min());
 
                     // Filter out values that are NaN
-                    Map<String, Double> statsDataMap = metricsData.getUserMetricsMap().entrySet().stream()
-                            .filter(stringDoubleEntry -> !stringDoubleEntry.getValue().isNaN())
-                            .collect(Collectors.toMap(x -> x.getKey(), x -> x.getValue()));
+                    Map<String, Double> statsDataMap = new java.util.HashMap<>();
+                    metricsData.forEachUserMetrics((key, value) -> {
+                        if (!value.isNaN()) {
+                            statsDataMap.put(key, value);
+                        }
+                    });
 
                     functionInstanceStatsData.setUserMetrics(statsDataMap);
 
@@ -378,7 +382,7 @@ public final class WorkerUtils {
         }
     }
 
-    public static Reader<byte[]> createReader(ReaderBuilder readerBuilder,
+    public static Reader<byte[]> createReader(ReaderBuilder<byte[]> readerBuilder,
                                               String readerName,
                                               String topic,
                                               MessageId startMessageId) throws PulsarClientException {
@@ -428,7 +432,7 @@ public final class WorkerUtils {
     }
 
     public static class NotLeaderAnymore extends Exception {
-
+        private static final long serialVersionUID = 1L;
     }
 
     public static Supplier<Boolean> getIsStillLeaderSupplier(final MembershipManager membershipManager,

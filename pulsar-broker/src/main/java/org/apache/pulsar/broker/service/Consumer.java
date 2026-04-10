@@ -27,8 +27,6 @@ import com.google.common.util.concurrent.AtomicDouble;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
-import it.unimi.dsi.fastutil.ints.IntIntPair;
-import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -73,6 +71,8 @@ import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.common.util.collections.IntIntPair;
+import org.apache.pulsar.common.util.collections.ObjectIntPair;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.slf4j.Logger;
@@ -960,6 +960,7 @@ public class Consumer {
         stats.chunkedMessageRate = chunkedMessageRate.getRate();
     }
 
+    @SuppressWarnings("deprecation")
     public void updateStats(ConsumerStatsImpl consumerStats) {
         msgOutCounter.add(consumerStats.msgOutCounter);
         bytesOutCounter.add(consumerStats.bytesOutCounter);
@@ -977,6 +978,7 @@ public class Consumer {
         avgMessagesPerEntry.set(consumerStats.avgMessagesPerEntry);
     }
 
+    @SuppressWarnings("deprecation")
     public ConsumerStatsImpl getStats() {
         stats.msgOutCounter = msgOutCounter.longValue();
         stats.bytesOutCounter = bytesOutCounter.longValue();

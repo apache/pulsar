@@ -168,6 +168,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Optional<Object> getNativeSchema() {
             if (reader instanceof AbstractMultiVersionReader) {
                 AbstractMultiVersionReader abstractMultiVersionReader = (AbstractMultiVersionReader) reader;

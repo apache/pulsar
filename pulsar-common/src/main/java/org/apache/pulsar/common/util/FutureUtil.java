@@ -57,7 +57,7 @@ public class FutureUtil {
         if (futures == null || futures.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]));
     }
 
     public static CompletableFuture<Void> runWithCurrentThread(Runnable runnable) {
@@ -110,7 +110,7 @@ public class FutureUtil {
      * @return a new CompletableFuture that is completed when any of the given CompletableFutures complete
      */
     public static CompletableFuture<Object> waitForAny(Collection<? extends CompletableFuture<?>> futures) {
-        return CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
+        return CompletableFuture.anyOf(futures.toArray(new CompletableFuture<?>[0]));
     }
 
     /**
@@ -166,10 +166,10 @@ public class FutureUtil {
      */
     public static CompletableFuture<Void> waitForAllAndSupportCancel(
             Collection<? extends CompletableFuture<?>> futures) {
-        CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[0]);
+        CompletableFuture<?>[] futuresArray = futures.toArray(new CompletableFuture<?>[0]);
         CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(futuresArray);
         whenCancelledOrTimedOut(combinedFuture, () -> {
-            for (CompletableFuture completableFuture : futuresArray) {
+            for (CompletableFuture<?> completableFuture : futuresArray) {
                 if (!completableFuture.isDone()) {
                     completableFuture.cancel(false);
                 }
@@ -381,7 +381,7 @@ public class FutureUtil {
 
     public static void safeRunAsync(Runnable runnable,
                                     Executor executor,
-                                    CompletableFuture completableFuture) {
+                                    CompletableFuture<?> completableFuture) {
         CompletableFuture
                 .runAsync(runnable, executor)
                 .exceptionally((throwable) -> {

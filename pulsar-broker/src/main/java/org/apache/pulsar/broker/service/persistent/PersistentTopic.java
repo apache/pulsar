@@ -243,6 +243,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private final Object dispatchRateLimiterLock = new Object();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
+    private final Object subscribeRateLimiterLock = new Object();
     @Getter
     private final long backloggedCursorThresholdEntries;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
@@ -674,7 +675,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public void updateSubscribeRateLimiter() {
         SubscribeRate subscribeRate = getSubscribeRate();
-        synchronized (subscribeRateLimiter) {
+        synchronized (subscribeRateLimiterLock) {
             if (isSubscribeRateEnabled(subscribeRate)) {
                 if (subscribeRateLimiter.isPresent()) {
                     this.subscribeRateLimiter.get().onSubscribeRateUpdate(subscribeRate);
@@ -926,6 +927,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 option.getConsumerEpoch(), option.getSchemaType());
     }
 
+    @SuppressWarnings("deprecation")
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
                                                           long consumerId, SubType subType, int priorityLevel,
                                                           String consumerName, boolean isDurable,
@@ -1103,6 +1105,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public CompletableFuture<Consumer> subscribe(final TransportCnx cnx, String subscriptionName, long consumerId,
                                                  SubType subType, int priorityLevel, String consumerName,
@@ -1543,7 +1546,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
             // Mark the progress of close to prevent close calling concurrently.
             this.closeFutures =
-                    new CloseFutures(new CompletableFuture(), new CompletableFuture(), new CompletableFuture());
+                    new CloseFutures(new CompletableFuture<>(), new CompletableFuture<>(), new CompletableFuture<>());
 
             AtomicBoolean alreadyUnFenced = new AtomicBoolean();
             CompletableFuture<Void> res = getBrokerService().getPulsar().getPulsarResources().getNamespaceResources()
@@ -1725,10 +1728,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             fenceTopicToCloseOrDelete();
             if (closeType == CloseTypes.transferring) {
                 transferring = true;
-                this.closeFutures = new CloseFutures(new CompletableFuture(), null, null);
+                this.closeFutures = new CloseFutures(new CompletableFuture<>(), null, null);
             } else {
-                this.closeFutures =
-                        new CloseFutures(new CompletableFuture(), new CompletableFuture(), new CompletableFuture());
+                this.closeFutures = new CloseFutures(
+                        new CompletableFuture<>(), new CompletableFuture<>(), new CompletableFuture<>());
             }
         } finally {
             lock.writeLock().unlock();
@@ -2803,6 +2806,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public CompletableFuture<TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                                                            boolean getEarliestTimeInBacklog) {
@@ -4298,6 +4302,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
     }
 
+    @SuppressWarnings("unchecked")
     public synchronized void triggerCompaction()
             throws PulsarServerException, AlreadyRunningException {
         if (currentCompaction.isDone()) {
@@ -4833,7 +4838,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return persistentTopicAttributes;
         }
         return PERSISTENT_TOPIC_ATTRIBUTES_FIELD_UPDATER.updateAndGet(this,
-                old -> old != null ? old : new PersistentTopicAttributes(TopicName.get(topic)));
+                old -> old != null ? old : new PersistentTopicAttributes(TopicName.get(topic), brokerService.pulsar()));
     }
 
     /**

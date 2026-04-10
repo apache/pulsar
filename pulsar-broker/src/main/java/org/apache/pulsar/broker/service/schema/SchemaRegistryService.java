@@ -49,8 +49,19 @@ public interface SchemaRegistryService extends SchemaRegistry {
             try {
                 Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
+
+                // PIP-464: propagate schemaJsonAllowLegacyJacksonFormat to JsonSchemaCompatibilityCheck
+                boolean allowLegacyJacksonFormat =
+                        pulsarService.getConfiguration().isSchemaJsonAllowLegacyJacksonFormat();
+                SchemaCompatibilityCheck jsonCheck = checkers.get(SchemaType.JSON);
+                if (jsonCheck instanceof JsonSchemaCompatibilityCheck) {
+                    ((JsonSchemaCompatibilityCheck) jsonCheck)
+                            .setAllowLegacyJacksonFormat(allowLegacyJacksonFormat);
+                }
+
                 return SchemaRegistryServiceWithSchemaDataValidator.of(
-                        new SchemaRegistryServiceImpl(schemaStorage, checkers, pulsarService));
+                        new SchemaRegistryServiceImpl(schemaStorage, checkers, pulsarService),
+                        allowLegacyJacksonFormat);
             } catch (Exception e) {
                 LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
             }

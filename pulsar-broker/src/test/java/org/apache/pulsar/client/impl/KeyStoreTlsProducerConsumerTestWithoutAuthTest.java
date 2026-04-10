@@ -90,6 +90,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
         conf.setTlsProtocols(tlsProtocols);
         conf.setNumExecutorThreadPoolSize(5);
     }
+    @SuppressWarnings("deprecation")
 
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
         if (pulsarClient != null) {

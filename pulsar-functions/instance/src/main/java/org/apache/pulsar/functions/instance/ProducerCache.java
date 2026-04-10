@@ -76,7 +76,7 @@ public class ProducerCache implements Closeable {
                 .executor(cacheExecutor)
                 .<ProducerCacheKey, Producer<?>>removalListener((key, producer, cause) -> {
                     log.info("Closing producer for topic {}, cause {}", key.topic(), cause);
-                    CompletableFuture closeFuture =
+                    CompletableFuture<Void> closeFuture =
                             producer.flushAsync()
                                     .orTimeout(FLUSH_OR_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                     .exceptionally(ex -> {
@@ -125,7 +125,9 @@ public class ProducerCache implements Closeable {
         if (closed.get()) {
             throw new IllegalStateException("ProducerCache is already closed");
         }
-        return (Producer<T>) cache.get(new ProducerCacheKey(cacheArea, topicName, additionalCacheKey), key -> {
+        @SuppressWarnings("unchecked")
+        Producer<T> producer = (Producer<T>) cache.get(
+                new ProducerCacheKey(cacheArea, topicName, additionalCacheKey), key -> {
             try {
                 return supplier.call();
             } catch (RuntimeException e) {
@@ -134,6 +136,7 @@ public class ProducerCache implements Closeable {
                 throw new RuntimeException("Unable to create producer for topic '" + topicName + "'", e);
             }
         });
+        return producer;
     }
 
     public void close() {

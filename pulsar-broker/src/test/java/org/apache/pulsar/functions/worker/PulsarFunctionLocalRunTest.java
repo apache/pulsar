@@ -198,6 +198,7 @@ public class PulsarFunctionLocalRunTest {
             pulsarApiExamplesClassLoader = null;
         }
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
@@ -344,6 +345,7 @@ public class PulsarFunctionLocalRunTest {
             }
         }
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
 
@@ -387,6 +389,7 @@ public class PulsarFunctionLocalRunTest {
         workerConfig.setAuthorizationEnabled(true);
         return workerConfig;
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,
@@ -619,6 +622,7 @@ public class PulsarFunctionLocalRunTest {
         testE2EPulsarFunctionLocalRun(jarFilePathUrl, 1);
     }
 
+    @SuppressWarnings("unchecked")
     private void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
 
         final String namespacePortion = "io";

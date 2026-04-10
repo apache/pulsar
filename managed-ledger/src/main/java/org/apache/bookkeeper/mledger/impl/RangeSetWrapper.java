@@ -169,6 +169,7 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         ((OpenLongPairRangeSet<T>) rangeSet).add(range);
     }
 
+    @SuppressWarnings("unchecked")
     @VisibleForTesting
     void remove(Range<T> range) {
         if (rangeSet instanceof OpenLongPairRangeSet) {

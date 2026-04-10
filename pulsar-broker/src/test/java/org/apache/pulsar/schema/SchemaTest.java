@@ -720,6 +720,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         testKeyValueSchemaWithStructs(KeyValueEncodingType.SEPARATED);
     }
 
+    @SuppressWarnings("unchecked")
     private void testKeyValueSchemaWithStructs(KeyValueEncodingType keyValueEncodingType) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -829,6 +830,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .subscribe();
         consumer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testDeleteTopicAndSchema() throws Exception {
@@ -1131,6 +1133,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         return ns + "/" + baseTopic;
     }
 
+    @SuppressWarnings("unchecked")
     private void generateDataByDifferentSchema(String ns,
                                                String baseTopic,
                                                Schema schema,
@@ -1172,6 +1175,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
+    @SuppressWarnings("unchecked")
     private void checkSchemaForAutoSchema(Message<GenericRecord> message) {
         if (!message.getReaderSchema().isPresent()) {
             Assert.fail("Failed to get reader schema for auto consume multiple schema topic.");
@@ -1455,6 +1459,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testPendingQueueSizeIfIncompatible() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName(PUBLIC_TENANT + "/ns");
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(CLUSTER_NAME));

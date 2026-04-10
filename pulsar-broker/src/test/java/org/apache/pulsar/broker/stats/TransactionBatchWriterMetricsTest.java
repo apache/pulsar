@@ -287,6 +287,7 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         }
         return list;
     }
+    @SuppressWarnings("deprecation")
 
     protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
         org.apache.pulsar.client.api.ClientBuilder clientBuilder =

@@ -233,6 +233,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @SuppressWarnings("deprecation")
     protected final PulsarClient createPulsarClient(Authentication auth, String lookupUrl) throws Exception {
         closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())

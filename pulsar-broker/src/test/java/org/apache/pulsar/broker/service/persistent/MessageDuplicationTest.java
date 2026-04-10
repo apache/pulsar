@@ -177,6 +177,7 @@ public class MessageDuplicationTest extends BrokerTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInactiveProducerRemove() throws Exception {
         PulsarService pulsarService = mock(PulsarService.class);
         PersistentTopic topic = mock(PersistentTopic.class);

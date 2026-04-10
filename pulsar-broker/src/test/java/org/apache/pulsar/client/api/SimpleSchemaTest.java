@@ -356,6 +356,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProducerConnectStateWhenRegisteringSchema() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName(NAMESPACE_ALWAYS_COMPATIBLE + "/tp");
         final String subscription = "s1";
@@ -367,6 +368,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
             new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+                @SuppressWarnings("unchecked")
                 protected void handleGetOrCreateSchemaResponse(
                         CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
                     responseSignal.join();
@@ -392,6 +394,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testNoMemoryLeakIfSchemaIncompatible() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName(NAMESPACE_NEVER_COMPATIBLE + "/tp");
         final String subscription = "s1";
@@ -403,6 +406,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
         PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
             new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+                @SuppressWarnings("unchecked")
                 protected void handleGetOrCreateSchemaResponse(
                         CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
                     responseSignal.join();
@@ -868,6 +872,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batchingModesAndValueEncodingType")
+    @SuppressWarnings("unchecked")
     public void testAutoKeyValueConsume(boolean batching, KeyValueEncodingType keyValueEncodingType) throws Exception {
         String topic = NAMESPACE + "/schema-test-auto-keyvalue-consume-" + batching + "-" + keyValueEncodingType;
 
@@ -1154,6 +1159,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAutoKeyValueConsumeGenericObject() throws Exception {
         String topic = NAMESPACE + "/schema-test-auto-keyvalue-consume-" + UUID.randomUUID();
 
@@ -1272,6 +1278,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic),
                 ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testGetNativeSchemaWithAutoConsumeWithMultiVersion() throws Exception {
@@ -1424,6 +1431,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "keyEncodingType")
+    @SuppressWarnings("unchecked")
     public void testAutoKeyValueConsumeGenericObjectNullValues(KeyValueEncodingType encodingType) throws Exception {
         String topic = NAMESPACE + "/schema-test-auto-keyvalue-" + encodingType + "-null-value-consume-"
                 + UUID.randomUUID();

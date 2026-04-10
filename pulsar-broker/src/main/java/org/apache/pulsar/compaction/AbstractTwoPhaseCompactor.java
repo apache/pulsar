@@ -87,6 +87,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
       RawMessage m,
       MessageMetadata metadata, MessageId id);
 
+  @SuppressWarnings("unchecked")
   @Override
   protected CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk) {
     return reader.hasMessageAvailableAsync()
@@ -101,6 +102,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
         });
   }
 
+  @SuppressWarnings("unchecked")
   private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
     Map<String, T> latestForKey = new HashMap<>();
     CompletableFuture<PhaseOneResult> loopPromise = new CompletableFuture<>();
@@ -124,6 +126,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     return loopPromise;
   }
 
+  @SuppressWarnings("unchecked")
   private void phaseOneLoop(RawReader reader,
       Optional<MessageId> firstMessageId,
       Optional<MessageId> toMessageId,

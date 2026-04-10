@@ -48,8 +48,10 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.config.validation.ConfigValidation;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.ProducerSpec;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.Source;
 
@@ -66,45 +68,45 @@ public class SourceConfigUtils {
 
     public static FunctionDetails convert(SourceConfig sourceConfig, ExtractedSourceDetails sourceDetails)
             throws IllegalArgumentException {
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
+        FunctionDetails functionDetails = new FunctionDetails();
 
         boolean isBuiltin = !StringUtils.isEmpty(sourceConfig.getArchive()) && sourceConfig.getArchive()
                 .startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         if (sourceConfig.getTenant() != null) {
-            functionDetailsBuilder.setTenant(sourceConfig.getTenant());
+            functionDetails.setTenant(sourceConfig.getTenant());
         }
         if (sourceConfig.getNamespace() != null) {
-            functionDetailsBuilder.setNamespace(sourceConfig.getNamespace());
+            functionDetails.setNamespace(sourceConfig.getNamespace());
         }
         if (sourceConfig.getName() != null) {
-            functionDetailsBuilder.setName(sourceConfig.getName());
+            functionDetails.setName(sourceConfig.getName());
         }
         if (sourceConfig.getLogTopic() != null) {
-            functionDetailsBuilder.setLogTopic(sourceConfig.getLogTopic());
+            functionDetails.setLogTopic(sourceConfig.getLogTopic());
         }
-        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
+        functionDetails.setRuntime(FunctionDetails.Runtime.JAVA);
         if (sourceConfig.getParallelism() != null) {
-            functionDetailsBuilder.setParallelism(sourceConfig.getParallelism());
+            functionDetails.setParallelism(sourceConfig.getParallelism());
         } else {
-            functionDetailsBuilder.setParallelism(1);
+            functionDetails.setParallelism(1);
         }
-        functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
-        functionDetailsBuilder.setAutoAck(true);
+        functionDetails.setClassName(IdentityFunction.class.getName());
+        functionDetails.setAutoAck(true);
         if (sourceConfig.getProcessingGuarantees() != null) {
-            functionDetailsBuilder.setProcessingGuarantees(
+            functionDetails.setProcessingGuarantees(
                     convertProcessingGuarantee(sourceConfig.getProcessingGuarantees()));
         }
 
         // set source spec
-        Function.SourceSpec.Builder sourceSpecBuilder = Function.SourceSpec.newBuilder();
+        SourceSpec sourceSpec = functionDetails.setSource();
         if (sourceDetails.getSourceClassName() != null) {
-            sourceSpecBuilder.setClassName(sourceDetails.getSourceClassName());
+            sourceSpec.setClassName(sourceDetails.getSourceClassName());
         }
 
         if (isBuiltin) {
             String builtin = sourceConfig.getArchive().replaceFirst("^builtin://", "");
-            sourceSpecBuilder.setBuiltin(builtin);
+            sourceSpec.setBuiltin(builtin);
         }
 
         Map<String, Object> configs = new HashMap<>();
@@ -116,75 +118,74 @@ public class SourceConfigUtils {
         if (sourceConfig.getBatchSourceConfig() != null) {
             configs.put(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY,
                     new Gson().toJson(sourceConfig.getBatchSourceConfig()));
-            configs.put(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY, sourceSpecBuilder.getClassName());
-            sourceSpecBuilder.setClassName("org.apache.pulsar.functions.source.batch.BatchSourceExecutor");
+            configs.put(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY, sourceSpec.getClassName());
+            sourceSpec.setClassName("org.apache.pulsar.functions.source.batch.BatchSourceExecutor");
         }
 
-        sourceSpecBuilder.setConfigs(new Gson().toJson(configs));
+        sourceSpec.setConfigs(new Gson().toJson(configs));
 
 
         if (sourceConfig.getSecrets() != null && !sourceConfig.getSecrets().isEmpty()) {
-            functionDetailsBuilder.setSecretsMap(new Gson().toJson(sourceConfig.getSecrets()));
+            functionDetails.setSecretsMap(new Gson().toJson(sourceConfig.getSecrets()));
         }
 
         if (sourceDetails.getTypeArg() != null) {
-            sourceSpecBuilder.setTypeClassName(sourceDetails.getTypeArg());
+            sourceSpec.setTypeClassName(sourceDetails.getTypeArg());
         }
-        functionDetailsBuilder.setSource(sourceSpecBuilder);
 
         // set up sink spec.
         // Sink spec classname should be empty so that the default pulsar sink will be used
-        Function.SinkSpec.Builder sinkSpecBuilder = Function.SinkSpec.newBuilder();
+        SinkSpec sinkSpec = functionDetails.setSink();
         if (!org.apache.commons.lang3.StringUtils.isEmpty(sourceConfig.getSchemaType())) {
-            sinkSpecBuilder.setSchemaType(sourceConfig.getSchemaType());
+            sinkSpec.setSchemaType(sourceConfig.getSchemaType());
         }
         if (!org.apache.commons.lang3.StringUtils.isEmpty(sourceConfig.getSerdeClassName())) {
-            sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
+            sinkSpec.setSerDeClassName(sourceConfig.getSerdeClassName());
         }
 
         if (!isEmpty(sourceConfig.getTopicName())) {
-            sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
+            sinkSpec.setTopic(sourceConfig.getTopicName());
         }
 
         if (sourceDetails.getTypeArg() != null) {
-            sinkSpecBuilder.setTypeClassName(sourceDetails.getTypeArg());
+            sinkSpec.setTypeClassName(sourceDetails.getTypeArg());
         }
 
         if (sourceConfig.getProducerConfig() != null) {
-            sinkSpecBuilder.setProducerSpec(convertProducerConfigToProducerSpec(sourceConfig.getProducerConfig()));
+            sinkSpec.setProducerSpec().copyFrom(convertProducerConfigToProducerSpec(sourceConfig.getProducerConfig()));
         }
 
         if (sourceConfig.getBatchBuilder() != null) {
-            Function.ProducerSpec.Builder builder = sinkSpecBuilder.getProducerSpec() != null
-                    ? sinkSpecBuilder.getProducerSpec().toBuilder()
-                    : Function.ProducerSpec.newBuilder();
-            sinkSpecBuilder.setProducerSpec(builder.setBatchBuilder(sourceConfig.getBatchBuilder()).build());
+            ProducerSpec producerSpec;
+            if (sinkSpec.hasProducerSpec()) {
+                producerSpec = sinkSpec.getProducerSpec();
+            } else {
+                producerSpec = sinkSpec.setProducerSpec();
+            }
+            producerSpec.setBatchBuilder(sourceConfig.getBatchBuilder());
         }
 
-        sinkSpecBuilder.setForwardSourceMessageProperty(true);
-
-        functionDetailsBuilder.setSink(sinkSpecBuilder);
+        sinkSpec.setForwardSourceMessageProperty(true);
 
         // use default resources if resources not set
         Resources resources = Resources.mergeWithDefault(sourceConfig.getResources());
 
-        Function.Resources.Builder bldr = Function.Resources.newBuilder();
-        bldr.setCpu(resources.getCpu());
-        bldr.setRam(resources.getRam());
-        bldr.setDisk(resources.getDisk());
-        functionDetailsBuilder.setResources(bldr);
+        org.apache.pulsar.functions.proto.Resources res = functionDetails.setResources();
+        res.setCpu(resources.getCpu());
+        res.setRam(resources.getRam());
+        res.setDisk(resources.getDisk());
 
         if (!org.apache.commons.lang3.StringUtils.isEmpty(sourceConfig.getRuntimeFlags())) {
-            functionDetailsBuilder.setRuntimeFlags(sourceConfig.getRuntimeFlags());
+            functionDetails.setRuntimeFlags(sourceConfig.getRuntimeFlags());
         }
 
-        functionDetailsBuilder.setComponentType(FunctionDetails.ComponentType.SOURCE);
+        functionDetails.setComponentType(FunctionDetails.ComponentType.SOURCE);
 
         if (!StringUtils.isEmpty(sourceConfig.getCustomRuntimeOptions())) {
-            functionDetailsBuilder.setCustomRuntimeOptions(sourceConfig.getCustomRuntimeOptions());
+            functionDetails.setCustomRuntimeOptions(sourceConfig.getCustomRuntimeOptions());
         }
 
-        return FunctionConfigUtils.validateFunctionDetails(functionDetailsBuilder.build());
+        return FunctionConfigUtils.validateFunctionDetails(functionDetails);
     }
 
     public static SourceConfig convertFromDetails(FunctionDetails functionDetails) {
@@ -195,7 +196,7 @@ public class SourceConfigUtils {
         sourceConfig.setParallelism(functionDetails.getParallelism());
         sourceConfig.setProcessingGuarantees(
                 FunctionCommon.convertProcessingGuarantee(functionDetails.getProcessingGuarantees()));
-        Function.SourceSpec sourceSpec = functionDetails.getSource();
+        SourceSpec sourceSpec = functionDetails.getSource();
         if (!StringUtils.isEmpty(sourceSpec.getClassName())) {
             sourceConfig.setClassName(sourceSpec.getClassName());
         }
@@ -227,7 +228,7 @@ public class SourceConfigUtils {
             Map<String, Object> secretsMap = new Gson().fromJson(functionDetails.getSecretsMap(), type);
             sourceConfig.setSecrets(secretsMap);
         }
-        Function.SinkSpec sinkSpec = functionDetails.getSink();
+        SinkSpec sinkSpec = functionDetails.getSink();
         sourceConfig.setTopicName(sinkSpec.getTopic());
         if (!StringUtils.isEmpty(sinkSpec.getSchemaType())) {
             sourceConfig.setSchemaType(sinkSpec.getSchemaType());
@@ -235,9 +236,7 @@ public class SourceConfigUtils {
         if (!StringUtils.isEmpty(sinkSpec.getSerDeClassName())) {
             sourceConfig.setSerdeClassName(sinkSpec.getSerDeClassName());
         }
-        if (sinkSpec.getProducerSpec() != null) {
-            sourceConfig.setProducerConfig(convertProducerSpecToProducerConfig(sinkSpec.getProducerSpec()));
-        }
+        sourceConfig.setProducerConfig(convertProducerSpecToProducerConfig(sinkSpec.getProducerSpec()));
         if (!isEmpty(functionDetails.getLogTopic())) {
             sourceConfig.setLogTopic(functionDetails.getLogTopic());
         }
@@ -450,7 +449,7 @@ public class SourceConfigUtils {
         }
     }
 
-    public static Map<String, Object> extractSourceConfig(Function.SourceSpec sourceSpec, String fqfn) {
+    public static Map<String, Object> extractSourceConfig(SourceSpec sourceSpec, String fqfn) {
         if (!StringUtils.isEmpty(sourceSpec.getConfigs())) {
             TypeReference<HashMap<String, Object>> typeRef =
                     new TypeReference<HashMap<String, Object>>() {
@@ -475,7 +474,7 @@ public class SourceConfigUtils {
         }
     }
 
-    public static Map<String, String> computeBatchSourceIntermediateTopicSubscriptions(Function.FunctionDetails details,
+    public static Map<String, String> computeBatchSourceIntermediateTopicSubscriptions(FunctionDetails details,
                                                                                        String fqfn) {
         Map<String, Object> configMap = extractSourceConfig(details.getSource(), fqfn);
         if (configMap != null) {
@@ -517,7 +516,7 @@ public class SourceConfigUtils {
         try {
             ConnectorDefinition defn = sourceFunction.getFunctionMetaData(ConnectorDefinition.class);
             if (defn != null && defn.getSourceConfigClass() != null) {
-                Class configClass =
+                Class<?> configClass =
                         Class.forName(defn.getSourceConfigClass(), true, sourceFunction.getClassLoader());
                 validateSourceConfig(sourceConfig, configClass);
             }
@@ -527,7 +526,7 @@ public class SourceConfigUtils {
 
     }
 
-    public static void validateSourceConfig(SourceConfig sourceConfig, Class configClass) {
+    public static void validateSourceConfig(SourceConfig sourceConfig, Class<?> configClass) {
         try {
             Object configObject =
                     ObjectMapperFactory.getMapper().getObjectMapper()

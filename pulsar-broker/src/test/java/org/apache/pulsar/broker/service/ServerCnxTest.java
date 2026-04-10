@@ -1077,6 +1077,7 @@ public class ServerCnxTest {
         channel.finish();
         channel2.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testHandleConsumerAfterClientChannelInactive() throws Exception {
@@ -1118,6 +1119,7 @@ public class ServerCnxTest {
         channel.finish();
         channel2.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void test2ndSubFailedIfDisabledConCheck()
@@ -2131,6 +2133,13 @@ public class ServerCnxTest {
                 producerName, Collections.emptyMap(), false);
         channel.writeInbound(createProducer1);
 
+        // Run pending tasks to ensure the producer is registered in the producers map
+        // before the close command is processed. Without this, the close command may not
+        // find the producer (since registration happens in a thenApplyAsync callback),
+        // causing it to skip cancellation and leading to a race between the first and
+        // second producer creation.
+        channel.runPendingTasks();
+
         ByteBuf closeProducer = Commands.newCloseProducer(1 /* producer id */, 2 /* request id */);
         channel.writeInbound(closeProducer);
 
@@ -2639,6 +2648,7 @@ public class ServerCnxTest {
         assertNull(channel.outboundMessages().peek());
         channel.finish();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30000)
     public void testProducerSuccessOnEncryptionRequiredTopic() throws Exception {
@@ -2677,6 +2687,7 @@ public class ServerCnxTest {
 
         channel.finish();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30000)
     public void testProducerFailureOnEncryptionRequiredTopic() throws Exception {
@@ -2717,6 +2728,7 @@ public class ServerCnxTest {
 
         channel.finish();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30000)
     public void testProducerFailureOnEncryptionRequiredOnBroker() throws Exception {
@@ -2759,6 +2771,7 @@ public class ServerCnxTest {
 
         channel.finish();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30000)
     public void testSendSuccessOnEncryptionRequiredTopic() throws Exception {
@@ -2805,6 +2818,7 @@ public class ServerCnxTest {
         assertTrue(getResponse() instanceof CommandSendReceipt);
         channel.finish();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 30000)
     public void testSendFailureOnEncryptionRequiredTopic() throws Exception {
@@ -3415,6 +3429,7 @@ public class ServerCnxTest {
             channel.finish();
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testHandleAuthResponseWithoutClientVersion() throws Exception {

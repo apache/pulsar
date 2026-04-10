@@ -87,6 +87,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
     }
 
     @Test(groups = {"sink"})
+    @SuppressWarnings("unchecked")
     public void testGenericObjectSink() throws Exception {
 
         @Cleanup PulsarClient client = PulsarClient.builder()

@@ -136,6 +136,7 @@ import org.mockito.internal.util.MockUtil;
 @ToString
 @Getter
 @Builder(builderClassName = "Builder")
+@SuppressWarnings("try")
 public class PulsarTestContext implements AutoCloseable {
     private final ServiceConfiguration config;
     private final MetadataStoreExtended localMetadataStore;
@@ -288,6 +289,7 @@ public class PulsarTestContext implements AutoCloseable {
          * This is used to run tests with smaller thread pools and shorter timeouts by default.
          * You can use <pre>{@code .configCustomizer(null)}</pre> to disable this behavior
          */
+        @SuppressWarnings("deprecation")
         protected void defaultOverrideServiceConfiguration(ServiceConfiguration svcConfig) {
             ServiceConfiguration unconfiguredDefaults = new ServiceConfiguration();
 
@@ -709,6 +711,7 @@ public class PulsarTestContext implements AutoCloseable {
                     CreateMode.PERSISTENT);
         }
 
+        @SuppressWarnings("try")
         private TestZKServer createTestZookeeper(int sessionTimeout) throws Exception {
             TestZKServer testZKServer = new TestZKServer();
             try (ZooKeeper zkc = new ZooKeeper(testZKServer.getConnectionString(), sessionTimeout, event -> {

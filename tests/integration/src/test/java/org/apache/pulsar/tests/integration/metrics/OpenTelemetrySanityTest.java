@@ -45,6 +45,7 @@ public class OpenTelemetrySanityTest {
 
     // Validate that the OpenTelemetry metrics can be exported to a remote OpenTelemetry collector.
     @Test(timeOut = 360_000)
+    @SuppressWarnings("unchecked")
     public void testOpenTelemetryMetricsOtlpExport() throws Exception {
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
         var openTelemetryCollectorContainer = new OpenTelemetryCollectorContainer(clusterName);
@@ -95,6 +96,7 @@ public class OpenTelemetrySanityTest {
      * https://github.com/open-telemetry/opentelemetry-java/blob/main/sdk-extensions/autoconfigure/README.md#prometheus-exporter
      */
     @Test(timeOut = 360_000)
+    @SuppressWarnings("unchecked")
     public void testOpenTelemetryMetricsPrometheusExport() throws Exception {
         var prometheusExporterPort = 9464;
         var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
@@ -158,6 +160,7 @@ public class OpenTelemetrySanityTest {
         return client.getMetrics();
     }
 
+    @SuppressWarnings("unchecked")
     private static Map<String, String> getOpenTelemetryProps(String exporter, Pair<String, String> ... extraProps) {
         var defaultProps = Map.of(
                 "OTEL_SDK_DISABLED", "false",

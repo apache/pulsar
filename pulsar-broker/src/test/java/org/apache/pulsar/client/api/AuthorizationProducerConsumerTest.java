@@ -553,6 +553,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testUpdateTopicPropertiesAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
         cleanup();
@@ -813,6 +814,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
+    @SuppressWarnings("deprecation")
 
     public static class ClientAuthentication implements Authentication {
         String user;
@@ -865,6 +867,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
     }
+    @SuppressWarnings("deprecation")
 
     public static class TestAuthenticationProvider implements AuthenticationProvider {
 

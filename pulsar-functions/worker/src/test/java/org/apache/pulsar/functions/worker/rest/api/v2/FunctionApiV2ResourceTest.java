@@ -18,26 +18,28 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
-import static org.apache.pulsar.functions.utils.FunctionCommon.mergeJson;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import com.google.gson.Gson;
-import com.google.protobuf.util.JsonFormat;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import java.util.Map;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
 import org.apache.pulsar.functions.worker.rest.api.v3.AbstractFunctionApiResourceTest;
@@ -62,7 +64,7 @@ public class FunctionApiV2ResourceTest extends AbstractFunctionApiResourceTest {
                 inputStream,
                 details,
                 functionPkgUrl,
-                JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig)),
+                FunctionConfigUtils.convert(functionConfig).toJson(),
                 null);
     }
     protected void updateFunction(String tenant,
@@ -75,7 +77,7 @@ public class FunctionApiV2ResourceTest extends AbstractFunctionApiResourceTest {
                                   AuthenticationParameters authParams,
                                   UpdateOptionsImpl updateOptions) throws IOException {
         resource.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl,
-                JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig)), authParams);
+                FunctionConfigUtils.convert(functionConfig).toJson(), authParams);
     }
 
     protected File downloadFunction(final String path, final AuthenticationParameters authParams)
@@ -136,6 +138,7 @@ public class FunctionApiV2ResourceTest extends AbstractFunctionApiResourceTest {
 
     }
 
+    @SuppressWarnings("unchecked")
     protected List<String> listDefaultFunctions() {
         return new Gson().fromJson(readEntity(resource.listFunctions(
                 TENANT,
@@ -143,16 +146,16 @@ public class FunctionApiV2ResourceTest extends AbstractFunctionApiResourceTest {
         ), String.class), List.class);
     }
 
-    private Function.FunctionDetails getDefaultFunctionInfo() throws IOException {
+    private FunctionDetails getDefaultFunctionInfo() throws IOException {
         String json = (String) resource.getFunctionInfo(
                 TENANT,
                 NAMESPACE,
                 FUNCTION,
                 AuthenticationParameters.builder().build()
         ).getEntity();
-        Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
-        mergeJson(json, functionDetailsBuilder);
-        return functionDetailsBuilder.build();
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.parseFromJson(json);
+        return functionDetails;
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp =
@@ -167,36 +170,37 @@ public class FunctionApiV2ResourceTest extends AbstractFunctionApiResourceTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetFunctionSuccess() throws IOException {
         mockInstanceUtils();
         when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
-        Function.SinkSpec sinkSpec = Function.SinkSpec.newBuilder()
-                .setTopic(OUTPUT_TOPIC)
-                .setSerDeClassName(OUTPUT_SERDE_CLASS_NAME).build();
-        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
-                .setClassName(CLASS_NAME)
-                .setSink(sinkSpec)
-                .setName(FUNCTION)
-                .setNamespace(NAMESPACE)
-                .setProcessingGuarantees(Function.ProcessingGuarantees.ATMOST_ONCE)
-                .setAutoAck(true)
-                .setTenant(TENANT)
-                .setParallelism(PARALLELISM)
-                .setSource(Function.SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
-                        .putAllTopicsToSerDeClassName(TOPICS_TO_SER_DE_CLASS_NAME)).build();
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
-                .setCreateTime(System.currentTimeMillis())
-                .setFunctionDetails(functionDetails)
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
-                .setVersion(1234)
-                .build();
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.setClassName(CLASS_NAME);
+        functionDetails.setSink().setTopic(OUTPUT_TOPIC).setSerDeClassName(OUTPUT_SERDE_CLASS_NAME);
+        functionDetails.setName(FUNCTION);
+        functionDetails.setNamespace(NAMESPACE);
+        functionDetails.setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE);
+        functionDetails.setAutoAck(true);
+        functionDetails.setTenant(TENANT);
+        functionDetails.setParallelism(PARALLELISM);
+        SourceSpec sourceSpec = functionDetails.setSource();
+        sourceSpec.setSubscriptionType(subscriptionType);
+        for (Map.Entry<String, String> entry : TOPICS_TO_SER_DE_CLASS_NAME.entrySet()) {
+            sourceSpec.putTopicsToSerDeClassName(entry.getKey(), entry.getValue());
+        }
+
+        FunctionMetaData metaData = new FunctionMetaData();
+        metaData.setCreateTime(System.currentTimeMillis());
+        metaData.setFunctionDetails().copyFrom(functionDetails);
+        metaData.setPackageLocation().setPackagePath("/path/to/package");
+        metaData.setVersion(1234);
         when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
-        Function.FunctionDetails actual = getDefaultFunctionInfo();
+        FunctionDetails actual = getDefaultFunctionInfo();
         assertEquals(
-                functionDetails,
-                actual);
+                functionDetails.toByteArray(),
+                actual.toByteArray());
     }
 }

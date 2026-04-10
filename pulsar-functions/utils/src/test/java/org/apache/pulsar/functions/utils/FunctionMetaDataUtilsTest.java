@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.FunctionState;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -31,60 +32,64 @@ public class FunctionMetaDataUtilsTest {
     public void testCanChangeState() {
 
         long version = 5;
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(2)).setVersion(version).build();
+        FunctionMetaData metaData = new FunctionMetaData()
+                .setVersion(version);
+        metaData.setFunctionDetails().setName("func-1").setParallelism(2);
 
-        Assert.assertTrue(FunctionMetaDataUtils.canChangeState(metaData, 0, Function.FunctionState.STOPPED));
-        Assert.assertFalse(FunctionMetaDataUtils.canChangeState(metaData, 0, Function.FunctionState.RUNNING));
-        Assert.assertFalse(FunctionMetaDataUtils.canChangeState(metaData, 2, Function.FunctionState.STOPPED));
-        Assert.assertFalse(FunctionMetaDataUtils.canChangeState(metaData, 2, Function.FunctionState.RUNNING));
+        Assert.assertTrue(FunctionMetaDataUtils.canChangeState(metaData, 0, FunctionState.STOPPED));
+        Assert.assertFalse(FunctionMetaDataUtils.canChangeState(metaData, 0, FunctionState.RUNNING));
+        Assert.assertFalse(FunctionMetaDataUtils.canChangeState(metaData, 2, FunctionState.STOPPED));
+        Assert.assertFalse(FunctionMetaDataUtils.canChangeState(metaData, 2, FunctionState.RUNNING));
     }
 
     @Test
     public void testChangeState() {
         long version = 5;
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(2)).setVersion(version).build();
-        Function.FunctionMetaData newMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(metaData, 0, false);
-        Assert.assertTrue(newMetaData.getInstanceStatesMap() != null);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().size(), 2);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().get(0), Function.FunctionState.STOPPED);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().get(1), Function.FunctionState.RUNNING);
+        FunctionMetaData metaData = new FunctionMetaData()
+                .setVersion(version);
+        metaData.setFunctionDetails().setName("func-1").setParallelism(2);
+        FunctionMetaData newMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(metaData, 0, false);
+        Assert.assertTrue(newMetaData.getInstanceStatesCount() > 0);
+        Assert.assertEquals(newMetaData.getInstanceStatesCount(), 2);
+        Assert.assertEquals(newMetaData.getInstanceStates(0), FunctionState.STOPPED);
+        Assert.assertEquals(newMetaData.getInstanceStates(1), FunctionState.RUNNING);
         Assert.assertEquals(newMetaData.getVersion(), version + 1);
 
         // Nothing should happen
         newMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(newMetaData, 3, false);
-        Assert.assertTrue(newMetaData.getInstanceStatesMap() != null);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().size(), 2);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().get(0), Function.FunctionState.STOPPED);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().get(1), Function.FunctionState.RUNNING);
+        Assert.assertTrue(newMetaData.getInstanceStatesCount() > 0);
+        Assert.assertEquals(newMetaData.getInstanceStatesCount(), 2);
+        Assert.assertEquals(newMetaData.getInstanceStates(0), FunctionState.STOPPED);
+        Assert.assertEquals(newMetaData.getInstanceStates(1), FunctionState.RUNNING);
         Assert.assertEquals(newMetaData.getVersion(), version + 2);
 
         // Change one more
         newMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(newMetaData, 1, false);
-        Assert.assertTrue(newMetaData.getInstanceStatesMap() != null);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().size(), 2);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().get(0), Function.FunctionState.STOPPED);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().get(1), Function.FunctionState.STOPPED);
+        Assert.assertTrue(newMetaData.getInstanceStatesCount() > 0);
+        Assert.assertEquals(newMetaData.getInstanceStatesCount(), 2);
+        Assert.assertEquals(newMetaData.getInstanceStates(0), FunctionState.STOPPED);
+        Assert.assertEquals(newMetaData.getInstanceStates(1), FunctionState.STOPPED);
         Assert.assertEquals(newMetaData.getVersion(), version + 3);
 
         // Change all more
         newMetaData = FunctionMetaDataUtils.changeFunctionInstanceStatus(newMetaData, -1, true);
-        Assert.assertTrue(newMetaData.getInstanceStatesMap() != null);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().size(), 2);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().get(0), Function.FunctionState.RUNNING);
-        Assert.assertEquals(newMetaData.getInstanceStatesMap().get(1), Function.FunctionState.RUNNING);
+        Assert.assertTrue(newMetaData.getInstanceStatesCount() > 0);
+        Assert.assertEquals(newMetaData.getInstanceStatesCount(), 2);
+        Assert.assertEquals(newMetaData.getInstanceStates(0), FunctionState.RUNNING);
+        Assert.assertEquals(newMetaData.getInstanceStates(1), FunctionState.RUNNING);
         Assert.assertEquals(newMetaData.getVersion(), version + 4);
     }
 
     @Test
     public void testUpdate() {
         long version = 5;
-        Function.FunctionMetaData existingMetaData = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(2)).setVersion(version).build();
-        Function.FunctionMetaData updatedMetaData = Function.FunctionMetaData.newBuilder().setFunctionDetails(
-                Function.FunctionDetails.newBuilder().setName("func-1").setParallelism(3)).setVersion(version).build();
-        Function.FunctionMetaData newMetaData =
+        FunctionMetaData existingMetaData = new FunctionMetaData()
+                .setVersion(version);
+        existingMetaData.setFunctionDetails().setName("func-1").setParallelism(2);
+        FunctionMetaData updatedMetaData = new FunctionMetaData()
+                .setVersion(version);
+        updatedMetaData.setFunctionDetails().setName("func-1").setParallelism(3);
+        FunctionMetaData newMetaData =
                 FunctionMetaDataUtils.incrMetadataVersion(existingMetaData, updatedMetaData);
         Assert.assertEquals(newMetaData.getVersion(), version + 1);
         Assert.assertEquals(newMetaData.getFunctionDetails().getParallelism(), 3);

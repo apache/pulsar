@@ -204,7 +204,12 @@ public class OpenTelemetryServiceTest {
 
     @Test
     public void testJvmRuntimeMetrics() {
-        // Attempt collection of GC metrics. The metrics should be populated regardless if GC is triggered or not.
+        // Force GC by creating memory pressure. Runtime.getRuntime().gc() is just a hint that the JVM
+        // can ignore, especially in a fresh JVM with plenty of heap. Allocating and discarding memory
+        // ensures at least one GC cycle occurs, so that jvm.gc.duration metric is populated.
+        for (int i = 0; i < 100; i++) {
+            byte[] waste = new byte[1024 * 1024]; // 1MB
+        }
         Runtime.getRuntime().gc();
 
         var metrics = reader.collectAllMetrics();

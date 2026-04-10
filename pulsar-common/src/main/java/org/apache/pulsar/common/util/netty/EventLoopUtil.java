@@ -44,7 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.affinity.CpuAffinity;
-import org.apache.commons.lang3.StringUtils;
+
 
 @SuppressWarnings("checkstyle:JavadocType")
 @Slf4j
@@ -93,7 +93,8 @@ public class EventLoopUtil {
     private static boolean isIoUringEnabledAndAvailable() {
         // By default, io_uring will not be enabled, even if available. The environment variable will be used:
         // enable.io_uring=1
-        boolean ioUringEnabled = StringUtils.equalsAnyIgnoreCase(System.getProperty(ENABLE_IO_URING), "1", "true");
+        String ioUringSetting = System.getProperty(ENABLE_IO_URING);
+        boolean ioUringEnabled = "1".equalsIgnoreCase(ioUringSetting) || "true".equalsIgnoreCase(ioUringSetting);
         if (ioUringEnabled) {
             // Throw exception if IOUring cannot be used
             IOUring.ensureAvailability();
@@ -194,6 +195,7 @@ public class EventLoopUtil {
         }
     }
 
+    @SuppressWarnings("deprecation") // EpollMode is deprecated in newer Netty but no replacement API exists yet
     public static void enableTriggeredMode(ServerBootstrap bootstrap) {
         if (Epoll.isAvailable()) {
             bootstrap.childOption(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);

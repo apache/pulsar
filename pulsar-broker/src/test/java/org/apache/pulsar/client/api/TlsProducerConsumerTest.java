@@ -142,6 +142,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
             Assert.fail("Should not fail since certs are sent.");
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 60000)
     public void testTlsCertsFromDynamicStream() throws Exception {
@@ -201,6 +202,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testTlsCertsFromDynamicStreamExpiredAndRenewCert() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -249,6 +251,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
+    @SuppressWarnings("deprecation")
 
     private ByteArrayInputStream createByteInputStream(String filePath) throws IOException {
         try (InputStream inStream = new FileInputStream(filePath)) {
@@ -303,6 +306,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         @Cleanup
         Producer<byte[]> ignored = client.newProducer().topic(topicName).create();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTlsWithFakeAuthentication() throws Exception {

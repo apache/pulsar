@@ -31,14 +31,14 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -46,32 +46,16 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsumerBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class PersistentDispatcherSingleActiveConsumerTest extends SharedPulsarBaseTest {
 
     @Test
     public void testSkipReadEntriesFromCloseCursor() throws Exception {
-        final String topicName =
-                BrokerTestUtil.newUniqueName("persistent://public/default/testSkipReadEntriesFromCloseCursor");
+        final String topicName = newTopicName();
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topicName);
 
@@ -83,8 +67,7 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
         producer.close();
 
         // Get the dispatcher of the topic.
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
-                .getTopic(topicName, false).join().get();
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
 
         ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
         Mockito.doReturn(subscription).when(cursor).getName();
@@ -151,12 +134,14 @@ public class PersistentDispatcherSingleActiveConsumerTest extends ProducerConsum
     @Test(dataProvider = "closeDelayMs")
     public void testOverrideInactiveConsumer(long closeDelayMs) throws Exception {
         final var interceptor = new Interceptor();
-        pulsar.getBrokerService().setInterceptor(interceptor);
-        final var topic = "test-override-inactive-consumer-" + closeDelayMs;
-        @Cleanup final var client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        SharedPulsarCluster.get().getPulsarService().getBrokerService().setInterceptor(interceptor);
+        final var topic = newTopicName();
+        @Cleanup final var client = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl()).build();
         @Cleanup final var consumer = client.newConsumer().topic(topic).subscriptionName("sub").subscribe();
-        final var dispatcher = ((PersistentTopic) pulsar.getBrokerService().getTopicIfExists(TopicName.get(topic)
-                .toString()).get().orElseThrow()).getSubscription("sub").dispatcher;
+        final var dispatcher = ((PersistentTopic) SharedPulsarCluster.get().getPulsarService().getBrokerService()
+                .getTopicIfExists(TopicName.get(topic).toString()).get().orElseThrow())
+                .getSubscription("sub").dispatcher;
         Assert.assertEquals(dispatcher.getConsumers().size(), 1);
 
         // Generally `isActive` could only be false after `channelInactive` is called, setting it with false directly

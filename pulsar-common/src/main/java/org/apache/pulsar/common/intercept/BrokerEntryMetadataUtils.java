@@ -39,6 +39,7 @@ public class BrokerEntryMetadataUtils<T> {
         if (interceptorNames != null && interceptorNames.size() > 0) {
             for (String interceptorName : interceptorNames) {
                 try {
+                    @SuppressWarnings("unchecked") // class is loaded by name and expected to implement the interface
                     Class<BrokerEntryMetadataInterceptor> clz = (Class<BrokerEntryMetadataInterceptor>) ClassLoaderUtils
                             .loadClass(interceptorName, classLoader);
                     try {
@@ -63,6 +64,7 @@ public class BrokerEntryMetadataUtils<T> {
         if (interceptorNames != null && interceptorNames.size() > 0) {
             for (String interceptorName : interceptorNames) {
                 try {
+                    @SuppressWarnings("unchecked") // class is loaded by name and expected to match type T
                     Class<T> clz = (Class<T>) ClassLoaderUtils
                         .loadClass(interceptorName, classLoader);
                     try {

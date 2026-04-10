@@ -33,11 +33,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
@@ -753,13 +755,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Getter(AccessLevel.NONE)
     private String functionAuthProviderClassName;
 
+    @SuppressWarnings("deprecation")
     public String getFunctionAuthProviderClassName() {
         // if we haven't set a value and are running kubernetes, we default to the SecretsTokenAuthProvider
         // as that matches behavior before this property could be overridden
         if (!StringUtils.isEmpty(functionAuthProviderClassName)) {
             return functionAuthProviderClassName;
         } else {
-            if (StringUtils.equals(this.getFunctionRuntimeFactoryClassName(), KubernetesRuntimeFactory.class.getName())
+            if (Objects.equals(this.getFunctionRuntimeFactoryClassName(), KubernetesRuntimeFactory.class.getName())
                     || getKubernetesContainerFactory() != null) {
                 return KubernetesSecretsTokenAuthProvider.class.getName();
             }
@@ -904,14 +907,15 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         this.properties = properties;
     }
 
-    /********* DEPRECATED CONFIGS. *********/
+    // --------- DEPRECATED CONFIGS ---------
 
-    @Deprecated
-    @Data
     /**
-     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * @deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
      */
+    @Deprecated
+    @Data
+    @EqualsAndHashCode(callSuper = false)
     public static class ThreadContainerFactory extends ThreadRuntimeFactoryConfig {
 
     }
@@ -922,12 +926,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Deprecated
     private ThreadContainerFactory threadContainerFactory;
 
-    @Deprecated
-    @Data
     /**
-     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * @deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
      */
+    @Deprecated
+    @Data
+    @EqualsAndHashCode(callSuper = false)
     public static class ProcessContainerFactory extends ProcessRuntimeFactoryConfig {
 
     }
@@ -938,12 +943,13 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Deprecated
     private ProcessContainerFactory processContainerFactory;
 
-    @Deprecated
-    @Data
     /**
-     * @Deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
+     * @deprecated in favor for using functionRuntimeFactoryClassName and functionRuntimeFactoryConfigs
      * for specifying the function runtime and configs to use
      */
+    @Deprecated
+    @Data
+    @EqualsAndHashCode(callSuper = false)
     public static class KubernetesContainerFactory extends KubernetesRuntimeFactoryConfig {
 
     }

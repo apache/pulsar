@@ -19,12 +19,12 @@
 
 package org.apache.pulsar.tests;
 
-import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -59,7 +59,9 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
     private static final boolean COLLECT_THREADDUMP =
             Boolean.parseBoolean(System.getenv().getOrDefault("THREAD_LEAK_DETECTOR_COLLECT_THREADDUMP", "true"));
 
-    private Set<ThreadKey> capturedThreadKeys;
+    private static volatile ThreadLeakDetectorListener activeInstance;
+
+    private volatile Set<ThreadKey> capturedThreadKeys;
 
     private static final Field THREAD_TARGET_FIELD;
     static {
@@ -76,8 +78,27 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
 
     @Override
     public void onStart(ISuite suite) {
+        activeInstance = this;
         // capture the initial set of threads
         detectLeakedThreads(Collections.emptyList());
+    }
+
+    /**
+     * Re-captures the current set of threads as the baseline. This should be called after
+     * shared infrastructure (e.g., a JVM-wide singleton cluster) has been fully initialized,
+     * so that its threads are not reported as leaks of the first test class that triggers
+     * the initialization.
+     */
+    public static void resetCapturedThreads() {
+        ThreadLeakDetectorListener listener = activeInstance;
+        if (listener != null) {
+            listener.capturedThreadKeys = Collections.unmodifiableSet(
+                    ThreadUtils.getAllThreads().stream()
+                            .filter(thread -> !shouldSkipThread(thread))
+                            .map(ThreadKey::of)
+                            .collect(Collectors.<ThreadKey, Set<ThreadKey>>toCollection(
+                                    LinkedHashSet::new)));
+        }
     }
 
     @Override
@@ -151,7 +172,7 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
                     File threaddumpFile =
                             new File(DUMP_DIR, "threaddump" + datetimePart + firstTestClassName + ".txt");
                     try {
-                        Files.asCharSink(threaddumpFile, Charsets.UTF_8)
+                        Files.asCharSink(threaddumpFile, StandardCharsets.UTF_8)
                                 .write(ThreadDumpUtil.buildThreadDiagnosticString());
                     } catch (IOException e) {
                         LOG.error("Cannot write thread dump", e);

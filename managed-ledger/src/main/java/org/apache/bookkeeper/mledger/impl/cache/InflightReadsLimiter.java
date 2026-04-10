@@ -28,12 +28,12 @@ import java.util.Queue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.opentelemetry.Constants;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.InflightReadLimiterUtilization;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
-@Slf4j
+@CustomLog
 public class InflightReadsLimiter implements AutoCloseable {
 
     public static final String INFLIGHT_READS_LIMITER_LIMIT_METRIC_NAME =
@@ -163,30 +163,30 @@ public class InflightReadsLimiter implements AutoCloseable {
         Handle handle = new Handle(permits, System.currentTimeMillis(), true);
         if (remainingBytes >= permits) {
             remainingBytes -= permits;
-            if (log.isDebugEnabled()) {
-                log.debug("acquired permits: {}, creationTime: {}, remainingBytes:{}", permits, handle.creationTime,
-                        remainingBytes);
-            }
+            log.debug().attr("permits", permits)
+                    .attr("creationTime", handle.creationTime)
+                    .attr("remainingBytes", remainingBytes).log("Acquired permits");
             updateMetrics();
             return Optional.of(handle);
         } else if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
             remainingBytes = 0;
-            if (log.isInfoEnabled()) {
-                log.info("Requested permits {} exceeded maxReadsInFlightSize {}, creationTime: {}, remainingBytes:{}. "
-                                + "Allowing request with permits set to maxReadsInFlightSize.",
-                        permits, maxReadsInFlightSize, handle.creationTime, remainingBytes);
-            }
+            log.info().attr("permits", permits)
+                    .attr("maxReadsInFlightSize", maxReadsInFlightSize)
+                    .attr("creationTime", handle.creationTime)
+                    .attr("remainingBytes", remainingBytes)
+                    .log("Requested permits exceeded maxReadsInFlightSize."
+                            + " Allowing request with permits set to maxReadsInFlightSize.");
             updateMetrics();
             return Optional.of(new Handle(maxReadsInFlightSize, handle.creationTime, true));
         } else {
             if (queuedHandles.size() >= maxReadsInFlightAcquireQueueSize) {
-                log.warn("Failed to queue handle for acquiring permits: {}, creationTime: {}, remainingBytes:{},"
-                    + " maxReadsInFlightAcquireQueueSize:{}, pending-queue-size: {}, please increase broker"
-                    + " config managedLedgerMaxReadsInFlightPermitsAcquireQueueSize and confirm the configuration of"
-                    + " managedLedgerMaxReadsInFlightSizeInMB and"
-                    + " managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis are suitable.",
-                    permits, handle.creationTime, remainingBytes, maxReadsInFlightAcquireQueueSize,
-                    queuedHandles.size());
+                log.warn().attr("permits", permits)
+                        .attr("creationTime", handle.creationTime)
+                        .attr("remainingBytes", remainingBytes)
+                        .attr("maxReadsInFlightAcquireQueueSize",
+                                maxReadsInFlightAcquireQueueSize)
+                        .attr("pendingQueueSize", queuedHandles.size())
+                        .log("Failed to queue handle for acquiring permits");
                 return Optional.of(new Handle(0, handle.creationTime, false));
             } else {
                 queuedHandles.offer(new QueuedHandle(handle, callback));
@@ -231,17 +231,20 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     private void handleTimeout(QueuedHandle queuedHandle) {
-        log.warn("timed out queued permits: {}, creationTime: {}, remainingBytes:{}, acquireTimeoutMillis: {}. Please"
-                + " review whether the BK read requests is fast enough or broker config"
-                + " managedLedgerMaxReadsInFlightSizeInMB and managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis"
-                + " are suitable",
-                queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, acquireTimeoutMillis);
+        log.warn().attr("permits", queuedHandle.handle.permits)
+                .attr("creationTime", queuedHandle.handle.creationTime)
+                .attr("remainingBytes", remainingBytes)
+                .attr("acquireTimeoutMillis", acquireTimeoutMillis)
+                .log("Timed out queued permits");
         try {
             queuedHandle.callback.accept(new Handle(0, queuedHandle.handle.creationTime, false));
         } catch (Exception e) {
-            log.error("Error in callback of timed out queued permits: {}, creationTime: {}, remainingBytes:{},"
-                + " acquireTimeoutMillis: {}",
-                queuedHandle.handle.permits, queuedHandle.handle.creationTime, remainingBytes, acquireTimeoutMillis, e);
+            log.error().attr("permits", queuedHandle.handle.permits)
+                    .attr("creationTime", queuedHandle.handle.creationTime)
+                    .attr("remainingBytes", remainingBytes)
+                    .attr("acquireTimeoutMillis", acquireTimeoutMillis)
+                    .exception(e)
+                    .log("Error in callback of timed out queued permits");
         }
     }
 
@@ -258,10 +261,10 @@ public class InflightReadsLimiter implements AutoCloseable {
     }
 
     private synchronized void internalRelease(Handle handle) {
-        if (log.isDebugEnabled()) {
-            log.debug("release permits: {}, creationTime: {}, remainingBytes:{}", handle.permits,
-                    handle.creationTime, getRemainingBytes());
-        }
+        log.debug().attr("permits", handle.permits)
+                .attr("creationTime", handle.creationTime)
+                .attr("remainingBytes", getRemainingBytes())
+                .log("Release permits");
         remainingBytes += handle.permits;
         while (true) {
             QueuedHandle queuedHandle = queuedHandles.peek();
@@ -293,24 +296,28 @@ public class InflightReadsLimiter implements AutoCloseable {
         Handle handleForCallback = queuedHandle.handle;
         if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
             remainingBytes = 0;
-            if (log.isInfoEnabled()) {
-                log.info("Requested permits {} exceeded maxReadsInFlightSize {}, creationTime: {}, remainingBytes:{}. "
-                                + "Allowing request with permits set to maxReadsInFlightSize.",
-                        permits, maxReadsInFlightSize, queuedHandle.handle.creationTime, remainingBytes);
-            }
+            log.info().attr("permits", permits)
+                    .attr("maxReadsInFlightSize", maxReadsInFlightSize)
+                    .attr("creationTime", queuedHandle.handle.creationTime)
+                    .attr("remainingBytes", remainingBytes)
+                    .log("Requested permits exceeded maxReadsInFlightSize."
+                            + " Allowing request with permits set to"
+                            + " maxReadsInFlightSize.");
             handleForCallback = new Handle(maxReadsInFlightSize, queuedHandle.handle.creationTime, true);
         } else {
             remainingBytes -= permits;
-            if (log.isDebugEnabled()) {
-                log.debug("acquired queued permits: {}, creationTime: {}, remainingBytes:{}",
-                        permits, queuedHandle.handle.creationTime, remainingBytes);
-            }
+            log.debug().attr("permits", permits)
+                    .attr("creationTime", queuedHandle.handle.creationTime)
+                    .attr("remainingBytes", remainingBytes)
+                    .log("Acquired queued permits");
         }
         try {
             queuedHandle.callback.accept(handleForCallback);
         } catch (Exception e) {
-            log.error("Error in callback of acquired queued permits: {}, creationTime: {}, remainingBytes:{}",
-                    handleForCallback.permits, handleForCallback.creationTime, remainingBytes, e);
+            log.error().attr("permits", handleForCallback.permits)
+                    .attr("creationTime", handleForCallback.creationTime)
+                    .attr("remainingBytes", remainingBytes).exception(e)
+                    .log("Error in callback of acquired queued permits");
         }
     }
 

@@ -494,11 +494,12 @@ public class BrokerService implements Closeable {
     }
 
     protected DispatchRateLimiterFactory createDispatchRateLimiterFactory(ServiceConfiguration config)
-            throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+            throws Exception {
         String dispatchRateLimiterFactoryClassName = config.getDispatchRateLimiterFactoryClassName();
         if (isNotBlank(dispatchRateLimiterFactoryClassName)) {
             try {
-                return (DispatchRateLimiterFactory) Class.forName(dispatchRateLimiterFactoryClassName).newInstance();
+                return (DispatchRateLimiterFactory) Class.forName(dispatchRateLimiterFactoryClassName)
+                        .getDeclaredConstructor().newInstance();
             } catch (Exception e) {
                 log.warn("Failed to initialize dispatch rate limiter factory class {}",
                         dispatchRateLimiterFactoryClassName, e);
@@ -603,6 +604,7 @@ public class BrokerService implements Closeable {
         return topicStatsMap;
     }
 
+    @SuppressWarnings("deprecation")
     public void start() throws Exception {
         this.producerNameGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
                 PRODUCER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
@@ -1490,6 +1492,7 @@ public class BrokerService implements Closeable {
         return topicFuture;
     }
 
+    @SuppressWarnings("deprecation")
     public PulsarClient getReplicationClient(String cluster, Optional<ClusterData> clusterDataOp) {
         PulsarClient client = replicationClients.get(cluster);
         if (client != null) {
@@ -2739,6 +2742,7 @@ public class BrokerService implements Closeable {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void configValueChanged(String configKey, String newValueStr) {
         ConfigField configFieldWrapper = dynamicConfigurationMap.get(configKey);
         if (configFieldWrapper == null) {
@@ -3998,7 +4002,8 @@ public class BrokerService implements Closeable {
         String topicFactoryClassName = pulsar.getConfig().getTopicFactoryClassName();
         if (StringUtils.isNotBlank(topicFactoryClassName)) {
             try {
-                return (TopicFactory) Class.forName(topicFactoryClassName).newInstance();
+                return (TopicFactory) Class.forName(topicFactoryClassName)
+                        .getDeclaredConstructor().newInstance();
             } catch (Exception e) {
                 log.warn("Failed to initialize topic factory class {}", topicFactoryClassName, e);
                 throw e;

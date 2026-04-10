@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /*
  * This file is derived from LocalBookkeeperEnsemble from Apache BookKeeper
  * http://bookkeeper.apache.org
@@ -393,6 +394,7 @@ public class LocalBookkeeperEnsemble {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public void start(boolean enableStreamStorage) throws  Exception {
         LOG.debug("Local ZK/BK starting ...");
         ServerConfiguration conf = new ServerConfiguration();

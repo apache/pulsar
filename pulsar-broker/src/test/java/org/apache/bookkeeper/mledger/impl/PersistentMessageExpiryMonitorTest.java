@@ -24,7 +24,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertEquals;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -100,7 +99,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
                 }
             });
             return true;
-        }).when(spyCursor).asyncMarkDelete(any(Position.class), any(Map.class),
+        }).when(spyCursor).asyncMarkDelete(any(Position.class), any(),
                 any(AsyncCallbacks.MarkDeleteCallback.class), any());
         doAnswer(invocationOnMock -> {
             calledFindPositionCount.incrementAndGet();

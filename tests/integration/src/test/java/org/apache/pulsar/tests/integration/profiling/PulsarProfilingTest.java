@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
  * Example usage:
  * # This has been tested on Mac with Orbstack (https://orbstack.dev/) docker
  * # compile integration test dependencies
- * mvn -am -pl tests/integration -Dcheckstyle.skip=true -Dlicense.skip=true -Dspotbugs.skip=true -DskipTests install
+ * ./gradlew assemble
  * # compile apachepulsar/java-test-image with async profiler (add "clean" to ensure a clean build with recent changes)
  * ./build/build_java_test_image.sh -Ddocker.install.asyncprofiler=true -Pdocker-wolfi
  * # set environment variables
@@ -65,9 +65,8 @@ import org.testng.annotations.Test;
  * kernel.perf_event_max_stack=1024
  * kernel.perf_event_mlock_kb=2048
  * # run the test
- * mvn -DintegrationTests -pl tests/integration -Dtest=PulsarProfilingTest -DtestRetryCount=0 \
- *   -DredirectTestOutputToFile=false test
- * By default, the .jfr files will go into tests/integration/target
+ * ./gradlew :tests:integration:integrationTest -PintegrationTestSuiteFile=pulsar-profiling.xml -PtestRetryCount=0
+ * By default, the .jfr files will go into tests/integration/build
  * You can use jfrconv from async profiler to convert them into html flamegraphs or use other tools such
  * as Eclipse Mission Control (https://adoptium.net/jmc) or IntelliJ to open them.
  */

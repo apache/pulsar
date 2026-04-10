@@ -60,8 +60,8 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails.ComponentType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -302,6 +302,7 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
+    @SuppressWarnings("deprecation")
     public synchronized void stop() {
         if (running.compareAndSet(true, false)) {
             this.notify();
@@ -351,7 +352,7 @@ public class LocalRunner implements AutoCloseable {
                 throw new IllegalArgumentException("Pulsar Function local run already started!");
             }
             Runtime.getRuntime().addShutdownHook(shutdownHook);
-            Function.FunctionDetails functionDetails = null;
+            FunctionDetails functionDetails = null;
             String userCodeFile;
             String transformFunctionFile = null;
             int parallelism;
@@ -537,7 +538,7 @@ public class LocalRunner implements AutoCloseable {
         return new UserCodeClassLoader(classLoader, classLoaderCreated);
     }
 
-    private void startProcessMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
+    private void startProcessMode(FunctionDetails functionDetails,
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile, String transformFunctionFile) throws Exception {
@@ -598,6 +599,7 @@ public class LocalRunner implements AutoCloseable {
         statusCheckTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
+                @SuppressWarnings({"unchecked", "rawtypes"})
                 CompletableFuture<String>[] futures = new CompletableFuture[spawners.size()];
                 int index = 0;
                 for (RuntimeSpawner spawner : spawners) {
@@ -620,7 +622,7 @@ public class LocalRunner implements AutoCloseable {
     }
 
 
-    private void startThreadedMode(org.apache.pulsar.functions.proto.Function.FunctionDetails functionDetails,
+    private void startThreadedMode(FunctionDetails functionDetails,
                                            int parallelism, int instanceIdOffset, String serviceUrl,
                                            String stateStorageServiceUrl, AuthenticationConfig authConfig,
                                            String userCodeFile, String transformFunctionFile) throws Exception {
@@ -637,7 +639,10 @@ public class LocalRunner implements AutoCloseable {
                     .createInstance(secretsProviderClassName, ClassLoader.getSystemClassLoader());
             Map<String, String> config = null;
             if (secretsProviderConfig != null) {
-                config = (Map<String, String>) new Gson().fromJson(secretsProviderConfig, Map.class);
+                @SuppressWarnings("unchecked") // Gson deserialization of Map
+                Map<String, String> parsedConfig = (Map<String, String>) new Gson().fromJson(secretsProviderConfig,
+                        Map.class);
+                config = parsedConfig;
             }
             secretsProvider.init(config);
         } else {
@@ -777,7 +782,10 @@ public class LocalRunner implements AutoCloseable {
         if (secretsProviderClassName != null) {
             Map<String, String> config = null;
             if (secretsProviderConfig != null) {
-                config = (Map<String, String>) new Gson().fromJson(secretsProviderConfig, Map.class);
+                @SuppressWarnings("unchecked") // Gson deserialization of Map
+                Map<String, String> parsedConfig = (Map<String, String>) new Gson().fromJson(secretsProviderConfig,
+                        Map.class);
+                config = parsedConfig;
             }
             secretsProviderConfigurator =
                     new NameAndConfigBasedSecretsProviderConfigurator(secretsProviderClassName, config);

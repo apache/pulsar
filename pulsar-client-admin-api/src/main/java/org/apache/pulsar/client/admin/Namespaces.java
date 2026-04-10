@@ -1644,7 +1644,7 @@ public interface Namespaces {
      */
     CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String namespace);
 
-    /**
+    /*
      * Get the bundles split data.
      *
      * @param namespace

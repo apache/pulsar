@@ -514,6 +514,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
     }
 
     @Test
+    @SuppressWarnings("try")
     public void testReadUnknownDataVersion() throws Exception {
         @Cleanup
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);

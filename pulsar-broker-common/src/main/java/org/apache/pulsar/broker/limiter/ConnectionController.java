@@ -90,10 +90,10 @@ public interface ConnectionController {
                             remoteAddress, totalConnectionNum);
                     return State.REACH_MAX_CONNECTION;
                 }
-                if (maxConnectionsLimitPerIpEnabled && CONNECTIONS.get(ip).getValue() > maxConnectionPerIp) {
+                if (maxConnectionsLimitPerIpEnabled && CONNECTIONS.get(ip).intValue() > maxConnectionPerIp) {
                     log.info("Reject connect request from {}, because reached the maximum number "
                                     + "of connections per Ip {}",
-                            remoteAddress, CONNECTIONS.get(ip).getValue());
+                            remoteAddress, CONNECTIONS.get(ip).intValue());
                     return State.REACH_MAX_CONNECTION_PER_IP;
                 }
             } catch (Exception e) {

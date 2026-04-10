@@ -89,6 +89,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ConsumerBuilder<T> loadConf(Map<String, Object> config) {
         this.conf = ConfigurationDataUtils.loadData(config, conf, ConsumerConfigurationData.class);
         return this;
@@ -381,7 +382,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> messageCrypto(@NonNull MessageCrypto messageCrypto) {
+    public ConsumerBuilder<T> messageCrypto(@NonNull MessageCrypto<?, ?> messageCrypto) {
         conf.setMessageCrypto(messageCrypto);
         return this;
     }
@@ -427,6 +428,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ConsumerBuilder<T> maxPendingChuckedMessage(int maxPendingChuckedMessage) {
         conf.setMaxPendingChunkedMessage(maxPendingChuckedMessage);
@@ -512,7 +514,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> intercept(ConsumerInterceptor<T>... interceptors) {
+    @SafeVarargs
+    public final ConsumerBuilder<T> intercept(ConsumerInterceptor<T>... interceptors) {
         if (interceptorList == null) {
             interceptorList = new ArrayList<>();
         }

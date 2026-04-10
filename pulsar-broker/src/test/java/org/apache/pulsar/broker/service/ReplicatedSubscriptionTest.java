@@ -103,6 +103,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     /**
      * Tests replicated subscriptions across two regions.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionAcrossTwoRegions() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -204,6 +205,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     /**
      * Tests replicated subscriptions across two regions and can read successful.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionAcrossTwoRegionsGetLastMessage() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscriptionlastmessage");
@@ -341,13 +343,13 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         // Since the cluster1 was not crash, all messages will be replicated to the cluster2.
         consumer1.close();
         final PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
-        final Consumer consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
+        final Consumer<?> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
                 .subscriptionName(subscriptionName).replicateSubscriptionState(isReplicatedSubscription).subscribe();
 
         // Verify all messages will be consumed.
         Awaitility.await().untilAsserted(() -> {
             while (true) {
-                Message message = consumer2.receive(2, TimeUnit.SECONDS);
+                Message<?> message = consumer2.receive(2, TimeUnit.SECONDS);
                 if (message != null) {
                     receivedMessages.add(message.getValue().toString());
                     consumer2.acknowledge(message);
@@ -367,6 +369,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     /**
      * If there's no traffic, the snapshot creation should stop and then resume when traffic comes back.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicationSnapshotStopWhenNoTraffic() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -454,6 +457,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         assertNotEquals(rsc2.getLastCompletedSnapshotId().get(), snapshot2);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testReplicatedSubscriptionRestApi1() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -565,6 +569,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetReplicatedSubscriptionStatus() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -626,6 +631,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testReplicatedSubscriptionRestApi2() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -740,6 +746,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testReplicatedSubscriptionRestApi3() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("geo/replicatedsubscription");
@@ -780,6 +787,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     /**
      * Tests replicated subscriptions when replicator producer is closed.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionWhenReplicatorProducerIsClosed() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -892,6 +900,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
      *  </p>
      */
     // TODO: this test causes OOME in the CI, need to investigate
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "isTopicPolicyEnabled", enabled = false)
     public void testWriteMarkerTaskOfReplicateSubscriptions(boolean isTopicPolicyEnabled) throws Exception {
         // 1. Prepare resource and use proper configuration.
@@ -959,6 +968,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         pulsar1.getConfiguration().setForceDeleteNamespaceAllowed(false);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionWithCompaction() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
@@ -1023,6 +1033,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
         Assert.assertEquals(result, List.of("V2"));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testReplicatedSubscriptionOneWay() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar-r4/replicatedsubscription");

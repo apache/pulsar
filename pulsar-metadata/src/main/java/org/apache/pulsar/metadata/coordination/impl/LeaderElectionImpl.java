@@ -77,7 +77,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.path = path;
         this.serde = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null));
         this.store = store;
-        MetadataCacheConfig metadataCacheConfig = MetadataCacheConfig.builder()
+        MetadataCacheConfig<?> metadataCacheConfig = MetadataCacheConfig.builder()
                 .expireAfterWriteMillis(-1L)
                 .build();
         this.cache = store.getMetadataCache(clazz, metadataCacheConfig);

@@ -272,6 +272,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
         doModifyTopicAutoCreation(admin1, pulsar1, allowAutoTopicCreation, allowAutoTopicCreationType,
                 defaultNumPartitions);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "topicDomains")
     public void testAutoCreatingMetadataWhenCallingOldAPI(TopicDomain topicDomain) throws Exception {

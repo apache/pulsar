@@ -135,6 +135,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
 
     // change enabled to true to run the test
     @Test(enabled = false)
+    @SuppressWarnings("unchecked")
     public void testTailingReadsKeySharedSlowConsumer() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-test-topic";
         final String subscriptionName = "test-subscription";
@@ -160,6 +161,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers on the tail (reading from latest)
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -300,6 +302,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
     }
 
     // change enabled to true to run the test
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test(enabled = false)
     public void testCatchUpReadsWithFailureProxyDisconnectingAllConnections() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-catchup-test-topic";
@@ -331,6 +334,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers in paused state with receiver queue size of 50
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -475,6 +479,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testTailingReadsClearsCacheAfterCacheTimeout() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-test-topic";
         final String subscriptionName = "test-subscription";
@@ -491,6 +496,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers on the tail (reading from latest)
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)
@@ -586,6 +592,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testExpectedReads() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cache-test-topic";
         final String subscriptionName = "test-subscription";
@@ -602,6 +609,7 @@ public class BrokerEntryCacheTest extends ProducerConsumerBase {
                 .create();
 
         // Create consumers on the tail (reading from latest)
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         for (int i = 0; i < numConsumers; i++) {
             consumers[i] = pulsarClient.newConsumer(Schema.INT64)

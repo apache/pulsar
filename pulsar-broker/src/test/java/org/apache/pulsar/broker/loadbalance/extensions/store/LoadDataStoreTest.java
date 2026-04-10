@@ -148,6 +148,7 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProducerRestart() throws Exception {
         String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
         var loadDataStore =

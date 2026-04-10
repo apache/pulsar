@@ -46,6 +46,7 @@ import org.apache.pulsar.functions.worker.service.api.Workers;
 @Path("/worker-stats")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@SuppressWarnings("deprecation")
 @Api(value = "/worker-stats", description = "Workers stats api", tags = "workers-stats")
 public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
 

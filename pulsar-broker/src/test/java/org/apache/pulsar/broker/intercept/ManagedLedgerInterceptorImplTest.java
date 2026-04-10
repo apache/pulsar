@@ -141,9 +141,9 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
     public void testMessagePayloadProcessor() throws Exception {
         final String ledgerAndCursorName = "topicEntryWithPayloadProcessed";
 
-        Set<ManagedLedgerPayloadProcessor> processors = new HashSet();
+        Set<ManagedLedgerPayloadProcessor> processors = new HashSet<>();
         processors.add(new TestPayloadProcessor());
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet(), processors);
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet<>(), processors);
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
@@ -171,9 +171,9 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
         // Registry interceptor.
         ManagedLedgerConfig config = new ManagedLedgerConfig();
-        Set<ManagedLedgerPayloadProcessor> processors = new HashSet();
+        Set<ManagedLedgerPayloadProcessor> processors = new HashSet<>();
         processors.add(new TestPayloadProcessor());
-        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet(), processors);
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet<>(), processors);
         config.setManagedLedgerInterceptor(interceptor);
         config.setMaxEntriesPerLedger(2);
 

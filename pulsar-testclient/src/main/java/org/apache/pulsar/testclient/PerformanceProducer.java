@@ -248,6 +248,20 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
 
     @Override
     public void run() throws Exception {
+        // Reset static counters to avoid stale state from previous runs in the same JVM
+        messagesSent.reset();
+        messagesFailed.reset();
+        bytesSent.reset();
+        totalNumTxnOpenTxnFail.reset();
+        totalNumTxnOpenTxnSuccess.reset();
+        totalMessagesSent.reset();
+        totalBytesSent.reset();
+        totalEndTxnOpSuccessNum.reset();
+        totalEndTxnOpFailNum.reset();
+        numTxnOpSuccess.reset();
+        recorder.reset();
+        cumulativeRecorder.reset();
+
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
@@ -433,6 +447,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
         }
     }
 
+    @SuppressWarnings("unchecked")
     static IMessageFormatter getMessageFormatter(String formatterClass) {
         try {
             ClassLoader classLoader = PerformanceProducer.class.getClassLoader();
@@ -446,6 +461,7 @@ public class PerformanceProducer extends PerformanceTopicListArguments{
         }
     }
 
+    @SuppressWarnings("deprecation")
     ProducerBuilder<byte[]> createProducerBuilder(PulsarClient client, int producerId) {
         ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
                 .sendTimeout(this.sendTimeout, TimeUnit.SECONDS) //

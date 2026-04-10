@@ -124,6 +124,7 @@ public class PulsarWorkerService implements WorkerService {
     private final PulsarClientCreator clientCreator;
     private StateStoreProvider stateStoreProvider;
 
+    @SuppressWarnings("deprecation")
     public PulsarWorkerService() {
         this.clientCreator = new PulsarClientCreator() {
             @Override

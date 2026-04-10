@@ -138,7 +138,8 @@ runs:
             if command -v upterm &>/dev/null; then
                 shopt -s nullglob
                 echo "SSH connection information"
-                upterm session current --admin-socket ~/.upterm/*.sock || {
+                export UPTERM_ADMIN_SOCKET=$(find $HOME/.upterm $XDG_RUNTIME_DIR/upterm /run/user/$(id -u)/upterm -name "*.sock" | head -n 1)
+                upterm session current || {
                     echo "upterm isn't running. Not waiting any longer."
                     exit 0
                 }
@@ -146,7 +147,7 @@ runs:
                 echo "Waiting $timeout seconds..."
                 sleep $timeout
                 echo "Keep waiting as long as there's a connected session"
-                while upterm session current --admin-socket ~/.upterm/*.sock|grep Connected &>/dev/null; do
+                while upterm session current|grep Connected &>/dev/null; do
                     sleep 30
                 done
                 echo "No session is connected. Not waiting any longer."

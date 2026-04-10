@@ -402,6 +402,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                     field = PendingAckHandleImpl.class.getDeclaredField("individualAckPositions");
                     field.setAccessible(true);
 
+                    @SuppressWarnings("unchecked")
                     Map<Position, MutablePair<Position, Long>> map =
                             (Map<Position, MutablePair<Position, Long>>) field.get(pendingAckHandle);
                     if (map != null) {

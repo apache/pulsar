@@ -70,6 +70,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDisableSchemaValidationEnforcedNoSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/default-no-schema");
         String namespace = "schema-validation-enforced/default-no-schema";
@@ -82,12 +83,13 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         } catch (PulsarAdminException.NotFoundException e) {
             assertEquals(e.getMessage(), "Schema not found");
         }
-        try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
         }
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDisableSchemaValidationEnforcedHasSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/default-has-schema");
         String namespace = "schema-validation-enforced/default-has-schema";
@@ -110,7 +112,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
                 .build();
         PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "", properties);
         admin.schemas().createSchema(topicName, postSchemaPayload);
-        try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
         }
         assertSchemaInfoEquals(admin.schemas().getSchemaInfo(topicName), schemaInfo);
@@ -126,6 +128,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testEnableSchemaValidationEnforcedNoSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/enable-no-schema");
         String namespace = "schema-validation-enforced/enable-no-schema";
@@ -138,7 +141,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
         } catch (PulsarAdminException.NotFoundException e) {
             assertEquals(e.getMessage(), "Schema not found");
         }
-        try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).create()) {
             p.send("test schemaValidationEnforced".getBytes());
         }
     }
@@ -169,7 +172,7 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
                 .build();
         PostSchemaPayload postSchemaPayload = new PostSchemaPayload("STRING", "", properties);
         admin.schemas().createSchema(topicName, postSchemaPayload);
-        try (Producer p = pulsarClient.newProducer().topic(topicName).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer().topic(topicName).create()) {
             fail("Client no schema, but topic has schema, should fail");
         }  catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("IncompatibleSchemaException"));

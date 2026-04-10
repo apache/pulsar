@@ -33,7 +33,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -53,7 +53,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ManagedLedgerFactoryShutdownTest {
 
     private final String ledgerName = UUID.randomUUID().toString();
@@ -90,8 +90,8 @@ public class ManagedLedgerFactoryShutdownTest {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    log.info("metadataStore.get({}) returned,managedLedgerInfo={},stat={}", path, mli,
-                            stat);
+                    log.info().attr("path", path).attr("managedLedgerInfo", mli)
+                            .attr("stat", stat).log("metadataStore.get returned");
                     return Optional.of(new GetResult(mli.toByteArray(), stat));
                 });
 
@@ -107,8 +107,8 @@ public class ManagedLedgerFactoryShutdownTest {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    log.info("metadataStore.get({}) returned:managedCursorInfo={},stat={}", path, mci,
-                            stat);
+                    log.info().attr("path", path).attr("managedCursorInfo", mci)
+                            .attr("stat", stat).log("metadataStore.get returned");
                     return Optional.of(new GetResult(mci.toByteArray(), stat));
                 });
 
@@ -117,7 +117,7 @@ public class ManagedLedgerFactoryShutdownTest {
             }
         });
         given(metadataStore.put(anyString(), any(), any())).willAnswer(inv -> {
-            @SuppressWarnings("unchecked cast")
+            @SuppressWarnings("unchecked")
             Optional<Long> expectedVersion = inv.getArgument(2, Optional.class);
             return CompletableFuture.supplyAsync(() -> new Stat(inv.getArgument(0, String.class),
                     expectedVersion.orElse(0L) + 1, createTimeMillis,
@@ -184,7 +184,7 @@ public class ManagedLedgerFactoryShutdownTest {
                     }
                 }, null);
 
-        log.info("Shutdown factory...");
+        log.info("Shutdown factory");
 
 
         factory.shutdownAsync().get();

@@ -173,6 +173,16 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         System.exit(status);
     }
 
+    @Override
+    protected void processTerminator(int exitCode) {
+        if (testMode) {
+            // In test mode, don't halt the JVM — it would kill the test runner
+            log.info("Ignoring process termination in test mode (exit code {})", exitCode);
+            return;
+        }
+        super.processTerminator(exitCode);
+    }
+
     private static boolean argsContains(String[] args, String arg) {
         return Arrays.asList(args).contains(arg);
     }

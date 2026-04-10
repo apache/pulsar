@@ -96,6 +96,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
 
@@ -193,6 +194,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testSkipCorruptDataLedger() throws Exception {
         // Ensure intended state for autoSkipNonRecoverableData
@@ -298,6 +300,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         consumer.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTruncateCorruptDataLedger() throws Exception {
         // Ensure intended state for autoSkipNonRecoverableData
@@ -435,6 +438,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         factory.delete("test");
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 20000)
     public void testTopicWithWildCardChar() throws Exception {
         @Cleanup
@@ -465,6 +469,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeleteTopicWithMissingData() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("prop/ns");
@@ -510,6 +515,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         assertThrows(PulsarAdminException.ServerSideErrorException.class, () -> admin.topics().delete(topic));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeleteTopicWithoutTopicLoaded() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("prop/ns");
@@ -543,6 +549,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60_000, dataProvider = "doReloadTopicAfterLedgerFenced")
     public void testConcurrentlyModifyCurrentLedger(boolean doReloadTopicAfterLedgerFenced) throws Exception {
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(config.getNumIOThreads(),

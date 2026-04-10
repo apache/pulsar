@@ -36,7 +36,7 @@ import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
@@ -130,7 +130,9 @@ public class BatchSourceExecutor<T> implements Source<T> {
       batchSourceClassName,
       clsLoader);
     if (userClassObject instanceof BatchSource) {
-      batchSource = (BatchSource) userClassObject;
+      @SuppressWarnings("unchecked") // type parameter is erased at runtime
+      BatchSource<T> typedBatchSource = (BatchSource<T>) userClassObject;
+      batchSource = typedBatchSource;
     } else {
       throw new IllegalArgumentException("BatchSource does not implement the correct interface");
     }
@@ -281,7 +283,7 @@ public class BatchSourceExecutor<T> implements Source<T> {
                   .subscriptionType(SubscriptionType.Shared)
                   .topic(intermediateTopicName)
                   .properties(InstanceUtils.getProperties(
-                    Function.FunctionDetails.ComponentType.SOURCE, fqfn, sourceContext.getInstanceId()))
+                    FunctionDetails.ComponentType.SOURCE, fqfn, sourceContext.getInstanceId()))
                   .subscribeAsync();
                 intermediateTopicConsumer = cf.join();
                 return Actions.ActionResult.builder()

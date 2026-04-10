@@ -85,6 +85,7 @@ public class CompactionReaderImpl<T> extends ReaderImpl<T> {
         return consumer.receiveAsync();
     }
 
+    @SuppressWarnings("deprecation")
     public CompletableFuture<MessageId> getLastMessageIdAsync() {
         return consumer.getLastMessageIdAsync();
     }

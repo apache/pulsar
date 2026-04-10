@@ -19,11 +19,11 @@
 package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -209,13 +209,13 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
             case Releasing, Splitting -> {
-                if (StringUtils.equals(data.sourceBroker(), brokerId)) {
+                if (Objects.equals(data.sourceBroker(), brokerId)) {
                     localData.clear();
                     tombstone();
                 }
             }
             case Owned -> {
-                if (StringUtils.equals(data.dstBroker(), brokerId)) {
+                if (Objects.equals(data.dstBroker(), brokerId)) {
                     localData.clear();
                     tombstone();
                 }

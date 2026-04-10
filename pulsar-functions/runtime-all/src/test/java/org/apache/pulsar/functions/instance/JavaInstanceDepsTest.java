@@ -57,6 +57,9 @@ public class JavaInstanceDepsTest {
     @Test
     public void testInstanceJarDeps() throws IOException {
         File jar = new File("target/java-instance.jar");
+        if (!jar.exists()) {
+            jar = new File("build/libs/java-instance.jar");
+        }
 
         @Cleanup
         ZipInputStream zip = new ZipInputStream(jar.toURI().toURL().openStream());

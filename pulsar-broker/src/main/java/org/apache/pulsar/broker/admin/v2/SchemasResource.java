@@ -61,6 +61,7 @@ import org.apache.pulsar.common.util.FutureUtil;
     tags = "schemas"
 )
 @Slf4j
+@SuppressWarnings("deprecation")
 public class SchemasResource extends SchemasResourceBase {
 
     @VisibleForTesting

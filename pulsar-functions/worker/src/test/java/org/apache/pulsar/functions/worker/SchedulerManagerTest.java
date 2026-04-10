@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
@@ -31,15 +32,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -58,8 +58,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
@@ -79,6 +79,7 @@ public class SchedulerManagerTest {
     private FunctionRuntimeManager functionRuntimeManager;
     private MembershipManager membershipManager;
     private CompletableFuture<MessageId> completableFuture;
+    @SuppressWarnings("rawtypes")
     private Producer producer;
     private TypedMessageBuilder<byte[]> message;
     private ScheduledExecutorService executor;
@@ -93,7 +94,30 @@ public class SchedulerManagerTest {
         ClearDrainMap    // clear the entire thing
     };
 
+    private static FunctionMetaData createFunctionMetaData(String tenant, String namespace, String name,
+                                                            int parallelism, long version) {
+        FunctionMetaData fmd = new FunctionMetaData();
+        fmd.setFunctionDetails().setName(name).setNamespace(namespace).setTenant(tenant).setParallelism(parallelism);
+        fmd.setVersion(version);
+        return fmd;
+    }
+
+    private static Assignment createAssignment(String workerId, FunctionMetaData function, int instanceId) {
+        Assignment assignment = new Assignment();
+        assignment.setWorkerId(workerId);
+        assignment.setInstance().setFunctionMetaData().copyFrom(function);
+        assignment.getInstance().setInstanceId(instanceId);
+        return assignment;
+    }
+
+    private static Assignment parseAssignment(byte[] data) {
+        Assignment assignment = new Assignment();
+        assignment.parseFrom(data);
+        return assignment;
+    }
+
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     public void setup() {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -153,14 +177,12 @@ public class SchedulerManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSchedule() throws Exception {
 
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
+        FunctionMetaData function1 = createFunctionMetaData("tenant-1", "namespace-1", "func-1", 1, version);
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
@@ -168,14 +190,10 @@ public class SchedulerManagerTest {
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
-        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Assignment> assignmentEntry1 = new HashMap<>();
         assignmentEntry1.put(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
@@ -202,12 +220,9 @@ public class SchedulerManagerTest {
     @Test
     public void testNothingNewToSchedule() throws Exception {
 
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
+        FunctionMetaData function1 = createFunctionMetaData("tenant-1", "namespace-1", "func-1", 1, version);
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
@@ -215,14 +230,10 @@ public class SchedulerManagerTest {
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
-        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Assignment> assignmentEntry1 = new HashMap<>();
         assignmentEntry1.put(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
@@ -244,17 +255,10 @@ public class SchedulerManagerTest {
 
     @Test
     public void testAddingFunctions() throws Exception {
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
-
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
+        FunctionMetaData function1 = createFunctionMetaData("tenant-1", "namespace-1", "func-1", 1, version);
+        FunctionMetaData function2 = createFunctionMetaData("tenant-1", "namespace-1", "func-2", 1, version);
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
@@ -263,14 +267,10 @@ public class SchedulerManagerTest {
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
-        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Assignment> assignmentEntry1 = new HashMap<>();
         assignmentEntry1.put(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
@@ -290,34 +290,27 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
         byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Assignment assignments = Assignment.parseFrom(send);
+        Assignment assignments = parseAssignment(send);
 
         log.info("assignments: {}", assignments);
-        Function.Assignment assignment2 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
-                .build();
-        Assert.assertEquals(assignment2, assignments);
+        Assignment assignment2 = createAssignment("worker-1", function2, 0);
+        Assert.assertEquals(assignment2.toByteArray(), assignments.toByteArray());
 
         // make sure we also directly added the assignment to in memory assignment cache in function runtime manager
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment2.toByteArray())));
     }
 
     @Test
     public void testDeletingFunctions() throws Exception {
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
+        FunctionMetaData function1 = createFunctionMetaData("tenant-1", "namespace-1", "func-1", 1, version);
 
         // simulate function2 got removed
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1))
-                .build();
+        FunctionMetaData function2 = new FunctionMetaData();
+        function2.setFunctionDetails().setName("func-2")
+                .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1);
         functionMetaDataList.add(function1);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
@@ -325,21 +318,13 @@ public class SchedulerManagerTest {
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
 
         // Delete this assignment
-        Function.Assignment assignment2 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
-                .build();
+        Assignment assignment2 = createAssignment("worker-1", function2, 0);
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
-        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Assignment> assignmentEntry1 = new HashMap<>();
         assignmentEntry1.put(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         //TODO: delete this assignment
         assignmentEntry1.put(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance()), assignment2);
@@ -374,17 +359,10 @@ public class SchedulerManagerTest {
 
     @Test
     public void testScalingUp() throws Exception {
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
-
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
+        FunctionMetaData function1 = createFunctionMetaData("tenant-1", "namespace-1", "func-1", 1, version);
+        FunctionMetaData function2 = createFunctionMetaData("tenant-1", "namespace-1", "func-2", 1, version);
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
@@ -393,14 +371,10 @@ public class SchedulerManagerTest {
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
-        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Assignment> assignmentEntry1 = new HashMap<>();
         assignmentEntry1.put(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
 
         currentAssignments.put("worker-1", assignmentEntry1);
@@ -421,16 +395,12 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
         byte[] send = (byte[]) invocations.get(0).getRawArguments()[0];
-        Assignment assignments = Assignment.parseFrom(send);
+        Assignment assignments = parseAssignment(send);
 
         log.info("assignments: {}", assignments);
 
-        Function.Assignment assignment2 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
-                .build();
-        Assert.assertEquals(assignments, assignment2);
+        Assignment assignment2 = createAssignment("worker-1", function2, 0);
+        Assert.assertEquals(assignments.toByteArray(), assignment2.toByteArray());
 
         // updating assignments
         currentAssignments.get("worker-1")
@@ -438,30 +408,15 @@ public class SchedulerManagerTest {
 
         // scale up
 
-        Function.FunctionMetaData function2Scaled = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3)).setVersion(version)
-                .build();
+        FunctionMetaData function2Scaled = createFunctionMetaData("tenant-1", "namespace-1", "func-2", 3, version);
         functionMetaDataList = new LinkedList<>();
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2Scaled);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        Function.Assignment assignment2Scaled1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2Scaled).setInstanceId(0).build())
-                .build();
-        Function.Assignment assignment2Scaled2 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2Scaled).setInstanceId(1).build())
-                .build();
-        Function.Assignment assignment2Scaled3 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2Scaled).setInstanceId(2).build())
-                .build();
+        Assignment assignment2Scaled1 = createAssignment("worker-1", function2Scaled, 0);
+        Assignment assignment2Scaled2 = createAssignment("worker-1", function2Scaled, 1);
+        Assignment assignment2Scaled3 = createAssignment("worker-1", function2Scaled, 2);
 
         callSchedule();
 
@@ -470,33 +425,22 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
 
-        Set<Assignment> allAssignments = new HashSet<>();
+        List<byte[]> allAssignmentBytesScaled = new ArrayList<>();
         invocations.forEach(invocation -> {
-            try {
-                allAssignments.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+            allAssignmentBytesScaled.add(parseAssignment((byte[]) invocation.getRawArguments()[0]).toByteArray());
         });
 
-        assertTrue(allAssignments.contains(assignment2Scaled1));
-        assertTrue(allAssignments.contains(assignment2Scaled2));
-        assertTrue(allAssignments.contains(assignment2Scaled3));
+        assertTrue(allAssignmentBytesScaled.stream().anyMatch(b -> Arrays.equals(b, assignment2Scaled1.toByteArray())));
+        assertTrue(allAssignmentBytesScaled.stream().anyMatch(b -> Arrays.equals(b, assignment2Scaled2.toByteArray())));
+        assertTrue(allAssignmentBytesScaled.stream().anyMatch(b -> Arrays.equals(b, assignment2Scaled3.toByteArray())));
     }
 
     @Test
     public void testScalingDown() throws Exception {
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
-
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3)).setVersion(version)
-                .build();
+        FunctionMetaData function1 = createFunctionMetaData("tenant-1", "namespace-1", "func-1", 1, version);
+        FunctionMetaData function2 = createFunctionMetaData("tenant-1", "namespace-1", "func-2", 3, version);
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
@@ -505,14 +449,10 @@ public class SchedulerManagerTest {
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
-        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Assignment> assignmentEntry1 = new HashMap<>();
         assignmentEntry1.put(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
 
         currentAssignments.put("worker-1", assignmentEntry1);
@@ -533,52 +473,27 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
 
-        for (int i = 0; i < invocations.size(); i++) {
-            Invocation invocation = invocations.get(i);
-            byte[] send = (byte[]) invocation.getRawArguments()[0];
-            Assignment assignment = Assignment.parseFrom(send);
-            Assignment expectedAssignment = Function.Assignment.newBuilder()
-                    .setWorkerId("worker-1")
-                    .setInstance(Function.Instance.newBuilder()
-                            .setFunctionMetaData(function2).setInstanceId(i).build())
-                    .build();
-            Assert.assertEquals(assignment, expectedAssignment);
-        }
-
-        Set<Assignment> allAssignments = new HashSet<>();
+        List<byte[]> allAssignmentBytes = new ArrayList<>();
         invocations.forEach(invocation -> {
-            try {
-                allAssignments.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+            allAssignmentBytes.add(parseAssignment((byte[]) invocation.getRawArguments()[0]).toByteArray());
         });
 
-        Function.Assignment assignment21 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
-                .build();
-        Function.Assignment assignment22 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(1).build())
-                .build();
-        Function.Assignment assignment23 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(2).build())
-                .build();
+        Assignment assignment21 = createAssignment("worker-1", function2, 0);
+        Assignment assignment22 = createAssignment("worker-1", function2, 1);
+        Assignment assignment23 = createAssignment("worker-1", function2, 2);
 
-        assertTrue(allAssignments.contains(assignment21));
-        assertTrue(allAssignments.contains(assignment22));
-        assertTrue(allAssignments.contains(assignment23));
+        assertTrue(allAssignmentBytes.stream().anyMatch(b -> Arrays.equals(b, assignment21.toByteArray())));
+        assertTrue(allAssignmentBytes.stream().anyMatch(b -> Arrays.equals(b, assignment22.toByteArray())));
+        assertTrue(allAssignmentBytes.stream().anyMatch(b -> Arrays.equals(b, assignment23.toByteArray())));
 
         // make sure we also directly add the assignment to the in memory assignment cache in function runtime manager
         verify(functionRuntimeManager, times(3)).processAssignment(any());
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment21));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment22));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment23));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment21.toByteArray())));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment22.toByteArray())));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment23.toByteArray())));
 
         // updating assignments
         currentAssignments.get("worker-1")
@@ -590,20 +505,13 @@ public class SchedulerManagerTest {
 
         // scale down
 
-        Function.FunctionMetaData function2Scaled = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
+        FunctionMetaData function2Scaled = createFunctionMetaData("tenant-1", "namespace-1", "func-2", 1, version);
         functionMetaDataList = new LinkedList<>();
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2Scaled);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        Function.Assignment assignment2Scaled = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2Scaled).setInstanceId(0).build())
-                .build();
+        Assignment assignment2Scaled = createAssignment("worker-1", function2Scaled, 0);
 
         callSchedule();
 
@@ -612,16 +520,12 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
 
-        Set<Assignment> allAssignments2 = new HashSet<>();
+        List<byte[]> allAssignmentBytes2 = new ArrayList<>();
         invocations.forEach(invocation -> {
-            try {
-                allAssignments2.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+            allAssignmentBytes2.add(parseAssignment((byte[]) invocation.getRawArguments()[0]).toByteArray());
         });
 
-        assertTrue(allAssignments2.contains(assignment2Scaled));
+        assertTrue(allAssignmentBytes2.stream().anyMatch(b -> Arrays.equals(b, assignment2Scaled.toByteArray())));
 
         // make sure we also directly removed the assignment from the in memory assignment cache in
         // function runtime manager
@@ -632,26 +536,27 @@ public class SchedulerManagerTest {
                 .deleteAssignment(eq(FunctionCommon.getFullyQualifiedInstanceId(assignment22.getInstance())));
 
         verify(functionRuntimeManager, times(4)).processAssignment(any());
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2Scaled));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment2Scaled.toByteArray())));
     }
 
     @Test
     public void testHeartbeatFunction() throws Exception {
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         final long version = 5;
         final String workerId1 = "host-workerId-1";
         final String workerId2 = "host-workerId-2";
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName(workerId1)
-                        .setNamespace(SchedulerManager.HEARTBEAT_NAMESPACE)
-                        .setTenant(SchedulerManager.HEARTBEAT_TENANT).setParallelism(1))
-                .setVersion(version).build();
+        FunctionMetaData function1 = new FunctionMetaData();
+        function1.setFunctionDetails().setName(workerId1)
+                .setNamespace(SchedulerManager.HEARTBEAT_NAMESPACE)
+                .setTenant(SchedulerManager.HEARTBEAT_TENANT).setParallelism(1);
+        function1.setVersion(version);
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName(workerId2)
-                        .setNamespace(SchedulerManager.HEARTBEAT_NAMESPACE)
-                        .setTenant(SchedulerManager.HEARTBEAT_TENANT).setParallelism(1))
-                .setVersion(version).build();
+        FunctionMetaData function2 = new FunctionMetaData();
+        function2.setFunctionDetails().setName(workerId2)
+                .setNamespace(SchedulerManager.HEARTBEAT_NAMESPACE)
+                .setTenant(SchedulerManager.HEARTBEAT_TENANT).setParallelism(1);
+        function2.setVersion(version);
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
@@ -659,8 +564,8 @@ public class SchedulerManagerTest {
         ThreadRuntimeFactory factory = mock(ThreadRuntimeFactory.class);
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
-        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Assignment> assignmentEntry1 = new HashMap<>();
 
         currentAssignments.put("worker-1", assignmentEntry1);
         doReturn(currentAssignments).when(functionRuntimeManager).getCurrentAssignments();
@@ -680,32 +585,28 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
         invocations.forEach(invocation -> {
-            try {
-                Assignment assignment = Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]);
-                String functionName = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName();
-                String assignedWorkerId = assignment.getWorkerId();
-                Assert.assertEquals(functionName, assignedWorkerId);
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+            Assignment assignment = parseAssignment((byte[]) invocation.getRawArguments()[0]);
+            String functionName = assignment.getInstance().getFunctionMetaData().getFunctionDetails().getName();
+            String assignedWorkerId = assignment.getWorkerId();
+            Assert.assertEquals(functionName, assignedWorkerId);
         });
     }
 
     @Test
     public void testUpdate() throws Exception {
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/foo/bar1"))
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
+        FunctionMetaData function1 = new FunctionMetaData();
+        function1.setPackageLocation().setPackagePath("/foo/bar1");
+        function1.setFunctionDetails().setName("func-1")
+                .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1);
+        function1.setVersion(version);
 
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/foo/bar1"))
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3)).setVersion(version)
-                .build();
+        FunctionMetaData function2 = new FunctionMetaData();
+        function2.setPackageLocation().setPackagePath("/foo/bar1");
+        function2.setFunctionDetails().setName("func-2")
+                .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3);
+        function2.setVersion(version);
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
@@ -714,14 +615,10 @@ public class SchedulerManagerTest {
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
-        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Assignment> assignmentEntry1 = new HashMap<>();
         assignmentEntry1.put(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
 
         currentAssignments.put("worker-1", assignmentEntry1);
@@ -737,46 +634,33 @@ public class SchedulerManagerTest {
 
         callSchedule();
 
-        Function.Assignment assignment21 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
-                .build();
-        Function.Assignment assignment22 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(1).build())
-                .build();
-        Function.Assignment assignment23 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(2).build())
-                .build();
+        Assignment assignment21 = createAssignment("worker-1", function2, 0);
+        Assignment assignment22 = createAssignment("worker-1", function2, 1);
+        Assignment assignment23 = createAssignment("worker-1", function2, 2);
 
         List<Invocation> invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("send"));
         Assert.assertEquals(invocations.size(), 3);
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
 
-        Set<Assignment> allAssignments = new HashSet<>();
+        List<byte[]> allAssignmentBytes = new ArrayList<>();
         invocations.forEach(invocation -> {
-            try {
-                allAssignments.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+            allAssignmentBytes.add(parseAssignment((byte[]) invocation.getRawArguments()[0]).toByteArray());
         });
 
-        assertEquals(allAssignments.size(), 3);
-        assertTrue(allAssignments.contains(assignment21));
-        assertTrue(allAssignments.contains(assignment22));
-        assertTrue(allAssignments.contains(assignment23));
+        assertEquals(allAssignmentBytes.size(), 3);
+        assertTrue(allAssignmentBytes.stream().anyMatch(b -> Arrays.equals(b, assignment21.toByteArray())));
+        assertTrue(allAssignmentBytes.stream().anyMatch(b -> Arrays.equals(b, assignment22.toByteArray())));
+        assertTrue(allAssignmentBytes.stream().anyMatch(b -> Arrays.equals(b, assignment23.toByteArray())));
 
         // make sure we also directly add the assignment to the in memory assignment cache in function runtime manager
         verify(functionRuntimeManager, times(3)).processAssignment(any());
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment21));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment22));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment23));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment21.toByteArray())));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment22.toByteArray())));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment23.toByteArray())));
 
         // updating assignments
         currentAssignments.get("worker-1")
@@ -788,31 +672,19 @@ public class SchedulerManagerTest {
 
         // update field
 
-        Function.FunctionMetaData function2Updated = Function.FunctionMetaData.newBuilder()
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/foo/bar2"))
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3)).setVersion(version)
-                .build();
+        FunctionMetaData function2Updated = new FunctionMetaData();
+        function2Updated.setPackageLocation().setPackagePath("/foo/bar2");
+        function2Updated.setFunctionDetails().setName("func-2")
+                .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(3);
+        function2Updated.setVersion(version);
         functionMetaDataList = new LinkedList<>();
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2Updated);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
 
-        Function.Assignment assignment2Updated1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2Updated).setInstanceId(0).build())
-                .build();
-        Function.Assignment assignment2Updated2 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2Updated).setInstanceId(1).build())
-                .build();
-        Function.Assignment assignment2Updated3 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2Updated).setInstanceId(2).build())
-                .build();
+        Assignment assignment2Updated1 = createAssignment("worker-1", function2Updated, 0);
+        Assignment assignment2Updated2 = createAssignment("worker-1", function2Updated, 1);
+        Assignment assignment2Updated3 = createAssignment("worker-1", function2Updated, 2);
 
         callSchedule();
 
@@ -821,40 +693,32 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
 
-        Set<Assignment> allAssignments2 = new HashSet<>();
+        List<byte[]> allAssignmentBytes3 = new ArrayList<>();
         invocations.forEach(invocation -> {
-            try {
-                allAssignments2.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));
-            } catch (InvalidProtocolBufferException e) {
-                throw new RuntimeException(e);
-            }
+            allAssignmentBytes3.add(parseAssignment((byte[]) invocation.getRawArguments()[0]).toByteArray());
         });
 
-        assertTrue(allAssignments2.contains(assignment2Updated1));
-        assertTrue(allAssignments2.contains(assignment2Updated2));
-        assertTrue(allAssignments2.contains(assignment2Updated3));
+        assertTrue(allAssignmentBytes3.stream().anyMatch(b -> Arrays.equals(b, assignment2Updated1.toByteArray())));
+        assertTrue(allAssignmentBytes3.stream().anyMatch(b -> Arrays.equals(b, assignment2Updated2.toByteArray())));
+        assertTrue(allAssignmentBytes3.stream().anyMatch(b -> Arrays.equals(b, assignment2Updated3.toByteArray())));
 
         // make sure we also directly updated the assignment to the in memory assignment cache in
         // function runtime manager
         verify(functionRuntimeManager, times(6)).processAssignment(any());
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2Updated1));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2Updated2));
-        verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2Updated3));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment2Updated1.toByteArray())));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment2Updated2.toByteArray())));
+        verify(functionRuntimeManager, times(1)).processAssignment(
+                argThat(a -> Arrays.equals(a.toByteArray(), assignment2Updated3.toByteArray())));
     }
 
     @Test
     public void testAssignmentWorkerDoesNotExist() throws Exception {
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
-
-        Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-2")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                .build();
+        FunctionMetaData function1 = createFunctionMetaData("tenant-1", "namespace-1", "func-1", 1, version);
+        FunctionMetaData function2 = createFunctionMetaData("tenant-1", "namespace-1", "func-2", 1, version);
         functionMetaDataList.add(function1);
         functionMetaDataList.add(function2);
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
@@ -863,25 +727,17 @@ public class SchedulerManagerTest {
         doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
 
         // set assignments
-        Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function1).setInstanceId(0).build())
-                .build();
+        Assignment assignment1 = createAssignment("worker-1", function1, 0);
 
         // set assignment to worker that doesn't exist / died
-        Function.Assignment assignment2 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-2")
-                .setInstance(Function.Instance.newBuilder()
-                        .setFunctionMetaData(function2).setInstanceId(0).build())
-                .build();
+        Assignment assignment2 = createAssignment("worker-2", function2, 0);
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
-        Map<String, Function.Assignment> assignmentEntry1 = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Assignment> assignmentEntry1 = new HashMap<>();
         assignmentEntry1.put(FunctionCommon.getFullyQualifiedInstanceId(assignment1.getInstance()), assignment1);
         currentAssignments.put("worker-1", assignmentEntry1);
 
-        Map<String, Function.Assignment> assignmentEntry2 = new HashMap<>();
+        Map<String, Assignment> assignmentEntry2 = new HashMap<>();
         assignmentEntry2.put(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance()), assignment2);
         currentAssignments.put("worker-2", assignmentEntry2);
 
@@ -902,6 +758,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDrain() throws Exception {
 
         final int numWorkers = 4;
@@ -916,14 +773,11 @@ public class SchedulerManagerTest {
 
         // Set up multiple functions and assignments, so that there are more functions than workers.
         final int numFunctions = numWorkers * 5;
-        List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         for (int ix = 0; ix < numFunctions; ix++) {
             String funcName = "func-" + ix;
-            Function.FunctionMetaData func = Function.FunctionMetaData.newBuilder()
-                    .setFunctionDetails(Function.FunctionDetails.newBuilder().setName(funcName)
-                            .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(version)
-                    .build();
+            FunctionMetaData func = createFunctionMetaData("tenant-1", "namespace-1", funcName, 1, version);
             functionMetaDataList.add(func);
         }
         doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
@@ -933,21 +787,15 @@ public class SchedulerManagerTest {
 
         // set assignments, round-robining the functions among the workers
         int workerIndex = 0;
-        List<Function.Assignment> assignmentList = new LinkedList<>();
+        List<Assignment> assignmentList = new LinkedList<>();
         for (val func : functionMetaDataList) {
             String workerId = "worker-" + workerIndex;
-            Function.Assignment ass = Function.Assignment.newBuilder()
-                    .setWorkerId(workerId)
-                    .setInstance(Function.Instance.newBuilder()
-                            .setFunctionMetaData(func)
-                            .setInstanceId(0)
-                            .build())
-                    .build();
+            Assignment ass = createAssignment(workerId, func, 0);
             assignmentList.add(ass);
             workerIndex = (workerIndex + 1) % numWorkers;
         }
 
-        Map<String, Map<String, Function.Assignment>> currentAssignments = new HashMap<>();
+        Map<String, Map<String, Assignment>> currentAssignments = new HashMap<>();
 
         final String workerIdToDrain = "worker-0";
         int numAssignmentsOnDrainedWorker = 0;
@@ -955,7 +803,7 @@ public class SchedulerManagerTest {
         workerIndex = 0;
         for (val ass : assignmentList) {
             String workerId = "worker-" + workerIndex;
-            Map<String, Function.Assignment> assignmentEntry = currentAssignments.get(workerId);
+            Map<String, Assignment> assignmentEntry = currentAssignments.get(workerId);
             if (assignmentEntry == null) {
                 assignmentEntry = new HashMap<>();
             }

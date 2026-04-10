@@ -44,7 +44,7 @@ import org.apache.pulsar.client.api.ReaderBuilder;
 public class FunctionAssignmentTailer implements AutoCloseable {
 
     private final FunctionRuntimeManager functionRuntimeManager;
-    private final ReaderBuilder readerBuilder;
+    private final ReaderBuilder<byte[]> readerBuilder;
     private final WorkerConfig workerConfig;
     private final ErrorNotifier errorNotifier;
     private Reader<byte[]> reader;
@@ -58,7 +58,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
 
     public FunctionAssignmentTailer(
             FunctionRuntimeManager functionRuntimeManager,
-            ReaderBuilder readerBuilder,
+            ReaderBuilder<byte[]> readerBuilder,
             WorkerConfig workerConfig,
             ErrorNotifier errorNotifier) {
         this.functionRuntimeManager = functionRuntimeManager;

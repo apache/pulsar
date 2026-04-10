@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
+
+/*
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
  */
@@ -33,15 +34,12 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -147,13 +145,7 @@ public class NarClassLoader extends URLClassLoader {
                                                 String narExtractionDirectory)
         throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
-        return AccessController.doPrivileged(new PrivilegedAction<NarClassLoader>() {
-            @SneakyThrows
-            @Override
-            public NarClassLoader run() {
-                return new NarClassLoader(unpacked, additionalJars, parent);
-            }
-        });
+        return new NarClassLoader(unpacked, additionalJars, parent);
     }
 
     public static List<File> getClasspathFromArchive(File narPath, String narExtractionDirectory) throws IOException {

@@ -126,6 +126,7 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
@@ -291,6 +292,7 @@ public class BrokerBookieIsolationTest {
         assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
     }
 
+    @SuppressWarnings("unchecked")
     private LedgerManager getLedgerManager(BookieImpl bookie1) throws IllegalAccessException {
         DbLedgerStorage ledgerStorage =
                 (DbLedgerStorage) FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);
@@ -306,6 +308,7 @@ public class BrokerBookieIsolationTest {
         return ledgerManager;
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetRackInfoAndAffinityGroupDuringProduce() throws Exception {
         final String tenant1 = "tenant1";
@@ -446,6 +449,7 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testStrictBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
@@ -612,6 +616,7 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testBookieIsolationWithSecondaryGroup() throws Exception {
         final String tenant1 = "tenant1";

@@ -526,6 +526,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testMaxConcurrentTopicLoading() throws Exception {
         final String topicName = "persistent://my-property/my-ns/cocurrentLoadingTopic";
@@ -584,6 +585,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testCloseConnectionOnInternalServerError() throws Exception {
 
@@ -658,6 +660,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             return timestamp;
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCleanProducer() throws Exception {
@@ -690,6 +693,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws PulsarClientException
      */
+    @SuppressWarnings("deprecation")
     @Test(expectedExceptions = PulsarClientException.TimeoutException.class)
     public void testOperationTimeout() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
@@ -769,6 +773,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAvroSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         TestMessageObject object = new TestMessageObject();
@@ -802,6 +807,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testJsonSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ObjectMapper mapper = new ObjectMapper();
@@ -908,6 +914,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test(dataProvider = "booleanFlagProvider")
+    @SuppressWarnings("unchecked")
     public void testPooledMessageWithAckTimeout(boolean isBatchingEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 

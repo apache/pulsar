@@ -100,6 +100,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
 
     private static final Pattern ID_EXTRACTION_PATTERN = Pattern.compile("urL(\\d+)$");
 
+    @SuppressWarnings("rawtypes")
     private final AbstractConfiguration conf;
     private final String basePath;
     private final String urLedgerPath;
@@ -1061,6 +1062,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void notifyUnderReplicationLedgerChanged(BookkeeperInternalCallbacks.GenericCallback<Void> cb)
             throws ReplicationException.UnavailableException {

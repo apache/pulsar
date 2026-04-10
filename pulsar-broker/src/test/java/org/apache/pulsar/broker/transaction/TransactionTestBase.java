@@ -100,6 +100,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         return builder.build();
     }
 
+    @SuppressWarnings("deprecation")
     protected void setUpBase(int numBroker, int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
         setBrokerCount(numBroker);
         internalSetup();
@@ -237,6 +238,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 .atMost(5, TimeUnit.SECONDS)
                 .pollInterval(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> {
+                    @SuppressWarnings("unchecked")
                     List<PublisherStats> publisherStatsList =
                             (List<PublisherStats>) admin.topics()
                                     .getStats(snTopicName.getPartitionedTopicName()).getPublishers();

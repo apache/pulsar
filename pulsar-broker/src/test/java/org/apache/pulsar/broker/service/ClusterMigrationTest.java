@@ -262,6 +262,7 @@ public class ClusterMigrationTest {
      * (11) Restart Broker-1 and connect producer/consumer on cluster-1
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testClusterMigration() throws Exception {
         log.info("--- Starting ReplicatorTest::testClusterMigration ---");
@@ -430,6 +431,7 @@ public class ClusterMigrationTest {
         log.info("Successfully consumed messages by migrated consumers");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testClusterMigrationWithReplicationBacklog() throws Exception {
         log.info("--- Starting ReplicatorTest::testClusterMigrationWithReplicationBacklog ---");
@@ -541,6 +543,7 @@ public class ClusterMigrationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testClusterMigrationWithResourceCreated() throws Exception {
         log.info("--- Starting testClusterMigrationWithResourceCreated ---");
@@ -650,6 +653,7 @@ public class ClusterMigrationTest {
         client1.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
     public void testNamespaceMigration(SubscriptionType subType, boolean isClusterMigrate, boolean isNamespaceMigrate)
             throws Exception {
@@ -921,6 +925,7 @@ public class ClusterMigrationTest {
         client2.close();
     }
 
+    @SuppressWarnings("deprecation")
     public void testMigrationWithReader() throws Exception {
         final String topicName = BrokerTestUtil
                 .newUniqueName("persistent://" + namespace + "/migrationTopic");
@@ -1031,6 +1036,7 @@ public class ClusterMigrationTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
     public void testNamespaceMigrationWithReplicationBacklog(SubscriptionType subType, boolean isClusterMigrate,
                                                              boolean isNamespaceMigrate) throws Exception {

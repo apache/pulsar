@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import java.util.Map;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -42,7 +43,10 @@ import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
@@ -167,15 +171,13 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
         when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("builtin://cassandra"))
-                .setTransformFunctionPackageLocation(
-                        Function.PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
-                .setFunctionDetails(Function.FunctionDetails.newBuilder()
-                        .setComponentType(Function.FunctionDetails.ComponentType.SINK)).build();
+        FunctionMetaData metaData = new FunctionMetaData();
+        metaData.setPackageLocation().setPackagePath("builtin://data-generator");
+        metaData.setTransformFunctionPackageLocation().setPackagePath("http://invalid");
+        metaData.setFunctionDetails().setComponentType(FunctionDetails.ComponentType.SINK);
         when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
-        registerBuiltinConnector("cassandra", file);
+        registerBuiltinConnector("data-generator", file);
 
         StreamingOutput streamOutput = downloadFunction(TENANT, NAMESPACE, FUNCTION,
                 AuthenticationParameters.builder().build(), false);
@@ -196,15 +198,10 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
         when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder()
-                        .setPackagePath("builtin://exclamation"))
-                .setTransformFunctionPackageLocation(
-                        Function.PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
-                .setFunctionDetails(
-                        Function.FunctionDetails.newBuilder()
-                                .setComponentType(Function.FunctionDetails.ComponentType.FUNCTION))
-                .build();
+        FunctionMetaData metaData = new FunctionMetaData();
+        metaData.setPackageLocation().setPackagePath("builtin://exclamation");
+        metaData.setTransformFunctionPackageLocation().setPackagePath("http://invalid");
+        metaData.setFunctionDetails().setComponentType(FunctionDetails.ComponentType.FUNCTION);
         when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
         registerBuiltinFunction("exclamation", file);
@@ -229,11 +226,9 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
         when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
-                .setTransformFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
-                        .setPackagePath("builtin://exclamation"))
-                .build();
+        FunctionMetaData metaData = new FunctionMetaData();
+        metaData.setPackageLocation().setPackagePath("http://invalid");
+        metaData.setTransformFunctionPackageLocation().setPackagePath("builtin://exclamation");
         when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
         registerBuiltinFunction("exclamation", file);
@@ -260,31 +255,31 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetFunctionSuccess() throws IOException {
         mockInstanceUtils();
         when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
-        Function.SinkSpec sinkSpec = Function.SinkSpec.newBuilder()
-                .setTopic(OUTPUT_TOPIC)
-                .setSerDeClassName(OUTPUT_SERDE_CLASS_NAME).build();
-        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
-                .setClassName(CLASS_NAME)
-                .setSink(sinkSpec)
-                .setAutoAck(true)
-                .setName(FUNCTION)
-                .setNamespace(NAMESPACE)
-                .setProcessingGuarantees(Function.ProcessingGuarantees.ATMOST_ONCE)
-                .setTenant(TENANT)
-                .setParallelism(PARALLELISM)
-                .setSource(Function.SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
-                        .putAllTopicsToSerDeClassName(TOPICS_TO_SER_DE_CLASS_NAME)).build();
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
-                .setCreateTime(System.currentTimeMillis())
-                .setFunctionDetails(functionDetails)
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
-                .setVersion(1234)
-                .build();
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.setClassName(CLASS_NAME);
+        functionDetails.setSink().setTopic(OUTPUT_TOPIC).setSerDeClassName(OUTPUT_SERDE_CLASS_NAME);
+        functionDetails.setAutoAck(true);
+        functionDetails.setName(FUNCTION);
+        functionDetails.setNamespace(NAMESPACE);
+        functionDetails.setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE);
+        functionDetails.setTenant(TENANT);
+        functionDetails.setParallelism(PARALLELISM);
+        SourceSpec sourceSpec = functionDetails.setSource();
+        sourceSpec.setSubscriptionType(subscriptionType);
+        for (Map.Entry<String, String> entry : TOPICS_TO_SER_DE_CLASS_NAME.entrySet()) {
+            sourceSpec.putTopicsToSerDeClassName(entry.getKey(), entry.getValue());
+        }
+        FunctionMetaData metaData = new FunctionMetaData();
+        metaData.setCreateTime(System.currentTimeMillis());
+        metaData.setFunctionDetails().copyFrom(functionDetails);
+        metaData.setPackageLocation().setPackagePath("/path/to/package");
+        metaData.setVersion(1234);
         when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
         FunctionConfig functionConfig = getDefaultFunctionInfo();

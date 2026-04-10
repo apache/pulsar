@@ -21,30 +21,13 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class ManagedLedgerConfigTest extends ProducerConsumerBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ManagedLedgerConfigTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "booleans")
     public Object[][] booleans() {
@@ -56,15 +39,12 @@ public class ManagedLedgerConfigTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "booleans")
     public void testConfigPersistIndividualAckAsLongArray(boolean enabled) throws Exception {
-        pulsar.getConfiguration().setManagedLedgerPersistIndividualAckAsLongArray(enabled);
-        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        SharedPulsarCluster.get().getPulsarService().getConfiguration()
+                .setManagedLedgerPersistIndividualAckAsLongArray(enabled);
+        final String tpName = newTopicName();
         admin.topics().createNonPartitionedTopic(tpName);
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, true).get().get();
+        PersistentTopic topic = (PersistentTopic) getTopic(tpName, true).get().get();
         ManagedLedgerConfig mlConf = topic.getManagedLedger().getConfig();
         assertEquals(mlConf.isPersistIndividualAckAsLongArray(), enabled);
-
-        // cleanup.
-        admin.topics().delete(tpName);
     }
 }
-

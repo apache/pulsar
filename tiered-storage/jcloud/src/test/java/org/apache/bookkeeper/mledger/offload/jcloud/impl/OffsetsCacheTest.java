@@ -28,17 +28,19 @@ public class OffsetsCacheTest {
 
     @Test
     public void testCache() throws Exception {
-        System.setProperty("pulsar.jclouds.readhandleimpl.offsetsscache.ttl.seconds", "1");
+        // TTL is set to 1 second via JVM arg in build.gradle.kts to ensure it takes
+        // effect before the OffsetsCache class is loaded (static field initialization).
         OffsetsCache offsetsCache = new OffsetsCache();
         assertNull(offsetsCache.getIfPresent(1, 2));
         offsetsCache.put(1, 1, 1);
         assertEquals(offsetsCache.getIfPresent(1, 1), 1);
         offsetsCache.clear();
         assertNull(offsetsCache.getIfPresent(1, 1));
-        // test ttl
+        // test ttl - sleep longer than the TTL (1s) and the eviction period (max(TTL/2, 1) = 1s)
+        // The cache uses expireAfterAccess, so we must NOT access the entry during the sleep.
         offsetsCache.put(1, 2, 2);
         assertEquals(offsetsCache.getIfPresent(1, 2), 2);
-        Thread.sleep(2000);
+        Thread.sleep(5000);
         assertNull(offsetsCache.getIfPresent(1, 2));
         offsetsCache.close();
     }

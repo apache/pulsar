@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -128,6 +129,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMetadataStoreCases() throws Exception {
         Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
         mainBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
@@ -138,8 +140,8 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
 
         store = mock(MetadataStoreExtended.class);
-        MetadataCacheImpl cache = mock(MetadataCacheImpl.class);
-        when(store.getMetadataCache(BookiesRackConfiguration.class)).thenReturn(cache);
+        MetadataCacheImpl<BookiesRackConfiguration> cache = mock(MetadataCacheImpl.class);
+        doReturn(cache).when(store).getMetadataCache(BookiesRackConfiguration.class);
         CompletableFuture<Optional<BookiesRackConfiguration>> initialFuture = new CompletableFuture<>();
         //The initialFuture only has group1.
         BookiesRackConfiguration rackConfiguration1 = new BookiesRackConfiguration();
@@ -147,39 +149,23 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         rackConfiguration1.put("group2", secondaryBookieGroup);
         initialFuture.complete(Optional.of(rackConfiguration1));
 
-        long waitTime = 2000;
+        //The waitingCompleteFuture has group1 and group2.
+        BookiesRackConfiguration rackConfiguration2 = new BookiesRackConfiguration();
+        Map<String, BookieInfo> mainBookieGroup2 = new HashMap<>();
+        mainBookieGroup2.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+        mainBookieGroup2.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
+        mainBookieGroup2.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
+
+        Map<String, BookieInfo> secondaryBookieGroup2 = new HashMap<>();
+        secondaryBookieGroup2.put(BOOKIE3, BookieInfo.builder().rack("rack0").build());
+        rackConfiguration2.put("group1", mainBookieGroup2);
+        rackConfiguration2.put("group2", secondaryBookieGroup2);
+
+        // Use manually-controlled futures instead of Thread.sleep-based timing
+        // to avoid races where the thread completes earlier than expected.
         CompletableFuture<Optional<BookiesRackConfiguration>> waitingCompleteFuture = new CompletableFuture<>();
-        new Thread(() -> {
-            try {
-                Thread.sleep(waitTime);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            //The waitingCompleteFuture has group1 and group2.
-            BookiesRackConfiguration rackConfiguration2 = new BookiesRackConfiguration();
-            Map<String, BookieInfo> mainBookieGroup2 = new HashMap<>();
-            mainBookieGroup2.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
-            mainBookieGroup2.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
-            mainBookieGroup2.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
-
-            Map<String, BookieInfo> secondaryBookieGroup2 = new HashMap<>();
-            secondaryBookieGroup2.put(BOOKIE3, BookieInfo.builder().rack("rack0").build());
-            rackConfiguration2.put("group1", mainBookieGroup2);
-            rackConfiguration2.put("group2", secondaryBookieGroup2);
-            waitingCompleteFuture.complete(Optional.of(rackConfiguration2));
-        }).start();
-
-        long longWaitTime = 4000;
+        //The emptyFuture means that the zk node /bookies already be removed.
         CompletableFuture<Optional<BookiesRackConfiguration>> emptyFuture = new CompletableFuture<>();
-        new Thread(() -> {
-            try {
-                Thread.sleep(longWaitTime);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            //The emptyFuture means that the zk node /bookies already be removed.
-            emptyFuture.complete(Optional.empty());
-        }).start();
 
         //Return different future means that cache expire.
         when(cache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH))
@@ -204,12 +190,13 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
         assertTrue(blacklist.isEmpty());
 
-        //waitingCompleteFuture, the future is waiting done.
+        //waitingCompleteFuture, the future is not yet done.
         blacklist =
                 isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
         assertTrue(blacklist.isEmpty());
 
-        Thread.sleep(waitTime);
+        // Complete the future manually (simulates cache expiry and refresh)
+        waitingCompleteFuture.complete(Optional.of(rackConfiguration2));
 
         //waitingCompleteFuture, the future is already done.
         blacklist =
@@ -219,7 +206,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         BookieId excludeBookie = blacklist.iterator().next();
         assertEquals(excludeBookie.toString(), BOOKIE3);
 
-        //emptyFuture, the future is waiting done.
+        //emptyFuture, the future is not yet done.
         blacklist =
                 isolationPolicy.getExcludedBookiesWithIsolationGroups(2, groups);
         assertFalse(blacklist.isEmpty());
@@ -227,7 +214,8 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         excludeBookie = blacklist.iterator().next();
         assertEquals(excludeBookie.toString(), BOOKIE3);
 
-        Thread.sleep(longWaitTime - waitTime);
+        // Complete the empty future manually (simulates zk node removal)
+        emptyFuture.complete(Optional.empty());
 
         //emptyFuture, the future is already done.
         blacklist =
@@ -383,6 +371,11 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
+        // Wait for the async cache load triggered by initialize() to complete
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                assertNotNull(isolationPolicy.getBookieMappingCache()
+                        .getIfCached(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)));
+
         List<BookieId> ensemble = isolationPolicy.newEnsemble(2, 2, 2,
                 Collections.emptyMap(), new HashSet<>()).getResult();
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE1).toBookieId()));
@@ -529,11 +522,13 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         defaultBookieGroup.put(BOOKIE5, BookieInfo.builder().rack("rack1").build());
 
         Map<String, BookieInfo> primaryIsolatedBookieGroup = new HashMap<>();
-        primaryIsolatedBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack1").build());
+        // Use the same rack as in the default group to avoid non-deterministic rack
+        // resolution when the same bookie appears in multiple groups with different racks.
+        primaryIsolatedBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
 
         Map<String, BookieInfo> secondaryIsolatedBookieGroup = new HashMap<>();
-        secondaryIsolatedBookieGroup.put(BOOKIE2, BookieInfo.builder().rack("rack0").build());
-        secondaryIsolatedBookieGroup.put(BOOKIE4, BookieInfo.builder().rack("rack0").build());
+        secondaryIsolatedBookieGroup.put(BOOKIE2, BookieInfo.builder().rack("rack1").build());
+        secondaryIsolatedBookieGroup.put(BOOKIE4, BookieInfo.builder().rack("rack1").build());
 
         bookieMapping.put("default", defaultBookieGroup);
         bookieMapping.put(isolatedGroup, primaryIsolatedBookieGroup);

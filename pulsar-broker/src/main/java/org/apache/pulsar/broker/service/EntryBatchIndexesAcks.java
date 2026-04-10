@@ -23,6 +23,7 @@ import io.netty.util.Recycler;
 import java.util.BitSet;
 import org.apache.commons.lang3.tuple.Pair;
 
+@SuppressWarnings("unchecked")
 public class EntryBatchIndexesAcks {
     private int size = 100;
     private Pair<Integer, long[]>[] indexesAcks = new Pair[size];

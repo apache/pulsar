@@ -50,6 +50,12 @@ public class ShutdownUtil {
         triggerImmediateForcefulShutdown(status, true);
     }
     public static void triggerImmediateForcefulShutdown(int status, boolean logging) {
+        if (Boolean.getBoolean("pulsar.test.preventExit")) {
+            // In test mode, don't halt the JVM — it would kill the test runner (e.g. Gradle).
+            // Throw instead so the caller sees the error rather than silently swallowing it.
+            throw new RuntimeException("triggerImmediateForcefulShutdown(" + status
+                    + ") called, but pulsar.test.preventExit is set");
+        }
         try {
             if (status != 0 && logging) {
                 log.warn("Triggering immediate shutdown of current process with status {}", status,

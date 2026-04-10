@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @Api(value = "/persistent", description = "Apis for produce,consume and ack message on topics.", tags = "topics")
+@SuppressWarnings("deprecation")
 public class Topics extends TopicsBase {
     private static final Logger log = LoggerFactory.getLogger(Topics.class);
 

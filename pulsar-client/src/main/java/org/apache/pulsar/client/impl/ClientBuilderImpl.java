@@ -246,6 +246,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ClientBuilder enableTls(boolean useTls) {
         conf.setUseTls(useTls);
@@ -342,6 +343,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ClientBuilder statsInterval(long statsInterval, TimeUnit unit) {
         conf.setStatsIntervalSeconds(unit.toSeconds(statsInterval));

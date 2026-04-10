@@ -76,6 +76,7 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
 
 
     @Override
+    @SuppressWarnings("deprecation")
     public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
         log.info("beforeSendMessage: "
                 + ("producer".equals(msgMetadata.getProducerName()) ? "OK" : "WRONG"));

@@ -78,6 +78,7 @@ import org.zeroturnaround.zip.ZipUtil;
  */
 @Test(groups = "broker-io")
 public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName,
                              boolean isBuiltin, String sourceTopic, String sinkTopic, String subscriptionName) {
@@ -321,6 +322,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         consumer.close();
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 20000)
     public void testPulsarFunctionAsyncStatTime() throws Exception {
@@ -1260,6 +1262,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
             }
         }, 50, 150));
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 20000)
     public void testE2EPulsarFunctionMessagePooled() throws Exception {

@@ -358,6 +358,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         return defaultValue;
     }
 
+    @SuppressWarnings("deprecation")
     private String getLoadBalancerPlacementStrategy() {
         String strategy = this.getDynamicConfigurationFromStore(LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH,
                 SETTING_NAME_STRATEGY, pulsar.getConfiguration().getLoadBalancerPlacementStrategy());
@@ -377,6 +378,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         return false;
     }
 
+    @SuppressWarnings("deprecation")
     private long getLoadBalancerBrokerUnderloadedThresholdPercentage() {
         return (long) this.getDynamicConfigurationDouble(LOADBALANCER_DYNAMIC_SETTING_UNDERLOAD_THRESHOLD_ZPATH,
                 SETTING_NAME_UNDERLOAD_THRESHOLD,
@@ -389,6 +391,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 pulsar.getConfiguration().getLoadBalancerBrokerOverloadedThresholdPercentage());
     }
 
+    @SuppressWarnings("deprecation")
     private long getLoadBalancerBrokerComfortLoadThresholdPercentage() {
         return (long) this.getDynamicConfigurationDouble(LOADBALANCER_DYNAMIC_SETTING_COMFORT_LOAD_THRESHOLD_ZPATH,
                 SETTING_NAME_COMFORTLOAD_THRESHOLD,

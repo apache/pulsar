@@ -100,7 +100,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadConsumerConfigurationData() {
-        ConsumerConfigurationData confData = new ConsumerConfigurationData();
+        ConsumerConfigurationData<?> confData = new ConsumerConfigurationData();
         confData.setSubscriptionName("unknown-subscription");
         confData.setPriorityLevel(10000);
         confData.setConsumerName("unknown-consumer");
@@ -117,7 +117,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadReaderConfigurationData() {
-        ReaderConfigurationData confData = new ReaderConfigurationData();
+        ReaderConfigurationData<?> confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
@@ -132,7 +132,7 @@ public class ConfigurationDataUtilsTest {
 
     @Test
     public void testLoadConfigurationDataWithUnknownFields() {
-        ReaderConfigurationData confData = new ReaderConfigurationData();
+        ReaderConfigurationData<?> confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
         confData.setReceiverQueueSize(1000000);
         confData.setReaderName("unknown-reader");
@@ -166,6 +166,7 @@ public class ConfigurationDataUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadSecretParams() {
         ClientConfigurationData confData = new ClientConfigurationData();
         Map<String, String> authParamMap = new HashMap<>();

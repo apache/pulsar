@@ -225,8 +225,10 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                     PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
                     field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                     field.setAccessible(true);
-                    individualAckOfTransaction =
+                    @SuppressWarnings("unchecked")
+                    LinkedMap<TxnID, HashMap<Position, Position>> map =
                             (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
+                    individualAckOfTransaction = map;
                 }
             }
         }
@@ -447,6 +449,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
         Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
         field2.setAccessible(true);
+        @SuppressWarnings("unchecked")
         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<Position, Position>>) field2.get(pendingAckHandle);
         return individualAckOfTransaction.containsKey(txnID);
@@ -462,6 +465,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
                 (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
         Field field3 = TopicTransactionBuffer.class.getDeclaredField("ongoingTxns");
         field3.setAccessible(true);
+        @SuppressWarnings("unchecked")
         LinkedMap<TxnID, Position> ongoingTxns =
                 (LinkedMap<TxnID, Position>) field3.get(topicTransactionBuffer);
         return ongoingTxns.containsKey(txnID);

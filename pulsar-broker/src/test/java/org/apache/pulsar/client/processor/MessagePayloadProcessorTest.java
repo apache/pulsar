@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.processor;
 
-import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,21 +26,17 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.TopicMetadata;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -50,24 +45,7 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 @Test(groups = "broker-impl")
-public class MessagePayloadProcessorTest extends ProducerConsumerBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        admin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        admin.tenants().createTenant("public",
-                new TenantInfoImpl(Sets.newHashSet("appid"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("public/default", Sets.newHashSet("test"));
-    }
-
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class MessagePayloadProcessorTest extends SharedPulsarBaseTest {
 
     @DataProvider
     public static Object[][] config() {
@@ -92,7 +70,7 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
     @Test(dataProvider = "config")
     public void testDefaultProcessor(int numPartitions, boolean enableBatching, int batchingMaxMessages)
             throws Exception {
-        final String topic = "testDefaultProcessor-" + numPartitions + "-" + enableBatching + "-" + batchingMaxMessages;
+        final String topic = newTopicName();
         final int numMessages = 10;
         final String messagePrefix = "msg-";
 
@@ -188,8 +166,10 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "customBatchConfig")
     public void testCustomProcessor(final int numMessages, final int batchingMaxMessages) throws Exception {
-        final String topic = "persistent://public/default/testCustomProcessor-"
-                + numMessages + "-" + batchingMaxMessages;
+        // Disable dedup: CustomBatchProducer writes directly to managed ledger without
+        // producer name/sequence ID, causing NPE in MessageDeduplication
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
+        final String topic = newTopicName();
 
         @Cleanup
         final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -200,7 +180,7 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
                 .subscribe();
 
         final PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().orElse(null);
+                (PersistentTopic) getTopicIfExists(topic).get().orElse(null);
         Assert.assertNotNull(persistentTopic);
 
         final String messagePrefix = "msg-";

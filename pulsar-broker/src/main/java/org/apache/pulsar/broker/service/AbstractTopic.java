@@ -377,6 +377,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return policyValue != null && policyValue < 0 ? null : policyValue;
     }
 
+    @SuppressWarnings("deprecation")
     private void updateNamespaceDispatchRate(Policies namespacePolicies, String cluster) {
         DispatchRateImpl dispatchRate = namespacePolicies.topicDispatchRate.get(cluster);
         if (dispatchRate == null) {
@@ -400,6 +401,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
             .updateNamespaceValue(DispatchRateImpl.normalize(namespacePolicies.replicatorDispatchRate.get(cluster)));
     }
 
+    @SuppressWarnings("deprecation")
     private void updateSchemaCompatibilityStrategyNamespaceValue(Policies namespacePolicies){
         if (isSystemTopic()) {
             return;

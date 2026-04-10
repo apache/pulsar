@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Range;
 import java.util.Optional;
 import java.util.function.Predicate;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -31,7 +31,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 
-@Slf4j
+@CustomLog
 class OpFindNewest implements ReadEntryCallback {
     private final ManagedCursorImpl cursor;
     private final ManagedLedgerImpl ledger;
@@ -102,10 +102,10 @@ class OpFindNewest implements ReadEntryCallback {
                 searchPosition = ledger.getPositionAfterN(searchPosition, max, PositionBound.startExcluded);
                 Position lastPosition = ledger.getLastPosition();
                 if (lastPosition.compareTo(searchPosition) < 0) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("first position {} matches, last should be {}, but moving to lastPos {}", position,
-                                searchPosition, lastPosition);
-                    }
+                    log.debug().attr("firstPosition", position)
+                            .attr("expectedLastPosition", searchPosition)
+                            .attr("actualLastPosition", lastPosition)
+                            .log("First position matches, but moving to lastPos");
                     searchPosition = lastPosition;
                 }
                 find();
@@ -148,8 +148,10 @@ class OpFindNewest implements ReadEntryCallback {
         if (exception instanceof ManagedLedgerException.NonRecoverableLedgerException
             && ledger.getConfig().isAutoSkipNonRecoverableData()) {
             try {
-                log.info("[{}] Ledger {} is not recoverable, skip non-recoverable data, state:{}", ledger.getName(),
-                    searchPosition, state);
+                log.info().attr("ledgerName", ledger.getName())
+                        .attr("searchPosition", searchPosition)
+                        .attr("state", state)
+                        .log("Ledger is not recoverable, skip non-recoverable data");
                 checkArgument(state == State.checkFirst || state == State.checkLast || state == State.searching);
                 if (state == State.checkFirst) {
                     // If we failed to read the first entry, try next valid position
@@ -191,8 +193,9 @@ class OpFindNewest implements ReadEntryCallback {
                 }
 
                 // If don't find any entry, return the last matched position
-                log.warn("[{}] Failed to find next valid entry. Returning last matched position: {}", ledger.getName(),
-                    lastMatchedPosition);
+                log.warn().attr("ledgerName", ledger.getName())
+                        .attr("lastMatchedPosition", lastMatchedPosition)
+                        .log("Failed to find next valid entry. Returning last matched position");
                 callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);
                 return;
             } catch (Exception e) {

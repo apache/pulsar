@@ -200,6 +200,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 testCompactionCursorRetention(topic)
         );
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCompactionRetentionOnTopicCreationWithTopicPolicies() throws Exception {

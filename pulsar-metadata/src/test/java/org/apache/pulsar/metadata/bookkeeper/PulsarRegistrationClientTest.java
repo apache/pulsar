@@ -360,6 +360,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testNetworkDelayWithBkZkManager() throws Throwable {
         final String zksConnectionString = zks.getConnectionString();

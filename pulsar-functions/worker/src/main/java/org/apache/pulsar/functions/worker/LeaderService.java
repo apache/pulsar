@@ -30,6 +30,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 
 @Slf4j
 public class LeaderService implements AutoCloseable, ConsumerEventListener {
+    private static final long serialVersionUID = 1L;
 
     private final String consumerName;
     private final FunctionAssignmentTailer functionAssignmentTailer;

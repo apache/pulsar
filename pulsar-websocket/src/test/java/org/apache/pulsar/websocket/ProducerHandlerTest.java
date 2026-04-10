@@ -46,6 +46,7 @@ import org.testng.annotations.Test;
 public class ProducerHandlerTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testProduceMessageAttributes() throws IOException {
         String producerV2 = "/ws/v2/producer/persistent/my-property/my-ns/my-topic";
         HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);

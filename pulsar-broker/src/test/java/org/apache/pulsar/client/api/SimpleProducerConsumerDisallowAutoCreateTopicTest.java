@@ -21,40 +21,26 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.client.util.RetryMessageUtil;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class SimpleProducerConsumerDisallowAutoCreateTopicTest extends ProducerConsumerBase {
+public class SimpleProducerConsumerDisallowAutoCreateTopicTest extends SharedPulsarBaseTest {
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setAllowAutoTopicCreation(false);
+    @BeforeMethod(alwaysRun = true)
+    public void setupDisallowAutoCreate() throws Exception {
+        admin.namespaces().setAutoTopicCreation(getNamespace(),
+                AutoTopicCreationOverride.builder().allowAutoTopicCreation(false).build());
     }
 
     @Test
     public void testClearErrorIfRetryTopicNotExists() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp_");
+        final String topicName = newTopicName();
         final String subName = "sub";
-        final String retryTopicName = RetryMessageUtil.getRetryTopic(topicName, subName);
         admin.topics().createNonPartitionedTopic(topicName);
         Consumer consumer = null;
         try {
@@ -66,14 +52,13 @@ public class SimpleProducerConsumerDisallowAutoCreateTopicTest extends ProducerC
             fail("");
         } catch (Exception ex) {
             log.info("got an expected error", ex);
-            assertTrue(ex.getMessage().contains("Not found:"));
-            assertTrue(ex.getMessage().contains(retryTopicName));
+            assertTrue(ex instanceof TopicDoesNotExistException,
+                    "Expected TopicDoesNotExistException but got: " + ex.getClass().getName());
         } finally {
             // cleanup.
             if (consumer != null) {
                 consumer.close();
             }
-            admin.topics().delete(topicName);
         }
     }
 }

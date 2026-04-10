@@ -47,6 +47,7 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 
 @Slf4j
+@SuppressWarnings("deprecation")
 public class SourcesImpl extends ComponentResource implements Sources, Source {
 
     private final WebTarget source;

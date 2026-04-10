@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.util.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -41,14 +40,14 @@ import org.testng.annotations.Test;
 public class BrokerRegistryIntegrationTest {
 
     private static final String clusterName = "test";
-    private final int zkPort = PortManager.nextFreePort();
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextFreePort);
+    private LocalBookkeeperEnsemble bk;
     private PulsarService pulsar;
     private BrokerRegistry brokerRegistry;
     private String brokerMetadataPath;
 
     @BeforeClass
     protected void setup() throws Exception {
+        bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
         bk.start();
         pulsar = new PulsarService(brokerConfig());
         pulsar.start();
@@ -68,7 +67,9 @@ public class BrokerRegistryIntegrationTest {
             pulsar.close();
         }
         final var elapsedMs = System.currentTimeMillis() - startMs;
-        bk.stop();
+        if (bk != null) {
+            bk.stop();
+        }
         if (elapsedMs > 5000) {
             throw new RuntimeException("Broker took " + elapsedMs + "ms to close");
         }

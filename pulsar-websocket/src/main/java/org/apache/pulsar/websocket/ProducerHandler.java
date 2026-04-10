@@ -421,6 +421,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         int keysLen = encryptionKeyMap.size();
         final String[] keyNameArray = new String[keysLen];
         final byte[][] keyValueArray = new byte[keysLen][];
+        @SuppressWarnings({"unchecked", "rawtypes"})
         final List<KeyValue>[] keyMetadataArray = new List[keysLen];
         // Format keys.
         int index = 0;

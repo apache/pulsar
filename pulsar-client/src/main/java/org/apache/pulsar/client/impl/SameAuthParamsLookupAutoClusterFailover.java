@@ -110,6 +110,7 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         return pulsarServiceUrlArray[currentPulsarServiceIndex];
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void close() throws Exception {
         if (closed) {
@@ -143,6 +144,11 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         for (int i = currentPulsarServiceIndex + 1; i < pulsarServiceUrlArray.length; i++) {
             if (probeAvailable(i)) {
                 return i;
+            } else {
+                // Mark the service as Failed to prevent a spurious recovery to it
+                // after we failover to a higher-indexed service.
+                pulsarServiceStateArray[i] = PulsarServiceState.Failed;
+                checkCounterArray[i].setValue(0);
             }
         }
         return -1;
@@ -166,8 +172,8 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                         break;
                     }
                     case PreRecover: {
-                        checkCounterArray[i].setValue(checkCounterArray[i].getValue() + 1);
-                        if (checkCounterArray[i].getValue() >= recoverThreshold) {
+                        checkCounterArray[i].setValue(checkCounterArray[i].intValue() + 1);
+                        if (checkCounterArray[i].intValue() >= recoverThreshold) {
                             pulsarServiceStateArray[i] = PulsarServiceState.Healthy;
                             checkCounterArray[i].setValue(0);
                         }
@@ -182,8 +188,8 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                         break;
                     }
                     case PreFail: {
-                        checkCounterArray[i].setValue(checkCounterArray[i].getValue() + 1);
-                        if (checkCounterArray[i].getValue() >= failoverThreshold) {
+                        checkCounterArray[i].setValue(checkCounterArray[i].intValue() + 1);
+                        if (checkCounterArray[i].intValue() >= failoverThreshold) {
                             pulsarServiceStateArray[i] = PulsarServiceState.Failed;
                             checkCounterArray[i].setValue(0);
                         }

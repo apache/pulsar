@@ -64,6 +64,7 @@ public class SchemaDataValidatorTest {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @DataProvider(name = "clientSchemas")
     public static Object[][] clientSchemas() {
         return new Object[][] {
@@ -151,6 +152,105 @@ public class SchemaDataValidatorTest {
                         + data.getType() + " schema", ioe);
             }
         }
+    }
+
+    // PIP-464: Strict Avro validation tests for SchemaType.JSON
+
+    @Test
+    public void testJsonSchemaWithAvroFormatAcceptedRegardlessOfConfig() throws Exception {
+        // Valid Avro schema should be accepted whether legacy format is allowed or not
+        Schema<Foo> schema = Schema.AVRO(Foo.class);
+        SchemaData data = SchemaData.builder()
+            .type(SchemaType.JSON)
+            .data(schema.getSchemaInfo().getSchema())
+            .build();
+        // Strict mode (default)
+        SchemaDataValidator.validateSchemaData(data, false);
+        // Legacy mode
+        SchemaDataValidator.validateSchemaData(data, true);
+    }
+
+    @Test(expectedExceptions = InvalidSchemaDataException.class)
+    public void testJsonSchemaWithJacksonFormatRejectedByDefault() throws Exception {
+        // Jackson JsonSchema format should be rejected when allowLegacyJacksonFormat=false (default)
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        SchemaData data = SchemaData.builder()
+            .type(SchemaType.JSON)
+            .data(mapper.writeValueAsBytes(new JsonSchemaGenerator(mapper).generateSchema(Foo.class)))
+            .build();
+        SchemaDataValidator.validateSchemaData(data, false);
+    }
+
+    @Test
+    public void testJsonSchemaWithJacksonFormatAcceptedWhenLegacyEnabled() throws Exception {
+        // Jackson JsonSchema format should be accepted when allowLegacyJacksonFormat=true
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        SchemaData data = SchemaData.builder()
+            .type(SchemaType.JSON)
+            .data(mapper.writeValueAsBytes(new JsonSchemaGenerator(mapper).generateSchema(Foo.class)))
+            .build();
+        SchemaDataValidator.validateSchemaData(data, true);
+    }
+
+    @Test(expectedExceptions = InvalidSchemaDataException.class)
+    public void testJsonSchemaWithJsonSchemaDraftRejectedByDefault() throws Exception {
+        // JSON Schema Draft 2020-12 format (the problematic case from non-Java clients)
+        // should be rejected when allowLegacyJacksonFormat=false
+        String jsonSchemaDraft = "{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+                + "\"type\":\"object\",\"properties\":{\"field\":{\"type\":\"integer\"}}}";
+        SchemaData data = SchemaData.builder()
+            .type(SchemaType.JSON)
+            .data(jsonSchemaDraft.getBytes(UTF_8))
+            .build();
+        SchemaDataValidator.validateSchemaData(data, false);
+    }
+
+    @Test
+    public void testJsonSchemaWithJsonSchemaDraftAcceptedWhenLegacyEnabled() throws Exception {
+        // JSON Schema Draft format should be accepted when allowLegacyJacksonFormat=true
+        // (this is the problematic behavior we're fixing by default)
+        String jsonSchemaDraft = "{\"$schema\":\"https://json-schema.org/draft/2020-12/schema\","
+                + "\"type\":\"object\",\"properties\":{\"field\":{\"type\":\"integer\"}}}";
+        SchemaData data = SchemaData.builder()
+            .type(SchemaType.JSON)
+            .data(jsonSchemaDraft.getBytes(UTF_8))
+            .build();
+        SchemaDataValidator.validateSchemaData(data, true);
+    }
+
+    @Test(expectedExceptions = InvalidSchemaDataException.class)
+    public void testJsonSchemaWithArbitraryJsonRejectedInBothModes() throws Exception {
+        // Arbitrary JSON that is neither Avro nor Jackson JsonSchema should be rejected
+        String arbitraryJson = "{\"foo\":\"bar\",\"baz\":123}";
+        SchemaData data = SchemaData.builder()
+            .type(SchemaType.JSON)
+            .data(arbitraryJson.getBytes(UTF_8))
+            .build();
+        // Even in legacy mode, this should fail (Jackson JsonSchema parsing rejects it)
+        SchemaDataValidator.validateSchemaData(data, true);
+    }
+
+    @Test
+    public void testAvroSchemaTypeUnaffectedByLegacyFlag() throws Exception {
+        // The legacy flag should only affect SchemaType.JSON, not AVRO
+        Schema<Foo> schema = Schema.AVRO(Foo.class);
+        SchemaData data = SchemaData.builder()
+            .type(SchemaType.AVRO)
+            .data(schema.getSchemaInfo().getSchema())
+            .build();
+        SchemaDataValidator.validateSchemaData(data, false);
+        SchemaDataValidator.validateSchemaData(data, true);
+    }
+
+    @Test(expectedExceptions = InvalidSchemaDataException.class)
+    public void testAvroSchemaTypeWithJacksonFormatRejectedRegardlessOfFlag() throws Exception {
+        // Jackson format for SchemaType.AVRO should always be rejected (flag only applies to JSON)
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        SchemaData data = SchemaData.builder()
+            .type(SchemaType.AVRO)
+            .data(mapper.writeValueAsBytes(new JsonSchemaGenerator(mapper).generateSchema(Foo.class)))
+            .build();
+        SchemaDataValidator.validateSchemaData(data, true);
     }
 
     @Test

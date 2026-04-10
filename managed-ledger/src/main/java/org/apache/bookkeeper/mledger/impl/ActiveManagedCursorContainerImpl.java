@@ -30,7 +30,7 @@ import java.util.PriorityQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.StampedLock;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -47,7 +47,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * is performed. When cursors are all performing tailing reads, the ordering of cursors is not important and can be
  * updated lazily when needed.
  */
-@Slf4j
+@CustomLog
 public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorContainer {
     private static class Node {
         final ManagedCursor cursor;

@@ -102,6 +102,7 @@ import org.slf4j.LoggerFactory;
 @Path("/persistent")
 @Produces(MediaType.APPLICATION_JSON)
 @Api(value = "/persistent", description = "Persistent topic admin apis", tags = "persistent topic")
+@SuppressWarnings("deprecation")
 public class PersistentTopics extends PersistentTopicsBase {
 
     @GET
@@ -2545,6 +2546,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "Namespace or topic doesn't exist"),
             @ApiResponse(code = 405, message =
                     "Topic level policy is disabled, enable the topic level policy and retry")})
+    @SuppressWarnings("deprecation")
     public void getMessageTTL(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,

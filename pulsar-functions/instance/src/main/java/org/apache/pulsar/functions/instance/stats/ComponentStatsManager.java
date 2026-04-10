@@ -26,8 +26,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 
 @Slf4j
 public abstract class ComponentStatsManager implements AutoCloseable {
@@ -38,7 +38,9 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     protected final FunctionCollectorRegistry collectorRegistry;
 
-    protected final EvictingQueue emptyQueue = EvictingQueue.create(0);
+    @SuppressWarnings("unchecked") // empty queue is used as a typed return value
+    protected final EvictingQueue<FunctionStatus.ExceptionInformation> emptyQueue =
+            EvictingQueue.create(0);
 
     public static final String USER_METRIC_PREFIX = "user_metric_";
 
@@ -55,7 +57,7 @@ public abstract class ComponentStatsManager implements AutoCloseable {
     public static ComponentStatsManager getStatsManager(FunctionCollectorRegistry collectorRegistry,
                                   String[] metricsLabels,
                                   ScheduledExecutorService scheduledExecutorService,
-                                  Function.FunctionDetails.ComponentType componentType) {
+                                  FunctionDetails.ComponentType componentType) {
         switch (componentType) {
             case FUNCTION:
                 return new FunctionStatsManager(collectorRegistry, metricsLabels, scheduledExecutorService);
@@ -125,16 +127,16 @@ public abstract class ComponentStatsManager implements AutoCloseable {
 
     public abstract double getAvgProcessLatency1min();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    public abstract EvictingQueue<FunctionStatus.ExceptionInformation>
     getLatestUserExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    public abstract EvictingQueue<FunctionStatus.ExceptionInformation>
     getLatestSystemExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    public abstract EvictingQueue<FunctionStatus.ExceptionInformation>
     getLatestSourceExceptions();
 
-    public abstract EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation>
+    public abstract EvictingQueue<FunctionStatus.ExceptionInformation>
     getLatestSinkExceptions();
 
     public String getStatsAsString() throws IOException {
@@ -145,14 +147,14 @@ public abstract class ComponentStatsManager implements AutoCloseable {
         return outputWriter.toString();
     }
 
-    protected InstanceCommunication.FunctionStatus.ExceptionInformation getExceptionInfo(Throwable th, long ts) {
-        InstanceCommunication.FunctionStatus.ExceptionInformation.Builder exceptionInfoBuilder =
-                InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder().setMsSinceEpoch(ts);
+    protected FunctionStatus.ExceptionInformation getExceptionInfo(Throwable th, long ts) {
+        FunctionStatus.ExceptionInformation exceptionInfo = new FunctionStatus.ExceptionInformation();
+        exceptionInfo.setMsSinceEpoch(ts);
         String msg = String.format("[%s]: %s", th.getClass().getName(), th.getMessage());
         if (msg != null) {
-            exceptionInfoBuilder.setExceptionString(msg);
+            exceptionInfo.setExceptionString(msg);
         }
-        return exceptionInfoBuilder.build();
+        return exceptionInfo;
     }
 
 

@@ -168,7 +168,7 @@ class ImmutableBucket extends Bucket {
         }
         // optimize bm
         delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
-        setNumberBucketDelayedMessages(numberMessages.getValue());
+        setNumberBucketDelayedMessages(numberMessages.longValue());
     }
 
     CompletableFuture<List<SnapshotSegment>> getRemainSnapshotSegment() {

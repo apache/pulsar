@@ -108,6 +108,7 @@ public class RawReaderImpl implements RawReader {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
     public CompletableFuture<MessageId> getLastMessageIdAsync() {
         return consumer.getLastMessageIdAsync();
     }

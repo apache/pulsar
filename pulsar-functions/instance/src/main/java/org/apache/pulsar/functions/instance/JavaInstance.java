@@ -45,14 +45,16 @@ public class JavaInstance implements AutoCloseable {
 
     @Data
     public static class AsyncFuncRequest {
-        private final Record record;
-        private final CompletableFuture processResult;
+        private final Record<?> record;
+        private final CompletableFuture<?> processResult;
         private final JavaExecutionResult result;
     }
 
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
+    @SuppressWarnings("rawtypes") // Function type parameters are erased at runtime
     private Function function;
+    @SuppressWarnings("rawtypes") // java.util.function.Function type parameters are erased at runtime
     private java.util.function.Function javaUtilFunction;
 
     // for Async function max out standing items
@@ -122,11 +124,11 @@ public class JavaInstance implements AutoCloseable {
         final Object output;
 
         try {
-            if (function != null) {
-                output = function.process(input, context);
-            } else {
-                output = javaUtilFunction.apply(input);
-            }
+            @SuppressWarnings("unchecked") // function type parameters are erased at runtime
+            Object rawOutput = function != null
+                    ? function.process(input, context)
+                    : javaUtilFunction.apply(input);
+            output = rawOutput;
         } catch (Exception ex) {
             executionResult.setUserException(ex);
             return executionResult;
@@ -137,13 +139,13 @@ public class JavaInstance implements AutoCloseable {
                 if (asyncPreserveInputOrderForOutputMessages) {
                     // Function is in format: Function<I, CompletableFuture<O>>
                     AsyncFuncRequest request = new AsyncFuncRequest(
-                            record, (CompletableFuture) output, executionResult
+                            record, (CompletableFuture<?>) output, executionResult
                     );
                     pendingAsyncRequests.put(request);
                 } else {
                     asyncRequestsConcurrencyLimiter.acquire();
                 }
-                ((CompletableFuture<Object>) output).whenCompleteAsync((Object res, Throwable cause) -> {
+                ((CompletableFuture<?>) output).whenCompleteAsync((Object res, Throwable cause) -> {
                     try {
                         if (asyncPreserveInputOrderForOutputMessages) {
                             processAsyncResultsInInputOrder(asyncResultConsumer);

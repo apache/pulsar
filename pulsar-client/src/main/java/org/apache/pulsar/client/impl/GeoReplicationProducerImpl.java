@@ -33,6 +33,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Markers;
 
 @Slf4j
+@SuppressWarnings("unchecked")
 public class GeoReplicationProducerImpl extends ProducerImpl{
 
     public static final String MSG_PROP_REPL_SOURCE_POSITION = "__MSG_PROP_REPL_SOURCE_POSITION";

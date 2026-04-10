@@ -303,8 +303,12 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         // delete namespaces.
         waitChangeEventsInit(replicatedNamespace);
         admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1), true);
+        admin1.namespaces().setNamespaceReplicationClusters(
+                sourceClusterAlwaysSchemaCompatibleNamespace, Sets.newHashSet(cluster1), true);
         if (!usingGlobalZK) {
             admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2), true);
+            admin2.namespaces().setNamespaceReplicationClusters(
+                    sourceClusterAlwaysSchemaCompatibleNamespace, Sets.newHashSet(cluster2), true);
         }
         // When using global ZK, reducing replication clusters triggers async topic cleanup on removed clusters.
         // Retry namespace deletion to handle topics that may be in a transitional state.
@@ -314,16 +318,33 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
             admin1.namespaces().deleteNamespace(nonReplicatedNamespace, true);
         });
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+            admin1.namespaces().deleteNamespace(sourceClusterAlwaysSchemaCompatibleNamespace, true);
+        });
         if (!usingGlobalZK) {
-            admin2.namespaces().deleteNamespace(replicatedNamespace, true);
-            admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+                admin2.namespaces().deleteNamespace(replicatedNamespace, true);
+            });
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+                admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+            });
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+                admin2.namespaces().deleteNamespace(sourceClusterAlwaysSchemaCompatibleNamespace, true);
+            });
         }
     }
 
     @Override
     protected void cleanup() throws Exception {
         // cleanup pulsar resources.
-        cleanupPulsarResources();
+        // Wrap in try-catch to ensure brokers, ZK, and BK are always shut down even if
+        // namespace deletion fails (e.g., topics in transitional state during async replication cleanup).
+        try {
+            cleanupPulsarResources();
+        } catch (Exception e) {
+            log.warn("Failed to cleanup Pulsar resources during shutdown, "
+                    + "continuing with broker/ZK/BK shutdown", e);
+        }
 
         // shutdown.
         markCurrentSetupNumberCleaned();

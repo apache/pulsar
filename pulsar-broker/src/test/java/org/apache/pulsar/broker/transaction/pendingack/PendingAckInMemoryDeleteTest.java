@@ -126,6 +126,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                                 (PendingAckHandleImpl) field.get(persistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
+                        @SuppressWarnings("unchecked")
                         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =
                                 (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
                         assertTrue(individualAckOfTransaction.isEmpty());
@@ -215,8 +216,10 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                         pendingAckHandle = (PendingAckHandleImpl) field.get(testPersistentSubscription);
                         field = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
                         field.setAccessible(true);
-                        individualAckOfTransaction =
+                        @SuppressWarnings("unchecked")
+                        LinkedMap<TxnID, HashMap<Position, Position>> ackOfTransaction =
                                 (LinkedMap<TxnID, HashMap<Position, Position>>) field.get(pendingAckHandle);
+                        individualAckOfTransaction = ackOfTransaction;
                         assertTrue(individualAckOfTransaction.isEmpty());
                         managedCursor = (ManagedCursorImpl) testPersistentSubscription.getCursor();
                         final var batchDeletedIndexes = managedCursor.getBatchDeletedIndexes();

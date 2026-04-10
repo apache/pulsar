@@ -483,6 +483,7 @@ public class BrokerMonitor extends CmdBase {
 
     private TableView<BrokerLoadData> brokerLoadDataTableView;
 
+    @SuppressWarnings("deprecation")
     private BrokerMonitor(String brokerServiceUrl) {
         super("monitor-brokers");
         try {

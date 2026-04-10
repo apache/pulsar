@@ -36,9 +36,13 @@ public class GenericAvroReaderTest {
 
     private Foo foo;
     private FooV2 fooV2;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooSchemaNotNull;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooSchema;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooV2Schema;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooOffsetSchema;
 
     @BeforeMethod
@@ -67,6 +71,7 @@ public class GenericAvroReaderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericAvroReaderByWriterSchema() {
         byte[] fooBytes = fooSchema.encode(foo);
 
@@ -78,6 +83,7 @@ public class GenericAvroReaderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericAvroReaderByReaderSchema() {
         byte[] fooV2Bytes = fooV2Schema.encode(fooV2);
 
@@ -90,6 +96,7 @@ public class GenericAvroReaderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testOffsetSchema() {
         byte[] fooBytes = fooOffsetSchema.encode(foo);
         ByteBuf byteBuf = Unpooled.buffer();

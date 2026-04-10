@@ -112,6 +112,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         svcConfig.setClusterName("pulsar-cluster");
         svcConfig.setSystemTopicEnabled(false);
         svcConfig.setTopicLevelPoliciesEnabled(false);
+        svcConfig.setActiveConsumerFailoverDelayTimeMillis(0);
         pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
                 .config(svcConfig)
                 .spyByDefault()
@@ -171,6 +172,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     }
 
     @AfterMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void shutdown() throws Exception {
         if (pulsarTestContext != null) {
             pulsarTestContext.close();
@@ -178,6 +180,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursorImpl.class);
@@ -464,6 +467,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         return res.get();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAddRemoveConsumerNonPartitionedTopic() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddRemoveConsumerNonPartitionedTopic ---");

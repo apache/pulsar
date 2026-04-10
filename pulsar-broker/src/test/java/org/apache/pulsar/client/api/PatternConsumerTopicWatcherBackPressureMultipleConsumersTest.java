@@ -71,8 +71,8 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
-
     @Test(timeOut = 60 * 1000)
+    @SuppressWarnings({"deprecation", "unchecked"})
     public void testPatternConsumerWithLargeAmountOfConcurrentClientConnections()
             throws PulsarAdminException, InterruptedException, IOException, ExecutionException, TimeoutException {
         // create a new namespace for this test

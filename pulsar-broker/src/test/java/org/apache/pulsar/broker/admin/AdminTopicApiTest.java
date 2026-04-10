@@ -34,13 +34,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -54,32 +53,17 @@ import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-public class AdminTopicApiTest extends ProducerConsumerBase {
+public class AdminTopicApiTest extends SharedPulsarBaseTest {
     private static final Logger log = LoggerFactory.getLogger(AdminTopicApiTest.class);
-
-    @Override
-    @BeforeClass(alwaysRun = true)
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterClass(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
 
     @Test
     public void testDeleteNonExistTopic() throws Exception {
         // Case 1: call delete for a partitioned topic.
-        final String topic1 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topic1 = newTopicName();
         admin.topics().createPartitionedTopic(topic1, 2);
         admin.schemas().createSchemaAsync(topic1, Schema.STRING.getSchemaInfo());
         Awaitility.await().untilAsserted(() -> {
@@ -97,8 +81,8 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
         // cleanup.
         admin.topics().deletePartitionedTopic(topic1, false);
 
-        // Case 2: call delete-partitioned-topi for a non-partitioned topic.
-        final String topic2 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        // Case 2: call delete-partitioned-topic for a non-partitioned topic.
+        final String topic2 = newTopicName();
         admin.topics().createNonPartitionedTopic(topic2);
         admin.schemas().createSchemaAsync(topic2, Schema.STRING.getSchemaInfo());
         Awaitility.await().untilAsserted(() -> {
@@ -117,7 +101,7 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
         admin.topics().delete(topic2, false);
 
         // Case 3: delete topic does not exist.
-        final String topic3 = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topic3 = newTopicName();
         try {
             admin.topics().delete(topic3);
             fail("expected a 404 error");
@@ -136,10 +120,10 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
     public void testPeekMessages() throws Exception {
         @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder()
-            .serviceUrl(lookupUrl.toString())
+            .serviceUrl(getBrokerServiceUrl())
             .build();
 
-        final String topic = "persistent://my-property/my-ns/test-publish-timestamp";
+        final String topic = newTopicName();
 
         @Cleanup
         Consumer<byte[]> consumer = newPulsarClient.newConsumer()
@@ -179,18 +163,19 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
     @DataProvider
     public Object[] getStatsDataProvider() {
         return new Object[]{
-                TopicDomain.persistent + "://my-property/my-ns/" + UUID.randomUUID(),
-                TopicDomain.non_persistent + "://my-property/my-ns/" + UUID.randomUUID(),
+                TopicDomain.persistent.value(),
+                TopicDomain.non_persistent.value(),
         };
     }
 
     @Test(dataProvider = "getStatsDataProvider")
-    public void testGetStats(String topic) throws Exception {
+    public void testGetStats(String domain) throws Exception {
+        String topic = domain + "://" + getNamespace() + "/" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
 
         @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder()
-                .serviceUrl(lookupUrl.toString())
+                .serviceUrl(getBrokerServiceUrl())
                 .build();
 
         final String subscriptionName = "my-sub";

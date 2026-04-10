@@ -20,9 +20,9 @@ package org.apache.pulsar.broker.authentication;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import javax.naming.AuthenticationException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.binary.Base64;
 
 @Slf4j
 public class SaslRoleTokenSigner {
@@ -97,7 +97,7 @@ public class SaslRoleTokenSigner {
 
             md.update(secret);
             byte[] digest = md.digest();
-            return new Base64(0).encodeToString(digest);
+            return Base64.getEncoder().encodeToString(digest);
         } catch (NoSuchAlgorithmException ex) {
             throw new RuntimeException("It should not happen, " + ex.getMessage(), ex);
         }

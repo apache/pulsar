@@ -118,6 +118,7 @@ public class ProxyWithExtensibleLoadManagerTest extends MultiBrokerBaseTest {
         return proxyConfig;
     }
 
+    @SuppressWarnings("unchecked")
     private <T> T spyField(Object target, String fieldName) throws IllegalAccessException {
         T t = (T) FieldUtils.readDeclaredField(target, fieldName, true);
         var fieldSpy = spy(t);

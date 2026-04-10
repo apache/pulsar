@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /**
  * Prometheus metrics provider for ZooKeeper that is using Jetty 12.
  */

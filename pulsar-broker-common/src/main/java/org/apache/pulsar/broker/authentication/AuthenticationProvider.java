@@ -169,6 +169,7 @@ public interface AuthenticationProvider extends Closeable {
         }
     }
 
+    @SuppressWarnings("deprecation")
     default void incrementFailureMetric(Enum<?> errorCode) {
         AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), errorCode);
     }

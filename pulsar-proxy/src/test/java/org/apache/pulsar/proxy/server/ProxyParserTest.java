@@ -176,6 +176,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("try")
     public void testRegexSubscription() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -220,6 +221,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testProtocolVersionAdvertisement() throws Exception {
         final String topic = "persistent://public/default/protocol-version-advertisement";

@@ -626,6 +626,7 @@ public class TopicsBase extends PersistentTopicsBase {
     }
 
     // Build pulsar message from REST request.
+    @SuppressWarnings("unchecked")
     private List<Message> buildMessage(ProducerMessages producerMessages, Schema schema,
                                        String producerName, TopicName topicName, SchemaVersion schemaVersion) {
         List<ProducerMessage> messages;
@@ -692,6 +693,7 @@ public class TopicsBase extends PersistentTopicsBase {
     }
 
     // Encode message with corresponding schema, do necessary conversion before encoding
+    @SuppressWarnings("unchecked")
     private byte[] encodeWithSchema(String input, Schema schema) {
         try {
             switch (schema.getSchemaInfo().getType()) {

@@ -223,6 +223,7 @@ public class BacklogQuotaManagerTest {
     /**
      * Readers should not affect backlog quota.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaWithReader() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -310,6 +311,7 @@ public class BacklogQuotaManagerTest {
                 admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(getPreciseBacklog).build());
         return stats;
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTriggerBacklogQuotaSizeWithReader() throws Exception {
@@ -380,6 +382,7 @@ public class BacklogQuotaManagerTest {
             reader.close();
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void backlogsStatsPrecise() throws PulsarAdminException, PulsarClientException, InterruptedException {
@@ -557,6 +560,7 @@ public class BacklogQuotaManagerTest {
             assertNotNull(producer2);
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void backlogsStatsPreciseWithNoBacklog() throws PulsarAdminException,
@@ -632,6 +636,7 @@ public class BacklogQuotaManagerTest {
         config.setPreciseTimeBasedBacklogQuotaCheck(false);
         config.setExposePreciseBacklogInPrometheus(false);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void backlogsAgeMetricsPreciseWithoutBacklogQuota() throws Exception {
@@ -695,6 +700,7 @@ public class BacklogQuotaManagerTest {
         }
         config.setPreciseTimeBasedBacklogQuotaCheck(false);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void backlogsAgeMetricsNoPreciseWithoutBacklogQuota() throws Exception {
@@ -777,6 +783,7 @@ public class BacklogQuotaManagerTest {
         return ((PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get())
                 .getManagedLedger().getStats().getEntriesReadTotalCount();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void backlogsStatsNotPrecise() throws PulsarAdminException, PulsarClientException, InterruptedException {
@@ -886,6 +893,7 @@ public class BacklogQuotaManagerTest {
             config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void backlogsStatsNotPreciseWithNoBacklog() throws PulsarAdminException,
@@ -954,6 +962,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void unloadAndLoadTopic(String topic, Producer producer) throws PulsarAdminException,
             PulsarClientException {
         admin.topics().unload(topic);
@@ -1023,6 +1032,7 @@ public class BacklogQuotaManagerTest {
      * and can't do message age check against the quota.
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testTriggerBacklogTimeQuotaWithReader() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -1092,6 +1102,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConsumerBacklogEvictionSizeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -1145,6 +1156,7 @@ public class BacklogQuotaManagerTest {
                 1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConsumerBacklogEvictionTimeQuotaPrecise() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -1211,6 +1223,7 @@ public class BacklogQuotaManagerTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60000)
     public void testConsumerBacklogEvictionTimeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -1280,6 +1293,7 @@ public class BacklogQuotaManagerTest {
                 value -> assertThat(value).isGreaterThanOrEqualTo(delaySeconds));
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60000)
     public void testConsumerBacklogEvictionTimeQuotaWithPartEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -1334,6 +1348,7 @@ public class BacklogQuotaManagerTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConsumerBacklogEvictionTimeQuotaWithEmptyLedger() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -1549,6 +1564,7 @@ public class BacklogQuotaManagerTest {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConcurrentAckAndEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -1620,6 +1636,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(stats.getBacklogSize() <= 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testNoEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -1684,6 +1701,7 @@ public class BacklogQuotaManagerTest {
         assertFalse(gotException.get());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testEvictionMulti() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -1786,6 +1804,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(stats.getBacklogSize() <= 15 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAheadProducerOnHold() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
@@ -1828,6 +1847,7 @@ public class BacklogQuotaManagerTest {
                 "Number of producers on topic " + topic1 + " are [" + stats.getPublishers().size() + "]");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAheadProducerOnHoldTimeout() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
@@ -1866,6 +1886,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(gotException, "timeout did not occur");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testProducerException() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
@@ -1911,6 +1932,7 @@ public class BacklogQuotaManagerTest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "dedupTestSet")
     public void testProducerExceptionAndThenUnblockSizeQuota(boolean dedupTestSet) throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
@@ -1998,6 +2020,7 @@ public class BacklogQuotaManagerTest {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testProducerExceptionAndThenUnblockTimeQuotaPrecise() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
@@ -2064,6 +2087,7 @@ public class BacklogQuotaManagerTest {
         assertFalse(gotException, "unable to publish due to " + sendException);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testProducerExceptionAndThenUnblockTimeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
@@ -2129,6 +2153,7 @@ public class BacklogQuotaManagerTest {
         assertFalse(gotException, "unable to publish due to " + sendException);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "backlogQuotaSizeGB", priority = 1)
     public void testBacklogQuotaInGB(boolean backlogQuotaSizeGB) throws Exception {
 

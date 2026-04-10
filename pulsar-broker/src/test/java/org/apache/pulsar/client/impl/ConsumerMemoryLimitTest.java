@@ -22,8 +22,11 @@ import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -92,4 +95,106 @@ public class ConsumerMemoryLimitTest extends SharedPulsarBaseTest {
             c1.receive();
         }
     }
+
+    @Test
+    public void testMultiPulsarClientConsumerShareMemoryLimitController() throws Exception {
+        int msgSize = 100;
+        int msgCount = 3;
+        int memoryLimit = msgSize * msgCount;
+        String topic1 = newTopicName();
+        String topic2 = newTopicName();
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder()
+                .configureMemoryLimitController(
+                        memoryLimitConfig -> memoryLimitConfig.memoryLimit(memoryLimit, SizeUnit.BYTES)).build();
+        @Cleanup
+        PulsarClientImpl pulsarClient =
+                ((PulsarClientImpl) PulsarClient.builder().serviceUrl(getBrokerServiceUrl()).build());
+        @Cleanup
+        PulsarClientImpl pulsarClient1 = ((PulsarClientImpl) PulsarClient.builder().serviceUrl(getBrokerServiceUrl())
+                .sharedResources(sharedResources).build());
+        @Cleanup
+        PulsarClientImpl pulsarClient2 = ((PulsarClientImpl) PulsarClient.builder().serviceUrl(getBrokerServiceUrl())
+                .sharedResources(sharedResources).build());
+
+        Assert.assertSame(pulsarClient1.getMemoryLimitController(), pulsarClient2.getMemoryLimitController());
+
+        @Cleanup
+        Producer<byte[]> topic1Producer =
+                pulsarClient.newProducer().topic(topic1).enableBatching(false).blockIfQueueFull(false).create();
+        @Cleanup
+        Producer<byte[]> topic2Producer =
+                pulsarClient.newProducer().topic(topic2).enableBatching(false).blockIfQueueFull(false).create();
+        ConsumerImpl<byte[]> topic1Consumer =
+                (ConsumerImpl<byte[]>) pulsarClient1.newConsumer().subscriptionName("topic1-sub").topic(topic1)
+                        .autoScaledReceiverQueueSizeEnabled(true).subscribe();
+        ConsumerImpl<byte[]> topic2Consumer =
+                (ConsumerImpl<byte[]>) pulsarClient2.newConsumer().subscriptionName("topic2-sub").topic(topic2)
+                        .autoScaledReceiverQueueSizeEnabled(true).subscribe();
+
+        MemoryLimitController memoryLimitController1 = topic1Consumer.getMemoryLimitController().get();
+        MemoryLimitController memoryLimitController2 = topic2Consumer.getMemoryLimitController().get();
+        Assert.assertSame(memoryLimitController1, memoryLimitController2);
+
+        Assert.assertEquals(topic1Consumer.getCurrentReceiverQueueSize(), 1);
+        Assert.assertEquals(topic2Consumer.getCurrentReceiverQueueSize(), 1);
+
+
+        topic1Producer.send(new byte[msgSize]);
+        Awaitility.await().until(topic1Consumer.scaleReceiverQueueHint::get);
+
+        Message<byte[]> topic1Message = topic1Consumer.receive();
+        Assert.assertNotNull(topic1Message);
+        Assert.assertEquals(topic1Consumer.getCurrentReceiverQueueSize(), 1);
+
+        // Trigger ConsumerBase.expectMoreIncomingMessages() method to expand receiverQueueSize.
+        topic1Consumer.receiveAsync();
+        Awaitility.await().until(() -> topic1Consumer.getCurrentReceiverQueueSize() == 2);
+
+
+        topic2Producer.send(new byte[msgSize]);
+        Awaitility.await().until(topic2Consumer.scaleReceiverQueueHint::get);
+
+        Message<byte[]> topic2Message = topic2Consumer.receive();
+        Assert.assertNotNull(topic2Message);
+        Assert.assertEquals(topic2Consumer.getCurrentReceiverQueueSize(), 1);
+
+        // Trigger ConsumerBase.expectMoreIncomingMessages() method to expand receiverQueueSize.
+        topic2Consumer.receiveAsync();
+        Awaitility.await().until(() -> topic2Consumer.getCurrentReceiverQueueSize() == 2);
+
+
+        // topic1Consumer.receiveAsync() will take one message, so we should send (msgCount + 1) messages.
+        // Trigger ConsumerBase.reduceCurrentReceiverQueueSize() method to reduce receiverQueueSize.
+        topic1Consumer.setCurrentReceiverQueueSize(msgCount);
+        for (int i = 0; i < msgCount + 1; i++) {
+            topic1Producer.send(new byte[msgSize]);
+        }
+        Awaitility.await().until(() -> memoryLimitController1.currentUsage() == memoryLimit);
+        Awaitility.await().until(() -> topic1Consumer.getCurrentReceiverQueueSize() == 1);
+        Awaitility.await().until(() -> topic2Consumer.getCurrentReceiverQueueSize() == 1);
+
+        // topic2Consumer.receiveAsync() will take one message, so we should send (msgCount + 1) messages.
+        for (int i = 0; i < msgCount + 1; i++) {
+            topic2Producer.send(new byte[msgSize]);
+        }
+        // topic2Consumer will not expand receiverQueueSize due to memory limit reached.
+        for (int i = 0; i < msgCount; i++) {
+            topic2Message = topic2Consumer.receive();
+            Assert.assertNotNull(topic2Message);
+            Assert.assertEquals(topic2Consumer.getCurrentReceiverQueueSize(), 1);
+        }
+
+        // Close topic1Consumer to clear release memory.
+        topic1Consumer.close();
+        Assert.assertEquals(memoryLimitController1.currentUsage(), 0);
+
+        // Trigger ConsumerBase.expectMoreIncomingMessages() method to expand receiverQueueSize.
+        topic2Consumer.receiveAsync();
+        Awaitility.await().until(() -> topic2Consumer.getCurrentReceiverQueueSize() == 2);
+
+        // Close topic1Consumer to clear release memory.
+        topic2Consumer.close();
+        Assert.assertEquals(memoryLimitController2.currentUsage(), 0);
+    }
+
 }

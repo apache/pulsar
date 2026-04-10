@@ -520,6 +520,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "zkImpls")
+    @SuppressWarnings("unchecked")
     public void readModifyUpdateOrCreateRetryTimeout(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -531,7 +532,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
                         .mandatoryStop(Duration.ofSeconds(3))).build());
 
         MetadataCache<MyClass> cacheRef = cache;
-        if (cache instanceof DualMetadataCache dc) {
+        if (cache instanceof DualMetadataCache<?> dc) {
             cacheRef = (MetadataCache<MyClass>) dc.getMetadataCache().get();
         }
 

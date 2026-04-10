@@ -20,9 +20,5 @@
 
 ROOT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. >/dev/null 2>&1 && pwd )"
 
-pushd $ROOT_DIR > /dev/null
-
-# Get the project version from the Maven pom.xml
-src/get-project-version.py
-
-popd > /dev/null
+# Get the project version from the version catalog
+grep -oP '^pulsar = "\K[^"]+' "$ROOT_DIR/gradle/libs.versions.toml"

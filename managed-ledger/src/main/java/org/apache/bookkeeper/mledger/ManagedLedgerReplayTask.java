@@ -22,16 +22,16 @@ import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.readEntries;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The task to perform replay on the whole managed ledger from a given position.
  */
 @RequiredArgsConstructor
-@Slf4j
+@CustomLog
 public class ManagedLedgerReplayTask {
 
     private final String name;
@@ -81,7 +81,10 @@ public class ManagedLedgerReplayTask {
                     try {
                         processor.process(position, buffer);
                     } catch (Throwable throwable) {
-                        log.error("[{}] Failed to process entry {}", name, position, throwable);
+                        log.error().attr("name", name)
+                                .attr("position", position)
+                                .exception(throwable)
+                                .log("Failed to process entry");
                         return CompletableFuture.completedFuture(Optional.ofNullable(processedPosition));
                     }
                     // It does not need to be atomic because the update happens before the future completes

@@ -72,6 +72,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         adminToken = generateToken(ADMIN_ROLE);
         userToken = generateToken("user");
     }
+    @SuppressWarnings("deprecation")
 
     private String generateToken(String subject) {
         PrivateKey pkey = kp.getPrivate();
@@ -110,6 +111,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         conf.setProperties(properties);
         super.init();
     }
+    @SuppressWarnings("deprecation")
 
     // setup both admin and pulsar client
     protected final void clientSetup() throws Exception {

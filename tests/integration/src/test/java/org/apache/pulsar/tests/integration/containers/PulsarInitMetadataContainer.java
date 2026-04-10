@@ -37,6 +37,7 @@ public class PulsarInitMetadataContainer extends GenericContainer<PulsarInitMeta
     private final String configurationMetadataStoreUrl;
     private final String brokerHostname;
 
+    @SuppressWarnings("deprecation")
     public PulsarInitMetadataContainer(Network network,
                                        String clusterName,
                                        String metadataStoreUrl,

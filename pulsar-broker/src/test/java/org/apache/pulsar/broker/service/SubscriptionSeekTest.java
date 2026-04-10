@@ -1165,6 +1165,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testExceptionBySeekFunction() throws Exception {
         final String topicName = "persistent://prop/ns-abc/test" + UUID.randomUUID();
         creatProducerAndSendMsg(topicName, 10);

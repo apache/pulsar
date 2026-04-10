@@ -135,33 +135,40 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
     @BeforeMethod(alwaysRun = true)
     public void startBroker() {
-        if (pulsarCluster != null) {
-            pulsarCluster.getBrokers().forEach(brokerContainer -> {
-                if (!brokerContainer.isRunning()) {
-                    brokerContainer.start();
-                }
-            });
-            String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
-            Awaitility.await().atMost(120, TimeUnit.SECONDS).ignoreExceptions().until(
-                    () -> {
-                        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
-                            try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(
-                                    brokerContainer.getHttpServiceUrl()).build()) {
-                                if (admin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
-                                    return false;
-                                }
-                                try {
-                                    admin.topics().createPartitionedTopic(topicName, 10);
-                                } catch (PulsarAdminException.ConflictException e) {
-                                    // expected
-                                }
-                                admin.lookups().lookupPartitionedTopic(topicName);
-                            }
-                        }
-                        return true;
-                    }
-            );
+        if (pulsarCluster == null) {
+            return;
         }
+        pulsarCluster.getBrokers().forEach(brokerContainer -> {
+            if (!brokerContainer.isRunning()) {
+                brokerContainer.start();
+            }
+        });
+        String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
+        Awaitility.await().atMost(180, TimeUnit.SECONDS).until(
+                () -> {
+                    for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
+                        try (PulsarAdmin brokerAdmin = PulsarAdmin.builder().serviceHttpUrl(
+                                brokerContainer.getHttpServiceUrl()).build()) {
+                            if (brokerAdmin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
+                                log.info("Broker {} does not see {} active brokers yet",
+                                        brokerContainer.getHostName(), NUM_BROKERS);
+                                return false;
+                            }
+                            try {
+                                brokerAdmin.topics().createPartitionedTopic(topicName, 10);
+                            } catch (PulsarAdminException.ConflictException e) {
+                                // expected - topic already exists
+                            }
+                            brokerAdmin.lookups().lookupPartitionedTopic(topicName);
+                        } catch (Exception e) {
+                            log.warn("Broker {} is not ready yet: {}",
+                                    brokerContainer.getHostName(), e.getMessage());
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+        );
     }
 
     @Test(timeOut = 40 * 1000)

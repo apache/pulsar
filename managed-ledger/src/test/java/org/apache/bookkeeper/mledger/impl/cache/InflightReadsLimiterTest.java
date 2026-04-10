@@ -32,13 +32,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.assertj.core.api.Assertions;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class InflightReadsLimiterTest {
     private static final int ACQUIRE_QUEUE_SIZE = 1000;
     private static final int ACQUIRE_TIMEOUT_MILLIS = 500;
@@ -538,6 +538,7 @@ public class InflightReadsLimiterTest {
                 .isEqualTo(maxReadsInFlightSize);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPrometheusMetrics() throws Exception {
         long maxReadsInFlightSize = 100;
@@ -545,8 +546,8 @@ public class InflightReadsLimiterTest {
         InflightReadsLimiter limiter = new InflightReadsLimiter(maxReadsInFlightSize, ACQUIRE_QUEUE_SIZE,
                 ACQUIRE_TIMEOUT_MILLIS, mock(ScheduledExecutorService.class), OpenTelemetry.noop());
 
-        Assertions.assertThat(limiter.PULSAR_ML_READS_BUFFER_SIZE.get()).isZero();
-        Assertions.assertThat(limiter.PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE.get())
+        Assertions.assertThat(InflightReadsLimiter.PULSAR_ML_READS_BUFFER_SIZE.get()).isZero();
+        Assertions.assertThat(InflightReadsLimiter.PULSAR_ML_READS_AVAILABLE_BUFFER_SIZE.get())
                 .isEqualTo(maxReadsInFlightSize);
     }
 

@@ -107,6 +107,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         conf.setProperties(properties);
         super.init();
     }
+    @SuppressWarnings("deprecation")
 
     // setup both admin and pulsar client
     protected final void clientSetup() throws Exception {
@@ -122,6 +123,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
                 .statsInterval(0, TimeUnit.SECONDS)
                 .authentication(createAuthentication(path)));
     }
+    @SuppressWarnings("deprecation")
 
     private Authentication createAuthentication(Path path) throws MalformedURLException {
         return AuthenticationFactoryOAuth2.clientCredentials(

@@ -514,7 +514,7 @@ public class DualMetadataCacheTest extends BaseMetadataStoreTest {
                 MetadataStoreConfig.builder().build());
 
         // Create cache with custom config
-        MetadataCacheConfig cacheConfig = MetadataCacheConfig.builder()
+        MetadataCacheConfig<TestObject> cacheConfig = MetadataCacheConfig.<TestObject>builder()
                 .refreshAfterWriteMillis(1000)
                 .build();
 

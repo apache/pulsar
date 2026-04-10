@@ -88,6 +88,7 @@ public class ProtobufNativeSchemaUtils {
     private static final ObjectReader PROTOBUF_NATIVE_SCHEMADATA_READER = ObjectMapperFactory.getMapper().reader()
             .forType(ProtobufNativeSchemaData.class);
 
+    @SuppressWarnings("deprecation")
     public static Descriptors.Descriptor deserialize(byte[] schemaDataBytes) {
         Descriptors.Descriptor descriptor;
         try {

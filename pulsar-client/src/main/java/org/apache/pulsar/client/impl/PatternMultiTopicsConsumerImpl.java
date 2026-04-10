@@ -428,7 +428,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                                     topicName.getPartitionIndex() + 1);
                         }
                         expendPartitionsForLog.add(topicName.toString());
-                        CompletableFuture consumerFuture = subscribeAsync(topicName.toString(),
+                        CompletableFuture<Void> consumerFuture = subscribeAsync(topicName.toString(),
                                 PartitionedTopicMetadata.NON_PARTITIONED);
                         consumerFuture.whenComplete((__, ex) -> {
                             if (ex != null) {
@@ -454,7 +454,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
             }
             // Case 3: Non-partitioned topic or Partitioned topic, which has not been subscribed.
             for (String partitionedTopic : groupedTopics) {
-                CompletableFuture consumerFuture = subscribeAsync(partitionedTopic, false);
+                CompletableFuture<Void> consumerFuture = subscribeAsync(partitionedTopic, false);
                 consumerFuture.whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.warn("Pattern consumer [{}] Failed to subscribe to topics: {}",

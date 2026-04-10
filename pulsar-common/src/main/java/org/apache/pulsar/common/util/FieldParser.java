@@ -96,6 +96,7 @@ public final class FieldParser {
 
         if (to.isEnum()) {
             // Converting string to enum
+            @SuppressWarnings("deprecation") // No replacement API available in Jackson 2.x
             EnumResolver r = EnumResolver.constructUsingToString(
                 ObjectMapperFactory.getMapper().getObjectMapper().getDeserializationConfig(), to);
             T value = (T) r.findEnum((String) from);
@@ -181,7 +182,9 @@ public final class FieldParser {
                     throw new IllegalArgumentException(format("unsupported non-primitive Optional<%s> for %s",
                             typeClazz.getClass(), field.getName()));
                 }
-                return Optional.ofNullable(convert(strValue, (Class) typeClazz));
+                @SuppressWarnings("unchecked") // typeClazz is verified to be a non-parameterized Class
+                Optional<?> result = Optional.ofNullable(convert(strValue, (Class<?>) typeClazz));
+                return result;
             } else {
                 throw new IllegalArgumentException(
                         format("unsupported field-type %s for %s", field.getType(), field.getName()));
@@ -245,7 +248,7 @@ public final class FieldParser {
         WRAPPER_TYPES.put(boolean.class, Boolean.class);
     }
 
-    /***** --- Converters --- ****/
+    // --- Converters ---
 
     /**
      * Converts String to Integer.

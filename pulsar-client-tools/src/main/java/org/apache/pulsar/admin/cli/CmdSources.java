@@ -737,6 +737,7 @@ public class CmdSources extends CmdBase {
     @Command(description = "Get the list of Pulsar IO connector sources supported by Pulsar cluster")
     public class ListBuiltInSources extends BaseCommand {
         @Override
+        @SuppressWarnings("deprecation")
         void runCmd() throws Exception {
             getAdmin().sources().getBuiltInSources().stream().filter(x -> !StringUtils.isEmpty(x.getSourceClass()))
                     .forEach(connector -> {

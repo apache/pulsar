@@ -90,6 +90,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTxnPerf() throws Exception {
         String argString = "--topics-c %s --topics-p %s -threads 1 -ntxn 50 -u %s -ss %s -rs -np 1 -au %s";
@@ -139,6 +140,14 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         });
         thread.start();
         thread.join();
+
+        // Wait for all async transaction commits to complete before verifying messages
+        Awaitility.await().untilAsserted(() -> {
+            admin.transactions().getCoordinatorStats().forEach((integer, transactionCoordinatorStats) -> {
+                Assert.assertEquals(transactionCoordinatorStats.ongoingTxnSize, 0);
+            });
+        });
+
         Assert.assertTrue(admin.topics().getPartitionedStats(testConsumeTopic, false)
                 .getSubscriptions().get(testSub).isReplicated());
         @Cleanup
@@ -157,7 +166,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         for (int i = 0; i < 50; i++) {
-            Message<byte[]> message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
+            Message<byte[]> message = consumeFromProduceTopic.receive(10, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             consumeFromProduceTopic.acknowledge(message);
         }

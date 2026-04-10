@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutionException;
  * Generic metadata store exception.
  */
 public class MetadataStoreException extends IOException {
+    private static final long serialVersionUID = 1L;
 
     public MetadataStoreException(Throwable t) {
         super(t);
@@ -43,6 +44,8 @@ public class MetadataStoreException extends IOException {
      * Implementation is invalid.
      */
     public static class InvalidImplementationException extends MetadataStoreException {
+        private static final long serialVersionUID = 1L;
+
         public InvalidImplementationException() {
             super((Throwable) null);
         }
@@ -60,6 +63,8 @@ public class MetadataStoreException extends IOException {
      * Key not found in store.
      */
     public static class NotFoundException extends MetadataStoreException {
+        private static final long serialVersionUID = 1L;
+
         public NotFoundException() {
             super((Throwable) null);
         }
@@ -77,6 +82,8 @@ public class MetadataStoreException extends IOException {
      * Key was already in store.
      */
     public static class AlreadyExistsException extends MetadataStoreException {
+        private static final long serialVersionUID = 1L;
+
         public AlreadyExistsException(Throwable t) {
             super(t);
         }
@@ -90,6 +97,8 @@ public class MetadataStoreException extends IOException {
      * Unsuccessful update due to mismatched expected version.
      */
     public static class BadVersionException extends MetadataStoreException {
+        private static final long serialVersionUID = 1L;
+
         public BadVersionException(Throwable t) {
             super(t);
         }
@@ -103,6 +112,8 @@ public class MetadataStoreException extends IOException {
      * Failed to de-serialize the metadata.
      */
     public static class ContentDeserializationException extends MetadataStoreException {
+        private static final long serialVersionUID = 1L;
+
         public ContentDeserializationException(String msg, Throwable t) {
             super(msg, t);
         }
@@ -120,6 +131,8 @@ public class MetadataStoreException extends IOException {
      * A resource lock is already taken by a different instance.
      */
     public static class LockBusyException extends MetadataStoreException {
+        private static final long serialVersionUID = 1L;
+
         public LockBusyException() {
             super((Throwable) null);
         }
@@ -137,6 +150,7 @@ public class MetadataStoreException extends IOException {
      * The store was already closed.
      */
     public static class AlreadyClosedException extends MetadataStoreException {
+        private static final long serialVersionUID = 1L;
 
         public AlreadyClosedException() {
             super("The metadata store is closed");
@@ -151,6 +165,8 @@ public class MetadataStoreException extends IOException {
     }
 
     public static class InvalidPathException extends MetadataStoreException {
+        private static final long serialVersionUID = 1L;
+
         public InvalidPathException(String path) {
             super("Path(" + path + ") is invalid");
         }

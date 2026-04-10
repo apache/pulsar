@@ -20,37 +20,20 @@
 package org.apache.pulsar.broker.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class ServerCnxNonInjectionTest extends ProducerConsumerBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ServerCnxNonInjectionTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 60 * 1000)
     public void testCheckConnectionLivenessAfterClosed() throws Exception {
         // Create a ServerCnx
-        final String tp = BrokerTestUtil.newUniqueName("public/default/tp");
+        final String tp = newTopicName();
         Producer<String> p = pulsarClient.newProducer(Schema.STRING).topic(tp).create();
-        ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService().getTopic(tp, false).join().get()
+        ServerCnx serverCnx = (ServerCnx) getTopic(tp, false).join().get()
                         .getProducers().values().iterator().next().getCnx();
         // Call "CheckConnectionLiveness" after serverCnx is closed. The resulted future should be done eventually.
         p.close();

@@ -61,6 +61,7 @@ public class ThresholdShedderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCleanCache() throws Exception {
         testBrokerReachThreshold();
         Field field = ThresholdShedder.class.getDeclaredField("brokerAvgResourceUsage");

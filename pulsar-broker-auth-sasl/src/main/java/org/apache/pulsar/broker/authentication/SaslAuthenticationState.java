@@ -30,6 +30,7 @@ import org.apache.pulsar.common.api.AuthData;
  * It tell broker whether the authentication is completed or not,
  */
 @Slf4j
+@SuppressWarnings("deprecation") // Implements deprecated AuthenticationState methods for SASL multi-stage auth
 public class SaslAuthenticationState implements AuthenticationState {
     private final long stateId;
     private static final AtomicLong stateIdGenerator = new AtomicLong(0L);

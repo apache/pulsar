@@ -347,11 +347,11 @@ public class FunctionsApiV3Resource extends FunctionApiResource {
                 .downloadFunction(tenant, namespace, functionName, authParams(), transformFunction);
     }
 
+    /**
+     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}.
+     */
     @GET
     @Path("/connectors")
-    /**
-     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}
-     */
     @Deprecated
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions().getListOfConnectors();

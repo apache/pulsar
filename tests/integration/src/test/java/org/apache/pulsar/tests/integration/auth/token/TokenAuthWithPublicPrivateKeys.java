@@ -74,12 +74,14 @@ public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBas
         log.info("Created proxy token: {}", proxyAuthToken);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void configureBroker(BrokerContainer brokerContainer) throws Exception {
         brokerContainer.withFileSystemBind(publicKeyFile.toString(), PUBLIC_KEY_PATH_INSIDE_CONTAINER);
         brokerContainer.withEnv("tokenPublicKey", "file://" + PUBLIC_KEY_PATH_INSIDE_CONTAINER);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void configureProxy(ProxyContainer proxyContainer) throws Exception {
         proxyContainer.withFileSystemBind(publicKeyFile.toString(), PUBLIC_KEY_PATH_INSIDE_CONTAINER);

@@ -474,6 +474,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     @Test(timeOut = 45 * 1000)
+    @SuppressWarnings("unchecked")
     public void testTopicCloseWhenInternalProducerCloseErrorOnce() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
         admin1.topics().createNonPartitionedTopic(topicName);
@@ -486,7 +487,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Mock an error when calling "replicator.disconnect()"
         AtomicBoolean closeFailed = new AtomicBoolean(true);
         final ProducerImpl mockProducer = Mockito.mock(ProducerImpl.class);
-        final AtomicReference<ProducerImpl> originalProducer1 = new AtomicReference();
+        final AtomicReference<ProducerImpl<?>> originalProducer1 = new AtomicReference<>();
         doAnswer(invocation -> {
             if (closeFailed.get()) {
                 return CompletableFuture.failedFuture(new Exception("mocked ex"));
@@ -501,8 +502,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Verify: After "replicator.producer.closeAsync()" retry again, the "replicator.producer" will be closed
         // successful.
         closeFailed.set(false);
-        AtomicReference<PersistentTopic> topic2 = new AtomicReference();
-        AtomicReference<PersistentReplicator> replicator2 = new AtomicReference();
+        AtomicReference<PersistentTopic> topic2 = new AtomicReference<>();
+        AtomicReference<PersistentReplicator> replicator2 = new AtomicReference<>();
         Awaitility.await().untilAsserted(() -> {
             topic2.set((PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get());
             replicator2.set((PersistentReplicator) topic2.get().getReplicators().values().iterator().next());
@@ -524,6 +525,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
     }
 
+    @SuppressWarnings("unchecked")
     private Runnable injectMockReplicatorProducerBuilder(
                                 BiFunction<ProducerConfigurationData, ProducerImpl, ProducerImpl> producerDecorator)
             throws Exception {
@@ -548,9 +550,9 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
         // Inject producer decorator.
         doAnswer(invocation -> {
-            Schema schema = (Schema) invocation.getArguments()[0];
+            Schema<?> schema = (Schema) invocation.getArguments()[0];
             ProducerBuilderImpl<?> producerBuilder = (ProducerBuilderImpl) internalClient.newProducer(schema);
-            ProducerBuilder spyProducerBuilder = spy(producerBuilder);
+            ProducerBuilder<?> spyProducerBuilder = spy(producerBuilder);
             doAnswer(ignore -> {
                 CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
                 producerBuilder.createAsync().whenComplete((p, t) -> {
@@ -1134,6 +1136,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     @Test(dataProvider = "replicationLevels")
+    @SuppressWarnings("unchecked")
     public void testReloadWithTopicLevelGeoReplication(ReplicationLevel replicationLevel) throws Exception {
         final String topicName = ((Supplier<String>) () -> {
             if (replicationLevel.equals(ReplicationLevel.TOPIC_LEVEL)) {
@@ -1537,6 +1540,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
      * This test used to confirm the "start replicator retry task" will be skipped after the topic is closed.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testCloseTopicAfterStartReplicationFailed() throws Exception {
         Field fieldTopicNameCache = TopicName.class.getDeclaredField("cache");
         fieldTopicNameCache.setAccessible(true);

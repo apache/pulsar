@@ -43,7 +43,6 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -220,6 +219,11 @@ public class PulsarClusterMetadataSetup {
     }
 
     public static void main(String[] args) throws Exception {
+        // Explicitly trigger class initialization to run static blocks that register
+        // drivers with MetadataDrivers. Setting system properties alone is not sufficient
+        // when MetadataDrivers has already been loaded in the same JVM (e.g., in test contexts).
+        PulsarMetadataBookieDriver.init();
+        PulsarMetadataClientDriver.init();
         System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
         System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
 
@@ -283,10 +287,8 @@ public class PulsarClusterMetadataSetup {
         try {
             initializeCluster(arguments, bundleNumberForDefaultNamespace);
         } catch (Exception e) {
-            System.err.println("Unexpected error occurred.");
-            e.printStackTrace(System.err);
-            System.err.println("Terminating JVM...");
-            ShutdownUtil.triggerImmediateForcefulShutdown();
+            log.error("Unexpected error during cluster metadata initialization", e);
+            throw e;
         }
     }
 
@@ -300,6 +302,7 @@ public class PulsarClusterMetadataSetup {
         MetadataStoreExtended configStore = initConfigMetadataStore(arguments.configurationMetadataStore,
                 arguments.configurationStoreConfigPath,
                 arguments.zkSessionTimeoutMillis);
+        try {
 
         final String metadataStoreUrlNoIdentifier = MetadataStoreFactoryImpl
                 .removeIdentifierFromMetadataURL(arguments.metadataStoreUrl);
@@ -394,10 +397,19 @@ public class PulsarClusterMetadataSetup {
         createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                 arguments.numTransactionCoordinators);
 
-        localStore.close();
-        configStore.close();
-
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
+        } finally {
+            try {
+                localStore.close();
+            } catch (Exception e) {
+                log.warn("Failed to close local metadata store", e);
+            }
+            try {
+                configStore.close();
+            } catch (Exception e) {
+                log.warn("Failed to close config metadata store", e);
+            }
+        }
     }
 
     public static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster)

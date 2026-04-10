@@ -46,6 +46,7 @@ public class MockAuthentication implements Authentication {
         return "mock";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         return new AuthenticationDataProvider() {
@@ -72,6 +73,7 @@ public class MockAuthentication implements Authentication {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void configure(Map<String, String> authParams) {
         this.user = authParams.get("user");

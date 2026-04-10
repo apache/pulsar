@@ -18,89 +18,37 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-import static org.apache.pulsar.schema.compatibility.SchemaCompatibilityCheckTest.randomName;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
-import com.google.common.collect.Sets;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.schema.Schemas;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class ClientGetSchemaTest extends ProducerConsumerBase {
-
-    private static final String topicBytes = "my-property/my-ns/topic-bytes";
-    private static final String topicString = "my-property/my-ns/topic-string";
-    private static final String topicJson = "my-property/my-ns/topic-json";
-    private static final String topicAvro = "my-property/my-ns/topic-avro";
-    private static final String topicJsonNotNull = "my-property/my-ns/topic-json-not-null";
-    private static final String topicAvroNotNull = "my-property/my-ns/topic-avro-not-null";
-
-    List<Producer<?>> producers = new ArrayList<>();
+public class ClientGetSchemaTest extends SharedPulsarBaseTest {
 
     private static class MyClass {
         public String name;
         public int age;
     }
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-
-        // Create few topics with different types
-        producers.add(pulsarClient.newProducer(Schema.BYTES).topic(topicBytes).create());
-        producers.add(pulsarClient.newProducer(Schema.STRING).topic(topicString).create());
-        producers.add(pulsarClient.newProducer(Schema.AVRO(MyClass.class)).topic(topicAvro).create());
-        producers.add(pulsarClient.newProducer(Schema.JSON(MyClass.class)).topic(topicJson).create());
-        producers.add(pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<MyClass>builder()
-                .withPojo(MyClass.class).build())).topic(topicAvro).create());
-        producers.add(pulsarClient.newProducer(Schema.JSON(SchemaDefinition.<MyClass>builder()
-                .withPojo(MyClass.class).build())).topic(topicJson).create());
-        producers.add(pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<MyClass>builder()
-                .withPojo(MyClass.class).withAlwaysAllowNull(false).build())).topic(topicAvroNotNull).create());
-        producers.add(pulsarClient.newProducer(Schema.JSON(SchemaDefinition.<MyClass>builder()
-                .withPojo(MyClass.class).withAlwaysAllowNull(false).build())).topic(topicJsonNotNull).create());
-
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        producers.forEach(t -> {
-            try {
-                t.close();
-            } catch (PulsarClientException e) {
-            }
-        });
-        super.internalCleanup();
-    }
-
     @DataProvider(name = "serviceUrl")
     public Object[] serviceUrls() {
         return new Object[] {
-                stringSupplier(() -> getPulsar().getBrokerServiceUrl()),
-                stringSupplier(() -> getPulsar().getWebServiceAddress())
+                stringSupplier(() -> getBrokerServiceUrl()),
+                stringSupplier(() -> getWebServiceUrl())
         };
     }
 
@@ -110,6 +58,19 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "serviceUrl")
     public void testGetSchema(Supplier<String> serviceUrl) throws Exception {
+        String topicBytes = newTopicName();
+        String topicString = newTopicName();
+        String topicJson = newTopicName();
+        String topicAvro = newTopicName();
+
+        // Create topics with different schema types
+        @Cleanup Producer<byte[]> pBytes = pulsarClient.newProducer(Schema.BYTES).topic(topicBytes).create();
+        @Cleanup Producer<String> pString = pulsarClient.newProducer(Schema.STRING).topic(topicString).create();
+        @Cleanup Producer<MyClass> pAvro =
+                pulsarClient.newProducer(Schema.AVRO(MyClass.class)).topic(topicAvro).create();
+        @Cleanup Producer<MyClass> pJson =
+                pulsarClient.newProducer(Schema.JSON(MyClass.class)).topic(topicJson).create();
+
         @Cleanup
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
@@ -123,51 +84,44 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
     /**
      * It validates if schema ledger is deleted or non recoverable then it will clean up schema storage for the topic
      * and make the topic available.
-     *
-     * @throws Exception
      */
     @Test
     public void testSchemaFailure() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
-        final String topicOne = "test-broken-schema-storage";
-        final String fqtnOne = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
-
-        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet("test"));
+        final String topicOne = newTopicName();
 
         // (1) create topic with schema
         Producer<Schemas.PersonTwo> producer = pulsarClient
-                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull(false)
                         .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
-                .topic(fqtnOne).create();
+                .topic(topicOne).create();
 
         producer.close();
 
-        String key = TopicName.get(fqtnOne).getSchemaName();
-        BookkeeperSchemaStorage schemaStrogate = (BookkeeperSchemaStorage) pulsar.getSchemaStorage();
-        long schemaLedgerId = schemaStrogate.getSchemaLedgerList(key).get(0);
+        String key = TopicName.get(topicOne).getSchemaName();
+        BookkeeperSchemaStorage schemaStorage = (BookkeeperSchemaStorage) getSchemaStorage();
+        long schemaLedgerId = schemaStorage.getSchemaLedgerList(key).get(0);
 
         // (2) break schema locator by deleting schema-ledger
-        schemaStrogate.getBookKeeper().deleteLedger(schemaLedgerId);
+        schemaStorage.getBookKeeper().deleteLedger(schemaLedgerId);
 
-        admin.topics().unload(fqtnOne);
+        admin.topics().unload(topicOne);
 
         // (3) create topic again: broker should handle broken schema and load the topic successfully
         producer = pulsarClient
-                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull(false)
                         .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
-                .topic(fqtnOne).create();
+                .topic(topicOne).create();
 
-        assertNotEquals(schemaLedgerId, schemaStrogate.getSchemaLedgerList(key).get(0));
+        assertNotEquals(schemaLedgerId, schemaStorage.getSchemaLedgerList(key).get(0));
 
         Schemas.PersonTwo personTwo = new Schemas.PersonTwo();
         personTwo.setId(1);
         personTwo.setName("Tom");
 
         Consumer<Schemas.PersonTwo> consumer = pulsarClient
-                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
+                .newConsumer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull(false)
                         .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
-                .subscriptionName("test").topic(fqtnOne).subscribe();
+                .subscriptionName("test").topic(topicOne).subscribe();
 
         producer.send(personTwo);
 
@@ -181,33 +135,34 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void testAddProducerOnDeletedSchemaLedgerTopic() throws Exception {
-        final String tenant = PUBLIC_TENANT;
-        final String namespace = "test-namespace-" + randomName(16);
-        final String topicOne = "test-deleted-schema-ledger";
-        final String fqtnOne = TopicName.get(TopicDomain.persistent.value(), tenant, namespace, topicOne).toString();
+        final String topicOne = newTopicName();
 
-        pulsar.getConfig().setSchemaLedgerForceRecovery(true);
-        admin.namespaces().createNamespace(tenant + "/" + namespace, Sets.newHashSet("test"));
+        boolean origValue = getConfig().isSchemaLedgerForceRecovery();
+        getConfig().setSchemaLedgerForceRecovery(true);
+        try {
+            // (1) create topic with schema
+            Producer<Schemas.PersonTwo> producer = pulsarClient
+                    .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull(false)
+                            .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
+                    .topic(topicOne).create();
 
-        // (1) create topic with schema
-        Producer<Schemas.PersonTwo> producer = pulsarClient
-                .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo> builder().withAlwaysAllowNull(false)
-                        .withSupportSchemaVersioning(true).withPojo(Schemas.PersonTwo.class).build()))
-                .topic(fqtnOne).create();
+            producer.close();
 
-        producer.close();
+            String key = TopicName.get(topicOne).getSchemaName();
+            BookkeeperSchemaStorage schemaStorage = (BookkeeperSchemaStorage) getSchemaStorage();
+            long schemaLedgerId = schemaStorage.getSchemaLedgerList(key).get(0);
 
-        String key = TopicName.get(fqtnOne).getSchemaName();
-        BookkeeperSchemaStorage schemaStrogate = (BookkeeperSchemaStorage) pulsar.getSchemaStorage();
-        long schemaLedgerId = schemaStrogate.getSchemaLedgerList(key).get(0);
+            // (2) break schema locator by deleting schema-ledger
+            schemaStorage.getBookKeeper().deleteLedger(schemaLedgerId);
 
-        // (2) break schema locator by deleting schema-ledger
-        schemaStrogate.getBookKeeper().deleteLedger(schemaLedgerId);
+            admin.topics().unload(topicOne);
 
-        admin.topics().unload(fqtnOne);
+            @Cleanup
+            Producer<byte[]> producerWithoutSchema = pulsarClient.newProducer().topic(topicOne).create();
 
-        Producer<byte[]> producerWihtoutSchema = pulsarClient.newProducer().topic(fqtnOne).create();
-
-        assertNotNull(producerWihtoutSchema);
+            assertNotNull(producerWithoutSchema);
+        } finally {
+            getConfig().setSchemaLedgerForceRecovery(origValue);
+        }
     }
 }

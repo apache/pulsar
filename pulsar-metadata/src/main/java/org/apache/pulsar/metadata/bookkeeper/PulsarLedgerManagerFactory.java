@@ -43,10 +43,12 @@ public class PulsarLedgerManagerFactory implements LedgerManagerFactory {
 
     private static final int CUR_VERSION = 1;
 
+    @SuppressWarnings("rawtypes")
     private AbstractConfiguration conf;
     private MetadataStoreExtended store;
     private String ledgerRootPath;
 
+    @SuppressWarnings("rawtypes")
     @Override
     public LedgerManagerFactory initialize(AbstractConfiguration conf, LayoutManager layoutManager,
                                            int factoryVersion) throws IOException {

@@ -39,6 +39,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class BrokerTestUtilTest {
     @Test
+    @SuppressWarnings("unchecked")
     public void testReceiveMessagesQuietTime() throws Exception {
         // Mock consumers
         Consumer<Integer> consumer1 = mock(Consumer.class);

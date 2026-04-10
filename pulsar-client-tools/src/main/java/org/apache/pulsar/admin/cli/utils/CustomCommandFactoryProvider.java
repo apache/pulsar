@@ -139,6 +139,7 @@ public class CustomCommandFactoryProvider {
         );
     }
 
+    @SuppressWarnings("unchecked")
     private static CustomCommandFactory load(CustomCommandFactoryMetaData metadata,
                                                    String narExtractionDirectory)
             throws IOException {

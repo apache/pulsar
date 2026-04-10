@@ -597,6 +597,7 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleProducer();
         mockBrokerService.resetHandleCloseProducer();
     }
+    @SuppressWarnings("deprecation")
 
     // failed to connect to partition at sending step if a producer which connects to broker as lazy-loading mode
     @Test
@@ -840,6 +841,7 @@ public class ClientErrorsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCommandErrorMessageIsNull() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();

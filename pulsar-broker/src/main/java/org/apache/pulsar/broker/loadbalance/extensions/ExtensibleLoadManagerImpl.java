@@ -593,8 +593,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 return future;
             });
         } finally {
-            if (newFutureCreated.getValue() != null) {
-                newFutureCreated.getValue().whenComplete((v, ex) -> {
+            if (newFutureCreated.get() != null) {
+                newFutureCreated.get().whenComplete((v, ex) -> {
                     if (ex != null) {
                         assignCounter.incrementFailure();
                     }

@@ -109,6 +109,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSendAndReceiveNamespaceEvents() throws Exception {
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));

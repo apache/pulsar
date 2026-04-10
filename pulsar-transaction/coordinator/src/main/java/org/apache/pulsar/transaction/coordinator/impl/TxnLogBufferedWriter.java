@@ -68,6 +68,7 @@ public class TxnLogBufferedWriter<T> {
                     new Exception("Transaction log buffered write has closed")
             );
 
+    @SuppressWarnings("rawtypes")
     private static final AtomicReferenceFieldUpdater<TxnLogBufferedWriter, TxnLogBufferedWriter.State> STATE_UPDATER =
             AtomicReferenceFieldUpdater
                     .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
@@ -378,7 +379,7 @@ public class TxnLogBufferedWriter<T> {
         if (!STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSING)){
             return CompletableFuture.completedFuture(null);
         }
-        CompletableFuture closeFuture = new CompletableFuture();
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         // Cancel pending tasks and release resources.
         FutureUtil.safeRunAsync(() -> {
             // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should

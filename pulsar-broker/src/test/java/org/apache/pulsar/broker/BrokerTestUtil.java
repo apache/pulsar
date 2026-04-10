@@ -105,6 +105,7 @@ public class BrokerTestUtil {
      * @return a spy of the real object
      * @param <T> type of object
      */
+    @SuppressWarnings("unchecked")
     public static <T> T spyWithoutRecordingInvocations(T object) {
         return Mockito.mock((Class<T>) object.getClass(), Mockito.withSettings()
                 .spiedInstance(object)
@@ -226,6 +227,7 @@ public class BrokerTestUtil {
      * @param consumers the consumers to receive messages from
      * @param <T> the message value type
      */
+    @SafeVarargs
     public static <T> void receiveMessages(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
                                        Duration quietTimeout,
                                        Consumer<T>... consumers) {
@@ -300,6 +302,7 @@ public class BrokerTestUtil {
      * @param consumers the consumers to receive messages from
      * @param <T> the message value type
      */
+    @SafeVarargs
     public static <T> void receiveMessagesN(BiConsumer<Consumer<T>, Message<T>> messageHandler,
                                             Duration quietTimeout,
                                             int maxMessages,
@@ -321,6 +324,7 @@ public class BrokerTestUtil {
      * @param consumers      the consumers to receive messages from
      * @param <T>            the message value type
      */
+    @SafeVarargs
     public static <T> void receiveMessagesInThreads(BiFunction<Consumer<T>, Message<T>, Boolean> messageHandler,
                                                     final Duration quietTimeout,
                                                     Consumer<T>... consumers) {

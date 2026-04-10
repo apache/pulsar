@@ -1001,6 +1001,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         deleteNamespaceWithRetry(namespaceName, false);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMessageExpiryWithTopicMessageTTL() throws Exception {
         int namespaceMessageTTLSecs = 10;
@@ -2000,6 +2001,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         private static AtomicInteger count = new AtomicInteger(0);
 
         @Override
+        @SuppressWarnings("unchecked")
         public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
                 Class<T> topicClazz) {
             try {

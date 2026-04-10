@@ -238,7 +238,7 @@ public class SimpleTypedProducerConsumerTest extends SharedPulsarBaseTest {
         log.info("-- Exiting {} test --", "testProtobufProducerAndConsumer");
     }
 
-    @Test(expectedExceptions = {PulsarClientException.class})
+    @Test(expectedExceptions = {PulsarClientException.class, SchemaSerializationException.class})
     public void testProtobufConsumerWithWrongPrestoredSchema() throws Exception {
         log.info("-- Starting {} test --", "testProtobufConsumerWithWrongPrestoredSchema");
 

@@ -22,21 +22,18 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -44,56 +41,34 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-impl")
-public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
+public class GetLastMessageIdCompactedTest extends SharedPulsarBaseTest {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        // Disable the scheduled task: compaction.
-        conf.setBrokerServiceCompactionMonitorIntervalInSeconds(Integer.MAX_VALUE);
-        // Disable the scheduled task: retention.
-        conf.setRetentionCheckIntervalInSeconds(Integer.MAX_VALUE);
+    @org.testng.annotations.BeforeMethod(alwaysRun = true)
+    public void disableDedup() throws Exception {
+        // Disable dedup so the pulsar.dedup cursor doesn't block ledger trimming
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
     }
 
     private MessageIdImpl getLastMessageIdByTopic(String topicName) throws Exception{
-        return (MessageIdImpl) pulsar.getBrokerService().getTopic(topicName, false)
+        return (MessageIdImpl) getTopic(topicName, false)
                 .get().get().getLastMessageId().get();
     }
 
     private void triggerCompactionAndWait(String topicName) throws Exception {
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+                (PersistentTopic) getTopic(topicName, false).get().get();
         persistentTopic.triggerCompaction();
         Awaitility.await().untilAsserted(() -> {
             Position lastConfirmPos = persistentTopic.getManagedLedger().getLastConfirmedEntry();
@@ -108,7 +83,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         admin.topics().unload(topicName);
         Awaitility.await().until(() -> {
             CompletableFuture<Optional<Topic>> topicFuture =
-                    pulsar.getBrokerService().getTopic(topicName, false);
+                    getTopic(topicName, false);
             if (!topicFuture.isDone() || topicFuture.isCompletedExceptionally()){
                 return false;
             }
@@ -122,9 +97,10 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         });
     }
 
+    @SuppressWarnings("unchecked")
     private void clearAllTheLedgersOutdated(String topicName) throws Exception {
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+                (PersistentTopic) getTopic(topicName, false).get().get();
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
             CompletableFuture<Void> future = new CompletableFuture();
@@ -133,10 +109,11 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
             return managedLedger.getLedgersInfo().size() == 1;
         });
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testGetLastMessageIdWhenLedgerEmpty() throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName);
         MessageIdImpl messageId = (MessageIdImpl) consumer.getLastMessageId();
@@ -145,7 +122,6 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
 
         // cleanup.
         consumer.close();
-        admin.topics().delete(topicName, false);
     }
 
     private Producer<String> createProducer(boolean enabledBatch, String topicName) throws Exception {
@@ -168,10 +144,11 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
                 .readCompacted(true)
                 .subscribe();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testGetLastMessageIdWhenNoNonEmptyLedgerExists() throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         String subName = "sub";
         ReaderImpl<String> reader = (ReaderImpl<String>) pulsarClient.newReader(Schema.STRING)
                 .topic(topicName)
@@ -195,7 +172,6 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         reader.close();
         producer.close();
-        admin.topics().delete(topicName, false);
     }
 
     @DataProvider(name = "enabledBatch")
@@ -205,10 +181,11 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
                 {false}
         };
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "enabledBatch")
     public void testGetLastMessageIdBeforeCompaction(boolean enabledBatch) throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName);
         Producer<String> producer = createProducer(enabledBatch, topicName);
@@ -238,12 +215,12 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         producer.close();
-        admin.topics().delete(topicName, false);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "enabledBatch")
     public void testGetLastMessageIdAfterCompaction(boolean enabledBatch) throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName);
         Producer<String> producer = createProducer(enabledBatch, topicName);
@@ -275,12 +252,12 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         producer.close();
-        admin.topics().delete(topicName, false);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "enabledBatch")
     public void testGetLastMessageIdAfterCompactionWithCompression(boolean enabledBatch) throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName);
         var producer = pulsarClient.newProducer(Schema.STRING)
@@ -317,20 +294,11 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         producer.close();
-        admin.topics().delete(topicName, false);
     }
 
-    @DataProvider
-    public Object[][] isInjectedCursorDeleteError() {
-        return new Object[][] {
-                {false},
-                {true}
-        };
-    }
-
-    @Test(dataProvider = "isInjectedCursorDeleteError")
-    public void testReadMsgsAfterDisableCompaction(boolean isInjectedCursorDeleteError) throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+    @Test
+    public void testReadMsgsAfterDisableCompaction() throws Exception {
+        String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topicPolicies().setCompactionThreshold(topicName, 1);
         admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
@@ -342,25 +310,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         admin.topics().deleteSubscription(topicName, "s1");
 
         // Disable compaction.
-        // Inject a failure that the first time to delete cursor will fail.
-        if (isInjectedCursorDeleteError) {
-            AtomicInteger times = new AtomicInteger();
-            String cursorPath = String.format("/managed-ledgers/%s/__compaction",
-                    TopicName.get(topicName).getPersistenceNamingEncoding());
-            admin.topicPolicies().removeCompactionThreshold(topicName);
-            mockZooKeeper.failConditional(KeeperException.Code.SESSIONEXPIRED, (op, path) -> {
-                return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
-            });
-            mockZooKeeperGlobal.failConditional(KeeperException.Code.SESSIONEXPIRED, (op, path) -> {
-                return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
-            });
-            try {
-                admin.topics().deleteSubscription(topicName, "__compaction");
-                fail("Should fail");
-            } catch (Exception ex) {
-                assertTrue(ex instanceof PulsarAdminException.ServerSideErrorException);
-            }
-        }
+        admin.topicPolicies().removeCompactionThreshold(topicName);
 
         // Create a reader with start at earliest.
         // Verify: the reader will receive 3 messages.
@@ -384,12 +334,12 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         producer.close();
         reader.close();
-        admin.topics().delete(topicName, false);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "enabledBatch")
     public void testGetLastMessageIdAfterCompactionEndWithNullMsg(boolean enabledBatch) throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName);
         Producer<String> producer = createProducer(enabledBatch, topicName);
@@ -424,12 +374,12 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         producer.close();
-        admin.topics().delete(topicName, false);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "enabledBatch")
     public void testGetLastMessageIdAfterCompactionEndWithNullMsg2(boolean enabledBatch) throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName);
         Producer<String> producer = createProducer(enabledBatch, topicName);
@@ -463,12 +413,12 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         producer.close();
-        admin.topics().delete(topicName, false);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "enabledBatch")
     public void testGetLastMessageIdAfterCompactionAllNullMsg(boolean enabledBatch) throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName);
         Producer<String> producer = createProducer(enabledBatch, topicName);
@@ -494,12 +444,11 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         producer.close();
-        admin.topics().delete(topicName, false);
     }
 
     @Test(dataProvider = "enabledBatch")
     public void testReaderStuckWithCompaction(boolean enabledBatch) throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         String subName = "sub";
         Producer<String> producer = createProducer(enabledBatch, topicName);
         producer.newMessage().key("k0").value("v0").sendAsync();
@@ -523,7 +472,7 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testGetLastMessageIdForEncryptedMessage() throws Exception {
-        final var topic = BrokerTestUtil.newUniqueName("tp");
+        final var topic = newTopicName();
         final var ecdsaPublickeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
         final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
         @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic)

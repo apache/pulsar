@@ -211,6 +211,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSetProxyToTargetBrokerAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(1);
@@ -234,10 +235,12 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             protected void doResolveAll(SocketAddress socketAddress, Promise promise) throws Exception {
                 final InetSocketAddress socketAddress1 = (InetSocketAddress) socketAddress;
                 String hostName = socketAddress1.getHostName();
                 final boolean isProxy = hostName.equals("proxy");
+                @SuppressWarnings("unchecked")
                 final boolean isBroker = hostName.startsWith("broker");
                 if (!isProxy && !isBroker) {
                     promise.setFailure(new IllegalStateException());

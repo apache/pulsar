@@ -130,7 +130,7 @@ public class ClientDeduplicationFailureTest {
         log.info("--- Shutting down ---");
         if (pulsarClient != null) {
             pulsarClient.close();
-            pulsar = null;
+            pulsarClient = null;
         }
         if (admin != null) {
             admin.close();
@@ -282,6 +282,7 @@ public class ClientDeduplicationFailureTest {
         assertNotNull(prevMessage);
         assertEquals(prevMessage.getSequenceId(), producerThread.getLastSeqId());
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 300000)
     public void testClientDeduplicationWithBkFailure() throws  Exception {

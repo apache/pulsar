@@ -91,7 +91,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         injectedTask.setEntries(Collections.emptyList());
         InFlightTask spyTask = spy(injectedTask);
         replicator.inFlightTasks.add(spyTask);
-        doAnswer(new Answer() {
+        doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
                 counter.incrementAndGet();

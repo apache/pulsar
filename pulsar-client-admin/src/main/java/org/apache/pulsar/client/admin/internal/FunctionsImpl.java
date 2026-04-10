@@ -581,6 +581,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         return future;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException {
         try {
@@ -595,12 +596,14 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public Set<String> getSources() throws PulsarAdminException {
         return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSourceClass()))
                 .map(ConnectorDefinition::getName).collect(Collectors.toSet());
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public Set<String> getSinks() throws PulsarAdminException {
         return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSinkClass()))

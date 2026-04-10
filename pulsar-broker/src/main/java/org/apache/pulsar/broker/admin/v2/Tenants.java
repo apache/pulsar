@@ -29,5 +29,6 @@ import org.apache.pulsar.broker.admin.impl.TenantsBase;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/tenants", description = "Tenant admin apis", tags = "tenants")
+@SuppressWarnings("deprecation")
 public class Tenants extends TenantsBase {
 }

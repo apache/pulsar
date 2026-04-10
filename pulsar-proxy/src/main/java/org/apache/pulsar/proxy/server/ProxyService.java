@@ -164,6 +164,7 @@ public class ProxyService implements Closeable {
 
     private boolean gracefulShutdown = true;
 
+    @SuppressWarnings("deprecation")
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService,
                         Authentication proxyClientAuthentication) throws Exception {

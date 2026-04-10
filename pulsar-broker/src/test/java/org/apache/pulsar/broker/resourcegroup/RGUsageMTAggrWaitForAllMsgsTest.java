@@ -25,28 +25,26 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupUsageStatsType;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 
@@ -57,11 +55,10 @@ import org.testng.annotations.Test;
 // are verified on the RGs.
 @Slf4j
 @Test(groups = "flaky")
-public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
+public class RGUsageMTAggrWaitForAllMsgsTest extends SharedPulsarBaseTest {
+    @org.testng.annotations.BeforeClass(alwaysRun = true)
+    public void setupRG() throws Exception {
+        PulsarService pulsar = SharedPulsarCluster.get().getPulsarService();
         this.prepareForOps();
 
         ResourceQuotaCalculator dummyQuotaCalc = new ResourceQuotaCalculator() {
@@ -85,12 +82,6 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         this.prepareRGs();
         Thread.sleep(2000);
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
     }
 
     @Test
@@ -547,7 +538,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                                        int scaleFactor, boolean checkProduce,
                                        boolean checkConsume) throws Exception {
 
-        BrokerService bs = pulsar.getBrokerService();
+        BrokerService bs = SharedPulsarCluster.get().getPulsarService().getBrokerService();
         Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
 
         log.debug("verifyProdConsStats: topicStatsMap has {} entries", topicStatsMap.size());
@@ -779,7 +770,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
             new org.apache.pulsar.common.policies.data.ResourceGroup();
     private ResourceGroupService rgservice;
 
-    private final String clusterName = "test";
+    private final String clusterName = SharedPulsarCluster.CLUSTER_NAME;
     private static final String BaseRGName = "rg-";
     private static final String BaseTestTopicName = "rgusage-topic-";
 
@@ -837,8 +828,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     long residualRecvdNumMessages;
 
     // Create the topics provided
-    private void createTopics(String[] topics) {
-        BrokerService bs = this.pulsar.getBrokerService();
+    private void createTopics(String[] topics) throws Exception {
+        BrokerService bs = SharedPulsarCluster.get().getPulsarService().getBrokerService();
         for (String topic : topics) {
             if (!createdTopics.contains(topic)) {
                 bs.getOrCreateTopic(topic);
@@ -848,8 +839,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     }
 
     // Destroy the topics provided
-    private void destroyTopics(String[] topics) {
-        BrokerService bs = this.pulsar.getBrokerService();
+    private void destroyTopics(String[] topics) throws Exception {
+        BrokerService bs = SharedPulsarCluster.get().getPulsarService().getBrokerService();
         for (String topic : topics) {
             if (!createdTopics.contains(topic)) {
                 bs.deleteTopic(topic, true);
@@ -873,10 +864,11 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     }
 
     // Initial set up for transport manager and cluster creation.
-    private void prepareForOps() throws PulsarAdminException {
-        this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
-        this.conf.setAllowAutoTopicCreation(true);
-        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+    private void prepareForOps() throws Exception {
+        SharedPulsarCluster.get().getPulsarService().getConfiguration()
+                .setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
+        SharedPulsarCluster.get().getPulsarService().getConfiguration().setAllowAutoTopicCreation(true);
+        // Cluster already created by SharedPulsarCluster
     }
 
     // Set up of RG/tenant/namespaces/topic names, and checking of the test parameters.

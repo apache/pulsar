@@ -82,6 +82,7 @@ public class AuthenticationProviderTokenTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSerializeSecretKey() {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -102,6 +103,7 @@ public class AuthenticationProviderTokenTest {
         assertEquals(jwt.getBody().getSubject(), SUBJECT);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSerializeKeyPair() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -125,6 +127,7 @@ public class AuthenticationProviderTokenTest {
         assertEquals(jwt.getBody().getSubject(), SUBJECT);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKey() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -235,6 +238,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTrimAuthSecretKeyFilePath() throws Exception {
         String space = " ";
@@ -255,6 +259,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyFromFile() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -291,6 +296,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyFromValidFile() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -326,6 +332,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyFromDataBase64() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -358,6 +365,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyPair() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -397,6 +405,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyPairWithCustomClaim() throws Exception {
         String authRoleClaim = "customClaim";
@@ -422,6 +431,7 @@ public class AuthenticationProviderTokenTest {
         // Use private key to generate token
         PrivateKey privateKey =
                 AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        @SuppressWarnings("deprecation")
         String token = Jwts.builder()
                 .setClaims(new HashMap<String, Object>() {{
                     put(authRoleClaim, authRole);
@@ -447,6 +457,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyPairWithECDSA() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.ES256);
@@ -564,6 +575,7 @@ public class AuthenticationProviderTokenTest {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test(expectedExceptions = AuthenticationException.class)
     public void testAuthenticateWhenInvalidTokenIsPassed() throws AuthenticationException, IOException {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -825,6 +837,7 @@ public class AuthenticationProviderTokenTest {
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testArrayTypeRoleClaim() throws Exception {
         String authRoleClaim = "customClaim";
@@ -850,6 +863,7 @@ public class AuthenticationProviderTokenTest {
         // Use private key to generate token
         PrivateKey privateKey =
                 AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        @SuppressWarnings("deprecation")
         String token = Jwts.builder()
                 .setClaims(new HashMap<String, Object>() {{
                     put(authRoleClaim, Arrays.asList(authRole, "other-role"));
@@ -874,6 +888,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTokenSettingPrefix() throws Exception {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
@@ -913,6 +928,7 @@ public class AuthenticationProviderTokenTest {
                 .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUDIENCE);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTokenFromHttpParams() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -939,6 +955,7 @@ public class AuthenticationProviderTokenTest {
         assertTrue(doFilter, "Authentication should have passed");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTokenFromHttpHeaders() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -1005,6 +1022,7 @@ public class AuthenticationProviderTokenTest {
         assertNotEquals(firstAuthDataSource, secondAuthDataSource);
     }
 
+    @SuppressWarnings("deprecation")
     private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {
         JwtBuilder builder = Jwts.builder()
                 .setSubject(SUBJECT)
@@ -1021,6 +1039,7 @@ public class AuthenticationProviderTokenTest {
                 Lists.newArrayList(brokerAudience));
     }
 
+    @SuppressWarnings("deprecation")
     private static void testTokenAudienceWithDifferentConfig(Properties properties,
                                                         String audienceClaim, List<String> audiences) throws Exception {
         @Cleanup

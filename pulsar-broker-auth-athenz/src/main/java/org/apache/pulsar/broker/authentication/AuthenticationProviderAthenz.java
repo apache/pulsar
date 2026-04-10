@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("deprecation") // Implements deprecated AuthenticationProvider methods
 public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
     private static final String DOMAIN_NAME_LIST = "athenzDomainNames";

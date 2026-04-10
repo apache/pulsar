@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -36,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -43,29 +43,13 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class ConsumerRedeliveryTest extends ProducerConsumerBase {
+public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerRedeliveryTest.class);
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        conf.setManagedLedgerCacheEvictionIntervalMs(10000);
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
 
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
@@ -97,76 +81,81 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "ackReceiptEnabled")
     public void testOrderedRedelivery(boolean ackReceiptEnabled) throws Exception {
-        String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
+        String topic = newTopicName();
 
-        conf.setManagedLedgerMaxEntriesPerLedger(2);
-        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        int origMaxEntries = getConfig().getManagedLedgerMaxEntriesPerLedger();
+        int origMinRollover = getConfig().getManagedLedgerMinLedgerRolloverTimeMinutes();
+        getConfig().setManagedLedgerMaxEntriesPerLedger(2);
+        getConfig().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        try {
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(topic)
+                    .producerName("my-producer-name")
+                    .create();
+            ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic).subscriptionName("s1")
+                    .subscriptionType(SubscriptionType.Shared)
+                    .isAckReceiptEnabled(ackReceiptEnabled);
+            ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
 
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic(topic)
-                .producerName("my-producer-name")
-                .create();
-        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topic).subscriptionName("s1")
-                .subscriptionType(SubscriptionType.Shared)
-                .isAckReceiptEnabled(ackReceiptEnabled);
-        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
+            final int totalMsgs = 100;
 
-        final int totalMsgs = 100;
-
-        for (int i = 0; i < totalMsgs; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-
-
-        int consumedCount = 0;
-        Set<MessageId> messageIds = new HashSet<>();
-        for (int i = 0; i < totalMsgs; i++) {
-            Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
-            if (message != null && (consumedCount % 2) == 0) {
-                consumer1.acknowledge(message);
-            } else {
-                messageIds.add(message.getMessageId());
+            for (int i = 0; i < totalMsgs; i++) {
+                String message = "my-message-" + i;
+                producer.send(message.getBytes());
             }
-            consumedCount += 1;
-        }
-        assertEquals(totalMsgs, consumedCount);
 
-        // redeliver all unack messages
-        consumer1.redeliverUnacknowledgedMessages(messageIds);
-
-        MessageIdImpl lastMsgId = null;
-        for (int i = 0; i < totalMsgs / 2; i++) {
-            Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
-            MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
-            if (lastMsgId != null) {
-                assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId(), "lastMsgId: "
-                        + lastMsgId + " -- msgId: " + msgId);
+            int consumedCount = 0;
+            Set<MessageId> messageIds = new HashSet<>();
+            for (int i = 0; i < totalMsgs; i++) {
+                Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
+                if (message != null && (consumedCount % 2) == 0) {
+                    consumer1.acknowledge(message);
+                } else {
+                    messageIds.add(message.getMessageId());
+                }
+                consumedCount += 1;
             }
-            lastMsgId = msgId;
-        }
+            assertEquals(totalMsgs, consumedCount);
 
-        // close consumer so, this consumer's unack messages will be redelivered to new consumer
-        consumer1.close();
+            // redeliver all unack messages
+            consumer1.redeliverUnacknowledgedMessages(messageIds);
 
-        @Cleanup
-        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
-        lastMsgId = null;
-        for (int i = 0; i < totalMsgs / 2; i++) {
-            Message<byte[]> message = consumer2.receive(5, TimeUnit.SECONDS);
-            MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
-            if (lastMsgId != null) {
-                assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId());
+            MessageIdImpl lastMsgId = null;
+            for (int i = 0; i < totalMsgs / 2; i++) {
+                Message<byte[]> message = consumer1.receive(5, TimeUnit.SECONDS);
+                MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                if (lastMsgId != null) {
+                    assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId(), "lastMsgId: "
+                            + lastMsgId + " -- msgId: " + msgId);
+                }
+                lastMsgId = msgId;
             }
-            lastMsgId = msgId;
+
+            // close consumer so, this consumer's unack messages will be redelivered to new consumer
+            consumer1.close();
+
+            @Cleanup
+            Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+            lastMsgId = null;
+            for (int i = 0; i < totalMsgs / 2; i++) {
+                Message<byte[]> message = consumer2.receive(5, TimeUnit.SECONDS);
+                MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                if (lastMsgId != null) {
+                    assertTrue(lastMsgId.getLedgerId() <= msgId.getLedgerId());
+                }
+                lastMsgId = msgId;
+            }
+        } finally {
+            getConfig().setManagedLedgerMaxEntriesPerLedger(origMaxEntries);
+            getConfig().setManagedLedgerMinLedgerRolloverTimeMinutes(origMinRollover);
         }
     }
 
     @Test(dataProvider = "ackReceiptEnabled")
     public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled)
             throws PulsarClientException, ExecutionException, InterruptedException {
-        String topic = "persistent://my-property/my-ns/async-unack-redelivery";
+        String topic = newTopicName();
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("s1")
@@ -222,12 +211,10 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     @Test
     public void testConsumerWithPermitReceiveBatchMessages() throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
-
         final int queueSize = 10;
         int batchSize = 100;
         String subName = "my-subscriber-name";
-        String topicName = "permitReceiveBatchMessages" + (UUID.randomUUID().toString());
+        String topicName = newTopicName();
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
                 .subscribe();
@@ -251,27 +238,22 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }
         producer.flush();
 
-        retryStrategically((test) -> {
-            return consumer1.getTotalIncomingMessages() == batchSize;
-        }, 5, 2000);
-
-        assertEquals(consumer1.getTotalIncomingMessages(), batchSize);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(consumer1.getTotalIncomingMessages(), batchSize));
 
         ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .receiverQueueSize(queueSize).subscriptionType(SubscriptionType.Shared).subscriptionName(subName)
                 .subscribe();
 
-        retryStrategically((test) -> {
-            return consumer2.getTotalIncomingMessages() == queueSize;
-        }, 5, 2000);
-        assertEquals(consumer2.getTotalIncomingMessages(), queueSize);
-        log.info("-- Exiting {} test --", methodName);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(consumer2.getTotalIncomingMessages(), queueSize));
     }
 
     @Test(timeOut = 30000)
     public void testMessageRedeliveryWhenTimeoutInListener() throws Exception {
+
         final String subName = "sub_testMessageRedeliveryWhenTimeoutInListener";
-        final String topicName = "testMessageRedeliveryWhenTimeoutInListener" + UUID.randomUUID();
+        final String topicName = newTopicName();
 
         final int messages = 10;
 
@@ -326,7 +308,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     public void testMessageRedeliveryAfterUnloadedWithEarliestPosition() throws Exception {
 
         final String subName = "my-subscriber-name";
-        final String topicName = "testMessageRedeliveryAfterUnloadedWithEarliestPosition" + UUID.randomUUID();
+        final String topicName = newTopicName();
         final int messages = 100;
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -376,8 +358,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000, dataProvider = "batchedMessageAck")
     public void testAckNotSent(int numAcked, int batchSize, CommandAck.AckType ackType) throws Exception {
-        String topic = "persistent://my-property/my-ns/test-ack-not-sent-"
-                + numAcked + "-" + batchSize + "-" + ackType.getValue();
+        String topic = newTopicName();
         @Cleanup Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub")
@@ -394,30 +375,30 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
             String value = "msg-" + i;
             producer.sendAsync(value).thenAccept(id -> log.info("{} was sent to {}", value, id));
         }
-        List<Message<String>> messages = new ArrayList<>();
+        List<Message<String>> msgs = new ArrayList<>();
         for (int i = 0; i < batchSize; i++) {
-            messages.add(consumer.receive());
+            msgs.add(consumer.receive());
         }
         if (ackType == CommandAck.AckType.Individual) {
             for (int i = 0; i < numAcked; i++) {
-                consumer.acknowledge(messages.get(i));
+                consumer.acknowledge(msgs.get(i));
             }
         } else {
-            consumer.acknowledgeCumulative(messages.get(numAcked - 1));
+            consumer.acknowledgeCumulative(msgs.get(numAcked - 1));
         }
 
         consumer.redeliverUnacknowledgedMessages();
 
-        messages.clear();
+        msgs.clear();
         for (int i = 0; i < batchSize; i++) {
             Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
             }
             log.info("Received {} from {}", msg.getValue(), msg.getMessageId());
-            messages.add(msg);
+            msgs.add(msg);
         }
-        List<String> values = messages.stream().map(Message::getValue).collect(Collectors.toList());
+        List<String> values = msgs.stream().map(Message::getValue).collect(Collectors.toList());
         // All messages are redelivered because only if the whole batch are acknowledged would the message ID be
         // added into the ACK tracker.
         if (numAcked < batchSize) {
@@ -429,7 +410,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
     @Test
     public void testRedeliverMessagesWithoutValue() throws Exception {
-        String topic = "persistent://my-property/my-ns/testRedeliverMessagesWithoutValue";
+        String topic = newTopicName();
         @Cleanup Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName("sub")

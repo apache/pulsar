@@ -54,6 +54,7 @@ public class DnsResolverGroupImpl implements AutoCloseable {
         this.dnsAddressResolverGroup = createAddressResolverGroup(dnsConfig);
     }
 
+    @SuppressWarnings("deprecation")
     private DnsAddressResolverGroup createAddressResolverGroup(
             PulsarClientSharedResourcesBuilderImpl.DnsResolverResourceConfig dnsConfig) {
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
@@ -98,6 +99,7 @@ public class DnsResolverGroupImpl implements AutoCloseable {
         return new DnsAddressResolverGroup(dnsNameResolverBuilder);
     }
 
+    @SuppressWarnings("deprecation")
     private static DnsNameResolverBuilder createDnsNameResolverBuilder() {
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
                 .traceEnabled(true)

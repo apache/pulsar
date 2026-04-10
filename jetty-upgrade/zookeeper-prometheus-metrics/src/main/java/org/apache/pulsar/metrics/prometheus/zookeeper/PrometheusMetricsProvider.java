@@ -558,6 +558,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     }
 
     class MetricsServletImpl extends MetricsServlet {
+        private static final long serialVersionUID = 1L;
 
         @Override
         protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {

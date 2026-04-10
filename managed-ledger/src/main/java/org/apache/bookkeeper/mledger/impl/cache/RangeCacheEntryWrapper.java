@@ -22,7 +22,7 @@ import io.netty.util.Recycler;
 import java.util.Map;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReferenceCountedEntry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -32,7 +32,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
  * the map by calling the {@link Map#remove(Object, Object)} method. Certain race conditions could result in the
  * wrong value being removed from the map. The instances of this class are recycled to avoid creating new objects.
  */
-@Slf4j
+@CustomLog
 class RangeCacheEntryWrapper {
     private final Recycler.Handle<RangeCacheEntryWrapper> recyclerHandle;
     private static final Recycler<RangeCacheEntryWrapper> RECYCLER = new Recycler<RangeCacheEntryWrapper>() {

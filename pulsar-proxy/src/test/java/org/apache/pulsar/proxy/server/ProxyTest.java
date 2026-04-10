@@ -263,6 +263,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     /**
      * test auto create partitioned topic by proxy.
      **/
+    @SuppressWarnings("deprecation")
     @Test
     public void testAutoCreateTopic() throws Exception{
         TopicType originalAllowAutoTopicCreationType = pulsar.getConfiguration().getAllowAutoTopicCreationType();
@@ -286,6 +287,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("try")
     public void testRegexSubscription() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -397,6 +399,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("try")
     public void testGetSchema() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -559,6 +562,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic);
     }
 
+    @SuppressWarnings("deprecation")
     private PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)
             throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("pulsar-client-io", Thread.currentThread().isDaemon());

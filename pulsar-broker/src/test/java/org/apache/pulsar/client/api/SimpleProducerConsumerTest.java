@@ -2856,6 +2856,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 100000)
     public void testCryptoWithChunking() throws Exception {
@@ -4423,6 +4424,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 100000)
+    @SuppressWarnings("unchecked")
     public void testNegativeIncomingMessageSize() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testIncomingMessageSize-"
                 + UUID.randomUUID().toString();
@@ -4966,8 +4968,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 {false}
         };
     }
-
     @Test(dataProvider = "enableBatchSend")
+    @SuppressWarnings({"deprecation", "unchecked"})
     public void testPublishWithCreateMessageManually(boolean enableBatchSend) throws Exception {
         final int messageCount = 10;
         final List<MessageImpl> messageArrayBeforeSend = Collections.synchronizedList(new ArrayList<>());
@@ -4992,6 +4994,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
                                               Throwable exception) {
                 MessageImpl msgImpl = (MessageImpl) message;

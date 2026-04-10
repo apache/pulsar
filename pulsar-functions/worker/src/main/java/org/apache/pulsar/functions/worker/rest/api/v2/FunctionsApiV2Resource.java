@@ -37,8 +37,8 @@ import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
@@ -116,7 +116,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     @GET
     @ApiOperation(
             value = "Fetches information about a Pulsar Function currently running in cluster mode",
-            response = Function.FunctionMetaData.class
+            response = FunctionMetaData.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
@@ -135,7 +135,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     @GET
     @ApiOperation(
             value = "Displays the status of a Pulsar Function instance",
-            response = InstanceCommunication.FunctionStatus.class
+            response = FunctionStatus.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
@@ -156,7 +156,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     @GET
     @ApiOperation(
             value = "Displays the status of a Pulsar Function running in cluster mode",
-            response = InstanceCommunication.FunctionStatus.class
+            response = FunctionStatus.class
     )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
@@ -308,6 +308,9 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
         return functions().downloadFunction(path, authParams());
     }
 
+    /**
+     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}.
+     */
     @GET
     @ApiOperation(
             value = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
@@ -319,9 +322,6 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
             @ApiResponse(code = 408, message = "Request timeout")
     })
     @Path("/connectors")
-    /**
-     * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}
-     */
     @Deprecated
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
         return functions().getListOfConnectors();

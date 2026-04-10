@@ -85,6 +85,7 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
         return compact(topic, strategy, null);
     }
 
+    @SuppressWarnings("unchecked")
     public <T> CompletableFuture<Long> compact(String topic,
                                                TopicCompactionStrategy<T> strategy,
                                                CryptoKeyReader cryptoKeyReader) {
@@ -98,6 +99,7 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
         return consumerFuture.thenComposeAsync(__ -> compactAndCloseReader(reader, strategy), scheduler);
     }
 
+    @SuppressWarnings("unchecked")
     <T> CompletableFuture<Long> doCompaction(Reader<T> reader, TopicCompactionStrategy strategy) {
 
         if (!(reader instanceof CompactionReaderImpl<T>)) {
@@ -212,6 +214,7 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
     }
 
 
+    @SuppressWarnings("unchecked")
     private <T> CompletableFuture<PhaseOneResult> phaseOne(Reader<T> reader, TopicCompactionStrategy strategy) {
         CompletableFuture<PhaseOneResult> promise = new CompletableFuture<>();
         PhaseOneResult<T> result = new PhaseOneResult(reader.getTopic());

@@ -23,48 +23,28 @@ import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker-api")
-public class MaxProducerTest extends ProducerConsumerBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setMaxProducersPerTopic(2);
-    }
+public class MaxProducerTest extends SharedPulsarBaseTest {
 
     @Test
     public void testMaxProducersForBroker() throws Exception {
+        admin.namespaces().setMaxProducersPerTopic(getNamespace(), 2);
         testMaxProducers(2);
     }
 
     @Test
     public void testMaxProducersForNamespace() throws Exception {
         // set max clients
-        admin.namespaces().setMaxProducersPerTopic("public/default", 3);
+        admin.namespaces().setMaxProducersPerTopic(getNamespace(), 3);
         testMaxProducers(3);
     }
 
     private void testMaxProducers(int maxProducerExpected) throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
 
         List<org.apache.pulsar.client.api.Producer<byte[]>> producers = new ArrayList<>();
@@ -83,6 +63,5 @@ public class MaxProducerTest extends ProducerConsumerBase {
         for (org.apache.pulsar.client.api.Producer p : producers) {
             p.close();
         }
-        admin.topics().delete(topicName, false);
     }
 }

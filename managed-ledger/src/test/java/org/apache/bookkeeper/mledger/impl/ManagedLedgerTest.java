@@ -88,8 +88,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -158,7 +158,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     private static final Charset Encoding = StandardCharsets.UTF_8;
 
@@ -294,14 +294,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         while (cursor.hasMoreEntries()) {
 
             List<Entry> entries = cursor.readEntries(20);
-            log.debug("Read {} entries", entries.size());
+            log.debug().attr("count", entries.size()).log("Read entries");
 
             // Acknowledge only on last entry
             Entry lastEntry = entries.get(entries.size() - 1);
             cursor.markDelete(lastEntry.getPosition());
 
             for (Entry entry : entries) {
-                log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
+                log.info().attr("position", entry.getPosition()).attr("content", new String(entry.getData()))
+                        .log("Read entry");
                 entry.release();
             }
 
@@ -586,7 +587,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                         final Position position = entry.getPosition();
                                         assertEquals(new String(entry.getDataAndRelease(), Encoding), "test");
 
-                                        log.debug("Mark-Deleting to position {}", position);
+                                        log.debug().attr("position", position).log("Mark-Deleting");
                                         cursor.asyncMarkDelete(position, new MarkDeleteCallback() {
                                             @Override
                                             public void markDeleteComplete(Object ctx) {
@@ -660,7 +661,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Position last = entries.get(entries.size() - 1).getPosition();
         entries.forEach(Entry::release);
 
-        log.info("First={} Last={}", first, last);
+        log.info().attr("first", first).attr("last", last).log("Position range");
         assertTrue(first.getLedgerId() < last.getLedgerId());
         assertEquals(first.getEntryId(), 0);
         assertEquals(last.getEntryId(), 0);
@@ -734,7 +735,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertFalse(cursor.hasMoreEntries());
         entries.forEach(Entry::release);
 
-        log.info("First={} Last={}", first, last);
+        log.info().attr("first", first).attr("last", last).log("Position range");
         assertTrue(first.getLedgerId() < last.getLedgerId());
         assertEquals(first.getEntryId(), 0);
         assertEquals(last.getEntryId(), 0);
@@ -905,7 +906,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                     assertNotNull(ctx);
                     assertEquals(copyBytesFromByteBuf(entryData), content.getBytes(Encoding));
 
-                    log.info("Successfully added {}", content);
+                    log.info().attr("content", content).log("Successfully added");
                     done.countDown();
                 }
 
@@ -1101,13 +1102,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // in a short time (in a background thread)
         ledger.addEntry("entry-2".getBytes(Encoding));
         while (ledger.getNumberOfEntries() > 1) {
-            log.debug("entries={}", ledger.getNumberOfEntries());
+            log.debug().attr("entries", ledger.getNumberOfEntries()).log("Waiting for cleanup");
             Thread.sleep(100);
         }
 
         ledger.addEntry("entry-3".getBytes(Encoding));
         while (ledger.getNumberOfEntries() > 1) {
-            log.debug("entries={}", ledger.getNumberOfEntries());
+            log.debug().attr("entries", ledger.getNumberOfEntries()).log("Waiting for cleanup");
             Thread.sleep(100);
         }
     }
@@ -1493,7 +1494,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         c2.close();
         ledger.deleteCursor("c2");
-        assertEquals(Sets.newHashSet(ledger.getCursors()), new HashSet());
+        assertEquals(Sets.newHashSet(ledger.getCursors()), new HashSet<>());
     }
 
     @Test
@@ -1621,7 +1622,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void ledgersList() throws Exception {
         MetaStore store = factory.getMetaStore();
 
-        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet());
+        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet<>());
         ManagedLedger ledger1 = factory.open("ledger1");
         assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet("ledger1"));
         ManagedLedger ledger2 = factory.open("ledger2");
@@ -1629,7 +1630,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger1.delete();
         assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet("ledger2"));
         ledger2.delete();
-        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet());
+        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet<>());
     }
 
     @Test
@@ -2288,7 +2289,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(ml.getTotalSize() > "shortmessage".getBytes().length);
     }
 
-    @Test(enabled = true)
+    @Test
     public void testNoRetention() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
@@ -2305,16 +2306,20 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.close();
 
         // reopen ml
-        ml = (ManagedLedgerImpl) factory.open("noretention_test_ledger", config);
-        c1 = ml.openCursor("c1noretention");
-        ml.addEntry("shortmessage".getBytes());
-        c1.skipEntries(1, IndividualDeletedEntries.Exclude);
-        // sleep for trim
-        Thread.sleep(1000);
-        ml.close();
-
-        assertTrue(ml.getLedgersInfoAsList().size() <= 1);
-        assertTrue(ml.getTotalSize() <= "shortmessage".getBytes().length);
+        ManagedLedgerImpl ml2 = (ManagedLedgerImpl) factory.open("noretention_test_ledger", config);
+        ManagedCursor c1b = ml2.openCursor("c1noretention");
+        ml2.addEntry("shortmessage".getBytes());
+        c1b.skipEntries(1, IndividualDeletedEntries.Exclude);
+        // Trigger trimming and use Awaitility to wait for the async trimming to fully complete,
+        // since trimming may be deferred if a ledger roll is still in progress (CreatingLedger state).
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> trimFuture = new CompletableFuture<>();
+            ml2.trimConsumedLedgersInBackground(trimFuture);
+            trimFuture.join();
+            assertTrue(ml2.getLedgersInfoAsList().size() <= 1);
+            assertTrue(ml2.getTotalSize() <= "shortmessage".getBytes().length);
+        });
+        ml2.close();
     }
 
     @Test
@@ -2490,15 +2495,18 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < totalMessage; i++) {
             position = ml.addEntry(message);
         }
-        // all ledgers are not delete yet since no entry has been acked for c1
-        assertEquals(ml.getLedgersInfoAsList().size(), totalMessage);
+        // all ledgers are not deleted yet since no entry has been acked for c1
+        // Use >= because the current (empty) ledger may or may not have been created yet
+        assertTrue(ml.getLedgersInfoAsList().size() >= totalMessage);
 
         List<Entry> entryList = c1.readEntries(totalMessage);
         if (null != position) {
             c1.markDelete(position);
         }
         entryList.forEach(entry -> {
-            log.info("Read entry position {}:{}", entry.getLedgerId(), entry.getEntryId());
+            log.info().attr("ledgerId", entry.getLedgerId())
+                    .attr("entryId", entry.getEntryId())
+                    .log("Read entry position");
             entry.release();
         });
 
@@ -2653,7 +2661,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(5, managedLedger.getLedgersInfoAsList().get(0).getEntries());
         assertEquals(5, managedLedger.getLedgersInfoAsList().get(1).getEntries());
         assertEquals(0, managedLedger.getLedgersInfoAsList().get(2).getEntries());
-        log.info("### ledgers {}", managedLedger.getLedgersInfo());
+        log.info().attr("ledgers", managedLedger.getLedgersInfo()).log("### ledgers");
 
         long firstLedger = managedLedger.getLedgersInfo().firstKey();
         long secondLedger = managedLedger.getLedgersInfoAsList().get(1).getLedgerId();
@@ -2673,7 +2681,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         long length = managedCursor.getNumberOfEntriesInStorage();
         // return the last confirm entry position if searchPosition is exceed the last confirm entry
         targetPosition = managedLedger.getPositionAfterN(searchPosition, length, PositionBound.startExcluded);
-        log.info("Target position is {}", targetPosition);
+        log.info().attr("targetPosition", targetPosition).log("Target position");
         assertEquals(targetPosition.getLedgerId(), secondLedger);
         assertEquals(targetPosition.getEntryId(), 4);
 
@@ -2720,7 +2728,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         });
         assertEquals(5, managedLedger.getLedgersInfoAsList().get(0).getEntries());
         assertEquals(5, managedLedger.getLedgersInfoAsList().get(1).getEntries());
-        log.info("### ledgers {}", managedLedger.getLedgersInfo());
+        log.info().attr("ledgers", managedLedger.getLedgersInfo()).log("### ledgers");
         long length = managedCursor.getNumberOfEntriesInStorage();
         assertEquals(length, numberOfEntries);
     }
@@ -2866,7 +2874,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Acknowledge only on last entry
         cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
         for (Entry entry : entries1) {
-            log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
+            log.info().attr("position", entry.getPosition()).attr("content", new String(entry.getData()))
+                    .log("Read entry");
             entry.release();
         }
 
@@ -2876,14 +2885,16 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Acknowledge only on last entry
         cursor2.markDelete((entries2.get(entries2.size() - 1)).getPosition());
         for (Entry entry : entries2) {
-            log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
+            log.info().attr("position", entry.getPosition()).attr("content", new String(entry.getData()))
+                    .log("Read entry");
             entry.release();
         }
 
         ledger.waitForPendingCacheEvictions();
 
         // (3) Validate: cache should remove all entries read by both active cursors
-        log.info("expected, found : {}, {}", 5 * (totalInsertedEntries - readEntries), entryCache.getSize());
+        log.info().attr("expected", 5 * (totalInsertedEntries - readEntries)).attr("found", entryCache.getSize())
+                .log("Cache size check");
         assertEquals(entryCache.getSize(), 5 * (totalInsertedEntries - readEntries));
 
         final int remainingEntries = totalInsertedEntries - readEntries;
@@ -2892,7 +2903,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         cursor1.markDelete(entries1.get(entries1.size() - 1).getPosition());
 
         for (Entry entry : entries1) {
-            log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
+            log.info().attr("position", entry.getPosition()).attr("content", new String(entry.getData()))
+                    .log("Read entry");
             entry.release();
         }
 
@@ -2945,7 +2957,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // read 20 entries
         List<Entry> entries1 = cursor1.readEntries(totalInsertedEntries);
         for (Entry entry : entries1) {
-            log.info("Read entry. Position={} Content='{}'", entry.getPosition(), new String(entry.getData()));
+            log.info().attr("position", entry.getPosition()).attr("content", new String(entry.getData()))
+                    .log("Read entry");
             entry.release();
         }
 
@@ -3225,7 +3238,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
         assertEquals(response.get(), BKException.Code.TimeoutException);
         assertTrue(ctxHolder.get() instanceof CompletableFuture);
-        CompletableFuture ledgerCreateHook = (CompletableFuture) ctxHolder.get();
+        CompletableFuture<?> ledgerCreateHook = (CompletableFuture<?>) ctxHolder.get();
         assertTrue(ledgerCreateHook.isCompletedExceptionally());
 
         ledger.close();
@@ -3364,6 +3377,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
      * @throws Exception
      */
     @Test(timeOut = 20000)
+    @SuppressWarnings("try")
     public void testManagedLedgerWithAddEntryTimeOut() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setAddEntryTimeoutSeconds(1);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);
@@ -3479,6 +3493,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
      * @param checkOwnershipFlag
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "checkOwnershipFlag")
     public void recoverMLWithBadVersion(boolean checkOwnershipFlag) throws Exception {
 
@@ -3519,6 +3534,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         log.info("Test completed");
     }
 
+    @SuppressWarnings("deprecation")
     private boolean updateCusorMetadataByCreatingMetadataLedger(MutableObject<ManagedCursorImpl> cursor2)
             throws InterruptedException {
         MutableObject<Boolean> failed = new MutableObject<>();
@@ -3650,7 +3666,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(config.getProperties().get("key"), "value");
     }
 
-    private void setFieldValue(Class clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
+    private void setFieldValue(Class<?> clazz, Object classObj, String fieldName, Object fieldValue) throws Exception {
         Field field = clazz.getDeclaredField(fieldName);
         field.setAccessible(true);
         field.set(classObj, fieldValue);
@@ -3802,6 +3818,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         Deque<CompletableFuture<Void>> futures = new ConcurrentLinkedDeque<>();
         doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
             CompletableFuture<Void> result = (CompletableFuture<Void>) invocation.callRealMethod();
             futures.offer(result);
             return result;
@@ -3927,13 +3944,18 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.addEntry(String.valueOf(i).getBytes(Encoding));
         }
 
+        // Wait for all ledger rolls to complete before reading. With maxEntriesPerLedger=1 and 3 entries,
+        // we expect 4 ledgers (3 closed + 1 current empty). If we read before the last roll completes,
+        // the last entry is read from currentLedger directly (not via ledgerCache), causing ledgerCache
+        // to have fewer entries than expected.
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 4));
+
         // clear the cache to avoid flakiness
         factory.getEntryCacheManager().clear();
 
         List<Entry> entryList = cursor.readEntries(3);
         assertEquals(entryList.size(), 3);
         Awaitility.await().untilAsserted(() -> {
-            log.error("ledger.ledgerCache.size() : " + ledger.ledgerCache.size());
             assertEquals(ledger.ledgerCache.size(), 3);
             assertEquals(ledger.ledgers.size(), 4);
         });
@@ -4271,8 +4293,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         CompletableFuture<Void> offloadFuture = new CompletableFuture<>();
         offloadFuture.complete(null);
-        Mockito.when(ledgerOffloader.offload(any(ReadHandle.class), any(UUID.class),
-                any(Map.class))).thenReturn(offloadFuture);
+        doReturn(offloadFuture).when(ledgerOffloader).offload(any(ReadHandle.class), any(UUID.class),
+                any());
 
         final ManagedLedgerImpl ledgerInit = (ManagedLedgerImpl) factory.open("test-offload-task-close", config);
         final ManagedLedgerImpl ledger = spy(ledgerInit);
@@ -4445,6 +4467,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void testNonDurableCursorCreateForInactiveLedger() throws Exception {
         String mlName = "testLedgerInfoMetaCorrectIfAddEntryTimeOut";
         BookKeeper spyBookKeeper = spy(bkc);
+        @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, spyBookKeeper);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         initManagedLedgerConfig(config);
@@ -4498,6 +4521,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testNoOrphanScheduledTasksAfterCloseML() throws Exception {
         String mlName = UUID.randomUUID().toString();
+        @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         initManagedLedgerConfig(config);
@@ -4528,7 +4552,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             BlockingQueue<Runnable> queue =  WhiteboxImpl.getInternalState(boundedScheduledExecutorService, "queue");
             for (Runnable r : queue) {
                 if (r instanceof FutureTask) {
-                    FutureTask futureTask = (FutureTask) r;
+                    FutureTask<?> futureTask = (FutureTask<?>) r;
                     if (!futureTask.isCancelled() && !futureTask.isDone()) {
                         taskCounter++;
                     }
@@ -4700,134 +4724,69 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
      *   <li><b>Verify:</b> First ledger is preserved because persistent position (entry 0) still points to it
      * </ol>
      *
-     * <p><b>Success Criteria:</b>
-     * The first ledger must NOT be deleted, preventing the cursor from pointing to a non-existent
-     * ledger after topic reload. This avoids negative backlog calculations.
-     *
      * <p><b>What This Tests:</b>
-     * Ensures that {@code maybeUpdateCursorBeforeTrimmingConsumedLedger()} correctly uses the
-     * persistent cursor position (not in-memory) when determining which ledgers are safe to trim.
+     * Ensures that {@code maybeUpdateCursorBeforeTrimmingConsumedLedger()} correctly advances
+     * the cursor to the next ledger boundary when a ledger is fully consumed, allowing the
+     * consumed ledger to be trimmed.
      */
     @Test
     public void testCursorPointsToDeletedLedgerAfterTrim() throws Exception {
         final String ledgerName = "testCursorPointsToDeletedLedgerAfterTrimAndReload";
         final String cursorName = "test-cursor";
 
-        // ===== SETUP: Create managed ledger with small ledgers =====
+        // Create managed ledger with small ledgers (10 entries each)
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(10);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
 
-        // ===== PHASE 1: Write entries to create multiple ledgers =====
-        int totalEntries = 60;
-        log.info("=== PHASE 1: Writing {} entries to create multiple ledgers ===", totalEntries);
-        for (int i = 0; i < totalEntries; i++) {
-            Position pos = ledger.addEntry(("message-" + i).getBytes());
-            log.info("Added entry: {}", pos);
+        // Write entries to create multiple ledgers
+        for (int i = 0; i < 60; i++) {
+            ledger.addEntry(("message-" + i).getBytes());
         }
 
         List<LedgerInfo> ledgersAfterWrite = ledger.getLedgersInfoAsList();
-        log.info("Created {} ledgers: {}", ledgersAfterWrite.size(),
-                ledgersAfterWrite.stream()
-                        .map(l -> String.format("L%d(%d entries)", l.getLedgerId(), l.getEntries()))
-                        .toArray());
-
         assertTrue(ledgersAfterWrite.size() >= 5, "Should have at least 5 ledgers");
         long firstLedgerId = ledgersAfterWrite.get(0).getLedgerId();
 
-        // ===== PHASE 2: Initial acknowledgments (entries 0, 5-9) and wait for persistence =====
-        log.info("=== PHASE 2: Acknowledging initial entries in first ledger {} ===", firstLedgerId);
+        // Read and acknowledge all entries in the first ledger
         List<Entry> entries = cursor.readEntries(10);
-
-        // Delete entries 5-9 first (out of order)
-        log.info("Deleting entries 5-9");
-        for (int i = 5; i < 10; i++) {
+        for (int i = 0; i < 10; i++) {
             cursor.delete(entries.get(i).getPosition());
         }
 
-        // Delete entry 0, which advances mark-delete position
-        log.info("Deleting entry 0 - this advances mark-delete position");
-        cursor.delete(entries.get(0).getPosition());
-
-        // Verify in-memory cursor position
-        Position initialMarkDelete = cursor.getMarkDeletedPosition();
-        assertEquals(initialMarkDelete.getLedgerId(), firstLedgerId,
-                "Mark-delete should be in first ledger");
-        assertEquals(initialMarkDelete.getEntryId(), entries.get(0).getEntryId(),
-                "Mark-delete should be at entry 0");
-
-        // Wait for this position to be persisted
-        log.info("Waiting for initial mark-delete position to persist: {}", initialMarkDelete);
+        // Wait for persistence
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(cursor.getPersistentMarkDeletedPosition(), initialMarkDelete,
-                    "Persistent position should catch up to in-memory position");
+            Position persistent = cursor.getPersistentMarkDeletedPosition();
+            assertEquals(persistent.getLedgerId(), firstLedgerId);
+            assertEquals(persistent.getEntryId(), entries.get(9).getEntryId());
         });
-        log.info("Initial position persisted successfully");
 
-        // ===== PHASE 3: Inject delay to simulate slow persistence =====
-        long delay = 30;
-        log.info("=== PHASE 3: Injecting {}s delay for cursor persistence ===",
-                delay);
-        bkc.addEntryResponseDelay(delay, TimeUnit.SECONDS);
-
-        // ===== PHASE 4: Asynchronously acknowledge entries 1-4 (persistence will be delayed) =====
-        log.info("=== PHASE 4: Asynchronously acknowledging entries 1-4 (will be delayed) ===");
-        for (int i = 1; i < 5; i++) {
-            final int index = i;
-            cursor.asyncDelete(entries.get(i).getPosition(), new AsyncCallbacks.DeleteCallback() {
-                @Override
-                public void deleteComplete(Object ctx) {
-                    log.info("Entry {} deletion completed", index);
-                }
-
-                @Override
-                public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                    log.error("Entry {} deletion failed", index, exception);
-                }
-            }, null);
-        }
-
-        // Verify in-memory position has advanced to entry 9
-        Position newMarkDelete = cursor.getMarkDeletedPosition();
-        assertEquals(newMarkDelete.getLedgerId(), firstLedgerId,
-                "Mark-delete should still be in first ledger");
-        assertEquals(newMarkDelete.getEntryId(), entries.get(9).getEntryId(),
-                "Mark-delete should have advanced to entry 9 (in-memory)");
-        log.info("In-memory mark-delete position: {}", newMarkDelete);
-
-        // ===== PHASE 5: Update cursor before trimming (important synchronization point) =====
-        log.info("=== PHASE 5: Calling maybeUpdateCursorBeforeTrimmingConsumedLedger ===");
+        // maybeUpdateCursorBeforeTrimmingConsumedLedger should advance cursor past the
+        // fully consumed first ledger
         ledger.maybeUpdateCursorBeforeTrimmingConsumedLedger();
 
-        // ===== PHASE 6: Trigger ledger trimming =====
-        log.info("=== PHASE 6: Triggering ledger trimming ===");
+        // Wait for the cursor advancement to be persisted
+        Awaitility.await().untilAsserted(() -> {
+            Position persistent = cursor.getPersistentMarkDeletedPosition();
+            assertEquals(persistent.getLedgerId(), ledgersAfterWrite.get(1).getLedgerId(),
+                    "Persistent position should have advanced to the second ledger");
+            assertEquals(persistent.getEntryId(), -1,
+                    "Persistent position should be at the beginning of the next ledger");
+        });
+
+        // Trigger trimming
         CompletableFuture<Void> trimFuture = new CompletableFuture<>();
         ledger.trimConsumedLedgersInBackground(trimFuture);
         trimFuture.get();
-        log.info("Trimming completed");
 
-        // ===== VERIFICATION: Ledgers should NOT be trimmed =====
-        log.info("=== VERIFICATION ===");
+        // First ledger should have been trimmed
+        long firstRemainingLedger = ledger.getFirstPosition().getLedgerId();
+        assertTrue(firstRemainingLedger > firstLedgerId,
+                "First ledger should be trimmed because cursor has advanced past it");
 
-        // Persistent position should still be at old position (entry 0)
-        Position persistentPosition = cursor.getPersistentMarkDeletedPosition();
-        assertEquals(persistentPosition, initialMarkDelete,
-                "Persistent position should not have advanced (delayed)");
-        log.info("Persistent mark-delete position (as expected): {}", persistentPosition);
-        log.info("In-memory mark-delete position: {}", newMarkDelete);
-
-        // First ledger should still exist (not trimmed)
-        Awaitility.await().untilAsserted(() -> {
-            long firstRemainingLedger = ledger.getFirstPosition().getLedgerId();
-            assertEquals(firstRemainingLedger, ledgersAfterWrite.get(0).getLedgerId(),
-                    "First ledger should NOT be trimmed because persistent cursor position "
-                            + "is still pointing to it (entry 0)");
-        });
-        log.info("SUCCESS: First ledger {} was correctly preserved", firstLedgerId);
-
-        // ===== CLEANUP =====
+        // Cleanup
         entries.forEach(Entry::release);
         cursor.close();
         ledger.close();

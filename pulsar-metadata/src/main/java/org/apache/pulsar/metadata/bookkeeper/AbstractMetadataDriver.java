@@ -50,9 +50,11 @@ public abstract class AbstractMetadataDriver implements Closeable {
     protected RegistrationManager registrationManager;
     protected LedgerManagerFactory ledgerManagerFactory;
     protected LayoutManager layoutManager;
+    @SuppressWarnings("rawtypes")
     protected AbstractConfiguration conf;
     protected String ledgersRootPath;
 
+    @SuppressWarnings("rawtypes")
     protected void initialize(AbstractConfiguration conf) throws MetadataException {
         this.conf = conf;
         this.ledgersRootPath = resolveLedgersRootPath();

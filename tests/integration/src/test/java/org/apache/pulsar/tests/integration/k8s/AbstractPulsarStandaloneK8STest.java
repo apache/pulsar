@@ -169,9 +169,9 @@ public abstract class AbstractPulsarStandaloneK8STest {
     }
 
     private File getTargetDirectoryForLogs() {
-        String base = System.getProperty("maven.buildDirectory");
+        String base = System.getProperty("buildDirectory");
         if (base == null) {
-            base = "target";
+            base = "build";
         }
         // use the container-logs directory since it's used in CI for integration tests as the file location
         File directory = new File(new File(base, "container-logs"),

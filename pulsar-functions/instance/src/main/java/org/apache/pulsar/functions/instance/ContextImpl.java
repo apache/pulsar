@@ -25,6 +25,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.prometheus.client.Summary;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -68,8 +69,10 @@ import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.SinkSpec;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.ProducerSpec;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.PulsarFunctionRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
@@ -124,7 +127,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private boolean exposePulsarAdminClientEnabled;
 
     private List<Consumer<?>> inputConsumers;
-    private final Map<TopicName, Consumer> topicConsumers = new ConcurrentHashMap<>();
+    private final Map<TopicName, Consumer<?>> topicConsumers = new ConcurrentHashMap<>();
 
     static {
         // add label to indicate user metric
@@ -133,7 +136,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         userMetricsLabelNames[ComponentStatsManager.METRICS_LABEL_NAMES.length] = "metric";
     }
 
-    private final Function.FunctionDetails.ComponentType componentType;
+    private final FunctionDetails.ComponentType componentType;
 
     private final java.util.function.Consumer<Throwable> fatalHandler;
 
@@ -143,7 +146,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
                        String[] metricsLabels,
-                       Function.FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
+                       FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
                        StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder,
                        java.util.function.Consumer<Throwable> fatalHandler, ProducerCache producerCache) {
         this.config = config;
@@ -157,14 +160,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
         this.producerCache = producerCache;
 
-        Function.ProducerSpec producerSpec = config.getFunctionDetails().getSink().getProducerSpec();
-        ProducerConfig producerConfig = null;
-        if (producerSpec != null) {
-            producerConfig = FunctionConfigUtils.convertProducerSpecToProducerConfig(producerSpec);
-            useThreadLocalProducers = producerSpec.getUseThreadLocalProducers();
-        } else {
-            useThreadLocalProducers = false;
-        }
+        ProducerSpec producerSpec = config.getFunctionDetails().getSink().getProducerSpec();
+        ProducerConfig producerConfig = FunctionConfigUtils.convertProducerSpecToProducerConfig(producerSpec);
+        useThreadLocalProducers = producerSpec.isUseThreadLocalProducers();
 
         producerBuilderFactory = new ProducerBuilderFactory(client, producerConfig,
                 Thread.currentThread().getContextClassLoader(),
@@ -230,7 +228,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         );
         this.exposePulsarAdminClientEnabled = config.isExposePulsarAdminClientEnabled();
 
-        Function.SourceSpec sourceSpec = config.getFunctionDetails().getSource();
+        SourceSpec sourceSpec = config.getFunctionDetails().getSource();
         switch (sourceSpec.getSubscriptionType()) {
             case FAILOVER:
                 subscriptionType = SubscriptionType.Failover;
@@ -250,12 +248,14 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public Record<?> getCurrentRecord() {
-        return new PulsarFunctionRecord(record, config.getFunctionDetails());
+        return new PulsarFunctionRecord<>(record, config.getFunctionDetails());
     }
 
     @Override
     public Collection<String> getInputTopics() {
-        return config.getFunctionDetails().getSource().getInputSpecsMap().keySet();
+        List<String> topics = new ArrayList<>();
+        config.getFunctionDetails().getSource().forEachInputSpecs((topic, spec) -> topics.add(topic));
+        return topics;
     }
 
     @Override
@@ -387,6 +387,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
             name);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends StateStore> T getStateStore(String tenant, String ns, String name) {
         return (T) stateManager.getStore(tenant, ns, name);
@@ -459,12 +460,13 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         return defaultStateStore.get(key);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public <T> CompletableFuture<Void> publish(String topicName, T object) {
         return publish(topicName, object, "");
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "deprecation"})
     @Override
     public <T> CompletableFuture<Void> publish(String topicName, T object, String schemaOrSerdeClassName) {
         return publish(topicName, object,
@@ -581,6 +583,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     class MessageBuilderImpl<T> implements TypedMessageBuilder<T> {
+        private static final long serialVersionUID = 1L;
+
         private TypedMessageBuilder<T> underlyingBuilder;
 
         @Override

@@ -116,6 +116,7 @@ public class AdditionalServletUtils {
      *
      * @param metadata the additional servlet definition.
      */
+    @SuppressWarnings("unchecked")
     public AdditionalServletWithClassLoader load(
             AdditionalServletMetadata metadata, String narExtractionDirectory) throws IOException {
 

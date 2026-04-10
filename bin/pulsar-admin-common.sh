@@ -59,30 +59,22 @@ if [ $? == 0 ]; then
 fi
 
 # exclude tests jar
-BUILT_JAR=`ls $PULSAR_HOME/pulsar-client-tools/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+BUILT_JAR=`ls $PULSAR_HOME/pulsar-client-tools/build/libs/pulsar-client-tools-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then
     echo "\nCouldn't find pulsar jar.";
-    echo "Make sure you've run 'mvn package'\n";
+    echo "Make sure you've run './gradlew assemble'\n";
     exit 1;
 elif [ -e "$BUILT_JAR" ]; then
     PULSAR_JAR=$BUILT_JAR
 fi
 
-add_maven_deps_to_classpath() {
-    MVN="mvn"
-    if [ "$MAVEN_HOME" != "" ]; then
-      MVN=${MAVEN_HOME}/bin/mvn
-    fi
-
-    # Need to generate classpath from maven pom. This is costly so generate it
-    # and cache it. Save the file into our target dir so a mvn clean will get
-    # clean it up and force us create a new one.
-    f="${PULSAR_HOME}/distribution/shell/target/classpath.txt"
+add_gradle_deps_to_classpath() {
+    f="${PULSAR_HOME}/distribution/shell/build/classpath.txt"
     if [ ! -f "${f}" ]
     then
     (
       cd "${PULSAR_HOME}"
-      ${MVN} -pl distribution/shell generate-sources &> /dev/null
+      ./gradlew :distribution:pulsar-shell-distribution:exportClasspath --no-configuration-cache -q 2> /dev/null
     )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
@@ -91,7 +83,7 @@ add_maven_deps_to_classpath() {
 if [ -d "$PULSAR_HOME/lib" ]; then
     PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
 else
-    add_maven_deps_to_classpath
+    add_gradle_deps_to_classpath
 fi
 
 if [ -z "$PULSAR_CLIENT_CONF" ]; then

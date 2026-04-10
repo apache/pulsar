@@ -1582,6 +1582,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     /**
      * Check that every consumer receives a fair number of messages and that same key is delivered to only 1 consumer.
      */
+    @SuppressWarnings("unchecked")
     private void receiveAndCheckDistribution(List<Consumer<?>> consumers, int expectedTotalMessage)
             throws PulsarClientException {
         // Add a key so that we know this key was already assigned to one consumer
@@ -2046,10 +2047,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
      *   - at last, all messages will be received.
      */
     @Test(timeOut = 180 * 1000, dataProvider = "allowKeySharedOutOfOrder") // the test will be finished in 60s.
+    @SuppressWarnings("unchecked")
     public void testRecentJoinedPosWillNotStuckOtherConsumer(KeySharedImplementationType impl,
                                                              boolean allowKeySharedOutOfOrder) throws Exception {
         final int messagesSentPerTime = 100;
         final Set<Integer> totalReceivedMessages = new TreeSet<>();
+        @SuppressWarnings("unchecked")
         final String topic = newUniqueName("persistent://public/default/tp");
         final String subName = "my-sub";
         admin.topics().createNonPartitionedTopic(topic);

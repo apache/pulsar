@@ -976,12 +976,14 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMergeLookupRequests() throws Exception {
         // Assert the lookup service is a "BinaryProtoLookupService".
         final PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         final LookupService lookupService = pulsarClientImpl.getLookup();
         assertTrue(lookupService.isBinaryProtoLookupService());
 
+        @SuppressWarnings("unchecked")
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         admin.topics().createNonPartitionedTopic(tpName);
 
@@ -1184,6 +1186,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
     }
 
     /**** helper classes. ****/
+    @SuppressWarnings("deprecation")
 
     public static class MockAuthenticationProvider implements AuthenticationProvider {
         @Override

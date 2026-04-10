@@ -24,7 +24,6 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
@@ -79,7 +78,7 @@ public class OneWayReplicatorSchemaValidationEnforcedTest extends OneWayReplicat
         admin2.schemas().createSchema(topicName, myClassSchema.getSchemaInfo());
 
         // consume from the remote cluster (r2)
-        Consumer<MyClass> consumer2 = client2.newConsumer(myClassSchema)
+        org.apache.pulsar.client.api.Consumer<MyClass> consumer2 = client2.newConsumer(myClassSchema)
                 .topic(topicName).subscriptionName("sub").subscribe();
 
         // produce to local cluster (r1)
@@ -98,6 +97,27 @@ public class OneWayReplicatorSchemaValidationEnforcedTest extends OneWayReplicat
             assertThat(receivedBody.getField2()).isEqualTo("test");
             assertThat(receivedBody.getField3()).isEqualTo(123456789L);
         });
+    }
+
+    @Test(timeOut = 30000)
+    public void testReplicationReconnectWithSchemaValidationEnforced() throws Exception {
+        Schema<MyClass> myClassSchema = Schema.AVRO(MyClass.class);
+        final String topicName =
+                BrokerTestUtil.newUniqueName("persistent://" + sourceClusterAlwaysSchemaCompatibleNamespace + "/tp_");
+        // With the creation of the topic, replication will be initiated.
+        // The schema that the internal producer of replication holes will be "Auto_producer -> bytes".
+        admin1.topics().createNonPartitionedTopic(topicName);
+        waitReplicatorStarted(topicName);
+        // Registers new scheme on the remote-side.
+        admin2.schemas().createSchema(topicName, myClassSchema.getSchemaInfo());
+        // After a reconnection, the schema that the internal producer of replication holes should be
+        // "Auto_producer -> myClassSchema".
+        ServerCnx serverCnx2 = (ServerCnx) pulsar2.getBrokerService().getTopic(topicName, false).get().get()
+                .getProducers().values().iterator().next().getCnx();
+        serverCnx2.ctx().channel().close();
+        // Verify: the producer reconnected successfully.
+        Thread.sleep(2000);
+        waitReplicatorStarted(topicName);
     }
 
 }

@@ -62,8 +62,11 @@ import org.testng.annotations.Test;
  * as part of the regular test suite. This might change later.
  * The current intent is to show how the PIP-430 caching results in better cache hit rates in rolling restarts
  * when there's an active producer producing messages to a topic.
- * To avoid OOME, run this test on the command line (after enabling the test case) with this command:
- * ENABLE_MANUAL_TEST=true NETTY_LEAK_DETECTION=off mvn -pl pulsar-broker test -Dtest=BrokerEntryCacheRollingRestartTest
+ * To avoid OOME, run this test on the command line
+ * (after enabling the test case) with this command:
+ * ENABLE_MANUAL_TEST=true NETTY_LEAK_DETECTION=off
+ *   ./gradlew :pulsar-broker:test
+ *   --tests BrokerEntryCacheRollingRestartTest
  */
 @Slf4j
 public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCacheMultiBrokerTest {
@@ -116,6 +119,7 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
     }
 
     @Test(invocationCount = 5)
+    @SuppressWarnings("unchecked")
     public void testTailingReadsRollingRestart() throws Exception {
         // this description is showed in result CSV files
         String testConfigDescriptionInResult = cacheType.getDescription();
@@ -151,6 +155,7 @@ public class BrokerEntryCacheRollingRestartTest extends AbstractBrokerEntryCache
                 .create();
 
         // Create consumers in paused state with receiver queue size of 50
+        @SuppressWarnings({"unchecked", "rawtypes"})
         Consumer<Long>[] consumers = new Consumer[numConsumers];
         List<PulsarClient> consumerPulsarClients = new ArrayList<>();
         @Cleanup

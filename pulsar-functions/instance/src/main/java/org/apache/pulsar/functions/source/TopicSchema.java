@@ -22,8 +22,6 @@ import io.netty.buffer.ByteBuf;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -55,9 +53,7 @@ public class TopicSchema {
 
     public TopicSchema(PulsarClient client, ClassLoader functionsClassloader) {
         this.client = client;
-        this.functionsClassloader = AccessController.doPrivileged(
-                (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[0], functionsClassloader)
-        );
+        this.functionsClassloader = new URLClassLoader(new URL[0], functionsClassloader);
     }
 
     /**
@@ -153,6 +149,7 @@ public class TopicSchema {
         return newSchemaInstance(clazz, type, new ConsumerConfig());
     }
 
+    @SuppressWarnings("unchecked") // schema type casts are safe for the given schema type
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type, ConsumerConfig conf) {
         switch (type) {
         case NONE:

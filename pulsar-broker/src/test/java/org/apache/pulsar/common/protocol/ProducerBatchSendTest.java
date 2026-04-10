@@ -29,36 +29,20 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
 @Test
-public class ProducerBatchSendTest extends ProducerConsumerBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ProducerBatchSendTest extends SharedPulsarBaseTest {
 
     @DataProvider
     public Object[][] flushSend() {
@@ -75,7 +59,7 @@ public class ProducerBatchSendTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30_000, dataProvider = "flushSend")
     public void testNoEnoughMemSend(List<Integer> flushSend) throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topic = newTopicName();
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, subscription, MessageId.earliest);
@@ -135,6 +119,5 @@ public class ProducerBatchSendTest extends ProducerConsumerBase {
         // cleanup.
         consumer.close();
         producer.close();
-        admin.topics().delete(topic, false);
     }
 }

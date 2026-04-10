@@ -19,9 +19,9 @@
 package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 
 import com.google.common.annotations.VisibleForTesting;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
@@ -129,12 +129,12 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
             case Releasing, Splitting -> {
-                if (StringUtils.equals(data.sourceBroker(), brokerId)) {
+                if (Objects.equals(data.sourceBroker(), brokerId)) {
                     tombstone();
                 }
             }
             case Owned -> {
-                if (StringUtils.equals(data.dstBroker(), brokerId)) {
+                if (Objects.equals(data.dstBroker(), brokerId)) {
                     tombstone();
                 }
             }

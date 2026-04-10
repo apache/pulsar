@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
-import it.unimi.dsi.fastutil.ints.IntIntPair;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
-import it.unimi.dsi.fastutil.objects.ObjectBidirectionalIterator;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Supplier;
+import org.apache.pulsar.common.util.collections.IntIntPair;
 
 /**
  * A thread-safe map to store pending acks in the consumer.
@@ -98,7 +96,7 @@ public class PendingAcksMap {
     }
 
     private final Consumer consumer;
-    private final Long2ObjectSortedMap<Long2ObjectSortedMap<IntIntPair>> pendingAcks;
+    private final TreeMap<Long, TreeMap<Long, IntIntPair>> pendingAcks;
     private final Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier;
     private final Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier;
     private final Lock readLock;
@@ -108,7 +106,7 @@ public class PendingAcksMap {
     PendingAcksMap(Consumer consumer, Supplier<PendingAcksAddHandler> pendingAcksAddHandlerSupplier,
                    Supplier<PendingAcksRemoveHandler> pendingAcksRemoveHandlerSupplier) {
         this.consumer = consumer;
-        this.pendingAcks = new Long2ObjectRBTreeMap<>();
+        this.pendingAcks = new TreeMap<>();
         this.pendingAcksAddHandlerSupplier = pendingAcksAddHandlerSupplier;
         this.pendingAcksRemoveHandlerSupplier = pendingAcksRemoveHandlerSupplier;
         ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
@@ -143,8 +141,8 @@ public class PendingAcksMap {
                     && !pendingAcksAddHandler.handleAdding(consumer, ledgerId, entryId, stickyKeyHash)) {
                 return false;
             }
-            Long2ObjectSortedMap<IntIntPair> ledgerPendingAcks =
-                    pendingAcks.computeIfAbsent(ledgerId, k -> new Long2ObjectRBTreeMap<>());
+            TreeMap<Long, IntIntPair> ledgerPendingAcks =
+                    pendingAcks.computeIfAbsent(ledgerId, k -> new TreeMap<>());
             ledgerPendingAcks.put(entryId, IntIntPair.of(batchSize, stickyKeyHash));
             return true;
         } finally {
@@ -160,7 +158,7 @@ public class PendingAcksMap {
     public long size() {
         try {
             readLock.lock();
-            return pendingAcks.values().stream().mapToInt(Long2ObjectSortedMap::size).sum();
+            return pendingAcks.values().stream().mapToInt(TreeMap::size).sum();
         } finally {
             readLock.unlock();
         }
@@ -184,12 +182,12 @@ public class PendingAcksMap {
     private void processPendingAcks(PendingAcksConsumer processor) {
         // this code uses for loops intentionally, don't refactor to use forEach
         // iterate the outer map
-        for (Map.Entry<Long, Long2ObjectSortedMap<IntIntPair>> entry : pendingAcks.entrySet()) {
-            Long ledgerId = entry.getKey();
-            Long2ObjectSortedMap<IntIntPair> ledgerPendingAcks = entry.getValue();
+        for (Map.Entry<Long, TreeMap<Long, IntIntPair>> entry : pendingAcks.entrySet()) {
+            long ledgerId = entry.getKey();
+            TreeMap<Long, IntIntPair> ledgerPendingAcks = entry.getValue();
             // iterate the inner map
             for (Map.Entry<Long, IntIntPair> e : ledgerPendingAcks.entrySet()) {
-                Long entryId = e.getKey();
+                long entryId = e.getKey();
                 IntIntPair batchSizeAndStickyKeyHash = e.getValue();
                 processor.accept(ledgerId, entryId, batchSizeAndStickyKeyHash.leftInt(),
                         batchSizeAndStickyKeyHash.rightInt());
@@ -237,7 +235,7 @@ public class PendingAcksMap {
     public boolean contains(long ledgerId, long entryId) {
         try {
             readLock.lock();
-            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            TreeMap<Long, IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
             if (ledgerMap == null) {
                 return false;
             }
@@ -257,7 +255,7 @@ public class PendingAcksMap {
     public IntIntPair get(long ledgerId, long entryId) {
         try {
             readLock.lock();
-            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            TreeMap<Long, IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
             if (ledgerMap == null) {
                 return null;
             }
@@ -279,7 +277,7 @@ public class PendingAcksMap {
     public boolean remove(long ledgerId, long entryId, int batchSize, int stickyKeyHash) {
         try {
             writeLock.lock();
-            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            TreeMap<Long, IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
             if (ledgerMap == null) {
                 return false;
             }
@@ -306,7 +304,7 @@ public class PendingAcksMap {
     public boolean remove(long ledgerId, long entryId) {
         try {
             writeLock.lock();
-            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            TreeMap<Long, IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
             if (ledgerMap == null) {
                 return false;
             }
@@ -361,23 +359,23 @@ public class PendingAcksMap {
             } else {
                 readLock.lock();
             }
-            ObjectBidirectionalIterator<Long2ObjectMap.Entry<Long2ObjectSortedMap<IntIntPair>>> ledgerMapIterator =
-                    pendingAcks.headMap(markDeleteLedgerId + 1).long2ObjectEntrySet().iterator();
+            Iterator<Map.Entry<Long, TreeMap<Long, IntIntPair>>> ledgerMapIterator =
+                    pendingAcks.headMap(markDeleteLedgerId + 1).entrySet().iterator();
             while (ledgerMapIterator.hasNext()) {
-                Long2ObjectMap.Entry<Long2ObjectSortedMap<IntIntPair>> entry = ledgerMapIterator.next();
-                long ledgerId = entry.getLongKey();
-                Long2ObjectSortedMap<IntIntPair> ledgerMap = entry.getValue();
-                Long2ObjectSortedMap<IntIntPair> ledgerMapHead;
+                Map.Entry<Long, TreeMap<Long, IntIntPair>> entry = ledgerMapIterator.next();
+                long ledgerId = entry.getKey();
+                TreeMap<Long, IntIntPair> ledgerMap = entry.getValue();
+                TreeMap<Long, IntIntPair> ledgerMapHead;
                 if (ledgerId == markDeleteLedgerId) {
-                    ledgerMapHead = ledgerMap.headMap(markDeleteEntryId + 1);
+                    ledgerMapHead = new TreeMap<>(ledgerMap.headMap(markDeleteEntryId + 1));
                 } else {
                     ledgerMapHead = ledgerMap;
                 }
-                ObjectBidirectionalIterator<Long2ObjectMap.Entry<IntIntPair>> entryMapIterator =
-                        ledgerMapHead.long2ObjectEntrySet().iterator();
+                Iterator<Map.Entry<Long, IntIntPair>> entryMapIterator =
+                        ledgerMapHead.entrySet().iterator();
                 while (entryMapIterator.hasNext()) {
-                    Long2ObjectMap.Entry<IntIntPair> intIntPairEntry = entryMapIterator.next();
-                    long entryId = intIntPairEntry.getLongKey();
+                    Map.Entry<Long, IntIntPair> intIntPairEntry = entryMapIterator.next();
+                    long entryId = intIntPairEntry.getKey();
                     if (!acquiredWriteLock) {
                         retryWithWriteLock = true;
                         return;
@@ -391,6 +389,10 @@ public class PendingAcksMap {
                         pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash, closed);
                     }
                     entryMapIterator.remove();
+                    // also remove from the original map if we're iterating a copy
+                    if (ledgerId == markDeleteLedgerId) {
+                        ledgerMap.remove(entryId);
+                    }
                 }
                 if (ledgerMap.isEmpty()) {
                     if (!acquiredWriteLock) {

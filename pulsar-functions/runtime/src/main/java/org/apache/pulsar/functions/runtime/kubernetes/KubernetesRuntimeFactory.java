@@ -44,7 +44,7 @@ import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
@@ -358,7 +358,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     }
 
     @Override
-    public void doAdmissionChecks(Function.FunctionDetails functionDetails){
+    public void doAdmissionChecks(FunctionDetails functionDetails){
         final String overriddenJobName = getOverriddenName(functionDetails);
         KubernetesRuntime.doChecks(functionDetails, overriddenJobName);
         validateMinResourcesRequired(functionDetails);
@@ -434,13 +434,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
     }
 
-    void validateMinResourcesRequired(Function.FunctionDetails functionDetails) {
+    void validateMinResourcesRequired(FunctionDetails functionDetails) {
         if (functionInstanceMinResources != null) {
             Double minCpu = functionInstanceMinResources.getCpu();
             Long minRam = functionInstanceMinResources.getRam();
 
             if (minCpu != null) {
-                if (functionDetails.getResources() == null) {
+                if (!functionDetails.hasResources()) {
                     throw new IllegalArgumentException(
                             String.format("Per instance CPU requested is not specified. "
                                     + "Must specify CPU requested for function to be at least %s", minCpu));
@@ -453,7 +453,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             }
 
             if (minRam != null) {
-                if (functionDetails.getResources() == null) {
+                if (!functionDetails.hasResources()) {
                     throw new IllegalArgumentException(
                             String.format("Per instance RAM requested is not specified. "
                                     + "Must specify RAM requested for function to be at least %s", minRam));
@@ -467,7 +467,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
     }
 
-    void validateMaxResourcesRequired(Function.FunctionDetails functionDetails) {
+    void validateMaxResourcesRequired(FunctionDetails functionDetails) {
         if (functionInstanceMaxResources != null) {
             Double maxCpu = functionInstanceMaxResources.getCpu();
             Long maxRam = functionInstanceMaxResources.getRam();
@@ -488,7 +488,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         }
     }
 
-    void validateResourcesGranularityAndProportion(Function.FunctionDetails functionDetails) {
+    void validateResourcesGranularityAndProportion(FunctionDetails functionDetails) {
         final long baseMillis = 1000;
         long multiples = 0L;
         if (functionInstanceResourceGranularities != null) {
@@ -543,13 +543,13 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         return manifestCustomizer;
     }
 
-    private String getOverriddenNamespace(Function.FunctionDetails funcDetails) {
+    private String getOverriddenNamespace(FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map(customizer -> customizer.customizeNamespace(funcDetails, jobNamespace))
                 .orElse(jobNamespace);
     }
 
-    private String getOverriddenName(Function.FunctionDetails funcDetails) {
+    private String getOverriddenName(FunctionDetails funcDetails) {
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         return manifestCustomizer.map(customizer -> customizer.customizeName(funcDetails, jobName)).orElse(jobName);
     }

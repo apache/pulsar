@@ -124,13 +124,11 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     @VisibleForTesting
-    @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc) {
         this(zkc, MetadataStoreConfig.builder().build());
     }
 
     @VisibleForTesting
-    @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config) {
         this(zkc, config, false);
     }

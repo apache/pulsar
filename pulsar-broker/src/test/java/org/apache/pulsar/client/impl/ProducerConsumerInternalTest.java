@@ -24,24 +24,26 @@ import static org.testng.Assert.assertNotNull;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -51,24 +53,11 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 @Test(groups = "broker-impl")
-public class ProducerConsumerInternalTest extends ProducerConsumerBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
 
     @Test
     public void testSameProducerRegisterTwice() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
 
         // Create producer using default producerName.
@@ -91,7 +80,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
     @Test
     public void testSameProducerRegisterTwiceWithSpecifiedProducerName() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String topicName = newTopicName();
         final String pName = "p1";
         admin.topics().createNonPartitionedTopic(topicName);
 
@@ -113,6 +102,17 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         });
     }
 
+    private ServiceProducer getServiceProducer(ProducerImpl clientProducer, String topicName) {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) getTopic(topicName, false).join().get();
+        org.apache.pulsar.broker.service.Producer serviceProducer =
+                persistentTopic.getProducers().get(clientProducer.getProducerName());
+        long clientProducerId = WhiteboxImpl.getInternalState(clientProducer, "producerId");
+        assertEquals(serviceProducer.getProducerId(), clientProducerId);
+        assertEquals(serviceProducer.getEpoch(), clientProducer.getConnectionHandler().getEpoch());
+        return new ServiceProducer(serviceProducer, persistentTopic);
+    }
+
     private void removeServiceProducerMaintainedByServerCnx(ServiceProducer serviceProducer) {
         ServerCnx serverCnx = (ServerCnx) serviceProducer.getServiceProducer().getCnx();
         serverCnx.removedProducer(serviceProducer.getServiceProducer());
@@ -121,9 +121,16 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
         });
     }
 
+    @Data
+    @AllArgsConstructor
+    private static class ServiceProducer {
+        private org.apache.pulsar.broker.service.Producer serviceProducer;
+        private PersistentTopic persistentTopic;
+    }
+
     @Test(groups = "flaky")
     public void testExclusiveConsumerWillAlwaysRetryEvenIfReceivedConsumerBusyError() throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String topicName = newTopicName();
         final String subscriptionName = "subscription1";
         admin.topics().createNonPartitionedTopic(topicName);
 
@@ -131,8 +138,8 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
                 .subscriptionType(SubscriptionType.Exclusive).subscriptionName(subscriptionName).subscribe();
 
         ClientCnx clientCnx = consumer.getClientCnx();
-        ServerCnx serverCnx = (ServerCnx) pulsar.getBrokerService()
-                .getTopic(topicName, false).join().get().getSubscription(subscriptionName)
+        ServerCnx serverCnx = (ServerCnx) getTopic(topicName, false).join().get()
+                .getSubscription(subscriptionName)
                 .getDispatcher().getConsumers().get(0).cnx();
 
         // Make a disconnect to trigger broker remove the consumer which related this connection.
@@ -157,7 +164,6 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
         // cleanup.
         consumer.close();
-        admin.topics().delete(topicName, false);
     }
 
     @DataProvider(name = "containerBuilder")
@@ -170,7 +176,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
     @Test(timeOut = 30000, dataProvider = "containerBuilder")
     public void testSendTimerCheckForBatchContainer(BatcherBuilder batcherBuilder) throws Exception {
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String topicName = newTopicName();
         @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .batcherBuilder(batcherBuilder)
                 .sendTimeout(1, TimeUnit.SECONDS)
@@ -195,13 +201,19 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
 
     @Test
     public void testRetentionPolicyByProducingMessages() throws Exception {
+        // Disable dedup so the pulsar.dedup cursor doesn't block ledger trimming
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
         // Setup: configure the entries per ledger and retention polices.
         final int maxEntriesPerLedger = 10, messagesCount = 10;
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
-        pulsar.getConfiguration().setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
-        pulsar.getConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        pulsar.getConfiguration().setDefaultRetentionTimeInMinutes(0);
-        pulsar.getConfiguration().setDefaultRetentionSizeInMB(0);
+        final String topicName = newTopicName();
+        SharedPulsarCluster.get().getPulsarService().getConfiguration()
+                .setManagedLedgerMaxEntriesPerLedger(maxEntriesPerLedger);
+        SharedPulsarCluster.get().getPulsarService().getConfiguration()
+                .setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        SharedPulsarCluster.get().getPulsarService().getConfiguration()
+                .setDefaultRetentionTimeInMinutes(0);
+        SharedPulsarCluster.get().getPulsarService().getConfiguration()
+                .setDefaultRetentionSizeInMB(0);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
@@ -237,7 +249,7 @@ public class ProducerConsumerInternalTest extends ProducerConsumerBase {
     public void testProducerCompressionMinMsgBodySize() throws PulsarClientException {
         byte[] msg1024 = new byte[1024];
         byte[] msg1025 = new byte[1025];
-        final String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/tp_");
+        final String topicName = newTopicName();
         @Cleanup
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topicName)

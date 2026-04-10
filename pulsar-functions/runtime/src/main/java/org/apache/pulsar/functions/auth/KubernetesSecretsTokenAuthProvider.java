@@ -44,7 +44,7 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.utils.Actions;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
@@ -61,7 +61,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
     private CoreV1Api coreClient;
     private byte[] caBytes;
-    private java.util.function.Function<Function.FunctionDetails, String> getNamespaceFromDetails;
+    private java.util.function.Function<FunctionDetails, String> getNamespaceFromDetails;
 
     @Override
     public void initialize(CoreV1Api coreClient) {
@@ -75,11 +75,11 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
     @Override
     public void setNamespaceProviderFunc(
-            java.util.function.Function<Function.FunctionDetails, String> getNamespaceFromDetails) {
+            java.util.function.Function<FunctionDetails, String> getNamespaceFromDetails) {
         this.getNamespaceFromDetails = getNamespaceFromDetails;
     }
 
-    private String getKubeNamespace(Function.FunctionDetails funcDetails) {
+    private String getKubeNamespace(FunctionDetails funcDetails) {
         return getNamespaceFromDetails.apply(funcDetails);
     }
 
@@ -127,7 +127,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
 
     @Override
-    public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+    public Optional<FunctionAuthData> cacheAuthData(FunctionDetails funcDetails,
                                                     AuthenticationDataSource authenticationDataSource) {
         String id = null;
         String tenant = funcDetails.getTenant();
@@ -151,7 +151,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     }
 
     @Override
-    public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
+    public void cleanUpAuthData(FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
             throws Exception {
         if (!functionAuthData.isPresent()) {
             return;
@@ -247,14 +247,18 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     }
 
     @Override
-    public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
+    public Optional<FunctionAuthData> updateAuthData(FunctionDetails funcDetails,
                                                      Optional<FunctionAuthData> existingFunctionAuthData,
                                                      AuthenticationDataSource authenticationDataSource)
             throws Exception {
 
         String secretId;
         secretId = existingFunctionAuthData.map(functionAuthData -> new String(functionAuthData.getData()))
-                .orElseGet(() -> RandomStringUtils.random(5, true, true).toLowerCase());
+                .orElseGet(() -> {
+                    @SuppressWarnings("deprecation")
+                    String id = RandomStringUtils.random(5, true, true).toLowerCase();
+                    return id;
+                });
 
         String token;
         try {
@@ -285,7 +289,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         return valueMap;
     }
 
-    private void upsertSecret(String token, Function.FunctionDetails funcDetails, String secretName)
+    private void upsertSecret(String token, FunctionDetails funcDetails, String secretName)
             throws InterruptedException {
         String tenant = funcDetails.getTenant();
         String namespace = funcDetails.getNamespace();
@@ -298,6 +302,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
+                    @SuppressWarnings("deprecation")
                     String id = RandomStringUtils.random(5, true, true).toLowerCase();
                     V1Secret v1Secret = new V1Secret()
                             .metadata(new V1ObjectMeta().name(secretName))
@@ -344,7 +349,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         }
     }
 
-    private String createSecret(String token, Function.FunctionDetails funcDetails)
+    private String createSecret(String token, FunctionDetails funcDetails)
             throws ApiException, InterruptedException {
         String kubeNamespace = getKubeNamespace(funcDetails);
         String tenant = funcDetails.getTenant();
@@ -358,6 +363,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
+                    @SuppressWarnings("deprecation")
                     String id = RandomStringUtils.random(5, true, true).toLowerCase();
                     V1Secret v1Secret = new V1Secret()
                             .metadata(new V1ObjectMeta().name(getSecretName(id)))

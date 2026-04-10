@@ -24,31 +24,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
-import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.common.stats.JvmMetrics;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.baseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class BookieClientsStatsGeneratorTest extends SharedPulsarBaseTest {
 
     @Test
     public void testBookieClientStatsGenerator() throws Exception {
         // should not generate any NPE or other exceptions..
-        Map<String, Map<String, PendingBookieOpsStats>> stats = BookieClientStatsGenerator.generate(super.getPulsar());
+        Map<String, Map<String, PendingBookieOpsStats>> stats =
+                BookieClientStatsGenerator.generate(SharedPulsarCluster.get().getPulsarService());
         assertTrue(stats.isEmpty());
     }
 

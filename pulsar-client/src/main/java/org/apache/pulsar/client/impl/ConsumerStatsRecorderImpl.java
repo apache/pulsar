@@ -39,6 +39,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("deprecation")
 public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
     private static final long serialVersionUID = 1L;
@@ -254,6 +255,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Map<Long, Integer> getMsgNumInSubReceiverQueue() {
         if (consumer instanceof MultiTopicsConsumerImpl) {
             List<ConsumerImpl<?>> consumerList = ((MultiTopicsConsumerImpl) consumer).getConsumers();

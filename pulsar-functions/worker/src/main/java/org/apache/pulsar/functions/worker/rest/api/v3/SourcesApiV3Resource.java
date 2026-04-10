@@ -48,6 +48,7 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
 @Slf4j
+@SuppressWarnings("deprecation")
 @Api(value = "/sources", description = "Sources admin apis", tags = "sources")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)

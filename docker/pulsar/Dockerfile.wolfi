@@ -68,6 +68,12 @@ RUN /usr/lib/jvm/java/bin/jlink --add-modules ALL-MODULE-PATH --compress=2 --no-
 RUN echo networkaddress.cache.ttl=1 >> /opt/jvm/conf/security/java.security
 RUN echo networkaddress.cache.negative.ttl=1 >> /opt/jvm/conf/security/java.security
 
+## Extract offloader NARs
+FROM busybox AS offloaders
+ARG PULSAR_OFFLOADER_TARBALL
+ADD ${PULSAR_OFFLOADER_TARBALL} /
+RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
+
 ## Create final stage
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
 FROM cgr.dev/chainguard/wolfi-base
@@ -110,6 +116,9 @@ ENV JAVA_HOME=/opt/jvm
 ENV PULSAR_PID_DIR=/pulsar/logs
 
 COPY --from=pulsar /pulsar /pulsar
+
+# Add tiered-storage offloader NARs
+COPY --from=offloaders /offloaders /pulsar/offloaders
 
 WORKDIR /pulsar
 ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin

@@ -168,6 +168,7 @@ public class PublishRateLimiterOverconsumingTest extends BrokerTestBase {
         };
 
         // create independent clients for producers so that they don't get blocked by throttling
+        @SuppressWarnings("deprecation")
         List<PulsarClient> producerClients = IntStream.range(0, numberOfProducersWithIndependentClients)
                 .mapToObj(i -> {
                     try {

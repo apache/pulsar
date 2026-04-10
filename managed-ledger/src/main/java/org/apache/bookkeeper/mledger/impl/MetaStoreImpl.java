@@ -31,7 +31,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
@@ -52,7 +52,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 
-@Slf4j
+@CustomLog
 public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
     private static final String BASE_NODE = "/managed-ledgers";
@@ -118,7 +118,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                     } else {
                         // Z-node doesn't exist
                         if (createIfMissing) {
-                            log.info("Creating '{}'", path);
+                            log.info().attr("path", path).log("Creating managed ledger path");
 
                             store.put(path, new byte[0], Optional.of(-1L))
                                     .thenAccept(stat -> {
@@ -184,9 +184,10 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     @Override
     public void asyncUpdateLedgerIds(String ledgerName, ManagedLedgerInfo mlInfo, Stat stat,
             MetaStoreCallback<Void> callback) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Updating metadata version={} with content={}", ledgerName, stat, mlInfo);
-        }
+        log.debug().attr("ledgerName", ledgerName)
+                .attr("version", stat)
+                .attr("content", mlInfo)
+                .log("Updating metadata");
 
         String path = PREFIX + ledgerName;
         store.put(path, compressLedgerInfo(mlInfo), Optional.of(stat.getVersion()))
@@ -201,9 +202,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
     @Override
     public void getCursors(String ledgerName, MetaStoreCallback<List<String>> callback) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Get cursors list", ledgerName);
-        }
+        log.debug().attr("ledgerName", ledgerName).log("Get cursors list");
 
         String path = PREFIX + ledgerName;
         store.getChildren(path)
@@ -220,9 +219,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     public void asyncGetCursorInfo(String ledgerName, String cursorName,
             MetaStoreCallback<ManagedCursorInfo> callback) {
         String path = PREFIX + ledgerName + "/" + cursorName;
-        if (log.isDebugEnabled()) {
-            log.debug("Reading from {}", path);
-        }
+        log.debug().attr("path", path).log("Reading cursor info");
 
         store.get(path)
                 .thenAcceptAsync(optRes -> {
@@ -247,11 +244,13 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     @Override
     public void asyncUpdateCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info, Stat stat,
             MetaStoreCallback<Void> callback) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Updating cursor info ledgerId={} mark-delete={}:{} lastActive={}",
-                    ledgerName, cursorName, info.getCursorsLedgerId(), info.getMarkDeleteLedgerId(),
-                    info.getMarkDeleteEntryId(), info.getLastActive());
-        }
+        log.debug().attr("ledgerName", ledgerName)
+                .attr("cursorName", cursorName)
+                .attr("cursorsLedgerId", info.getCursorsLedgerId())
+                .attr("markDeleteLedgerId", info.getMarkDeleteLedgerId())
+                .attr("markDeleteEntryId", info.getMarkDeleteEntryId())
+                .attr("lastActive", info.getLastActive())
+                .log("Updating cursor info");
 
         String path = PREFIX + ledgerName + "/" + cursorName;
         byte[] content = compressCursorInfo(info);
@@ -260,14 +259,16 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
         if (stat != null) {
             expectedVersion = stat.getVersion();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Creating consumer {} on meta-data store with {}", ledgerName, cursorName, info);
-            }
+            log.debug().attr("ledgerName", ledgerName)
+                    .attr("cursorName", cursorName)
+                    .attr("info", info)
+                    .log("Creating consumer on meta-data store");
         } else {
             expectedVersion = -1;
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Updating consumer {} on meta-data store with {}", ledgerName, cursorName, info);
-            }
+            log.debug().attr("ledgerName", ledgerName)
+                    .attr("cursorName", cursorName)
+                    .attr("info", info)
+                    .log("Updating consumer on meta-data store");
         }
         store.put(path, content, Optional.of(expectedVersion))
                 .thenAcceptAsync(optStat -> callback.operationComplete(null, optStat), executor
@@ -282,20 +283,20 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     @Override
     public void asyncRemoveCursor(String ledgerName, String cursorName, MetaStoreCallback<Void> callback) {
         String path = PREFIX + ledgerName + "/" + cursorName;
-        log.info("[{}] Remove cursor={}", ledgerName, cursorName);
+        log.info().attr("ledgerName", ledgerName).attr("cursorName", cursorName).log("Remove cursor");
 
         store.delete(path, Optional.empty())
                 .thenAcceptAsync(v -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] [{}] cursor delete done", ledgerName, cursorName);
-                    }
+                    log.debug().attr("ledgerName", ledgerName).attr("cursorName", cursorName).log("Cursor delete done");
                     callback.operationComplete(null, null);
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
                     executor.executeOrdered(ledgerName, () -> {
                         Throwable actEx = FutureUtil.unwrapCompletionException(ex);
                         if (actEx instanceof MetadataStoreException.NotFoundException){
-                            log.info("[{}] [{}] cursor delete done because it did not exist.", ledgerName, cursorName);
+                            log.info().attr("ledgerName", ledgerName)
+                                    .attr("cursorName", cursorName)
+                                    .log("Cursor delete done because it did not exist");
                             callback.operationComplete(null, null);
                             return;
                         }
@@ -307,14 +308,12 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
     @Override
     public void removeManagedLedger(String ledgerName, MetaStoreCallback<Void> callback) {
-        log.info("[{}] Remove ManagedLedger", ledgerName);
+        log.info().attr("ledgerName", ledgerName).log("Remove ManagedLedger");
 
         String path = PREFIX + ledgerName;
         store.delete(path, Optional.empty())
                 .thenAcceptAsync(v -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] managed ledger delete done", ledgerName);
-                    }
+                    log.debug().attr("ledgerName", ledgerName).log("Managed ledger delete done");
                     callback.operationComplete(null, null);
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
@@ -366,11 +365,11 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                     info = updateMLInfoTimestamp(info);
                     callback.onUpdate(info, optResult.get().getStat());
                 } catch (Exception e) {
-                    log.error("[{}] Error when parseManagedLedgerInfo", ledgerName, e);
+                    log.error().attr("ledgerName", ledgerName).exception(e).log("Error when parseManagedLedgerInfo");
                 }
             }
         }, executor.chooseThread(ledgerName)).exceptionally(ex -> {
-            log.error("[{}] Error when read ManagedLedgerInfo", ledgerName, ex);
+            log.error().attr("ledgerName", ledgerName).exception(ex).log("Error when read ManagedLedgerInfo");
             return null;
         });
     }
@@ -476,8 +475,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                     uncompressed.release();
                 }
             } catch (Exception e) {
-                log.error("Failed to parse managedLedgerInfo metadata, "
-                        + "fall back to parse managedLedgerInfo directly.", e);
+                log.error().exception(e).log("Failed to parse managedLedgerInfo metadata,"
+                        + " fall back to parse managedLedgerInfo directly");
                 ManagedLedgerInfo info = new ManagedLedgerInfo();
                 info.parseFrom(data);
                 return info;
@@ -510,8 +509,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                     uncompressed.release();
                 }
             } catch (Exception e) {
-                log.error("Failed to parse ManagedCursorInfo metadata, "
-                        + "fall back to parse ManagedCursorInfo directly", e);
+                log.error().exception(e).log("Failed to parse ManagedCursorInfo metadata,"
+                        + " fall back to parse ManagedCursorInfo directly");
                 ManagedCursorInfo info = new ManagedCursorInfo();
                 info.parseFrom(data);
                 return info;

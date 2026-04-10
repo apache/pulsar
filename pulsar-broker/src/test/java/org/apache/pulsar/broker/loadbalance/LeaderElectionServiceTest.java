@@ -80,12 +80,15 @@ public class LeaderElectionServiceTest {
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         @Cleanup
         PulsarService pulsar = spyWithClassAndConstructorArgs(MockPulsarService.class, config);
-        pulsar.start();
 
         // mock pulsar.getLeaderElectionService() in a thread safe way
+        // This must be set up before start() to avoid UnfinishedStubbingException
+        // caused by background threads interacting with the spy during stubbing setup.
         AtomicReference<LeaderElectionService> leaderElectionServiceReference = new AtomicReference<>();
         Mockito.doAnswer(invocation -> leaderElectionServiceReference.get())
                 .when(pulsar).getLeaderElectionService();
+
+        pulsar.start();
 
         // broker and webService is started, but leaderElectionService not ready
         final String tenant = "elect";

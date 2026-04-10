@@ -230,7 +230,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         when(pendingAckHandle.changeToReadyState()).thenReturn(true);
         // Process controller, mark the replay task already finish.
         final AtomicInteger processController = new AtomicInteger();
-        doAnswer(new Answer() {
+        doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 processController.incrementAndGet();

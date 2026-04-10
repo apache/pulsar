@@ -213,6 +213,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
                 .get(TransactionCoordinatorID.get(0))).getManagedLedger(), ManagedLedgerImpl.State.LedgerOpened);
     }
 
+    @SuppressWarnings("unchecked")
     public void waitToReady() throws Exception{
         TransactionMetadataStoreService transactionMetadataStoreService =
                 getPulsarServiceList().get(0).getTransactionMetadataStoreService();

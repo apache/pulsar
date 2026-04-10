@@ -48,6 +48,7 @@ import org.testng.annotations.Test;
 public class GenericSchemaImplTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericAvroSchema() {
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
         GenericSchema decodeSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());
@@ -55,6 +56,7 @@ public class GenericSchemaImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericJsonSchema() {
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
         GenericSchema decodeSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());

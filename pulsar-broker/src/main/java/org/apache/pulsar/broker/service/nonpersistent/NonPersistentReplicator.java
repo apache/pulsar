@@ -87,6 +87,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         }
     }
 
+    @SuppressWarnings("unchecked")
     public void sendMessage(Entry entry) {
         if ((STATE_UPDATER.get(this) == State.Started) && isWritable()) {
 

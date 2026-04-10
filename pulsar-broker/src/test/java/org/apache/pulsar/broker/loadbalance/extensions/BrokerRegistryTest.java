@@ -402,6 +402,7 @@ public class BrokerRegistryTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testRegisterAsyncTimeout() throws Exception {
         var pulsar1 = createPulsarService();
         pulsar1.start();

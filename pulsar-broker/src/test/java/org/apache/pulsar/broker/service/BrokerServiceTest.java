@@ -662,6 +662,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             admin.namespaces().deleteNamespace(ns);
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTlsDisabled() throws Exception {
@@ -702,6 +703,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             pulsarClient.close();
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTlsEnabled() throws Exception {
@@ -779,6 +781,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             pulsarClient.close();
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTlsEnabledWithoutNonTlsServicePorts() throws Exception {
@@ -1006,6 +1009,7 @@ public class BrokerServiceTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
@@ -1263,6 +1267,7 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCheckInactiveSubscriptionsShouldNotDeleteCompactionCursor() throws Exception {
         String namespace = "prop/test";
 
@@ -1515,6 +1520,7 @@ public class BrokerServiceTest extends BrokerTestBase {
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testStuckTopicUnloading() throws Exception {
         final String namespace = "prop/ns-abc";
         final String topicName = "persistent://" + namespace + "/unoadTopic";

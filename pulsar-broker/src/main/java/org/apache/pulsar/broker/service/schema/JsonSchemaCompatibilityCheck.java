@@ -36,9 +36,19 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 @SuppressWarnings("unused")
 public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCheck {
 
+    private volatile boolean allowLegacyJacksonFormat = false;
+
     @Override
     public SchemaType getSchemaType() {
         return SchemaType.JSON;
+    }
+
+    /**
+     * Set whether to allow legacy Jackson JsonSchema format for backward compatibility.
+     * When false (default), only valid Avro schema format is accepted (PIP-464).
+     */
+    public void setAllowLegacyJacksonFormat(boolean allowLegacyJacksonFormat) {
+        this.allowLegacyJacksonFormat = allowLegacyJacksonFormat;
     }
 
     @Override
@@ -48,14 +58,14 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
             if (isAvroSchema(to)) {
                 // if both producer and broker have the schema in avro format
                 super.checkCompatible(from, to, strategy);
-            } else if (isJsonSchema(to)) {
+            } else if (allowLegacyJacksonFormat && isJsonSchema(to)) {
                 // if broker have the schema in avro format but producer sent a schema in the old json format
-                // allow old schema format for backwards compatibility
+                // allow old schema format for backwards compatibility (only when legacy format is enabled)
             } else {
-                // unknown schema format
-                throw new IncompatibleSchemaException("Unknown schema format");
+                throw new IncompatibleSchemaException(
+                        "Incompatible schema: expected Avro schema format for SchemaType.JSON");
             }
-        } else if (isJsonSchema(from)){
+        } else if (allowLegacyJacksonFormat && isJsonSchema(from)) {
 
             if (isAvroSchema(to)) {
                 // if broker have the schema in old json format but producer sent a schema in the avro format
@@ -64,9 +74,14 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
                 // if both producer and broker have the schema in old json format
                 isCompatibleJsonSchema(from, to);
             } else {
-                // unknown schema format
-                throw new IncompatibleSchemaException("Unknown schema format");
+                throw new IncompatibleSchemaException(
+                        "Incompatible schema: expected Avro schema format for SchemaType.JSON");
             }
+        } else if (!allowLegacyJacksonFormat && !isAvroSchema(from)) {
+            // When legacy format is disabled, the existing schema must be valid Avro.
+            // If it's not, this is a defense-in-depth rejection (PIP-464).
+            throw new IncompatibleSchemaException(
+                    "Incompatible schema: existing schema is not in valid Avro format for SchemaType.JSON");
         } else {
             // broker has schema format with unknown format
             // maybe corrupted?

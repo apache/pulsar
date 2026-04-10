@@ -133,6 +133,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         });
     }
 
+    @SuppressWarnings("unchecked")
     protected void startProducer() {
         if (isClosingOrClosed()) {
             log.info("[{}] Skip to start new producer because the synchronizer is closed", topicName);
@@ -179,6 +180,7 @@ public class PulsarMetadataEventSynchronizer implements MetadataEventSynchronize
         return producer;
     }
 
+    @SuppressWarnings("unchecked")
     private void startConsumer() {
         if (isClosingOrClosed()) {
             log.info("[{}] Skip to start new consumer because the synchronizer is closed", topicName);

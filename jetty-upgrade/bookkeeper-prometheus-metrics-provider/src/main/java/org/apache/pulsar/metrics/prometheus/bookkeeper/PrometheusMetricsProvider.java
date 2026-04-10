@@ -21,6 +21,7 @@ package org.apache.pulsar.metrics.prometheus.bookkeeper;
 // CHECKSTYLE.OFF: IllegalImport
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.Collector;
@@ -170,6 +171,9 @@ public class PrometheusMetricsProvider implements StatsProvider {
             } finally {
                 ThreadRegistry.clear();
             }
+        }
+        if (executor != null) {
+            MoreExecutors.shutdownAndAwaitTermination(executor, 5, TimeUnit.SECONDS);
         }
     }
 

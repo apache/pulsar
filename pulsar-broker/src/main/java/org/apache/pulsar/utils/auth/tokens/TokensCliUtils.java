@@ -49,6 +49,7 @@ import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ScopeType;
 
 @Command(name = "tokens", showDefaultValues = true, scope = ScopeType.INHERIT)
+@SuppressWarnings("deprecation")
 public class TokensCliUtils {
 
     private final CommandLine commander;

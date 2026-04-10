@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -29,32 +29,18 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
+public class PerMessageUnAcknowledgedRedeliveryTest extends SharedPulsarBaseTest {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(PerMessageUnAcknowledgedRedeliveryTest.class);
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
 
-    @Override
-    @BeforeMethod
-    public void setup() throws Exception {
-        super.baseSetup();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
     @Test(timeOut = testTimeout)
     public void testSharedAckedNormalTopic() throws Exception {
         String key = "testSharedAckedNormalTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
+        final String topicName = "persistent://" + getNamespace() + "/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
@@ -152,7 +138,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testUnAckedMessageTrackerSize() throws Exception {
         String key = "testUnAckedMessageTrackerSize";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
+        final String topicName = "persistent://" + getNamespace() + "/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
@@ -194,7 +180,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testExclusiveAckedNormalTopic() throws Exception {
         String key = "testExclusiveAckedNormalTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
+        final String topicName = "persistent://" + getNamespace() + "/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
@@ -292,7 +278,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testFailoverAckedNormalTopic() throws Exception {
         String key = "testFailoverAckedNormalTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
+        final String topicName = "persistent://" + getNamespace() + "/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
@@ -396,7 +382,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     @Test(timeOut = testTimeout)
     public void testSharedAckedPartitionedTopic() throws Exception {
         String key = "testSharedAckedPartitionedTopic";
-        final String topicName = "persistent://prop/ns-abc/topic-" + key;
+        final String topicName = "persistent://" + getNamespace() + "/topic-" + key;
         final String subscriptionName = "my-ex-subscription-" + key;
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;

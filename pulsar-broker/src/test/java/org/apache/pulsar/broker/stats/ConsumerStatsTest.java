@@ -559,6 +559,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         assertEquals(1, consumers.size());
         assertEquals(0, consumers.get(0).getUnackedMessages());
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testKeySharedDrainingHashesConsumerStats() throws Exception {

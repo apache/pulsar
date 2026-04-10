@@ -44,6 +44,7 @@ public class GenerateDocsCommand implements Callable<Integer> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Integer call() throws Exception {
         CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
         cmd.addCommand("broker-tool", rootCmd);

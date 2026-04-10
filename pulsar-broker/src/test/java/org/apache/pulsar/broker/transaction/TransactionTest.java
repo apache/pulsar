@@ -539,6 +539,7 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(txnID1.getMostSigBits(), 0);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSubscriptionRecreateTopic()
             throws PulsarAdminException, NoSuchFieldException, IllegalAccessException, PulsarClientException {
@@ -554,6 +555,7 @@ public class TransactionTest extends TransactionTestBase {
         ManagedLedgerFactory managedLedgerFactory = pulsarService.getDefaultManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers =
                 (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field.get(managedLedgerFactory);
         ledgers.remove(TopicName.get(topic).getPersistenceNamingEncoding());
@@ -575,6 +577,7 @@ public class TransactionTest extends TransactionTestBase {
                 Assert.fail();
             }
             PersistentTopic originPersistentTopic = (PersistentTopic) option.get();
+            @SuppressWarnings("deprecation")
             String pendingAckTopicName = MLPendingAckStore
                     .getTransactionPendingAckStoreSuffix(originPersistentTopic.getName(), subName);
 
@@ -783,6 +786,7 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(position4.getEntryId(), messageId4.getEntryId());
 
         //test publishing normal messages will not change maxReadPosition if the state o TB is Initializing.
+        @SuppressWarnings("unchecked")
         Class<TopicTransactionBufferState> transactionBufferStateClass =
                 (Class<TopicTransactionBufferState>) topicTransactionBuffer.getClass().getSuperclass();
         Field field = transactionBufferStateClass.getDeclaredField("state");
@@ -1155,9 +1159,11 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testNotChangeMaxReadPositionCountWhenCheckIfNoSnapshot() throws Exception {
+        final String topic = NAMESPACE1 + "/changeMaxReadPositionCount" + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topic).create().close();
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService()
-                .getTopic(NAMESPACE1 + "/changeMaxReadPositionCount" + UUID.randomUUID(), true)
+                .getTopic(topic, true)
                 .get().get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Field processorField = TopicTransactionBuffer.class.getDeclaredField("snapshotAbortedTxnProcessor");
@@ -1401,6 +1407,7 @@ public class TransactionTest extends TransactionTestBase {
         Field field = MessagesImpl.class.getDeclaredField("messageList");
         field.setAccessible(true);
 
+        @SuppressWarnings("unchecked")
         MessagesImpl<byte[]> messages = (MessagesImpl<byte[]>) method.invoke(consumer);
 
         List<Message<byte[]>> messageList = new ArrayList<>();
@@ -1423,7 +1430,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionName(subName)
                 .subscribe();
         List<MessageId> messageIds = new ArrayList<>();
-        for (Message message : messageList) {
+        for (Message<?> message : messageList) {
             messageIds.add(message.getMessageId());
         }
         for (int i = 0; i < 4; i++) {
@@ -1557,7 +1564,7 @@ public class TransactionTest extends TransactionTestBase {
         when(executorProvider.getExecutor(any(Object.class))).thenReturn(executorService);
         // Mock pendingAckStore.
         PendingAckStore pendingAckStore = mock(PendingAckStore.class);
-        doAnswer(new Answer() {
+        doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 executorService.execute(()->{
@@ -1615,6 +1622,7 @@ public class TransactionTest extends TransactionTestBase {
      * see: https://github.com/apache/pulsar/pull/16248.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testTBRecoverChangeStateError() throws InterruptedException, TimeoutException {
         final AtomicReference<PersistentTopic> persistentTopic = new AtomicReference<>();
         // Create Executor
@@ -1777,6 +1785,7 @@ public class TransactionTest extends TransactionTestBase {
         txn.commit();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeleteNamespace() throws Exception {
         String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);
@@ -1809,6 +1818,7 @@ public class TransactionTest extends TransactionTestBase {
     }
 
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test(timeOut = 10_000)
     public void testTBSnapshotWriter() throws Exception {
         String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);
@@ -1823,26 +1833,35 @@ public class TransactionTest extends TransactionTestBase {
         // inject a failed writer future
         CompletableFuture<SystemTopicClient.Writer<?>> writerFuture = new CompletableFuture<>();
         for (PulsarService pulsarService : pulsarServiceList) {
+            @SuppressWarnings("rawtypes")
             SystemTopicTxnBufferSnapshotService bufferSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
+            @SuppressWarnings({"unchecked", "rawtypes"})
             ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap1 =
-                    ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(bufferSnapshotService));
+                    ((ConcurrentHashMap) field.get(bufferSnapshotService));
+            @SuppressWarnings("rawtypes")
             ReferenceCountedWriter failedCountedWriter =
                     new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, bufferSnapshotService);
             writerMap1.put(NamespaceName.get(namespace), failedCountedWriter);
 
+            @SuppressWarnings("rawtypes")
             SystemTopicTxnBufferSnapshotService segmentSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotSegmentService();
+            @SuppressWarnings({"unchecked", "rawtypes"})
             ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap2 =
-                    ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(segmentSnapshotService));
+                    ((ConcurrentHashMap) field.get(segmentSnapshotService));
+            @SuppressWarnings("rawtypes")
             ReferenceCountedWriter failedCountedWriter2 =
                     new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, segmentSnapshotService);
             writerMap2.put(NamespaceName.get(namespace), failedCountedWriter2);
 
+            @SuppressWarnings("rawtypes")
             SystemTopicTxnBufferSnapshotService indexSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotIndexService();
+            @SuppressWarnings({"unchecked", "rawtypes"})
             ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap3 =
-                    ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(indexSnapshotService));
+                    ((ConcurrentHashMap) field.get(indexSnapshotService));
+            @SuppressWarnings("rawtypes")
             ReferenceCountedWriter failedCountedWriter3 =
                     new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, indexSnapshotService);
             writerMap3.put(NamespaceName.get(namespace), failedCountedWriter3);
