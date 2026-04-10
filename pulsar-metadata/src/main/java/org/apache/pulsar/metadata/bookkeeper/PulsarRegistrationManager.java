@@ -393,7 +393,8 @@ public class PulsarRegistrationManager implements RegistrationManager {
         Collection<BookieId> roBookies = registrationClient.getReadOnlyBookies()
                 .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS).getValue();
         if (roBookies != null && !roBookies.isEmpty()) {
-            log.error("Readonly Bookies are still up and connected to this cluster, stop all bookies before nuking the cluster");
+            log.error("Readonly Bookies are still up and connected to this cluster,"
+                    + " stop all bookies before nuking the cluster");
             return false;
         }
 

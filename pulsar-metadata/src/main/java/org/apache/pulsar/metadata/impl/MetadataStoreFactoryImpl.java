@@ -81,7 +81,8 @@ public class MetadataStoreFactoryImpl {
                 String scheme = provider.urlScheme();
                 providers.put(scheme + ":", provider);
             } catch (Exception e) {
-                log.warn().attr("className", className).exception(e).log("Failed to load metadata store provider class");
+                log.warn().attr("className", className).exception(e)
+                        .log("Failed to load metadata store provider class");
             }
         }
         return providers;

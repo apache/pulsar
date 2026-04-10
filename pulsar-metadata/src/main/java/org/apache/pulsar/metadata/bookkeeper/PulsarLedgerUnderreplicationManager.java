@@ -260,7 +260,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                     return;
                 }
                 if (replicationDisablePath.equals(n.getPath()) && n.getType() == NotificationType.Deleted) {
-                    log.info("LedgerReplication is enabled externally through MetadataStore, since DISABLE_NODE ZNode is deleted");
+                    log.info("LedgerReplication is enabled externally through MetadataStore,"
+                            + " since DISABLE_NODE ZNode is deleted");
                     final List<BookkeeperInternalCallbacks.GenericCallback<Void>> callbackList;
                     synchronized (replicationEnabledCallbacks) {
                         callbackList = new ArrayList<>(replicationEnabledCallbacks);
@@ -761,7 +762,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
         try {
             if (!store.exists(replicationDisablePath)
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS)) {
-                log.info("LedgerReplication is enabled externally through metadata store, since DISABLE_NODE node is deleted");
+                log.info("LedgerReplication is enabled externally through metadata store,"
+                        + " since DISABLE_NODE node is deleted");
                 cb.operationComplete(0, null);
                 return;
             }

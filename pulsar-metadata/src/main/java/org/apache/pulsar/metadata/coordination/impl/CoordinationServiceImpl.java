@@ -134,7 +134,8 @@ public class CoordinationServiceImpl implements CoordinationService {
                 .exceptionally(ex -> {
                     if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
                         log.warn().attr("path", path)
-                                .log("Failed to get next counter value because of bad version. Retry to get next counter value");
+                                .log("Failed to get next counter value because of bad version."
+                                        + " Retry to get next counter value");
                         internalGetNextCounterValueWithRetry(path, future, count - 1);
                     } else {
                         log.error().attr("path", path).exception(ex).log("Failed to get next counter value");

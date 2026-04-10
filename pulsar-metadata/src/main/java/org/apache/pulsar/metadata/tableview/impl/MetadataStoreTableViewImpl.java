@@ -230,11 +230,14 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                         if (tableViewShutDownListener == null) {
                             log.warn().attr("name", name).attr("key", entry.getKey())
                                     .attr("value", entry.getValue()).exception(e)
-                                    .log("Failed to listen item whose state is unknown because of metadata store session lost");
+                                    .log("Failed to listen item whose state is unknown"
+                                            + " because of metadata store session lost");
                         } else {
                             log.warn().attr("name", name).attr("key", entry.getKey())
                                     .attr("value", entry.getValue()).exception(e)
-                                    .log("Shutdown table view, because failed to listen item whose state is unknown due to metadata store session lost");
+                                    .log("Shutdown table view, because failed to listen item"
+                                            + " whose state is unknown due to"
+                                            + " metadata store session lost");
                             tableViewShutDownListener.accept(e);
                         }
                         break;
@@ -250,7 +253,8 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                             .log("Failed to fill existing items after session reestablished");
                 } else {
                     log.error().attr("name", name).exception(ex)
-                            .log("Shutdown table view because failed to fill existing items after session reestablished");
+                            .log("Shutdown table view because failed to fill"
+                                    + " existing items after session reestablished");
                     tableViewShutDownListener.accept(ex);
                 }
                 return null;

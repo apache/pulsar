@@ -39,7 +39,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 @Beta
 public interface MetadataStore extends AutoCloseable {
 
-    Logger log = Logger.get(MetadataStore.class);
+    Logger LOG = Logger.get(MetadataStore.class);
 
     /**
      * Read the value of one key, identified by the path
@@ -144,13 +144,13 @@ public interface MetadataStore extends AutoCloseable {
         return delete(path, expectedVersion)
                 .exceptionally(e -> {
                     if (e.getCause() instanceof NotFoundException) {
-                        log.info().attr("path", path).log("Path not found while deleting (this is not a problem)");
+                        LOG.info().attr("path", path).log("Path not found while deleting (this is not a problem)");
                         return null;
                     } else {
                         if (expectedVersion.isEmpty()) {
-                            log.info().attr("path", path).exception(e).log("Failed to delete path");
+                            LOG.info().attr("path", path).exception(e).log("Failed to delete path");
                         } else {
-                            log.info().attr("path", path).attr("expectedVersion", expectedVersion).exception(e)
+                            LOG.info().attr("path", path).attr("expectedVersion", expectedVersion).exception(e)
                                     .log("Failed to delete path");
                         }
                         throw new CompletionException(e);

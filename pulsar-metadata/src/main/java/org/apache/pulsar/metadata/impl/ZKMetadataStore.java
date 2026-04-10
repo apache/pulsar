@@ -163,7 +163,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         if (rc == Code.OK.intValue()) {
                             super.receivedSessionEvent(event);
                         } else {
-                            log.error().attr("code", Code.get(rc)).log("Failed to recreate persistent watch on ZooKeeper");
+                            log.error().attr("code", Code.get(rc))
+                                    .log("Failed to recreate persistent watch on ZooKeeper");
                             if (sessionWatcher != null) {
                                 sessionWatcher.setSessionInvalid();
                             }

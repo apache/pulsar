@@ -178,7 +178,8 @@ public class DualMetadataStore implements MetadataStoreExtended {
                 if (pending == 0) {
                     break;
                 } else {
-                    log.info().attr("pending", pendingSourceWrites.get()).log("Waiting for pending source writes to complete");
+                    log.info().attr("pending", pendingSourceWrites.get())
+                            .log("Waiting for pending source writes to complete");
                     Thread.sleep(backoff.next().toMillis());
                 }
             }

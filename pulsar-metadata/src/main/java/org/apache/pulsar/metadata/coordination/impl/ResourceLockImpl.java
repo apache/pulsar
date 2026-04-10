@@ -271,7 +271,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                         // Reset the expectation on the version
                         setVersion(-1L);
                         return acquireWithNoRevalidation(newValue)
-                                .thenRun(() -> log.info().attr("path", path).log("Successfully re-acquired missing lock"));
+                                .thenRun(() -> log.info().attr("path", path)
+                                        .log("Successfully re-acquired missing lock"));
                     }
 
                     GetResult res = optGetResult.get();
@@ -309,7 +310,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                                             setVersion(-1L)
                                         )
                                         .thenCompose(__ -> acquireWithNoRevalidation(newValue))
-                                        .thenRun(() -> log.info().attr("path", path).log("Successfully re-acquired stale lock"));
+                                        .thenRun(() -> log.info().attr("path", path)
+                                                .log("Successfully re-acquired stale lock"));
                             }
                         }
 

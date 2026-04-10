@@ -1574,7 +1574,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     if (rethrow) {
                         statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos),
                                 TimeUnit.MICROSECONDS);
-                        log.debug().attr("proc", proc).attr("attempts", attempts).log("Stopped executing after attempts");
+                        log.debug().attr("proc", proc).attr("attempts", attempts)
+                                .log("Stopped executing after attempts");
                         throw e;
                     }
                     TimeUnit.MILLISECONDS.sleep(retryPolicy.nextRetryWaitTime(attempts, elapsedTime));

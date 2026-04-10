@@ -140,8 +140,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 changeState(LeaderElectionState.Leading);
                 return CompletableFuture.completedFuture(LeaderElectionState.Leading);
             } else {
-                log.info().attr("value", existingValue).attr("path", path).attr("stat", res.getStat())
-                        .log("Conditionally deleting existing equals value because it's not created in the current session");
+                log.info().attr("value", existingValue).attr("path", path)
+                        .attr("stat", res.getStat())
+                        .log("Conditionally deleting existing equals value"
+                                + " because it's not created in the current session");
                 // Since the value was created in a different session, it might be expiring. We need to delete it
                 // and try the election again.
                 return store.delete(path, Optional.of(res.getStat().getVersion()))
@@ -192,7 +194,8 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                             cache.get(path)
                                     .thenRun(() -> {
                                         synchronized (LeaderElectionImpl.this) {
-                                            log.info().attr("path", path).attr("value", value).log("Acquired leadership");
+                                            log.info().attr("path", path).attr("value", value)
+                                                    .log("Acquired leadership");
                                             internalState = InternalState.LeaderIsPresent;
                                             if (leaderElectionState != LeaderElectionState.Leading) {
                                                 leaderElectionState = LeaderElectionState.Leading;
@@ -236,7 +239,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                         // There was a conflict between 2 participants trying to become leaders at same time. Retry
                         // to fetch info on new leader.
                         log.info().attr("path", path).attr("value", value)
-                                .log("There was a conflict between 2 participants trying to become leaders at the same time. Retrying.");
+                                .log("There was a conflict between 2 participants"
+                                        + " trying to become leaders at the same time."
+                                        + " Retrying.");
                         elect()
                             .thenAccept(lse -> result.complete(lse))
                             .exceptionally(ex2 -> {

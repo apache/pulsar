@@ -118,7 +118,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                             Executor executor) {
                         if (!(store instanceof AbstractMetadataStore)
                                 || ((AbstractMetadataStore) store).isConnected()) {
-                            log.debug().attr("key", key).attr("cache", cacheName).log("Reloading key into metadata cache");
+                            log.debug().attr("key", key).attr("cache", cacheName)
+                                    .log("Reloading key into metadata cache");
                             final var future = readValueFromStore(key);
                             future.thenAccept(val -> {
                                 if (cacheConfig.getAsyncReloadConsumer() != null) {
