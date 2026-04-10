@@ -270,22 +270,28 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return;
             }
             // Process the message, add to the queue and trigger listener or async callback
-            messages.forEach(msg -> {
-                final boolean skipDueToSeek = duringSeek;
-                MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
-                ClientCnx cnx = msgImpl.getCnx();
-                boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
-                if (isValidEpoch && !skipDueToSeek) {
-                    messageReceived(consumer, msg);
-                } else if (!isValidEpoch) {
-                    consumer.increaseAvailablePermits(cnx);
-                } else if (skipDueToSeek) {
-                    log.info("[{}] [{}] Skip processing message {} received during seek", topic, subscription,
-                            msg.getMessageId());
-                }
-            });
+            int size;
+            incomingQueueLock.lock();
+            try {
+                messages.forEach(msg -> {
+                    final boolean skipDueToSeek = duringSeek;
+                    MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
+                    ClientCnx cnx = msgImpl.getCnx();
+                    boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
+                    if (isValidEpoch && !skipDueToSeek) {
+                        messageReceived(consumer, msg);
+                    } else if (!isValidEpoch) {
+                        consumer.increaseAvailablePermits(cnx);
+                    } else if (skipDueToSeek) {
+                        log.info("[{}] [{}] Skip processing message {} received during seek", topic, subscription,
+                                msg.getMessageId());
+                    }
+                });
+                size = incomingMessages.size();
+            } finally {
+                incomingQueueLock.unlock();
+            }
 
-            int size = incomingMessages.size();
             int maxReceiverQueueSize = getCurrentReceiverQueueSize();
             int sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
             if (size >= maxReceiverQueueSize
