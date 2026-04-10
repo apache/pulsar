@@ -36,6 +36,7 @@ tasks.named<ProcessResources>("processTestResources") {
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-functions:pulsar-functions-runtime"))
     implementation(project(":pulsar-broker-common"))
     implementation(project(":pulsar-opentelemetry"))

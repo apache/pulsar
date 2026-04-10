@@ -22,14 +22,14 @@ package org.apache.pulsar.functions.api.examples;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessagePayload;
 import org.apache.pulsar.client.api.MessagePayloadContext;
 import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.Schema;
 
-@Slf4j
+@CustomLog
 public class TestPayloadProcessor implements MessagePayloadProcessor {
     public TestPayloadProcessor() {
         log.info("TestPayloadProcessor constructor without configs");
@@ -39,7 +39,7 @@ public class TestPayloadProcessor implements MessagePayloadProcessor {
         String configs = conf.entrySet().stream()
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .collect(Collectors.joining(", "));
-        log.info("TestPayloadProcessor constructor with configs {}", configs);
+        log.info().attr("configs", configs).log("TestPayloadProcessor constructor with configs");
     }
 
     @Override

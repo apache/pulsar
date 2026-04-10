@@ -32,7 +32,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
@@ -62,7 +62,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link Reflections}.
  */
-@Slf4j
+@CustomLog
 public class FunctionConfigUtilsTest {
     public static class WordCountWindowFunction implements WindowFunction<String, Void> {
         @Override

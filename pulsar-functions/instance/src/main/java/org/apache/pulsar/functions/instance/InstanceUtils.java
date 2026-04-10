@@ -26,8 +26,8 @@ import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -45,7 +45,7 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
-@Slf4j
+@CustomLog
 @UtilityClass
 public class InstanceUtils {
     public static SerDe<?> initializeSerDe(String serdeClassName, ClassLoader clsLoader, Class<?> typeArg,
@@ -149,7 +149,11 @@ public class InstanceUtils {
         try {
             properties.put("instance_hostname", InetAddress.getLocalHost().getHostName());
         } catch (UnknownHostException e) {
-            log.warn("[{}:{}] Failed to get hostname of instance", fullyQualifiedName, instanceId, e);
+            log.warn()
+                    .attr("function", fullyQualifiedName)
+                    .attr("instanceId", instanceId)
+                    .exception(e)
+                    .log("Failed to get hostname of instance");
         }
         return properties;
     }

@@ -37,8 +37,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import lombok.CustomLog;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -87,7 +87,7 @@ import org.slf4j.Logger;
 /**
  * This class implements the Context interface exposed to the user.
  */
-@Slf4j
+@CustomLog
 @ToString(exclude = {"pulsarAdmin"})
 class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private final ProducerBuilderFactory producerBuilderFactory;
@@ -546,7 +546,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         Long additionalCacheKey = useThreadLocalProducers ? Thread.currentThread().getId() : null;
         return producerCache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE,
                 topicName, additionalCacheKey, () -> {
-                    log.info("Initializing producer on topic {} with schema {}", topicName, schema);
+                    log.info()
+                            .attr("topic", topicName)
+                            .attr("schema", schema)
+                            .log("Initializing producer");
                     return producerBuilderFactory
                             .createProducerBuilder(topicName, schema, null)
                             .properties(producerProperties)

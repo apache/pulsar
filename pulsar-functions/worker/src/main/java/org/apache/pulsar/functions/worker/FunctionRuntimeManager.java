@@ -38,9 +38,9 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -76,7 +76,7 @@ import org.apache.pulsar.functions.utils.FunctionInstanceId;
 /**
  * This class managers all aspects of functions assignments and running of function assignments for this worker.
  */
-@Slf4j
+@CustomLog
 public class FunctionRuntimeManager implements AutoCloseable {
 
     // all assignments
@@ -161,8 +161,9 @@ public class FunctionRuntimeManager implements AutoCloseable {
         } else {
             secretsProviderConfigurator = new DefaultSecretsProviderConfigurator();
         }
-        log.info("Initializing secrets provider configurator {} with configs: {}",
-                secretsProviderConfigurator.getClass().getName(), workerConfig.getSecretsProviderConfiguratorConfig());
+        log.info().attr("configurator", secretsProviderConfigurator.getClass().getName())
+                .attr("configs", workerConfig.getSecretsProviderConfiguratorConfig())
+                .log("Initializing secrets provider configurator");
         secretsProviderConfigurator.init(workerConfig.getSecretsProviderConfiguratorConfig());
 
         Optional<FunctionAuthProvider> functionAuthProvider = Optional.empty();
@@ -274,7 +275,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
             isInitialized.complete(null);
             return lastMessageRead;
         } catch (Exception e) {
-            log.error("Failed to initialize function runtime manager: {}", e.getMessage(), e);
+            log.error().exception(e).log("Failed to initialize function runtime manager");
             throw new RuntimeException(e);
         }
     }
@@ -428,9 +429,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
                     }
                 }
                 if (workerInfo == null) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] has not been assigned yet", fullyQualifiedInstanceId);
-                    }
+                    log.debug().attr("instanceId", fullyQualifiedInstanceId)
+                            .log("Has not been assigned yet");
                     throw new WebApplicationException(Response.serverError().status(Status.BAD_REQUEST)
                             .type(MediaType.APPLICATION_JSON)
                             .entity(new ErrorData(fullFunctionName + " has not been assigned yet")).build());
@@ -454,8 +454,10 @@ public class FunctionRuntimeManager implements AutoCloseable {
                         }
                     }
                     if (workerInfo == null) {
-                        log.warn("[{}] has not been assigned yet, assignment: [{}], workerList: [{}]",
-                                fullyQualifiedInstanceId, assignment, workerInfoList);
+                        log.warn().attr("instanceId", fullyQualifiedInstanceId)
+                            .attr("assignment", assignment)
+                            .attr("workerList", workerInfoList)
+                            .log("Has not been assigned yet");
                         continue;
                     }
                     restartFunctionUsingPulsarAdmin(assignment, tenant, namespace, functionName, false);
@@ -518,7 +520,9 @@ public class FunctionRuntimeManager implements AutoCloseable {
                 try {
                     stopFunction(fullyQualifiedInstanceId, false);
                 } catch (Exception e) {
-                    log.warn("Failed to stop function {} - {}", fullyQualifiedInstanceId, e.getMessage());
+                    log.warn().attr("function", fullyQualifiedInstanceId)
+                            .attr("error", e.getMessage())
+                            .log("Failed to stop function");
                 }
             });
         }
@@ -526,7 +530,9 @@ public class FunctionRuntimeManager implements AutoCloseable {
 
     @VisibleForTesting
     void stopFunction(String fullyQualifiedInstanceId, boolean restart) throws Exception {
-        log.info("[{}] {}..", restart ? "restarting" : "stopping", fullyQualifiedInstanceId);
+        log.info().attr("function", fullyQualifiedInstanceId)
+                .attr("action", restart ? "restarting" : "stopping")
+                .log("Processing function lifecycle action");
         FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(fullyQualifiedInstanceId);
         if (functionRuntimeInfo != null) {
             this.conditionallyStopFunction(functionRuntimeInfo);
@@ -535,7 +541,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
                     this.conditionallyStartFunction(functionRuntimeInfo);
                 }
             } catch (Exception ex) {
-                log.info("{} Error re-starting function", fullyQualifiedInstanceId, ex);
+                log.info().attr("function", fullyQualifiedInstanceId)
+                        .exception(ex).log("Error re-starting function");
                 functionRuntimeInfo.setStartupException(ex);
                 throw ex;
             }
@@ -687,12 +694,14 @@ public class FunctionRuntimeManager implements AutoCloseable {
     public synchronized void processAssignmentMessage(Message<byte[]> msg) {
 
         if (msg.getData() == null || (msg.getData().length == 0)) {
-            log.info("Received assignment delete: {}", msg.getKey());
+            log.info().attr("key", msg.getKey())
+                    .log("Received assignment delete");
             deleteAssignment(msg.getKey());
         } else {
             Assignment assignment = new Assignment();
             assignment.parseFrom(msg.getData());
-            log.info("Received assignment update: {}", assignment);
+            log.info().attr("assignment", assignment)
+                    .log("Received assignment update");
             processAssignment(assignment);
         }
     }
@@ -886,8 +895,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
             this.functionRuntimeInfos.put(fullyQualifiedInstanceId, functionRuntimeInfo);
         } else {
             //Somehow this function is already started
-            log.warn("Function {} already running. Going to restart function.",
-                    functionRuntimeInfo);
+            log.warn().attr("function", functionRuntimeInfo)
+                    .log("Function already running. Going to restart function.");
             this.conditionallyStopFunction(functionRuntimeInfo);
         }
         this.conditionallyStartFunction(functionRuntimeInfo);
@@ -954,8 +963,9 @@ public class FunctionRuntimeManager implements AutoCloseable {
             if (this.workerIdToAssignments.containsValue(workerConfig.getWorkerId())
                     && this.workerIdToAssignments.get(workerConfig.getWorkerId())
                     .containsValue(fullyQualifiedInstanceId)) {
-                log.error("Assignments and RuntimeInfos are inconsistent."
-                        + "FunctionRuntimeInfo missing for " + fullyQualifiedInstanceId);
+                log.error().attr("function", fullyQualifiedInstanceId)
+                        .log("Assignments and RuntimeInfos are inconsistent."
+                                + " FunctionRuntimeInfo missing");
             }
         }
         return functionRuntimeInfo;

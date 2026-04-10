@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Record;
 
 /**
@@ -38,7 +38,7 @@ import org.apache.pulsar.functions.api.Record;
  *
  * @param <T> the type of event in the window.
  */
-@Slf4j
+@CustomLog
 public class WindowManager<T> implements TriggerHandler {
 
     /**
@@ -102,9 +102,9 @@ public class WindowManager<T> implements TriggerHandler {
     public void add(Event<T> windowEvent) {
         // watermark events are not added to the queue.
         if (windowEvent.isWatermark()) {
-            if (log.isDebugEnabled()) {
-                log.debug("Got watermark event with ts {}", windowEvent.getTimestamp());
-            }
+            log.debug()
+                    .attr("timestamp", windowEvent.getTimestamp())
+                    .log("Got watermark event");
         } else {
             queue.add(windowEvent);
         }
@@ -144,9 +144,9 @@ public class WindowManager<T> implements TriggerHandler {
         prevWindowEvents.clear();
         if (!events.isEmpty()) {
             prevWindowEvents.addAll(windowEvents);
-            if (log.isDebugEnabled()) {
-                log.debug("invoking windowLifecycleListener onActivation, [{}] events in window.", events.size());
-            }
+            log.debug()
+                    .attr("eventCount", events.size())
+                    .log("Invoking windowLifecycleListener onActivation");
             windowLifecycleListener.onActivation(events, newEvents, expired,
                     evictionPolicy.getContext().getReferenceTime());
         } else {
@@ -192,7 +192,7 @@ public class WindowManager<T> implements TriggerHandler {
      * @return the list of events to be processed as a part of the current window
      */
     private List<Event<T>> scanEvents(boolean fullScan) {
-        log.debug("Scan events, eviction policy {}", evictionPolicy);
+        log.debug().attr("evictionPolicy", evictionPolicy).log("Scan events");
         List<Event<T>> eventsToExpire = new ArrayList<>();
         List<Event<T>> eventsToProcess = new ArrayList<>();
 
@@ -216,9 +216,9 @@ public class WindowManager<T> implements TriggerHandler {
             lock.unlock();
         }
         eventsSinceLastExpiry.set(0);
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] events expired from window.", eventsToExpire.size());
-        }
+        log.debug()
+                .attr("expiredCount", eventsToExpire.size())
+                .log("Events expired from window");
         if (!eventsToExpire.isEmpty()) {
             log.debug("invoking windowLifecycleListener.onExpiry");
             windowLifecycleListener.onExpiry(eventsToExpire);

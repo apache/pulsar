@@ -24,15 +24,15 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
-@Slf4j
+@CustomLog
 public class ConnectorsManager implements AutoCloseable {
 
     @Getter
@@ -104,7 +104,7 @@ public class ConnectorsManager implements AutoCloseable {
             try {
                 connector.close();
             } catch (Exception e) {
-                log.warn("Failed to close connector", e);
+                log.warn().exception(e).log("Failed to close connector");
             }
         });
         connectorMap.clear();

@@ -29,8 +29,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.annotation.AnnotationDescription;
 import net.bytebuddy.description.annotation.AnnotationValue;
 import net.bytebuddy.description.field.FieldDescription;
@@ -49,7 +49,7 @@ import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @UtilityClass
-@Slf4j
+@CustomLog
 public class ConnectorUtils {
 
     private static final String PULSAR_IO_SERVICE_NAME = "pulsar-io.yaml";
@@ -157,7 +157,7 @@ public class ConnectorUtils {
                                                                  String narExtractionDirectory,
                                                                  boolean enableClassloading) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath().normalize();
-        log.info("Searching for connectors in {}", path);
+        log.info().attr("path", path).log("Searching for connectors");
 
         TreeMap<String, Connector> connectors = new TreeMap<>();
 
@@ -170,11 +170,17 @@ public class ConnectorUtils {
             for (Path archive : stream) {
                 try {
                     ConnectorDefinition cntDef = ConnectorUtils.getConnectorDefinition(archive.toFile());
-                    log.info("Found connector {} from {}", cntDef, archive);
+                    log.info()
+                            .attr("connector", cntDef)
+                            .attr("archive", archive)
+                            .log("Found connector");
                     Connector connector = new Connector(archive, cntDef, narExtractionDirectory, enableClassloading);
                     connectors.put(cntDef.getName(), connector);
                 } catch (Throwable t) {
-                    log.warn("Failed to load connector from {}", archive, t);
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load connector");
                 }
             }
         }

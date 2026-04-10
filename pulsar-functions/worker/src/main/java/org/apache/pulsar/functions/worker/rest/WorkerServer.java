@@ -27,7 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.DispatcherType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
@@ -67,7 +67,7 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
-@Slf4j
+@CustomLog
 public class WorkerServer {
 
     private final WorkerConfig workerConfig;
@@ -96,7 +96,8 @@ public class WorkerServer {
 
     public void start() throws Exception {
         server.start();
-        log.info("Worker Server started at {}", server.getURI());
+        log.info().attr("uri", server.getURI())
+                .log("Worker Server started");
     }
 
     private void init() {
@@ -114,7 +115,8 @@ public class WorkerServer {
 
         List<ServerConnector> connectors = new ArrayList<>();
         if (this.workerConfig.getWorkerPort() != null) {
-            log.info("Configuring http server on port={}", this.workerConfig.getWorkerPort());
+            log.info().attr("port", this.workerConfig.getWorkerPort())
+                    .log("Configuring http server");
             List<ConnectionFactory> connectionFactories = new ArrayList<>();
             if (workerConfig.isWebServiceHaProxyProtocolEnabled()) {
                 connectionFactories.add(new ProxyConnectionFactory());
@@ -166,7 +168,8 @@ public class WorkerServer {
         server.setHandler(serverHandler);
 
         if (this.workerConfig.getTlsEnabled()) {
-            log.info("Configuring https server on port={}", this.workerConfig.getWorkerPortTls());
+            log.info().attr("port", this.workerConfig.getWorkerPortTls())
+                    .log("Configuring https server");
             try {
                 PulsarSslConfiguration sslConfiguration = buildSslConfiguration(workerConfig);
                 this.sslFactory = new DefaultPulsarSslFactory();
@@ -274,14 +277,15 @@ public class WorkerServer {
                 this.server.stop();
                 this.server.destroy();
             } catch (Exception e) {
-                log.error("Failed to stop function web-server ", e);
+                log.error().exception(e).log("Failed to stop function web-server");
             }
         }
         if (this.webServerExecutor != null && this.webServerExecutor.isRunning()) {
             try {
                 this.webServerExecutor.stop();
             } catch (Exception e) {
-                log.warn("Error stopping function web-server executor", e);
+                log.warn().exception(e)
+                        .log("Error stopping function web-server executor");
             }
         }
         if (this.scheduledExecutorService != null) {
@@ -309,7 +313,7 @@ public class WorkerServer {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 

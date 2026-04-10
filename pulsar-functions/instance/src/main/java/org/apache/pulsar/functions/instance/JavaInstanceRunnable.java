@@ -40,9 +40,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.ThreadContext;
@@ -117,7 +117,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A function container implemented using java thread.
  */
-@Slf4j
+@CustomLog
 public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private final InstanceConfig instanceConfig;
@@ -241,8 +241,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         ThreadContext.put("functionname", instanceConfig.getFunctionDetails().getName());
         ThreadContext.put("instance", instanceConfig.getInstanceName());
 
-        log.info("Starting Java Instance {} : \n Details = {}",
-            instanceConfig.getFunctionDetails().getName(), instanceConfig.getFunctionDetails());
+        log.info()
+                .attr("function", instanceConfig.getFunctionDetails().getName())
+                .attr("details", instanceConfig.getFunctionDetails())
+                .log("Starting Java Instance");
 
         Object object;
         if (instanceConfig.getFunctionDetails().getClassName()
@@ -370,17 +372,23 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
         } catch (Throwable t) {
             if (deathException != null) {
-                log.error("[{}] Fatal exception occurred in the instance", FunctionCommon.getFullyQualifiedInstanceId(
-                        instanceConfig.getFunctionDetails().getTenant(),
-                        instanceConfig.getFunctionDetails().getNamespace(),
-                        instanceConfig.getFunctionDetails().getName(),
-                        instanceConfig.getInstanceId()), deathException);
+                log.error()
+                    .attr("instanceId", FunctionCommon.getFullyQualifiedInstanceId(
+                            instanceConfig.getFunctionDetails().getTenant(),
+                            instanceConfig.getFunctionDetails().getNamespace(),
+                            instanceConfig.getFunctionDetails().getName(),
+                            instanceConfig.getInstanceId()))
+                    .exception(deathException)
+                    .log("Fatal exception occurred in the instance");
             } else {
-                log.error("[{}] Uncaught exception in Java Instance", FunctionCommon.getFullyQualifiedInstanceId(
-                        instanceConfig.getFunctionDetails().getTenant(),
-                        instanceConfig.getFunctionDetails().getNamespace(),
-                        instanceConfig.getFunctionDetails().getName(),
-                        instanceConfig.getInstanceId()), t);
+                log.error()
+                        .attr("instanceId", FunctionCommon.getFullyQualifiedInstanceId(
+                                instanceConfig.getFunctionDetails().getTenant(),
+                                instanceConfig.getFunctionDetails().getNamespace(),
+                                instanceConfig.getFunctionDetails().getName(),
+                                instanceConfig.getInstanceId()))
+                        .exception(t)
+                        .log("Uncaught exception in Java Instance");
                 deathException = t;
             }
             if (stats != null) {
@@ -430,8 +438,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     void handleResult(Record<?> srcRecord, JavaExecutionResult result) throws Exception {
         if (result.getUserException() != null) {
             Throwable t = result.getUserException();
-            log.warn("Encountered exception when processing message {}",
-                    srcRecord, t);
+            log.warn()
+                    .attr("record", srcRecord)
+                    .exception(t)
+                    .log("Encountered exception when processing message");
             stats.incrUserExceptions(t);
             srcRecord.fail();
         } else {
@@ -479,7 +489,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             this.sink.write(sinkRecord);
         } catch (Exception e) {
-            log.info("Encountered exception in sink write: ", e);
+            log.info().exception(e).log("Encountered exception in sink write");
             stats.incrSinkExceptions(e);
             // fail the source record
             srcRecord.fail();
@@ -542,7 +552,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (stats != null) {
                 stats.incrSourceExceptions(e);
             }
-            log.error("Encountered exception in source read", e);
+            log.error().exception(e).log("Encountered exception in source read");
             throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(instanceClassLoader);
@@ -578,8 +588,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             try {
                 source.close();
             } catch (Throwable e) {
-                log.error("Failed to close source {}", instanceConfig.getFunctionDetails().getSource().getClassName(),
-                        e);
+                log.error()
+                        .attr("className", instanceConfig.getFunctionDetails().getSource().getClassName())
+                        .exception(e)
+                        .log("Failed to close source");
             } finally {
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
             }
@@ -593,7 +605,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             try {
                 sink.close();
             } catch (Throwable e) {
-                log.error("Failed to close sink {}", instanceConfig.getFunctionDetails().getSource().getClassName(), e);
+                log.error()
+                        .attr("className", instanceConfig.getFunctionDetails().getSource().getClassName())
+                        .exception(e)
+                        .log("Failed to close sink");
             } finally {
                 Thread.currentThread().setContextClassLoader(instanceClassLoader);
             }
@@ -933,7 +948,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 contextImpl.setInputConsumers(((PulsarSource) this.source).getInputConsumers());
             }
         } catch (Exception e) {
-            log.error("Source open produced uncaught exception: ", e);
+            log.error().exception(e).log("Source open produced uncaught exception");
             throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(this.instanceClassLoader);
@@ -1007,10 +1022,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 for (String s : config.keySet()) {
                     if (!allFields.contains(s)) {
-                        log.error("Field '{}' not defined in the {} configuration {}, the field will be ignored",
-                                s,
-                                componentType,
-                                configClass);
+                        log.error()
+                                .attr("field", s)
+                                .attr("componentType", componentType)
+                                .attr("configClass", configClass)
+                                .log("Field not defined in the configuration,"
+                                        + " the field will be ignored");
                         config.remove(s);
                     }
                 }
@@ -1109,13 +1126,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             Thread.currentThread().setContextClassLoader(this.componentClassLoader);
         }
         try {
-            if (log.isDebugEnabled()) {
-                log.debug("Opening Sink with SinkSpec {} and contextImpl: {} ", sinkSpec.getConfigs(),
-                        contextImpl.toString());
-            }
+            log.debug()
+                    .attr("sinkConfig", sinkSpec.getConfigs())
+                    .attr("contextImpl", contextImpl.toString())
+                    .log("Opening Sink");
             this.sink.open(augmentAndFilterConnectorConfig(sinkSpec.getConfigs()), contextImpl);
         } catch (Exception e) {
-            log.error("Sink open produced uncaught exception: ", e);
+            log.error().exception(e).log("Sink open produced uncaught exception");
             throw e;
         } finally {
             Thread.currentThread().setContextClassLoader(this.instanceClassLoader);

@@ -46,8 +46,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.Utils;
@@ -89,7 +89,7 @@ import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.TypeConversionException;
 
-@Slf4j
+@CustomLog
 public class LocalRunner implements AutoCloseable {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -220,7 +220,7 @@ public class LocalRunner implements AutoCloseable {
         try {
             localRunner.start(true);
         } catch (Exception e) {
-            log.error("Encountered error starting localrunner", e);
+            log.error().exception(e).log("Encountered error starting localrunner");
             localRunner.close();
         }
     }
@@ -266,7 +266,7 @@ public class LocalRunner implements AutoCloseable {
             try {
                 LocalRunner.this.close();
             } catch (Exception exception) {
-                log.warn("Encountered exception when closing localrunner", exception);
+                log.warn().exception(exception).log("Encountered exception when closing localrunner");
             }
         });
     }
@@ -339,7 +339,7 @@ public class LocalRunner implements AutoCloseable {
                 try {
                     ((Closeable) userCodeClassLoader.getClassLoader()).close();
                 } catch (IOException e) {
-                    log.warn("Error closing classloader", e);
+                    log.warn().exception(e).log("Error closing classloader");
                 }
             }
         }
@@ -464,7 +464,8 @@ public class LocalRunner implements AutoCloseable {
             if (exitOnError) {
                 for (RuntimeSpawner spawner : local) {
                     spawner.join();
-                    log.info("RuntimeSpawner quit because of", spawner.getRuntime().getDeathException());
+                    log.info().exception(spawner.getRuntime().getDeathException())
+                            .log("RuntimeSpawner quit");
                 }
                 close();
             } else {
@@ -708,7 +709,7 @@ public class LocalRunner implements AutoCloseable {
         }
         if (metricsPortStart != null) {
             // starting metrics server
-            log.info("Starting metrics server on port {}", metricsPortStart);
+            log.info().attr("port", metricsPortStart).log("Starting metrics server");
             metricsServer = new HTTPServer(new InetSocketAddress(metricsPortStart), collectorRegistry, true);
         }
     }

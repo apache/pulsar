@@ -26,8 +26,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.TreeMap;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -36,7 +36,7 @@ import org.zeroturnaround.zip.ZipUtil;
 
 
 @UtilityClass
-@Slf4j
+@CustomLog
 public class FunctionUtils {
 
     private static final String PULSAR_IO_SERVICE_NAME = "pulsar-io.yaml";
@@ -79,7 +79,7 @@ public class FunctionUtils {
                                                                       String narExtractionDirectory,
                                                                       boolean enableClassloading) throws IOException {
         Path path = Paths.get(functionsDirectory).toAbsolutePath().normalize();
-        log.info("Searching for functions in {}", path);
+        log.info().attr("path", path).log("Searching for functions");
 
         TreeMap<String, FunctionArchive> functions = new TreeMap<>();
 
@@ -92,14 +92,16 @@ public class FunctionUtils {
             for (Path archive : stream) {
                 try {
                     FunctionDefinition cntDef = FunctionUtils.getFunctionDefinition(archive.toFile());
-                    log.info("Found function {} from {}", cntDef, archive);
+                    log.info().attr("function", cntDef).attr("archive", archive)
+                            .log("Found function");
                     if (!StringUtils.isEmpty(cntDef.getFunctionClass())) {
                         FunctionArchive functionArchive =
                                 new FunctionArchive(archive, cntDef, narExtractionDirectory, enableClassloading);
                         functions.put(cntDef.getName(), functionArchive);
                     }
                 } catch (Throwable t) {
-                    log.warn("Failed to load function from {}", archive, t);
+                    log.warn().attr("archive", archive).exception(t)
+                            .log("Failed to load function");
                 }
             }
         }

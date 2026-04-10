@@ -33,8 +33,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import lombok.AccessLevel;
+import lombok.CustomLog;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.description.type.TypeList;
@@ -66,7 +66,7 @@ import org.apache.pulsar.io.core.Source;
 /**
  * Utils used for runtime.
  */
-@Slf4j
+@CustomLog
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class FunctionCommon {
 
@@ -239,10 +239,12 @@ public class FunctionCommon {
             }
         }
         try (InputStream in = connection.getInputStream()) {
-            log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
+            log.info().attr("url", destPkgUrl).attr("target", targetFile.getAbsoluteFile())
+                    .log("Downloading function package");
             Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
-        log.info("Downloading function package from {} to {} completed!", destPkgUrl, targetFile.getAbsoluteFile());
+        log.info().attr("url", destPkgUrl).attr("target", targetFile.getAbsoluteFile())
+                .log("Downloading function package completed");
     }
 
     public static File createPkgTempFile() throws IOException {

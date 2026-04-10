@@ -24,13 +24,13 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 
-@Slf4j
+@CustomLog
 public class FunctionsManager implements AutoCloseable {
     private TreeMap<String, FunctionArchive> functions;
 
@@ -84,7 +84,7 @@ public class FunctionsManager implements AutoCloseable {
             try {
                 functionArchive.close();
             } catch (Exception e) {
-                log.warn("Failed to close function archive", e);
+                log.warn().exception(e).log("Failed to close function archive");
             }
         });
         functionMap.clear();
