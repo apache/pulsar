@@ -88,7 +88,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
             log.debug().attr("topic", topicName)
-                    .attr("producerName", producer.getProducerName())
+                    .attr("producerName", () -> producer != null ? producer.getProducerName() : null)
                     .attr("numMessagesInBatch", numMessagesInBatch)
                     .log("add message to batch");
 
