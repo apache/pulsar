@@ -40,8 +40,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.ToLongFunction;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.PulsarVersion;
@@ -115,7 +115,7 @@ import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 
 @UtilityClass
-@Slf4j
+@CustomLog
 @SuppressWarnings("checkstyle:JavadocType")
 public class Commands {
 
@@ -2064,7 +2064,8 @@ public class Commands {
             MessageMetadata metadata = parseMessageMetadata(metadataAndPayload);
             return metadata;
         } catch (Throwable t) {
-            log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
+            log.error().attr("subscription", subscription).attr("consumerId", consumerId).exception(t)
+                    .log("Failed to parse message metadata");
             return null;
         } finally {
             metadataAndPayload.readerIndex(readerIdx);
@@ -2094,7 +2095,8 @@ public class Commands {
         try {
             peekMessageMetadata(metadataAndPayload, metadata);
         } catch (Throwable t) {
-            log.error("[{}] [{}] Failed to parse message metadata", subscription, consumerId, t);
+            log.error().attr("subscription", subscription).attr("consumerId", consumerId).exception(t)
+                    .log("Failed to parse message metadata");
             return null;
         }
         return metadata;
@@ -2108,7 +2110,8 @@ public class Commands {
             MessageMetadata metadata = parseMessageMetadata(metadataAndPayload);
             return resolveStickyKey(metadata);
         } catch (Throwable t) {
-            log.error("[{}] [{}] Failed to peek sticky key from the message metadata", topic, subscription, t);
+            log.error().attr("topic", topic).attr("subscription", subscription).exception(t)
+                    .log("Failed to peek sticky key from the message metadata");
             return NONE_KEY;
         } finally {
             metadataAndPayload.readerIndex(readerIdx);

@@ -32,13 +32,13 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedTrustManager;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * This class wraps {@link X509ExtendedTrustManager} and gives opportunity to refresh Trust-manager with refreshed certs
  * without changing {@link SslContext}.
  */
-@Slf4j
+@CustomLog
 public class TrustManagerProxy extends X509ExtendedTrustManager {
 
     private volatile X509ExtendedTrustManager trustManager;
@@ -49,10 +49,10 @@ public class TrustManagerProxy extends X509ExtendedTrustManager {
         try {
             updateTrustManager();
         } catch (KeyManagementException | IOException | CertificateException e) {
-            log.warn("Failed to load cert {}, {}", certFile, e.getMessage());
+            log.warn().attr("certFile", certFile).exceptionMessage(e).log("Failed to load cert");
             throw new IllegalArgumentException(e);
         } catch (NoSuchAlgorithmException | KeyStoreException e) {
-            log.warn("Failed to init trust-store", e);
+            log.warn().exception(e).log("Failed to init trust-store");
             throw new IllegalArgumentException(e);
         }
         executor.scheduleWithFixedDelay(() -> updateTrustManagerSafely(), refreshDurationSec, refreshDurationSec,
@@ -63,7 +63,7 @@ public class TrustManagerProxy extends X509ExtendedTrustManager {
         try {
             updateTrustManager();
         } catch (Exception e) {
-            log.warn("Failed to init trust-store {}", certFile.getFileName(), e);
+            log.warn().attr("certFile", certFile.getFileName()).exception(e).log("Failed to init trust-store");
         }
     }
 

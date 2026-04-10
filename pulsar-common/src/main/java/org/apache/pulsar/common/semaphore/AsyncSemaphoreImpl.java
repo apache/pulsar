@@ -33,15 +33,11 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongConsumer;
 import org.apache.pulsar.common.util.Runnables;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of AsyncSemaphore with timeout and queue size limits.
  */
 public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
-    private static final Logger log = LoggerFactory.getLogger(AsyncSemaphoreImpl.class);
-
     private final AtomicLong availablePermits;
     private final Queue<PendingRequest> queue;
     private final long maxPermits;

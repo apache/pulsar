@@ -24,15 +24,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BooleanSupplier;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of AsyncDualMemoryLimiter with separate limits for heap and direct memory.
  */
 public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoCloseable {
-    private static final Logger log = LoggerFactory.getLogger(AsyncDualMemoryLimiterImpl.class);
-
     private final ScheduledExecutorService executor;
     private final boolean shutdownExecutor;
     private final AsyncSemaphoreImpl heapLimiter;

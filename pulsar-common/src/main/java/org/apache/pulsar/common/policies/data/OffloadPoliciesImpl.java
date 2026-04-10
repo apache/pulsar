@@ -34,15 +34,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 /**
  * Definition of the offload policies.
  */
-@Slf4j
+@CustomLog
 @Data
 @NoArgsConstructor
 public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
@@ -452,7 +452,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 return offloadPolicies;
             }
         } catch (Exception e) {
-            log.error("Failed to merge configuration.", e);
+            log.error().exception(e).log("Failed to merge configuration.");
             return null;
         }
     }

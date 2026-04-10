@@ -23,9 +23,9 @@ import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
@@ -41,7 +41,7 @@ import org.apache.pulsar.common.util.URIPreconditions;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Slf4j
+@CustomLog
 public final class ClusterDataImpl implements  ClusterData, Cloneable {
     @ApiModelProperty(
             name = "serviceUrl",

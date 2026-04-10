@@ -25,13 +25,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Setter;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandPong;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of the channel handler to process inbound Pulsar data.
@@ -39,6 +38,7 @@ import org.slf4j.LoggerFactory;
  * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
  * parameter instance lifecycle.
  */
+@CustomLog
 public abstract class PulsarHandler extends PulsarDecoder {
     @VisibleForTesting
     @Setter
@@ -71,9 +71,8 @@ public abstract class PulsarHandler extends PulsarDecoder {
         this.remoteAddress = ctx.channel().remoteAddress();
         this.ctx = ctx;
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Scheduling keep-alive task every {} s", this.toString(), keepAliveIntervalSeconds);
-        }
+        log.debug().attr("handler", this).attr("intervalSeconds", keepAliveIntervalSeconds)
+                .log("Scheduling keep-alive task");
         if (keepAliveIntervalSeconds > 0) {
             this.keepAliveTask = ctx.executor()
                     .scheduleAtFixedRate(catchingAndLoggingThrowables(this::handleKeepAliveTimeout),
@@ -89,14 +88,12 @@ public abstract class PulsarHandler extends PulsarDecoder {
     @Override
     protected final void handlePing(CommandPing ping) {
         // Immediately reply success to ping requests
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Replying back to ping message", this.toString());
-        }
+        log.debug().attr("handler", this).log("Replying back to ping message");
         ctx.writeAndFlush(Commands.newPong())
                 .addListener(future -> {
                     if (!future.isSuccess()) {
-                        log.warn("[{}] Forcing connection to close since cannot send a pong message.",
-                                toString(), future.cause());
+                        log.warn().attr("handler", toString()).exception(future.cause())
+                                .log("Forcing connection to close since cannot send a pong message");
                         ctx.close();
                     }
                 });
@@ -112,25 +109,22 @@ public abstract class PulsarHandler extends PulsarDecoder {
         }
 
         if (!isHandshakeCompleted()) {
-            log.warn("[{}] Pulsar Handshake was not completed within timeout, closing connection", this.toString());
+            log.warn().attr("handler", this)
+                    .log("Pulsar Handshake was not completed within timeout, closing connection");
             ctx.close();
         } else if (waitingForPingResponse && ctx.channel().config().isAutoRead()) {
             // We were waiting for a response and another keep-alive just completed.
             // If auto-read was disabled, it means we stopped reading from the connection, so we might receive the Ping
             // response later and thus not enforce the strict timeout here.
-            log.warn("[{}] Forcing connection to close after keep-alive timeout", this.toString());
+            log.warn().attr("handler", this).log("Forcing connection to close after keep-alive timeout");
             ctx.close();
         } else if (getRemoteEndpointProtocolVersion() >= ProtocolVersion.v1.getValue()) {
             // Send keep alive probe to peer only if it supports the ping/pong commands, added in v1
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Sending ping message", this.toString());
-            }
+            log.debug().attr("handler", this).log("Sending ping message");
             waitingForPingResponse = true;
             sendPing();
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Peer doesn't support keep-alive", this.toString());
-            }
+            log.debug().attr("handler", this).log("Peer doesn't support keep-alive");
         }
     }
 
@@ -138,8 +132,8 @@ public abstract class PulsarHandler extends PulsarDecoder {
         return ctx.writeAndFlush(Commands.newPing())
                 .addListener(future -> {
                     if (!future.isSuccess()) {
-                        log.warn("[{}] Forcing connection to close since cannot send a ping message.",
-                                this.toString(), future.cause());
+                        log.warn().attr("handler", this).exception(future.cause())
+                                .log("Forcing connection to close since cannot send a ping message");
                         ctx.close();
                     }
                 });
@@ -172,5 +166,4 @@ public abstract class PulsarHandler extends PulsarDecoder {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarHandler.class);
 }

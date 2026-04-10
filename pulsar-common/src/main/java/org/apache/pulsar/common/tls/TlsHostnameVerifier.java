@@ -45,9 +45,9 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 import javax.security.auth.x500.X500Principal;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 public class TlsHostnameVerifier implements HostnameVerifier {
 
     enum HostNameType {
@@ -79,9 +79,7 @@ public class TlsHostnameVerifier implements HostnameVerifier {
             verify(host, x509);
             return true;
         } catch (final SSLException ex) {
-            if (log.isDebugEnabled()) {
-                log.debug(ex.getMessage(), ex);
-            }
+            log.debug().exception(ex).log(ex.getMessage());
             return false;
         }
     }

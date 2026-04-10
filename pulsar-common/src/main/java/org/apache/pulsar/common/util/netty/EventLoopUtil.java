@@ -42,12 +42,12 @@ import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.netty.incubator.channel.uring.IOUringSocketChannel;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.util.affinity.CpuAffinity;
 
 
 @SuppressWarnings("checkstyle:JavadocType")
-@Slf4j
+@CustomLog
 public class EventLoopUtil {
 
     private static final String ENABLE_IO_URING = "pulsar.enableUring";
@@ -76,8 +76,8 @@ public class EventLoopUtil {
                         try {
                             CpuAffinity.acquireCore();
                         } catch (Throwable t) {
-                            log.warn("Failed to acquire CPU core for thread {} {}", Thread.currentThread().getName(),
-                                    t.getMessage(), t);
+                            log.warn().attr("thread", Thread.currentThread().getName())
+                                    .exception(t).log("Failed to acquire CPU core for thread");
                         }
                     });
                 }

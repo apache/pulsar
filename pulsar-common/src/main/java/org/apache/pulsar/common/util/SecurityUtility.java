@@ -66,7 +66,7 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
@@ -74,7 +74,7 @@ import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 /**
  * Helper class for the security domain.
  */
-@Slf4j
+@CustomLog
 public class SecurityUtility {
 
     public static final Provider BC_PROVIDER = getProvider();
@@ -106,9 +106,7 @@ public class SecurityUtility {
             Provider provider = Security.getProvider(BC) != null
                     ? Security.getProvider(BC)
                     : Security.getProvider(BC_FIPS);
-            if (log.isDebugEnabled()) {
-                log.debug("Already instantiated Bouncy Castle provider {}", provider.getName());
-            }
+            log.debug().attr("provider", provider.getName()).log("Already instantiated Bouncy Castle provider");
             return provider;
         }
 
@@ -116,7 +114,8 @@ public class SecurityUtility {
         try {
             return getBCProviderFromClassPath();
         } catch (Exception e) {
-            log.warn("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path:", e);
+            log.warn().exception(e)
+                    .log("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path");
             throw new RuntimeException(e);
         }
     }
@@ -131,11 +130,11 @@ public class SecurityUtility {
             if (e instanceof ClassNotFoundException) {
                 log.debug("Conscrypt isn't available in the classpath. Using JDK default security provider.");
             } else if (e.getCause() instanceof UnsatisfiedLinkError) {
-                log.debug("Conscrypt isn't available for {} {}. Using JDK default security provider.",
-                        System.getProperty("os.name"), System.getProperty("os.arch"));
+                log.debug().attr("os", System.getProperty("os.name")).attr("arch", System.getProperty("os.arch"))
+                        .log("Conscrypt isn't available. Using JDK default security provider");
             } else {
-                log.debug("Conscrypt isn't available. Using JDK default security provider."
-                        + " Cause : {}, Reason : {}", e.getCause(), e.getMessage());
+                log.debug().attr("cause", e.getCause()).attr("reason", e.getMessage())
+                        .log("Conscrypt isn't available. Using JDK default security provider");
             }
             return null;
         }
@@ -144,7 +143,8 @@ public class SecurityUtility {
         try {
             provider = (Provider) Class.forName(CONSCRYPT_PROVIDER_CLASS).getDeclaredConstructor().newInstance();
         } catch (ReflectiveOperationException e) {
-            log.debug("Unable to get security provider for class {}", CONSCRYPT_PROVIDER_CLASS, e);
+            log.debug().attr("class", CONSCRYPT_PROVIDER_CLASS).exception(e)
+                    .log("Unable to get security provider");
             return null;
         }
 
@@ -176,13 +176,12 @@ public class SecurityUtility {
                                     new Class<?>[]{Class.forName("org.conscrypt.ConscryptHostnameVerifier")});
             setDefaultHostnameVerifierMethod.invoke(null, wrappedHostnameVerifier);
         } catch (Exception e) {
-            log.warn("Unable to set default hostname verifier for Conscrypt", e);
+            log.warn().exception(e).log("Unable to set default hostname verifier for Conscrypt");
         }
 
         Security.addProvider(provider);
-        if (log.isDebugEnabled()) {
-            log.debug("Added security provider '{}' from class {}", provider.getName(), CONSCRYPT_PROVIDER_CLASS);
-        }
+        log.debug().attr("provider", provider.getName()).attr("class", CONSCRYPT_PROVIDER_CLASS)
+                .log("Added security provider");
         return provider;
     }
 
@@ -196,17 +195,16 @@ public class SecurityUtility {
             // prefer non FIPS, for backward compatibility concern.
             clazz = Class.forName(BC_NON_FIPS_PROVIDER_CLASS);
         } catch (ClassNotFoundException cnf) {
-            log.warn("Not able to get Bouncy Castle provider: {}, try to get FIPS provider {}",
-                    BC_NON_FIPS_PROVIDER_CLASS, BC_FIPS_PROVIDER_CLASS);
+            log.warn().attr("nonFipsClass", BC_NON_FIPS_PROVIDER_CLASS).attr("fipsClass", BC_FIPS_PROVIDER_CLASS)
+                    .log("Not able to get Bouncy Castle provider, try to get FIPS provider");
             // attempt to use the FIPS provider.
             clazz = Class.forName(BC_FIPS_PROVIDER_CLASS);
         }
 
         Provider provider = (Provider) clazz.getDeclaredConstructor().newInstance();
         Security.addProvider(provider);
-        if (log.isDebugEnabled()) {
-            log.debug("Found and Instantiated Bouncy Castle provider in classpath {}", provider.getName());
-        }
+        log.debug().attr("provider", provider.getName())
+                .log("Found and Instantiated Bouncy Castle provider in classpath");
         return provider;
     }
 
@@ -439,7 +437,8 @@ public class SecurityUtility {
                     }
                 }
             } catch (ReflectiveOperationException e) {
-                log.warn("Unable to set hostname verifier for Conscrypt TrustManager implementation", e);
+                log.warn().exception(e)
+                        .log("Unable to set hostname verifier for Conscrypt TrustManager implementation");
             }
         }
     }

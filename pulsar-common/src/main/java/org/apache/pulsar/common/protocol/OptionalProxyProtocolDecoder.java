@@ -26,13 +26,13 @@ import io.netty.handler.codec.ProtocolDetectionResult;
 import io.netty.handler.codec.ProtocolDetectionState;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * Decoder that added whether a new connection is prefixed with the ProxyProtocol.
  * More about the ProxyProtocol see: http://www.haproxy.org/download/1.8/doc/proxy-protocol.txt.
  */
-@Slf4j
+@CustomLog
 public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
 
     public static final String NAME = "optional-proxy-protocol-decoder";

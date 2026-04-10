@@ -43,12 +43,12 @@ import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * Helper class to unpack NARs.
  */
-@Slf4j
+@CustomLog
 public class NarUnpacker {
     private static final ConcurrentHashMap<String, Object> CURRENT_JVM_FILE_LOCKS = new ConcurrentHashMap<>();
 
@@ -73,7 +73,7 @@ public class NarUnpacker {
         File parentDirectory = new File(baseWorkingDirectory, nar.getName() + "-unpacked");
         if (!parentDirectory.exists()) {
             if (parentDirectory.mkdirs()) {
-                log.info("Created directory {}", parentDirectory);
+                log.info().attr("directory", parentDirectory).log("Created directory");
             } else if (!parentDirectory.exists()) {
                 throw new IOException("Cannot create " + parentDirectory);
             }
@@ -98,18 +98,23 @@ public class NarUnpacker {
                         throw new IOException("Cannot create " + narExtractionTempDirectory);
                     }
                     try {
-                        log.info("Extracting {} to {}", nar, narExtractionTempDirectory);
+                        log.info().attr("nar", nar).attr("destination", narExtractionTempDirectory).log("Extracting");
                         if (extractCallback != null) {
                             extractCallback.run();
                         }
                         unpack(nar, narExtractionTempDirectory);
                     } catch (IOException e) {
-                        log.error("There was a problem extracting the nar file. Deleting {} to clean up state.",
-                                narExtractionTempDirectory, e);
+                        log.error()
+                                .attr("directory", narExtractionTempDirectory)
+                                .exception(e)
+                                .log("There was a problem extracting the nar file. Deleting to clean up state.");
                         try {
                             FileUtils.deleteFile(narExtractionTempDirectory, true);
                         } catch (IOException e2) {
-                            log.error("Failed to delete temporary directory {}", narExtractionTempDirectory, e2);
+                            log.error()
+                                    .attr("directory", narExtractionTempDirectory)
+                                    .exception(e2)
+                                    .log("Failed to delete temporary directory");
                         }
                         throw e;
                     }
@@ -138,7 +143,7 @@ public class NarUnpacker {
                 String name = zipEntry.getName();
                 Path targetFilePath = workingDirectoryPath.resolve(name).normalize();
                 if (!targetFilePath.startsWith(workingDirectoryPath)) {
-                    log.error("Invalid zip file with entry '{}'", name);
+                    log.error().attr("entry", name).log("Invalid zip file with entry");
                     throw new IOException("Invalid zip file. Aborting unpacking.");
                 }
                 File f = targetFilePath.toFile();

@@ -88,7 +88,7 @@ dependencies {
     api(project(":pulsar-client-api"))
     api(project(":pulsar-client-admin-api"))
 
-    implementation(libs.slf4j.api)
+    implementation(libs.slog)
     implementation(libs.jackson.databind)
     implementation(libs.jackson.module.parameter.names)
     implementation(libs.jackson.datatype.jsr310)

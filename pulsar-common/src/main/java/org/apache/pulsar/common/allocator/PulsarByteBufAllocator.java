@@ -28,8 +28,8 @@ import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.allocator.ByteBufAllocatorBuilder;
 import org.apache.bookkeeper.common.allocator.LeakDetectionPolicy;
 import org.apache.bookkeeper.common.allocator.OutOfMemoryPolicy;
@@ -39,8 +39,8 @@ import org.apache.pulsar.common.util.ShutdownUtil;
 /**
  * Holder of a ByteBuf allocator.
  */
+@CustomLog
 @UtilityClass
-@Slf4j
 public class PulsarByteBufAllocator {
 
     public static final String PULSAR_ALLOCATOR_POOLED = "pulsar.allocator.pooled";
@@ -76,9 +76,7 @@ public class PulsarByteBufAllocator {
                 System.getProperty(PULSAR_ALLOCATOR_OUT_OF_MEMORY_POLICY, "FallbackToHeap"));
 
         final LeakDetectionPolicy leakDetectionPolicy = resolveLeakDetectionPolicyWithHighestLevel(System::getProperty);
-        if (log.isDebugEnabled()) {
-            log.debug("Is Pooled: {} -- Exit on OOM: {}", isPooled, isExitOnOutOfMemory);
-        }
+        log.debug().attr("isPooled", isPooled).attr("exitOnOOM", isExitOnOutOfMemory).log("Allocator configuration");
 
         ByteBufAllocatorBuilder builder = ByteBufAllocatorBuilder.create()
                 .leakDetectionPolicy(leakDetectionPolicy)
@@ -89,12 +87,12 @@ public class PulsarByteBufAllocator {
                         try {
                             c.accept(oomException);
                         } catch (Throwable t) {
-                            log.warn("Exception during OOM listener: {}", t.getMessage(), t);
+                            log.warn().exception(t).log("Exception during OOM listener");
                         }
                     });
 
                     if (isExitOnOutOfMemory) {
-                        log.info("Exiting JVM process for OOM error: {}", oomException.getMessage(), oomException);
+                        log.info().exception(oomException).log("Exiting JVM process for OOM error");
                         ShutdownUtil.triggerImmediateForcefulShutdown();
                     }
                 });

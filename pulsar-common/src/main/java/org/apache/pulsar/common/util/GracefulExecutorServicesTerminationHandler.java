@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * Waits for termination of {@link ExecutorService}s that have been shutdown.
@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * Designed to be used via the API in {@link GracefulExecutorServicesShutdown}
  */
-@Slf4j
+@CustomLog
 class GracefulExecutorServicesTerminationHandler {
     private static final long SHUTDOWN_THREAD_COMPLETION_TIMEOUT_NANOS = Duration.ofMillis(100L).toNanos();
     private final List<ExecutorService> executors;
@@ -50,7 +50,7 @@ class GracefulExecutorServicesTerminationHandler {
         this.terminationTimeout = terminationTimeout;
         this.executors = Collections.unmodifiableList(new ArrayList<>(executorServices));
         this.future = new CompletableFuture<>();
-        log.info("Starting termination handler for {} executors.", executors.size());
+        log.info().attr("executorCount", executors.size()).log("Starting termination handler");
         for (ExecutorService executor : executors) {
             if (!executor.isShutdown()) {
                 throw new IllegalStateException(
@@ -68,7 +68,8 @@ class GracefulExecutorServicesTerminationHandler {
                 Thread shutdownWaitingThread = new Thread(this::awaitShutdown, getClass().getSimpleName());
                 shutdownWaitingThread.setDaemon(false);
                 shutdownWaitingThread.setUncaughtExceptionHandler((thread, exception) -> {
-                  log.error("Uncaught exception in shutdown thread {}", thread, exception);
+                  log.error().attr("thread", thread).exception(exception)
+                          .log("Uncaught exception in shutdown thread");
                 });
                 shutdownWaitingThread.start();
                 FutureUtil.whenCancelledOrTimedOut(future, () -> {
@@ -98,7 +99,7 @@ class GracefulExecutorServicesTerminationHandler {
             terminateExecutors();
             markShutdownCompleted();
         } catch (Exception e) {
-            log.error("Error in termination handler", e);
+            log.error().exception(e).log("Error in termination handler");
             future.completeExceptionally(e);
         } finally {
             shutdownThreadCompletedLatch.countDown();
@@ -135,17 +136,17 @@ class GracefulExecutorServicesTerminationHandler {
     private void terminateExecutors() {
         for (ExecutorService executor : executors) {
             if (!executor.isTerminated()) {
-                log.info("Shutting down forcefully executor {}", executor);
+                log.info().attr("executor", executor).log("Shutting down forcefully executor");
                 executor.shutdownNow();
             }
         }
         if (!Thread.currentThread().isInterrupted() && !awaitTermination(terminationTimeout)) {
             for (ExecutorService executor : executors) {
                 if (!executor.isTerminated()) {
-                    log.warn("Executor {} didn't shutdown after waiting for termination.", executor);
+                    log.warn().attr("executor", executor).log("Executor didn't shutdown after waiting for termination");
                     for (Runnable runnable : executor.shutdownNow()) {
-                        log.info("Execution in progress for runnable instance of {}: {}", runnable.getClass(),
-                                runnable);
+                        log.info().attr("runnableClass", runnable.getClass()).attr("runnable", runnable)
+                                .log("Execution in progress for runnable");
                     }
                 }
             }
