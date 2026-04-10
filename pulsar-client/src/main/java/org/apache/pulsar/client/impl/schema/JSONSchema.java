@@ -50,7 +50,7 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         // keep backwards compatibility, don't accept unknown enum values
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, false);
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
         return mapper;
     }
 
@@ -111,7 +111,6 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
 
     /**
      * Clears the caches tied to the ObjectMapper instances and replaces the singleton ObjectMapper instance.
-     *
      * This can be used in tests to ensure that classloaders and class references don't leak across tests.
      */
     public static void clearCaches() {

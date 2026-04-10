@@ -29,7 +29,8 @@ netty = "4.1.132.Final"
 netty-iouring = "0.0.26.Final"
 jetty = "12.1.6"
 jersey = "2.42"
-jackson = "2.18.6"
+jackson = "2.21.2"
+jackson-annotations = "2.21"
 protobuf = "3.25.5"
 grpc = "1.75.0"
 slf4j = "2.0.17"
@@ -189,7 +190,7 @@ slog = { module = "io.github.merlimat.slog:slog", version.ref = "slog" }
 lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
 # Jackson
 jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
-jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson-annotations" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core", version.ref = "jackson" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-module-parameter-names = { module = "com.fasterxml.jackson.module:jackson-module-parameter-names", version.ref = "jackson" }

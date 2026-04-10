@@ -442,6 +442,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     }
 
+    @SuppressWarnings("unchecked")
     public CompletableFuture<Void> reloadSchemaForAutoProduceProducer(String topic, AutoProduceBytesSchema autoSchema) {
         return lookup.getSchema(TopicName.get(topic)).thenAccept(schemaInfoOptional -> {
             if (schemaInfoOptional.isPresent()) {

@@ -41,7 +41,11 @@ configurations.all {
     // (EnumResolver.constructUsingToString signature changed in 2.19+).
     resolutionStrategy.eachDependency {
         if (requested.group.startsWith("com.fasterxml.jackson")) {
-            useVersion(catalog.findVersion("jackson").get().requiredVersion)
+            if (requested.name == "jackson-annotations") {
+                useVersion(catalog.findVersion("jackson-annotations").get().requiredVersion)
+            } else {
+                useVersion(catalog.findVersion("jackson").get().requiredVersion)
+            }
         }
     }
 }
