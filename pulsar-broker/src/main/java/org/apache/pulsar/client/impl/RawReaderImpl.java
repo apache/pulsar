@@ -279,10 +279,7 @@ public class RawReaderImpl implements RawReader {
                 return;
             }
             MessageIdData messageId = commandMessage.getMessageId();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Received raw message: {}/{}/{}", topic, subscription,
-                        messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());
-            }
+            log.debug().attr("messageId", messageId).log("Received raw message");
 
             incomingRawMessages.add(
                 new RawMessageAndCnx(new RawMessageImpl(messageId, headersAndPayload), cnx));
