@@ -109,7 +109,7 @@ public class Namespaces extends NamespacesBase {
         internalGetTenantNamespaces(tenant)
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get namespaces list: {}", clientAppId(), ex);
+                    log.error("[{}] Failed to get namespaces list for tenant {}: {}", clientAppId(), tenant, ex);
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });

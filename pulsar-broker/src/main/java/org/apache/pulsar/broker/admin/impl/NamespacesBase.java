@@ -142,7 +142,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> tenantResources().tenantExistsAsync(tenant))
                 .thenCompose(existed -> {
                     if (!existed) {
-                        throw new RestException(Status.NOT_FOUND, "Tenant not found: " + tenant);
+                        throw new RestException(Status.NOT_FOUND, "Tenant not found");
                     }
                     return tenantResources().getListOfNamespacesAsync(tenant);
                 });
