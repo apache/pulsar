@@ -38,8 +38,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-import lombok.SneakyThrows;
 import lombok.CustomLog;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -329,7 +329,9 @@ public class MetadataStoreTableViewTest extends BaseMetadataStoreTest {
                             putResult.get();
                         } catch (Exception ignore) {
                         }
-                        log.info().attr("value", val).attr("success", !putResult.isCompletedExceptionally()).log("Put value result");
+                        log.info().attr("value", val)
+                                .attr("success", !putResult.isCompletedExceptionally())
+                                .log("Put value result");
                     } else {
                         break;
                     }

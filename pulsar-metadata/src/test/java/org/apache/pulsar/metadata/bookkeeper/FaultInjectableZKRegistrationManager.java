@@ -211,12 +211,14 @@ public class FaultInjectableZKRegistrationManager implements RegistrationManager
                 return false;
             }
         } catch (KeeperException ke) {
-            log.error().attr("regPath", regPath).exception(ke).log("ZK exception checking and wait ephemeral znode expired");
+            log.error().attr("regPath", regPath).exception(ke)
+                    .log("ZK exception checking and wait ephemeral znode expired");
             throw new IOException("ZK exception checking and wait ephemeral znode "
                     + regPath + " expired", ke);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            log.error().attr("regPath", regPath).exception(ie).log("Interrupted checking and wait ephemeral znode expired");
+            log.error().attr("regPath", regPath).exception(ie)
+                    .log("Interrupted checking and wait ephemeral znode expired");
             throw new IOException("Interrupted checking and wait ephemeral znode "
                     + regPath + " expired", ie);
         }

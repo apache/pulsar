@@ -102,7 +102,8 @@ public class MetadataBenchmark extends BaseMetadataStoreTest {
         long endTime = System.nanoTime();
         double throughput = 1e9 * nGets / (endTime - startTime);
 
-        log.info().attr("provider", provider).attr("throughput", throughput / 1_000).log("Get Children Throughput (Kops/s)");
+        log.info().attr("provider", provider).attr("throughput", throughput / 1_000)
+                .log("Get Children Throughput (Kops/s)");
     }
 
     @Test(dataProvider = "impl", enabled = false)

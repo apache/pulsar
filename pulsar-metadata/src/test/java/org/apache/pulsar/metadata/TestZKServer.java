@@ -27,8 +27,8 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.Socket;
 import java.util.Properties;
-import lombok.SneakyThrows;
 import lombok.CustomLog;
+import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.apache.zookeeper.server.ContainerManager;
 import org.apache.zookeeper.server.ServerCnxnFactory;
@@ -71,7 +71,8 @@ public class TestZKServer implements AutoCloseable {
                 .build();
 
         zooKeeperServerEmbedded.start(60_000);
-        log.info().attr("connectionString", zooKeeperServerEmbedded.getConnectionString()).log("Started test ZK server");
+        log.info().attr("connectionString", zooKeeperServerEmbedded.getConnectionString())
+                .log("Started test ZK server");
 
         ZooKeeperServerMain zooKeeperServerMain = getZooKeeperServerMain(zooKeeperServerEmbedded);
         ServerCnxnFactory serverCnxnFactory = getServerCnxnFactory(zooKeeperServerMain);

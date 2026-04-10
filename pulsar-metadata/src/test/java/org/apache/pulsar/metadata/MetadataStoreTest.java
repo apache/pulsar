@@ -47,8 +47,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.SneakyThrows;
 import lombok.CustomLog;
+import lombok.SneakyThrows;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -615,7 +615,9 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
                             putResult.get();
                         } catch (Exception ignore) {
                         }
-                        log.info().attr("value", value).attr("success", !putResult.isCompletedExceptionally()).log("Put value result");
+                        log.info().attr("value", value)
+                                .attr("success", !putResult.isCompletedExceptionally())
+                                .log("Put value result");
                     } else {
                         break;
                     }

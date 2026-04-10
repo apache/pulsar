@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -93,7 +94,6 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 import org.awaitility.Awaitility;
-import lombok.CustomLog;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -122,7 +122,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
 
     TestReplicationWorker(String ledgerManagerFactory) throws Exception {
         super(3, 300);
-        LOG.info("Running test case using ledger manager : "
+        log.info("Running test case using ledger manager : "
                 + ledgerManagerFactory);
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver");
         Class.forName("org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver");
@@ -204,11 +204,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info().attr("bookie", replicaToKill).log("Killing Bookie");
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info().attr("addr", newBkAddr).log("New Bookie addr");
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
 
         for (int i = 0; i < 10; i++) {
             lh.addEntry(data);
@@ -251,11 +251,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         lh.close();
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
-        LOG.info().attr("bookie", replicaToKill).log("Killing Bookie");
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         ServerConfiguration killedBookieConfig = killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info("New Bookie addr :" + newBkAddr);
+        log.info("New Bookie addr :" + newBkAddr);
 
         killAllBookies(lh, newBkAddr);
         ReplicationWorker rw = new ReplicationWorker(baseConf);
@@ -299,18 +299,18 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         lh.close();
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
-        LOG.info().attr("bookie", replicaToKill).log("Killing Bookie");
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         ServerConfiguration killedBookieConfig = killBookie(replicaToKill);
 
         killAllBookies(lh, null);
         // Starte RW1
         BookieId newBkAddr1 = startNewBookieAndReturnBookieId();
-        LOG.info().attr("addr", newBkAddr1).log("New Bookie addr");
+        log.info().attr("addr", newBkAddr1).log("New Bookie addr");
         ReplicationWorker rw1 = new ReplicationWorker(baseConf);
 
         // Starte RW2
         BookieId newBkAddr2 = startNewBookieAndReturnBookieId();
-        LOG.info().attr("addr", newBkAddr2).log("New Bookie addr");
+        log.info().attr("addr", newBkAddr2).log("New Bookie addr");
         ReplicationWorker rw2 = new ReplicationWorker(baseConf);
         rw1.start();
         rw2.start();
@@ -354,11 +354,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         lh.close();
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
-        LOG.info().attr("bookie", replicaToKill).log("Killing Bookie");
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info().attr("addr", newBkAddr).log("New Bookie addr");
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
         ReplicationWorker rw = new ReplicationWorker(baseConf);
         rw.start();
 
@@ -389,7 +389,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKillFromFirstLedger = lh1.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info().attr("bookie", replicaToKillFromFirstLedger).log("Killing Bookie");
+        log.info().attr("bookie", replicaToKillFromFirstLedger).log("Killing Bookie");
 
         // Ledger2
         LedgerHandle lh2 = bkc.createLedger(3, 3, BookKeeper.DigestType.CRC32,
@@ -400,7 +400,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKillFromSecondLedger = lh2.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info().attr("bookie", replicaToKillFromSecondLedger).log("Killing Bookie");
+        log.info().attr("bookie", replicaToKillFromSecondLedger).log("Killing Bookie");
 
         // Kill ledger1
         killBookie(replicaToKillFromFirstLedger);
@@ -410,7 +410,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         lh2.close();
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info().attr("addr", newBkAddr).log("New Bookie addr");
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
 
         ReplicationWorker rw = new ReplicationWorker(baseConf);
 
@@ -459,11 +459,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info().attr("bookie", replicaToKill).log("Killing Bookie");
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info().attr("addr", newBkAddr).log("New Bookie addr");
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
 
         // set to 3s instead of default 30s
         baseConf.setOpenLedgerRereplicationGracePeriod("3000");
@@ -518,7 +518,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         for (int i = 0; i < ensembleSize; i++) {
             bookiesKilled[i] = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(i);
             killedBookiesConfig[i] = getBkConf(bookiesKilled[i]);
-            LOG.info().attr("bookie", bookiesKilled[i]).log("Killing Bookie");
+            log.info().attr("bookie", bookiesKilled[i]).log("Killing Bookie");
             killBookie(bookiesKilled[i]);
         }
 
@@ -679,7 +679,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         for (int i = 0; i < ensembleSize; i++) {
             bookiesKilled[i] = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(i);
             killedBookiesConfig[i] = getBkConf(bookiesKilled[i]);
-            LOG.info().attr("bookie", bookiesKilled[i]).log("Killing Bookie");
+            log.info().attr("bookie", bookiesKilled[i]).log("Killing Bookie");
             killBookie(bookiesKilled[i]);
         }
 
@@ -797,11 +797,11 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         }
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(0);
 
-        LOG.info().attr("bookie", replicaToKill).log("Killing Bookie");
+        log.info().attr("bookie", replicaToKill).log("Killing Bookie");
         killBookie(replicaToKill);
 
         BookieId newBkAddr = startNewBookieAndReturnBookieId();
-        LOG.info().attr("addr", newBkAddr).log("New Bookie addr");
+        log.info().attr("addr", newBkAddr).log("New Bookie addr");
 
         // Reform ensemble...Making sure that last fragment is not in
         // under-replication
