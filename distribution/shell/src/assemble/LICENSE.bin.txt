@@ -391,6 +391,8 @@ The Apache Software License, Version 2.0
     - opentelemetry-api-incubator-1.56.0-alpha.jar
     - opentelemetry-common-1.56.0.jar
     - opentelemetry-context-1.56.0.jar
+  * Slog
+    - slog-0.9.5.jar
 
  * BookKeeper
     - bookkeeper-common-allocator-4.17.3.jar
