@@ -29,12 +29,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ConnectionTimeoutTest {
 
     @Test
@@ -51,7 +51,7 @@ public class ConnectionTimeoutTest {
                 Thread connectThread = new Thread(() -> {
                     try (Socket socket = new Socket()) {
                         socket.connect(serverSocket.getLocalSocketAddress());
-                        log.info("Connected to {}", socket.getRemoteSocketAddress());
+                        log.info().attr("address", socket.getRemoteSocketAddress()).log("Connected");
                         latch.countDown();
                         Thread.sleep(10000L);
                     } catch (IOException e) {

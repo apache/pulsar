@@ -24,8 +24,8 @@ import io.netty.util.concurrent.ScheduledFuture;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -37,7 +37,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
-@Slf4j
+@CustomLog
 @SuppressFBWarnings(value = {"EI_EXPOSE_REP2"})
 public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvider {
 
@@ -84,13 +84,11 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                     int failoverTo = findFailoverTo();
                     if (failoverTo < 0) {
                         // No healthy pulsar service to connect.
-                        log.error(
-                                "Failed to choose a pulsar service to connect, no one pulsar service is healthy."
-                                        + " Current pulsar service: [{}] {}. States: {}, Counters: {}",
-                                currentPulsarServiceIndex,
-                                pulsarServiceUrlArray[currentPulsarServiceIndex],
-                                Arrays.toString(pulsarServiceStateArray),
-                                Arrays.toString(checkCounterArray));
+                        log.error().attr("currentPulsarServiceIndex", currentPulsarServiceIndex)
+                                .attr("currentServiceUrl", pulsarServiceUrlArray[currentPulsarServiceIndex])
+                                .attr("states", Arrays.toString(pulsarServiceStateArray))
+                                .attr("counters", Arrays.toString(checkCounterArray))
+                                .log("Failed to choose a pulsar service to connect, no healthy service available");
                     } else {
                         // Failover to low priority pulsar service.
                         updateServiceUrl(failoverTo);
@@ -100,7 +98,7 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                     updateServiceUrl(firstHealthyPulsarService);
                 }
             } catch (Exception ex) {
-                log.error("Failed to re-check cluster status", ex);
+                log.error().exception(ex).log("Failed to re-check cluster status");
             }
         }, checkHealthyIntervalMs, checkHealthyIntervalMs, TimeUnit.MILLISECONDS);
     }
@@ -117,8 +115,9 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
             return;
         }
 
-        log.info("Closing service url provider. Current pulsar service: [{}] {}", currentPulsarServiceIndex,
-                pulsarServiceUrlArray[currentPulsarServiceIndex]);
+        log.info().attr("currentPulsarServiceIndex", currentPulsarServiceIndex)
+                .attr("currentServiceUrl", pulsarServiceUrlArray[currentPulsarServiceIndex])
+                .log("Closing service url provider");
         if (scheduledCheckTask != null) {
             scheduledCheckTask.cancel(false);
         }
@@ -213,11 +212,12 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
         try {
             LookupTopicResult res = pulsarClient.getLookup(url).getBroker(TopicName.get(testTopic))
                     .get(3, TimeUnit.SECONDS);
-            if (log.isDebugEnabled()) {
-                log.debug("Success to probe available(lookup res: {}), [{}] {}}. States: {}, Counters: {}",
-                        res.toString(), brokerServiceIndex, url, Arrays.toString(pulsarServiceStateArray),
-                        Arrays.toString(checkCounterArray));
-            }
+                log.debug().attr("res", res.toString())
+                        .attr("brokerServiceIndex", brokerServiceIndex)
+                        .attr("url", url)
+                        .attr("states", Arrays.toString(pulsarServiceStateArray))
+                        .attr("counters", Arrays.toString(checkCounterArray))
+                        .log("Successfully probed service availability");
             return true;
         } catch (Exception e) {
             Throwable actEx = FutureUtil.unwrapCompletionException(e);
@@ -226,21 +226,26 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
                     || actEx instanceof PulsarClientException.TopicDoesNotExistException
                     || actEx instanceof PulsarClientException.LookupException) {
                 if (markTopicNotFoundAsAvailable) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Success to probe available(case tenant/namespace/topic not found), [{}] {}."
-                                + " States: {}, Counters: {}", brokerServiceIndex, url,
-                                Arrays.toString(pulsarServiceStateArray), Arrays.toString(checkCounterArray));
-                    }
+                        log.debug().attr("brokerServiceIndex", brokerServiceIndex)
+                                .attr("url", url)
+                                .attr("states", Arrays.toString(pulsarServiceStateArray))
+                                .attr("counters", Arrays.toString(checkCounterArray))
+                                .log("Successfully probed service availability (topic not found)");
                     return true;
                 } else {
-                    log.warn("Failed to probe available(error tenant/namespace/topic not found), [{}] {}. States: {},"
-                            + " Counters: {}", brokerServiceIndex, url, Arrays.toString(pulsarServiceStateArray),
-                            Arrays.toString(checkCounterArray));
+                    log.warn().attr("brokerServiceIndex", brokerServiceIndex)
+                            .attr("url", url)
+                            .attr("states", Arrays.toString(pulsarServiceStateArray))
+                            .attr("counters", Arrays.toString(checkCounterArray))
+                            .log("Failed to probe service availability (topic not found)");
                     return false;
                 }
             }
-            log.warn("Failed to probe available, [{}] {}. States: {}, Counters: {}", brokerServiceIndex, url,
-                    Arrays.toString(pulsarServiceStateArray), Arrays.toString(checkCounterArray));
+            log.warn().attr("brokerServiceIndex", brokerServiceIndex)
+                    .attr("url", url)
+                    .attr("states", Arrays.toString(pulsarServiceStateArray))
+                    .attr("counters", Arrays.toString(checkCounterArray))
+                    .log("Failed to probe service availability");
             return false;
         }
     }
@@ -264,7 +269,7 @@ public class SameAuthParamsLookupAutoClusterFailover implements ServiceUrlProvid
             pulsarClient.reloadLookUp();
             currentPulsarServiceIndex = targetIndex;
         } catch (Exception e) {
-            log.error("Failed to {}", logMsg, e);
+            log.error().attr("logMsg", logMsg).exception(e).log("Failed to");
         }
     }
 

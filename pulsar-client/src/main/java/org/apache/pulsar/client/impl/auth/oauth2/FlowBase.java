@@ -27,7 +27,7 @@ import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
 import javax.net.ssl.SSLException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -41,7 +41,7 @@ import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 /**
  * An abstract OAuth 2.0 authorization flow.
  */
-@Slf4j
+@CustomLog
 abstract class FlowBase implements Flow {
 
     public static final String CONFIG_PARAM_CONNECT_TIMEOUT = "connectTimeout";
@@ -85,7 +85,7 @@ abstract class FlowBase implements Flow {
                         .trustManager(new File(trustCertsFilePath))
                         .build());
             } catch (SSLException e) {
-                log.error("Could not set " + CONFIG_PARAM_TRUST_CERTS_FILE_PATH, e);
+                log.error().exception(e).log("Could not set " + CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
             }
         }
         return new DefaultAsyncHttpClient(confBuilder.build());
@@ -94,14 +94,12 @@ abstract class FlowBase implements Flow {
     private int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
         Duration duration;
         if (value == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("Configuration for [{}] is using the default value: [{}]", name, defaultValue);
-            }
+                log.debug().attr("name", name)
+                        .attr("defaultValue", defaultValue)
+                        .log("Configuration is using the default value");
             duration = defaultValue;
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Configuration for [{}] is: [{}]", name, value);
-            }
+                log.debug().attr("name", name).attr("value", value).log("Configuration");
             duration = value;
         }
 
@@ -112,7 +110,7 @@ abstract class FlowBase implements Flow {
         try {
             this.metadata = createMetadataResolver().resolve();
         } catch (IOException e) {
-            log.error("Unable to retrieve OAuth 2.0 server metadata", e);
+            log.error().exception(e).log("Unable to retrieve OAuth 2.0 server metadata");
             throw new PulsarClientException.AuthenticationException("Unable to retrieve OAuth 2.0 server metadata");
         }
     }

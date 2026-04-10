@@ -38,9 +38,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
@@ -71,7 +71,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
-@Slf4j
+@CustomLog
 public class AvroSchemaTest {
 
     @Data

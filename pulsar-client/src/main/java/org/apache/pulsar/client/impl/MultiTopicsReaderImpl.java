@@ -19,13 +19,13 @@
 package org.apache.pulsar.client.impl;
 
 
+import io.github.merlimat.slog.Logger;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
@@ -48,8 +48,9 @@ import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 
-@Slf4j
 public class MultiTopicsReaderImpl<T> implements Reader<T> {
+    private static final Logger LOG = Logger.get(MultiTopicsReaderImpl.class);
+    private final Logger log;
 
     private final MultiTopicsConsumerImpl<T> multiTopicsConsumer;
 
@@ -91,8 +92,9 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                     final MessageId messageId = msg.getMessageId();
                     readerListener.received(MultiTopicsReaderImpl.this, msg);
                     consumer.acknowledgeCumulativeAsync(messageId).exceptionally(ex -> {
-                        log.error("[{}][{}] auto acknowledge message {} cumulative fail.", getTopic(),
-                                getMultiTopicsConsumer().getSubscription(), messageId, ex);
+                        log.error().attr("messageId", messageId)
+                                .exception(ex)
+                                .log("auto acknowledge message cumulative fail");
                         return null;
                     });
                 }
@@ -114,8 +116,9 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                     final MessageId messageId = msg.getMessageId();
                     readerDecryptFailListener.received(MultiTopicsReaderImpl.this, msg);
                     consumer.acknowledgeCumulativeAsync(messageId).exceptionally(ex -> {
-                        log.error("[{}][{}] auto acknowledge decrypt fail message {} cumulative fail.", getTopic(),
-                                getMultiTopicsConsumer().getSubscription(), messageId, ex);
+                        log.error().attr("messageId", messageId)
+                                .exception(ex)
+                                .log("auto acknowledge decrypt fail message cumulative fail");
                         return null;
                     });
                 }
@@ -160,6 +163,10 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                 consumerFuture, schema, consumerInterceptors, true,
                 readerConfiguration.getStartMessageId(),
                 readerConfiguration.getStartMessageFromRollbackDurationInSec());
+        this.log = LOG.with()
+                .attr("topic", () -> getTopic())
+                .attr("subscription", () -> getMultiTopicsConsumer().getSubscription())
+                .build();
     }
 
     @Override
@@ -187,8 +194,9 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
             multiTopicsConsumer.acknowledgeCumulativeAsync(msg)
                     .exceptionally(ex -> {
-                        log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
-                                getMultiTopicsConsumer().getSubscription(), msg.getMessageId(), ex);
+                        log.warn().attr("messageId", msg.getMessageId())
+                                .exception(ex)
+                                .log("acknowledge message cumulative fail");
                         return null;
                     });
             return msg;

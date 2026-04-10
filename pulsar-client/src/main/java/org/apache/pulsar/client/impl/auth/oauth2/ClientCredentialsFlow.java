@@ -29,7 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
@@ -43,7 +43,7 @@ import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
  *
  * @see <a href="https://tools.ietf.org/html/rfc6749#section-4.4">OAuth 2.0 RFC 6749, section 4.4</a>
  */
-@Slf4j
+@CustomLog
 class ClientCredentialsFlow extends FlowBase {
     public static final String CONFIG_PARAM_ISSUER_URL = "issuerUrl";
     public static final String CONFIG_PARAM_AUDIENCE = "audience";

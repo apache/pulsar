@@ -22,7 +22,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
@@ -34,7 +34,7 @@ import org.apache.pulsar.client.impl.AuthenticationUtil;
  * This plugin requires these parameters: keyStoreType, keyStorePath, and  keyStorePassword.
  * This parameter will construct a AuthenticationDataProvider
  */
-@Slf4j
+@CustomLog
 public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthenticationParameterSupport {
     private static final long serialVersionUID = 1L;
 
@@ -89,7 +89,7 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
             params = AuthenticationUtil.configureFromJsonString(paramsString);
         } catch (Exception e) {
             // auth-param is not in json format
-            log.info("parameter not in Json format: {}", paramsString);
+            log.info().attr("format", paramsString).log("parameter not in Json format");
         }
 
         // in ":" "," format.

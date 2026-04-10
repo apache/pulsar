@@ -28,8 +28,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
@@ -69,7 +69,7 @@ import org.apache.pulsar.common.util.Backoff;
  *
  * This class is intended to be called from multiple threads, and is therefore designed to be thread-safe.
  */
-@Slf4j
+@CustomLog
 public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticationParameterSupport {
 
     public static final String CONFIG_PARAM_TYPE = "type";
@@ -251,9 +251,7 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
      * Retrieve the token (synchronously), and then schedule refresh runnable.
      */
     private void authenticate() throws PulsarClientException {
-        if (log.isDebugEnabled()) {
             log.debug("Attempting to retrieve OAuth2 token now.");
-        }
         TokenResult tr = this.flow.authenticate();
         this.cachedToken = new CachedToken(tr);
         handleSuccessfulTokenRefresh();
@@ -285,7 +283,9 @@ public class AuthenticationOAuth2 implements Authentication, EncodedAuthenticati
             this.authenticate();
         } catch (PulsarClientException | RuntimeException e) {
             long delayMillis = backoff.next().toMillis();
-            log.error("Error refreshing token. Will retry in {} millis.", delayMillis, e);
+            log.error().attr("delayMillis", delayMillis)
+                    .exception(e)
+                    .log("Error refreshing token. Will retry later");
             scheduleRefresh(delayMillis);
         }
     }

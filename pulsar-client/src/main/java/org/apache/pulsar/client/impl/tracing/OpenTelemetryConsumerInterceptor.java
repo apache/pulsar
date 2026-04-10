@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
@@ -38,8 +39,6 @@ import org.apache.pulsar.client.api.TraceableMessageId;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * OpenTelemetry consumer interceptor that creates spans for message consumption.
@@ -62,9 +61,8 @@ import org.slf4j.LoggerFactory;
  * map structure (topic partition → message IDs) and {@link TopicMessageId#getOwnerTopic()} to ensure
  * spans are only ended for messages from the acknowledged topic partition.
  */
+@CustomLog
 public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<T> {
-
-    private static final Logger log = LoggerFactory.getLogger(OpenTelemetryConsumerInterceptor.class);
 
     private Tracer tracer;
     private TextMapPropagator propagator;
@@ -175,10 +173,12 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     ((TraceableMessageId) messageId).setTracingSpan(span);
                 }
 
-                log.debug("Created consumer span for message {} on topic {}", messageId, topic);
+                log.debug().attr("messageId", messageId)
+                        .attr("topic", topic)
+                        .log("Created consumer span");
             }
         } catch (Exception e) {
-            log.error("Error creating consumer span", e);
+            log.error().exception(e).log("Error creating consumer span");
         }
 
         return message;
@@ -212,7 +212,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     }
                 }
             } catch (Exception e) {
-                log.error("Error ending consumer span on acknowledge", e);
+                log.error().exception(e).log("Error ending consumer span on acknowledge");
             }
         }
     }
@@ -234,7 +234,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                         }
                         ((TraceableMessageId) messageId).setTracingSpan(null);
                     } catch (Exception e) {
-                        log.error("Error ending consumer span on cumulative acknowledge", e);
+                        log.error().exception(e).log("Error ending consumer span on cumulative acknowledge");
                     }
                 }
             }
@@ -277,7 +277,9 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                             ((TraceableMessageId) msgId).setTracingSpan(null);
                         }
                     } catch (Exception e) {
-                        log.error("Error ending consumer span on cumulative acknowledge for message {}", msgId, e);
+                        log.error().attr("messageId", msgId)
+                                .exception(e)
+                                .log("Error ending consumer span on cumulative acknowledge");
                     }
                     iterator.remove();
                 } else {
@@ -302,7 +304,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                 }
                 ((TraceableMessageId) messageId).setTracingSpan(null);
             } catch (Exception e) {
-                log.error("Error ending consumer span on cumulative acknowledge", e);
+                log.error().exception(e).log("Error ending consumer span on cumulative acknowledge");
             }
         }
     }
@@ -333,7 +335,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                         }
                     }
                 } catch (Exception e) {
-                    log.error("Error ending consumer span on negative acknowledge", e);
+                    log.error().exception(e).log("Error ending consumer span on negative acknowledge");
                 }
             }
         }
@@ -365,7 +367,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                         }
                     }
                 } catch (Exception e) {
-                    log.error("Error ending consumer span on ack timeout", e);
+                    log.error().exception(e).log("Error ending consumer span on ack timeout");
                 }
             }
         }

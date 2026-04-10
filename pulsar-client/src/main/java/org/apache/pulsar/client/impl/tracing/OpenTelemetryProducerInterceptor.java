@@ -23,6 +23,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapPropagator;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -31,8 +32,6 @@ import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * OpenTelemetry producer interceptor that creates spans for message publishing.
@@ -43,9 +42,8 @@ import org.slf4j.LoggerFactory;
  * Spans are attached directly to {@link TraceableMessage} instances, eliminating the need
  * for external span tracking via maps.
  */
+@CustomLog
 public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
-
-    private static final Logger log = LoggerFactory.getLogger(OpenTelemetryProducerInterceptor.class);
 
     private Tracer tracer;
     private TextMapPropagator propagator;
@@ -105,10 +103,10 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
             if (TracingContext.isValid(span) && message instanceof TraceableMessage) {
                 // Attach the span directly to the message
                 ((TraceableMessage) message).setTracingSpan(span);
-                log.debug("Created producer span for message on topic {}", topic);
+                log.debug().attr("topic", topic).log("Created producer span");
             }
         } catch (Exception e) {
-            log.error("Error creating producer span", e);
+            log.error().exception(e).log("Error creating producer span");
         }
 
         return message;
@@ -136,7 +134,7 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
                 // Clear the span from the message
                 ((TraceableMessage) message).setTracingSpan(null);
             } catch (Exception e) {
-                log.error("Error ending producer span", e);
+                log.error().exception(e).log("Error ending producer span");
             }
         }
     }

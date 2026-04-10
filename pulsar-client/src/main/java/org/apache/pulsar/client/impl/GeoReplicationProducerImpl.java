@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.github.merlimat.slog.Logger;
 import io.netty.channel.Channel;
 import io.netty.util.ReferenceCountUtil;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -32,9 +32,11 @@ import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Markers;
 
-@Slf4j
 @SuppressWarnings("unchecked")
 public class GeoReplicationProducerImpl extends ProducerImpl{
+
+    private static final Logger LOG = Logger.get(GeoReplicationProducerImpl.class);
+    private final Logger log;
 
     public static final String MSG_PROP_REPL_SOURCE_POSITION = "__MSG_PROP_REPL_SOURCE_POSITION";
     public static final String MSG_PROP_IS_REPL_MARKER = "__MSG_PROP_IS_REPL_MARKER";
@@ -50,6 +52,10 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                                       Schema schema, ProducerInterceptors interceptors,
                                       Optional overrideProducerName) {
         super(client, topic, conf, producerCreatedFuture, partitionIndex, schema, interceptors, overrideProducerName);
+        this.log = LOG.with()
+                .attr("topic", topic)
+                .attr("producerName", () -> producerName)
+                .build();
         isPersistentTopic = TopicName.get(topic).isPersistent();
     }
 
@@ -68,9 +74,10 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         synchronized (this) {
             OpSendMsg op = pendingMessages.peek();
             if (op == null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Got ack for timed out msg {}:{}", topic, producerName, seq, highSeq);
-                }
+                    log.debug()
+                            .attr("seq", seq)
+                            .attr("highSeq", highSeq)
+                            .log("Got ack for timed out msg");
                 return;
             }
             // Replicator send markers also, use sequenceId to check the marker send-receipt.
@@ -112,20 +119,22 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
                 && (pendingLId < lastPersistedSourceLedgerId || (pendingLId.longValue() == lastPersistedSourceLedgerId
                   && pendingEId.longValue() <= lastPersistedSourceEntryId))) {
             if (MessageImpl.SchemaState.Broken.equals(op.msg.getSchemaState())) {
-                log.error("[{}] [{}] Replication is paused because the schema is incompatible with the remote"
-                                + " cluster, please modify the schema compatibility for the remote cluster."
-                                + " Latest published entry {}:{}, Entry who has incompatible schema: {}:{},"
-                                + " latest persisted source entry: {}:{}, pending queue size: {}.",
-                        topic, producerName, sourceLId, sourceEId, pendingLId, pendingEId,
-                        lastPersistedSourceLedgerId, lastPersistedSourceEntryId, pendingMessages.messagesCount());
+                log.error()
+                        .attr("sourceLedgerId", sourceLId).attr("sourceEntryId", sourceEId)
+                        .attr("pendingLedgerId", pendingLId).attr("pendingEntryId", pendingEId)
+                        .attr("persistedSourceLedgerId", lastPersistedSourceLedgerId)
+                        .attr("persistedSourceEntryId", lastPersistedSourceEntryId)
+                        .attr("pendingQueueSize", pendingMessages.messagesCount())
+                        .log("Replication is paused because the schema is incompatible with the remote"
+                                + " cluster, please modify the schema compatibility for the remote cluster");
                 return;
             }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received an msg send receipt[pending send is repeated due to repl cursor rewind]:"
-                                + " source entry {}:{}, pending send: {}:{}, latest persisted: {}:{}",
-                        topic, producerName, sourceLId, sourceEId, pendingLId, pendingEId,
-                        lastPersistedSourceLedgerId, lastPersistedSourceEntryId);
-            }
+                log.debug()
+                        .attr("sourceLedgerId", sourceLId).attr("sourceEntryId", sourceEId)
+                        .attr("pendingLedgerId", pendingLId).attr("pendingEntryId", pendingEId)
+                        .attr("persistedSourceLedgerId", lastPersistedSourceLedgerId)
+                        .attr("persistedSourceEntryId", lastPersistedSourceEntryId)
+                        .log("Received msg send receipt, pending send is repeated due to repl cursor rewind");
             removeAndApplyCallback(op, sourceLId, sourceEId, targetLId, targetEid, false);
             ackReceived(cnx, sourceLId, sourceEId, targetLId, targetEid);
             return;
@@ -138,24 +147,24 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         //  - The second time: producer call Send-Command-1.
         if (sourceLId < lastPersistedSourceLedgerId
                 || (sourceLId == lastPersistedSourceLedgerId  && sourceEId <= lastPersistedSourceEntryId)) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received an msg send receipt[repeated]: source entry {}:{}, latest persisted:"
-                                + " {}:{}",
-                        topic, producerName, sourceLId, sourceEId,
-                        lastPersistedSourceLedgerId, lastPersistedSourceEntryId);
-            }
+                log.debug()
+                        .attr("entry", sourceLId)
+                        .attr("sourceEId", sourceEId)
+                        .attr("lastPersistedSourceLedgerId", lastPersistedSourceLedgerId)
+                        .attr("lastPersistedSourceEntryId", lastPersistedSourceEntryId)
+                        .log("Received repeated msg send receipt");
             return;
         }
 
         // Case-3, which is expected.
         if (pendingLId != null && pendingEId != null && sourceLId == pendingLId.longValue()
                 && sourceEId == pendingEId.longValue()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received an msg send receipt[expected]: source entry {}:{}, target entry:"
-                                + " {}:{}",
-                        topic, producerName, sourceLId, sourceEId,
-                        targetLId, targetEid);
-            }
+                log.debug()
+                        .attr("entry", sourceLId)
+                        .attr("sourceEId", sourceEId)
+                        .attr("targetLId", targetLId)
+                        .attr("targetEid", targetEid)
+                        .log("Received expected msg send receipt");
             lastPersistedSourceLedgerId = sourceLId;
             lastPersistedSourceEntryId = sourceEId;
             removeAndApplyCallback(op, sourceLId, sourceEId, targetLId, targetEid, false);
@@ -165,14 +174,14 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         // Case-4: Received an out-of-order msg send receipt, and the first item in pending queue is a marker.
         if (op.msg.getMessageBuilder().hasMarkerType()
                 && Markers.isReplicationMarker(op.msg.getMessageBuilder().getMarkerType())) {
-            log.warn("[{}] [{}] Received an out-of-order msg send receipt because enabled replicated subscription,"
-                    + " which is expected, it always happens when repeatedly publishing a pair of mixed"
-                    + " replication marker messages and user messages."
-                    + " source position {}:{}, pending send[marker type: {}]: {}:{}, latest persisted: {}:{}."
-                    + " Drop the pending publish marker command because it is a marker and it almost no effect.",
-                    topic, producerName, sourceLId, sourceEId,
-                    MarkerType.valueOf(op.msg.getMessageBuilder().getMarkerType()), pendingLId, pendingEId,
-                    lastPersistedSourceLedgerId, lastPersistedSourceEntryId);
+            log.warn()
+                    .attr("sourceLedgerId", sourceLId).attr("sourceEntryId", sourceEId)
+                    .attr("markerType", MarkerType.valueOf(op.msg.getMessageBuilder().getMarkerType()))
+                    .attr("pendingLedgerId", pendingLId).attr("pendingEntryId", pendingEId)
+                    .attr("persistedSourceLedgerId", lastPersistedSourceLedgerId)
+                    .attr("persistedSourceEntryId", lastPersistedSourceEntryId)
+                    .log("Received out-of-order msg send receipt due to replicated subscription,"
+                            + " dropping pending marker command");
             // Drop pending marker. The next ack receipt of this marker message will be dropped after it come in.
             ackReceivedReplMarker(cnx, op, op.sequenceId, -1 /*non-batch message*/, -1, -1);
             // Handle the current send receipt.
@@ -183,10 +192,14 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         // Case-5: Unexpected
         //   5-1: got null source cluster's entry position, which is unexpected.
         //   5-2: unknown error, which is unexpected.
-        log.error("[{}] [{}] Received an msg send receipt[error]: source entry {}:{}, target entry: {}:{},"
-                + " pending send: {}:{}, latest persisted: {}:{}, queue-size: {}",
-                topic, producerName, sourceLId, sourceEId, targetLId, targetEid, pendingLId, pendingEId,
-                lastPersistedSourceLedgerId, lastPersistedSourceEntryId, pendingMessages.messagesCount());
+        log.error()
+                .attr("sourceLedgerId", sourceLId).attr("sourceEntryId", sourceEId)
+                .attr("targetLedgerId", targetLId).attr("targetEntryId", targetEid)
+                .attr("pendingLedgerId", pendingLId).attr("pendingEntryId", pendingEId)
+                .attr("persistedSourceLedgerId", lastPersistedSourceLedgerId)
+                .attr("persistedSourceEntryId", lastPersistedSourceEntryId)
+                .attr("queueSize", pendingMessages.messagesCount())
+                .log("Received unexpected msg send receipt");
         cnx.channel().close();
     }
 
@@ -196,11 +209,13 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         long lastSeqPersisted = LAST_SEQ_ID_PUBLISHED_UPDATER.get(this);
         if (lastSeqPersisted != 0 && seq <= lastSeqPersisted) {
             // Ignoring the ack since it's referring to a message that has already timed out.
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received an repl marker send receipt[repeated]. seq: {}, seqPersisted: {},"
-                                + " isSourceMarker: {}, target entry: {}:{}",
-                        topic, producerName, seq, lastSeqPersisted, isSourceMarker, ledgerId, entryId);
-            }
+                log.debug()
+                        .attr("seq", seq)
+                        .attr("lastSeqPersisted", lastSeqPersisted)
+                        .attr("issourcemarker", isSourceMarker)
+                        .attr("entry", ledgerId)
+                        .attr("entryId", entryId)
+                        .log("Received repeated repl marker send receipt");
             return;
         }
 
@@ -209,11 +224,13 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
         //   and condition: the current pending msg is also a marker.
         boolean pendingMsgIsReplMarker = isReplicationMarker(op);
         if (pendingMsgIsReplMarker && seq == op.sequenceId) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received an repl marker send receipt[expected]. seq: {}, seqPersisted: {},"
-                                + " isReplMarker: {}, target entry: {}:{}",
-                        topic, producerName, seq, lastSeqPersisted, isSourceMarker, ledgerId, entryId);
-            }
+                log.debug()
+                        .attr("seq", seq)
+                        .attr("lastSeqPersisted", lastSeqPersisted)
+                        .attr("isreplmarker", isSourceMarker)
+                        .attr("entry", ledgerId)
+                        .attr("entryId", entryId)
+                        .log("Received expected repl marker send receipt");
             long calculatedSeq = getHighestSequenceId(op);
             LAST_SEQ_ID_PUBLISHED_UPDATER.getAndUpdate(this, last -> Math.max(last, calculatedSeq));
             removeAndApplyCallback(op, seq, isSourceMarker, ledgerId, entryId, true);
@@ -252,9 +269,14 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
             // application
             op.sendComplete(null);
         } catch (Throwable t) {
-            log.warn("[{}] [{}] Got exception while completing the callback for -- source-message: {}:{} --"
-                            + " target-msg: {}:{} -- isMarker: {}",
-                    topic, producerName, lIdSent, eIdSent, ledgerId, entryId, isMarker, t);
+            log.warn()
+                    .attr("sourceMessage", lIdSent)
+                    .attr("eIdSent", eIdSent)
+                    .attr("targetMsg", ledgerId)
+                    .attr("entryId", entryId)
+                    .attr("ismarker", isMarker)
+                    .exception(t)
+                    .log("Got exception while completing the callback");
         }
         ReferenceCountUtil.safeRelease(op.cmd);
         op.recycle();
@@ -267,9 +289,15 @@ public class GeoReplicationProducerImpl extends ProducerImpl{
 
     @Override
     public void printWarnLogWhenCanNotDetermineDeduplication(Channel channel, long sourceLId, long sourceEId) {
-        log.warn("[{}] producer [id:{}, name:{}, channel: {}] message with source entry {}-{} published by has been"
-            + " dropped because Broker can not determine whether is duplicate or not",
-            topic, producerId, producerName, channel, sourceLId, sourceEId);
+        log.warn()
+                .attr("producerId", producerId)
+                .attr("name", producerName)
+                .attr("channel", channel)
+                .attr("entry", sourceLId)
+                .attr("sourceEId", sourceEId)
+                .log("Message published by producer has been dropped"
+                        + " because broker cannot determine whether"
+                        + " it is duplicate");
     }
 
     private boolean isReplicationMarker(long highestSeq) {

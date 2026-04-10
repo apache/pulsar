@@ -22,12 +22,12 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.DoubleAdder;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PartitionedTopicProducerStats;
 import org.apache.pulsar.client.api.ProducerStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("deprecation")
+@CustomLog
 public class PartitionedTopicProducerStatsRecorderImpl extends ProducerStatsRecorderImpl
         implements PartitionedTopicProducerStats {
 
@@ -83,6 +83,4 @@ public class PartitionedTopicProducerStatsRecorderImpl extends ProducerStatsReco
     public int getPendingQueueSize() {
         return pendingQueueSize;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PartitionedTopicProducerStatsRecorderImpl.class);
 }

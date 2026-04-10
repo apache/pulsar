@@ -22,12 +22,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.Backoff;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class RetryUtil {
-    private static final Logger log = LoggerFactory.getLogger(RetryUtil.class);
 
     public static <T> void retryAsynchronously(Supplier<CompletableFuture<T>> supplier, Backoff backoff,
                                                ScheduledExecutorService scheduledExecutorService,
@@ -52,7 +51,9 @@ public class RetryUtil {
                 if (isMandatoryStop) {
                     callback.completeExceptionally(e);
                 } else {
-                    log.warn("Execution with retry fail, because of {}, will retry in {} ms", e.getMessage(), next);
+                    log.warn().exceptionMessage(e)
+                            .attr("nextMs", next)
+                            .log("Execution with retry failed, will retry");
                     scheduledExecutorService.schedule(() ->
                                     executeWithRetry(supplier, backoff, scheduledExecutorService, callback),
                             next, TimeUnit.MILLISECONDS);

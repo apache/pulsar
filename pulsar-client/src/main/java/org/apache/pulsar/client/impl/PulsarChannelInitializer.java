@@ -32,8 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -45,7 +45,7 @@ import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 
-@Slf4j
+@CustomLog
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
@@ -127,7 +127,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                         factory.createInternalSslContext();
                         return factory;
                     } catch (Exception e) {
-                        log.error("Unable to initialize and create the ssl context", e);
+                        log.error().exception(e).log("Unable to initialize and create the ssl context");
                         initTlsFuture.completeExceptionally(e);
                         return null;
                     }
@@ -229,13 +229,13 @@ protected PulsarSslConfiguration buildSslConfiguration(ClientConfigurationData c
                         pulsarSslFactory.getInternalNettySslContext();
                     }
                 } catch (Exception e) {
-                    log.error("SSL Context is not initialized", e);
+                    log.error().exception(e).log("SSL Context is not initialized");
                     PulsarSslConfiguration sslConfiguration = buildSslConfiguration(conf, key);
                     pulsarSslFactory.initialize(sslConfiguration);
                 }
                 pulsarSslFactory.update();
             } catch (Exception e) {
-                log.error("Failed to refresh SSL context", e);
+                log.error().exception(e).log("Failed to refresh SSL context");
             }
         });
     }

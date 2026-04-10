@@ -23,11 +23,11 @@ import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
 import java.io.IOException;
 import java.io.InputStream;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class ProtobufReader<T extends Message> implements SchemaReader<T> {
     private Parser<T> tParser;
 
@@ -55,10 +55,8 @@ public class ProtobufReader<T extends Message> implements SchemaReader<T> {
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("ProtobufReader close inputStream close error", e);
+                log.error().exception(e).log("ProtobufReader close inputStream close error");
             }
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProtobufReader.class);
 }

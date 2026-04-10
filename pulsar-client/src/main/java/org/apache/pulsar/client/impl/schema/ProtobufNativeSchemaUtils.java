@@ -25,18 +25,18 @@ import com.google.protobuf.Descriptors;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Protobuf-Native schema util used for serialize/deserialize
  * between {@link com.google.protobuf.Descriptors.Descriptor} and
  * {@link org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData}.
  */
+@CustomLog
 public class ProtobufNativeSchemaUtils {
 
     public static byte[] serialize(Descriptors.Descriptor descriptor) {
@@ -58,7 +58,8 @@ public class ProtobufNativeSchemaUtils {
                     .fileDescriptorSet(fileDescriptorSet)
                     .rootFileDescriptorName(rootFileDescriptorName).rootMessageTypeName(rootMessageTypeName).build();
             schemaDataBytes = ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsBytes(schemaData);
-            logger.debug("descriptor '{}' serialized to '{}'.", descriptor.getFullName(), schemaDataBytes);
+            log.debug().attr("descriptor", descriptor.getFullName())
+                    .attr("bytes", schemaDataBytes).log("descriptor serialized");
         } catch (Exception e) {
             e.printStackTrace();
             throw new SchemaSerializationException(e);
@@ -115,7 +116,8 @@ public class ProtobufNativeSchemaUtils {
             for (int i = 1; i < paths.length; i++) {
                 descriptor = descriptor.findNestedTypeByName(paths[i]);
             }
-            logger.debug("deserialize '{}' to descriptor: '{}'.", schemaDataBytes, descriptor.getFullName());
+            log.debug().attr("bytes", schemaDataBytes)
+                    .attr("descriptor", descriptor.getFullName()).log("deserialized to descriptor");
         } catch (Exception e) {
             e.printStackTrace();
             throw new SchemaSerializationException(e);
@@ -154,7 +156,5 @@ public class ProtobufNativeSchemaUtils {
             throw new SchemaSerializationException(e);
         }
     }
-
-    private static final Logger logger = LoggerFactory.getLogger(ProtobufNativeSchemaUtils.class);
 
 }

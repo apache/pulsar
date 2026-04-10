@@ -29,12 +29,12 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class AuthenticationDataTls implements AuthenticationDataProvider {
     private static final long serialVersionUID = 1L;
     protected X509Certificate[] tlsCertificates;
@@ -103,7 +103,9 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
             try {
                 this.tlsCertificates = SecurityUtility.loadCertificatesFromPemFile(certFile.getFileName());
             } catch (KeyManagementException e) {
-                LOG.error("Unable to refresh authData for cert {}: ", certFile.getFileName(), e);
+                log.error().attr("cert", certFile.getFileName())
+                        .exception(e)
+                        .log("Unable to refresh authData for cert");
             }
         } else if (certStreamProvider != null && certStreamProvider.get() != null
                 && !certStreamProvider.get().equals(certStream)) {
@@ -111,7 +113,7 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
                 certStream = certStreamProvider.get();
                 tlsCertificates = SecurityUtility.loadCertificatesFromPemStream(certStream);
             } catch (KeyManagementException e) {
-                LOG.error("Unable to refresh authData from cert stream ", e);
+                log.error().exception(e).log("Unable to refresh authData from cert stream ");
             }
         }
         return this.tlsCertificates;
@@ -123,7 +125,7 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
             try {
                 this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFile.getFileName());
             } catch (KeyManagementException e) {
-                LOG.error("Unable to refresh authData for cert {}: ", keyFile.getFileName(), e);
+                log.error().attr("cert", keyFile.getFileName()).exception(e).log("Unable to refresh authData for cert");
             }
         } else if (keyStreamProvider != null && keyStreamProvider.get() != null
                 && !keyStreamProvider.get().equals(keyStream)) {
@@ -131,7 +133,7 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
                 keyStream = keyStreamProvider.get();
                 tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemStream(keyStream);
             } catch (KeyManagementException e) {
-                LOG.error("Unable to refresh authData from key stream ", e);
+                log.error().exception(e).log("Unable to refresh authData from key stream ");
             }
         }
         return this.tlsPrivateKey;
@@ -151,6 +153,4 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     public String getTlsPrivateKeyFilePath() {
         return keyFile != null ? keyFile.getFileName() : null;
     }
-
-    private static final Logger LOG = LoggerFactory.getLogger(AuthenticationDataTls.class);
 }

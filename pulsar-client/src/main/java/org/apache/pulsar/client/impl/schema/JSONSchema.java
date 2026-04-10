@@ -28,7 +28,7 @@ import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
@@ -41,7 +41,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 /**
  * A schema implementation to deal with json data.
  */
-@Slf4j
+@CustomLog
 public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     private static final AtomicReference<ObjectMapper> JSON_MAPPER = new AtomicReference<>(createObjectMapper());
 

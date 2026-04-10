@@ -23,14 +23,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 
-@Slf4j
+@CustomLog
 public class SampleAsyncProducerWithSchema {
 
     public static void main(String[] args) throws IOException {
@@ -48,9 +48,9 @@ public class SampleAsyncProducerWithSchema {
 
             future.handle((v, ex) -> {
                 if (ex == null) {
-                    log.info("Message persisted: {}", content);
+                    log.info().attr("content", content).log("Message persisted");
                 } else {
-                    log.error("Error persisting message: {}", content, ex);
+                    log.error().attr("content", content).exception(ex).log("Error persisting message");
                 }
                 return null;
             });

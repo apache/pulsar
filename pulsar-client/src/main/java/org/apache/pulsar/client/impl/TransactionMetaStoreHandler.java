@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -50,16 +51,13 @@ import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Handler for transaction meta store.
  */
+@CustomLog
 public class TransactionMetaStoreHandler extends HandlerState
         implements ConnectionHandler.Connection, Closeable, TimerTask {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TransactionMetaStoreHandler.class);
 
     private final long transactionCoordinatorId;
     private final ConnectionHandler connectionHandler;
@@ -130,11 +128,15 @@ public class TransactionMetaStoreHandler extends HandlerState
             exception.setPreviousExceptionCount(previousExceptionCount);
             if (connectFuture.completeExceptionally(exception)) {
                 if (nonRetriableError) {
-                    LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
-                            transactionCoordinatorId, exception);
+                    log.error().attr("transactionCoordinatorId", transactionCoordinatorId)
+                            .exception(exception)
+                            .log("Transaction meta handler failed.");
                 } else {
-                    LOG.error("Transaction meta handler with transaction coordinator id {} connection failed after "
-                            + "timeout", transactionCoordinatorId, exception);
+                    log.error().attr("transactionCoordinatorId", transactionCoordinatorId)
+                            .exception(exception)
+                            .log("Transaction meta handler with transaction"
+                                    + " coordinator id connection failed"
+                                    + " after timeout");
                 }
                 setState(State.Failed);
                 return false;
@@ -149,8 +151,8 @@ public class TransactionMetaStoreHandler extends HandlerState
     public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
-            LOG.info("Transaction meta handler with transaction coordinator id {} connection opened.",
-                    transactionCoordinatorId);
+            log.info().attr("transactionCoordinatorId", transactionCoordinatorId)
+                    .log("Transaction meta handler with transaction coordinator id connection opened.");
 
             State state = getState();
             if (state == State.Closing || state == State.Closed) {
@@ -167,7 +169,8 @@ public class TransactionMetaStoreHandler extends HandlerState
 
                 cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                     internalPinnedExecutor.execute(() -> {
-                        LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
+                        log.info().attr("transactionCoordinatorId", transactionCoordinatorId)
+                                .log("Transaction coordinator client connect success! tcId");
                         if (registerToConnection(cnx)) {
                             this.connectionHandler.resetBackoff();
                             pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
@@ -176,8 +179,9 @@ public class TransactionMetaStoreHandler extends HandlerState
                     });
                 }).exceptionally((e) -> {
                     internalPinnedExecutor.execute(() -> {
-                        LOG.error("Transaction coordinator client connect fail! tcId : {}",
-                                transactionCoordinatorId, e.getCause());
+                        log.error().attr("transactionCoordinatorId", transactionCoordinatorId)
+                                .exception(e.getCause())
+                                .log("Transaction coordinator client connect fail! tcId");
                         if (getState() == State.Closing || getState() == State.Closed
                                 || e.getCause() instanceof PulsarClientException.NotAllowedException) {
                             setState(State.Closed);
@@ -190,8 +194,10 @@ public class TransactionMetaStoreHandler extends HandlerState
                     return null;
                 });
             } else {
-                LOG.warn("Can not connect to the transaction coordinator because the protocol version {} is "
-                                + "lower than 19", cnx.getRemoteEndpointProtocolVersion());
+                log.warn().attr("version", cnx.getRemoteEndpointProtocolVersion())
+                        .log("Can not connect to the transaction coordinator"
+                                + " because the protocol version is"
+                                + " lower than 19");
                 registerToConnection(cnx);
                 future.complete(null);
             }
@@ -228,9 +234,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("New transaction with timeout in ms {}", unit.toMillis(timeout));
-        }
+            log.debug().attr("timeoutMs", unit.toMillis(timeout)).log("New transaction with timeout");
         CompletableFuture<TxnID> callback = new CompletableFuture<>();
         if (!canSendRequest(callback)) {
             return callback;
@@ -265,31 +269,27 @@ public class TransactionMetaStoreHandler extends HandlerState
         internalPinnedExecutor.execute(() -> {
             OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(requestId);
             if (op == null) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got new txn response for transaction {}", txnID);
-                }
+                    log.debug().attr("transaction", txnID).log("Got new txn response for transaction");
                 return;
             }
 
             if (!hasError) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got new txn response {} for request {}", txnID, requestId);
-                }
+                    log.debug().attr("response", txnID)
+                            .attr("request", requestId)
+                            .log("Got new txn response for request");
                 op.callback.complete(txnID);
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for the {}  request {} error "
-                                        + "TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.NEW_TXN.name(), requestId);
-                    }
+                        log.debug().attr("name", BaseCommand.Type.NEW_TXN)
+                                .attr("requestId", requestId)
+                                .log("Get a response for the request error"
+                                        + " TransactionCoordinatorNotFound"
+                                        + " and try it again");
                     pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
-                                        if (LOG.isDebugEnabled()) {
-                                            LOG.debug("The request {} already timeout", requestId);
-                                        }
+                                            log.debug().attr("request", requestId).log("The request already timeout");
                                         return;
                                     }
                                     if (!checkStateAndSendRequest(op)) {
@@ -300,8 +300,10 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("Got {} for request {} error {}", BaseCommand.Type.NEW_TXN.name(),
-                        requestId, error);
+                log.error().attr("name", BaseCommand.Type.NEW_TXN)
+                        .attr("requestId", requestId)
+                        .attr("error", error)
+                        .log("Got for request error");
             }
 
             onResponse(op);
@@ -309,9 +311,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Add publish partition {} to txn {}", partitions, txnID);
-        }
+            log.debug().attr("partition", partitions).attr("txn", txnID).log("Add publish partition to txn");
         CompletableFuture<Void> callback = new CompletableFuture<>();
         if (!canSendRequest(callback)) {
             return callback;
@@ -350,31 +350,26 @@ public class TransactionMetaStoreHandler extends HandlerState
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got add publish partition to txn response for transaction {}", txnID);
-                }
+                    log.debug().attr("transaction", txnID)
+                            .log("Got add publish partition to txn response for transaction");
                 return;
             }
 
             if (!hasError) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Add publish partition for request {} success.", requestId);
-                }
+                    log.debug().attr("request", requestId).log("Add publish partition for request success.");
                 op.callback.complete(null);
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for the {} request {} "
-                                        + " error TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
-                    }
+                        log.debug().attr("name", BaseCommand.Type.ADD_PARTITION_TO_TXN.name())
+                                .attr("request", requestId)
+                                .log("Get a response for the request"
+                                        + " error TransactionCoordinatorNotFound"
+                                        + " and try it again");
                     pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
-                                        if (LOG.isDebugEnabled()) {
-                                            LOG.debug("The request {} already timeout", requestId);
-                                        }
+                                            log.debug().attr("request", requestId).log("The request already timeout");
                                         return;
                                     }
                                     if (!checkStateAndSendRequest(op)) {
@@ -385,8 +380,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("{} for request {}, transaction {}, error: {}",
-                        BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId, txnID, error);
+                log.error().attr("name", BaseCommand.Type.ADD_PARTITION_TO_TXN.name())
+                        .attr("request", requestId)
+                        .attr("transaction", txnID)
+                        .attr("error", error)
+                        .log("for request, transaction, error");
 
             }
 
@@ -395,9 +393,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<Void> addSubscriptionToTxn(TxnID txnID, List<Subscription> subscriptionList) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Add subscription {} to txn {}.", subscriptionList, txnID);
-        }
+            log.debug().attr("subscription", subscriptionList).attr("txn", txnID).log("Add subscription to txn.");
 
         CompletableFuture<Void> callback = new CompletableFuture<>();
         if (!canSendRequest(callback)) {
@@ -446,32 +442,29 @@ public class TransactionMetaStoreHandler extends HandlerState
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Add subscription to txn timeout for request {}.", requestId);
-                }
+                    log.debug().attr("request", requestId).log("Add subscription to txn timeout for request.");
                 return;
             }
 
             if (!hasError) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Add subscription to txn success for request {}.", requestId);
-                }
+                    log.debug().attr("request", requestId).log("Add subscription to txn success for request.");
                 op.callback.complete(null);
             } else {
-                LOG.error("Add subscription to txn failed for request {}, transaction {}, error: {}",
-                        requestId, txnID, error);
+                log.error().attr("request", requestId)
+                        .attr("transaction", txnID)
+                        .attr("error", error)
+                        .log("Add subscription to txn failed for request, transaction, error");
                 if (checkIfNeedRetryByError(error, message, op)) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for {} request {} error TransactionCoordinatorNotFound and try it"
-                                        + " again", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
-                    }
+                        log.debug().attr("name", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name())
+                                .attr("request", requestId)
+                                .log("Get a response for request error"
+                                        + " TransactionCoordinatorNotFound"
+                                        + " and try it again");
                     pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
-                                        if (LOG.isDebugEnabled()) {
-                                            LOG.debug("The request {} already timeout", requestId);
-                                        }
+                                            log.debug().attr("request", requestId).log("The request already timeout");
                                         return;
                                     }
                                     if (!checkStateAndSendRequest(op)) {
@@ -482,8 +475,10 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("{} failed for request {} error {}.", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(),
-                       requestId, error);
+                log.error().attr("name", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name())
+                        .attr("request", requestId)
+                        .attr("error", error)
+                        .log("failed for request error.");
 
             }
             onResponse(op);
@@ -491,9 +486,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<Void> endTxnAsync(TxnID txnID, TxnAction action) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("End txn {}, action {}", txnID, action);
-        }
+            log.debug().attr("txn", txnID).attr("action", action).log("End txn, action");
         CompletableFuture<Void> callback = new CompletableFuture<>();
         if (!canSendRequest(callback)) {
             return callback;
@@ -529,31 +522,28 @@ public class TransactionMetaStoreHandler extends HandlerState
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got end txn response for transaction but no requests pending for txn {}", txnID);
-                }
+                    log.debug().attr("txn", txnID)
+                            .log("Got end txn response for transaction but no requests pending for txn");
                 return;
             }
 
             if (!hasError) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got end txn response success for request {}, txn {}", requestId, txnID);
-                }
+                    log.debug().attr("request", requestId)
+                            .attr("txn", txnID)
+                            .log("Got end txn response success for request, txn");
                 op.callback.complete(null);
             } else {
                 if (checkIfNeedRetryByError(error, message, op)) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Get a response for the {} request {} error "
-                                        + "TransactionCoordinatorNotFound and try it again",
-                                BaseCommand.Type.END_TXN.name(), requestId);
-                    }
+                        log.debug().attr("name", BaseCommand.Type.END_TXN.name())
+                                .attr("request", requestId)
+                                .log("Get a response for the request error"
+                                        + " TransactionCoordinatorNotFound"
+                                        + " and try it again");
                     pendingRequests.put(requestId, op);
                     timer.newTimeout(timeout -> {
                                 internalPinnedExecutor.execute(() -> {
                                     if (!pendingRequests.containsKey(requestId)) {
-                                        if (LOG.isDebugEnabled()) {
-                                            LOG.debug("The request {} already timeout", requestId);
-                                        }
+                                            log.debug().attr("request", requestId).log("The request already timeout");
                                         return;
                                     }
                                     if (!checkStateAndSendRequest(op)) {
@@ -564,8 +554,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                             , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
                     return;
                 }
-                LOG.error("Got {} response for request {}, transaction {}, error: {}",
-                        BaseCommand.Type.END_TXN.name(), requestId, txnID, error);
+                log.error().attr("name", BaseCommand.Type.END_TXN.name())
+                        .attr("request", requestId)
+                        .attr("transaction", txnID)
+                        .attr("error", error)
+                        .log("Got response for request, transaction, error");
 
             }
             onResponse(op);
@@ -724,7 +717,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                     op.cmd.retain();
                     cnx.ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
                 } else {
-                    LOG.error("The cnx was null when the TC handler was ready", new NullPointerException());
+                    log.error().exception(new NullPointerException())
+                            .log("The cnx was null when the TC handler was ready");
                 }
                 return true;
             case Connecting:
@@ -776,9 +770,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                         op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
                             String.format("%s failed due to timeout. connection: %s. pending-queue: %s",
                                 op.description, op.clientCnx, pendingRequests.size())));
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Transaction coordinator request {} is timeout.", lastPolled.requestId);
-                        }
+                            log.debug().attr("request", lastPolled.requestId)
+                                    .log("Transaction coordinator request is timeout.");
                         onResponse(op);
                     }
                 } else {

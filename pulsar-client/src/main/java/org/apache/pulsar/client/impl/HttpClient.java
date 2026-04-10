@@ -38,7 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -60,7 +60,7 @@ import org.asynchttpclient.SslEngineFactory;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 
 
-@Slf4j
+@CustomLog
 public class HttpClient implements Closeable {
 
     private static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
@@ -140,7 +140,7 @@ public class HttpClient implements Closeable {
         AsyncHttpClientConfig config = confBuilder.build();
         httpClient = new DefaultAsyncHttpClient(config);
 
-        log.debug("Using HTTP url: {}", conf.getServiceUrl());
+        log.debug().attr("url", conf.getServiceUrl()).log("Using HTTP url");
     }
 
     String getServiceUrl() {
@@ -185,8 +185,9 @@ public class HttpClient implements Closeable {
                 if (ex != null) {
                     serviceNameResolver.markHostAvailability(
                             InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
-                    log.warn("[{}] Failed to perform http request at authentication stage: {}",
-                        requestUrl, ex.getMessage());
+                    log.warn().attr("requestUrl", requestUrl)
+                            .exceptionMessage(ex)
+                            .log("Failed to perform http request at authentication stage");
                     future.completeExceptionally(new PulsarClientException(ex));
                     return;
                 }
@@ -202,7 +203,9 @@ public class HttpClient implements Closeable {
                     try {
                         headers = authentication.newRequestHeader(requestUrl, authData, respHeaders);
                     } catch (Exception e) {
-                        log.warn("[{}] Error during HTTP get headers: {}", requestUrl, e.getMessage());
+                        log.warn().attr("requestUrl", requestUrl)
+                                .exceptionMessage(e)
+                                .log("Error during HTTP get headers");
                         future.completeExceptionally(new PulsarClientException(e));
                         return;
                     }
@@ -220,7 +223,9 @@ public class HttpClient implements Closeable {
                     if (t != null) {
                         serviceNameResolver.markHostAvailability(
                                 InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()), false);
-                        log.warn("[{}] Failed to perform http request: {}", requestUrl, t.getMessage());
+                        log.warn().attr("requestUrl", requestUrl)
+                                .exceptionMessage(t)
+                                .log("Failed to perform http request");
                         future.completeExceptionally(new PulsarClientException(t));
                         return;
                     }
@@ -243,12 +248,14 @@ public class HttpClient implements Closeable {
                                 }
                             } catch (IOException e) {
                                 // ignore
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Failed to parse error response: {}", requestUrl, responseBody);
-                                }
+                                    log.debug().attr("requestUrl", requestUrl)
+                                            .attr("response", responseBody)
+                                            .log("Failed to parse error response");
                             }
                         }
-                        log.warn("[{}] HTTP get request failed: {}", requestUrl, errorReason);
+                        log.warn().attr("requestUrl", requestUrl)
+                                .attr("failed", errorReason)
+                                .log("HTTP get request failed");
                         Exception e;
                         if (response2.getStatusCode() == HttpURLConnection.HTTP_NOT_FOUND) {
                             e = new NotFoundException("Not found: " + errorReason);
@@ -264,13 +271,15 @@ public class HttpClient implements Closeable {
                                 response2.getResponseBodyAsBytes(), clazz);
                         future.complete(data);
                     } catch (Exception e) {
-                        log.warn("[{}] Error during HTTP get request: {}", requestUrl, e.getMessage());
+                        log.warn().attr("requestUrl", requestUrl)
+                                .exceptionMessage(e)
+                                .log("Error during HTTP get request");
                         future.completeExceptionally(new PulsarClientException(e));
                     }
                 });
             });
         } catch (Exception e) {
-            log.warn("[{}]PulsarClientImpl: {}", path, e.getMessage());
+            log.warn().attr("path", path).exceptionMessage(e).log("PulsarClientImpl");
             if (e instanceof PulsarClientException) {
                 future.completeExceptionally(e);
             } else {
@@ -310,7 +319,7 @@ public class HttpClient implements Closeable {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 

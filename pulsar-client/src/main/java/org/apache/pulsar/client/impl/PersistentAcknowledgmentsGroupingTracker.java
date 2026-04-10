@@ -39,8 +39,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -57,7 +57,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Group the acknowledgements for a certain time and then sends them out in a single protobuf command.
  */
-@Slf4j
+@CustomLog
 public class PersistentAcknowledgmentsGroupingTracker implements AcknowledgmentsGroupingTracker {
 
     /**
@@ -418,9 +418,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         ClientCnx cnx = consumer.getClientCnx();
 
         if (cnx == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Cannot flush pending acks since we're not connected to broker", consumer);
-            }
+                log.debug().attr("consumer", consumer)
+                        .log("Cannot flush pending acks since we're not connected to broker");
             return;
         }
 
@@ -507,11 +506,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
 
         if (shouldFlush) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Flushing pending acks to broker: last-cumulative-ack: {} -- individual-acks: {}"
-                                + " -- individual-batch-index-acks: {}",
-                        consumer, lastCumulativeAck, pendingIndividualAcks, entriesToAck);
-            }
+                log.debug().attr("consumer", consumer)
+                        .attr("lastCumulativeAck", lastCumulativeAck)
+                        .attr("individualAcks", pendingIndividualAcks)
+                        .attr("individualBatchIndexAcks", entriesToAck)
+                        .log("Flushing pending acks to broker");
             cnx.ctx().flush();
         }
 

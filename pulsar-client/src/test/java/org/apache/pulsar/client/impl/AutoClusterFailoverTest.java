@@ -28,7 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
@@ -38,7 +38,7 @@ import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-@Slf4j
+@CustomLog
 public class AutoClusterFailoverTest {
     @Test
     public void testBuildAutoClusterFailoverInstance() throws Exception {

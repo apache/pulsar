@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -38,11 +39,9 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.collections.Long2ObjectMap;
 import org.apache.pulsar.common.util.collections.Long2ObjectOpenHashMap;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 class NegativeAcksTracker implements Closeable {
-    private static final Logger log = LoggerFactory.getLogger(NegativeAcksTracker.class);
 
     // timestamp -> ledgerId -> entryId, no need to batch index, if different messages have
     // different timestamp, there will be multiple entries in the map
@@ -135,7 +134,9 @@ class NegativeAcksTracker implements Closeable {
         // in which we may acquire the lock of consumer, leading to potential deadlock.
         if (!messagesToRedeliver.isEmpty()) {
             consumer.onNegativeAcksSend(messagesToRedeliver);
-            log.info("[{}] {} messages will be re-delivered", consumer, messagesToRedeliver.size());
+            log.info().attr("consumer", consumer)
+                    .attr("count", messagesToRedeliver.size())
+                    .log("messages will be re-delivered");
             consumer.redeliverUnacknowledgedMessages(messagesToRedeliver);
         }
     }

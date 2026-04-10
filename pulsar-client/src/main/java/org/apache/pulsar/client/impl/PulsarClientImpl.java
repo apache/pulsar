@@ -52,6 +52,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -99,12 +100,9 @@ import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class PulsarClientImpl implements PulsarClient {
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
     private static final int CLOSE_TIMEOUT_SECONDS = 60;
     protected static final double THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING = 0.95;
 
@@ -283,7 +281,7 @@ public class PulsarClientImpl implements PulsarClient {
                 try {
                     tcClient.start();
                 } catch (Throwable e) {
-                    log.error("Start transactionCoordinatorClient error.", e);
+                    log.error().exception(e).log("Start transactionCoordinatorClient error.");
                     throw new PulsarClientException(e);
                 }
             }
@@ -306,7 +304,7 @@ public class PulsarClientImpl implements PulsarClient {
         } catch (Throwable t) {
             // Log the exception first, or it could be missed if there are any subsequent exceptions in the
             // shutdown sequence
-            log.error("Failed to create Pulsar client instance.", t);
+            log.error().exception(t).log("Failed to create Pulsar client instance.");
             shutdown();
             shutdownEventLoopGroup(eventLoopGroupReference);
             closeCnxPool(connectionPoolReference);
@@ -494,9 +492,9 @@ public class PulsarClientImpl implements PulsarClient {
 
 
         checkPartitions(topic, conf.isNonPartitionedTopicExpected(), conf.getProducerName()).thenAccept(partitions -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Received topic metadata. partitions: {}", topic, partitions);
-            }
+                log.debug().attr("topic", topic)
+                        .attr("partitions", partitions)
+                        .log("Received topic metadata. partitions");
 
             ProducerBase<T> producer;
             if (partitions > 0) {
@@ -508,7 +506,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
             producers.add(producer);
         }).exceptionally(ex -> {
-            log.warn("[{}] Failed to get partitioned topic metadata: {}", topic, ex.getMessage());
+            log.warn().attr("topic", topic).exceptionMessage(ex).log("Failed to get partitioned topic metadata");
             producerCreatedFuture.completeExceptionally(ex);
             return null;
         });
@@ -645,9 +643,9 @@ public class PulsarClientImpl implements PulsarClient {
         String topic = conf.getSingleTopic();
 
         getPartitionedTopicMetadata(topic, true, false).thenAccept(metadata -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
-            }
+                log.debug().attr("topic", topic)
+                        .attr("partitions", metadata.partitions)
+                        .log("Received topic metadata. partitions");
 
             ConsumerBase<T> consumer;
             if (metadata.partitions > 0) {
@@ -661,7 +659,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
             consumers.add(consumer);
         }).exceptionally(ex -> {
-            log.warn("[{}] Failed to get partitioned topic metadata", topic, ex);
+            log.warn().attr("topic", topic).exception(ex).log("Failed to get partitioned topic metadata");
             consumerSubscribedFuture.completeExceptionally(ex);
             return null;
         });
@@ -698,15 +696,18 @@ public class PulsarClientImpl implements PulsarClient {
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
         lookup.getTopicsUnderNamespace(namespaceName, subscriptionMode, regex, null, conf.getProperties())
             .thenAccept(getTopicsResult -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Pattern consumer [{}] get topics under namespace {}, topics.size: {},"
-                                    + " topicsHash: {}, changed: {}, filtered: {}", conf.getSubscriptionName(),
-                            namespaceName, getTopicsResult.getTopics().size(), getTopicsResult.getTopicsHash(),
-                            getTopicsResult.isChanged(), getTopicsResult.isFiltered());
-                    getTopicsResult.getTopics().forEach(topicName ->
-                        log.debug("Pattern consumer [{}] get topics under namespace {}, topic: {}",
-                                conf.getSubscriptionName(), namespaceName, topicName));
-                }
+                log.debug().attr("subscriptionName", conf.getSubscriptionName())
+                        .attr("namespace", namespaceName)
+                        .attr("topicsCount", getTopicsResult.getTopics().size())
+                        .attr("topicsHash", getTopicsResult.getTopicsHash())
+                        .attr("changed", getTopicsResult.isChanged())
+                        .attr("filtered", getTopicsResult.isFiltered())
+                        .log("Pattern consumer get topics under namespace");
+                getTopicsResult.getTopics().forEach(topicName ->
+                        log.debug().attr("subscriptionName", conf.getSubscriptionName())
+                                .attr("namespace", namespaceName)
+                                .attr("topic", topicName)
+                                .log("Pattern consumer get topics under namespace"));
 
                 List<String> topicsList;
                 if (!getTopicsResult.isFiltered()) {
@@ -719,10 +720,9 @@ public class PulsarClientImpl implements PulsarClient {
                 }
                 conf.getTopicNames().addAll(topicsList);
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Pattern consumer [{}] initialize topics. {}", conf.getSubscriptionName(),
-                            getTopicsResult.getNonPartitionedOrPartitionTopics());
-                }
+                log.debug().attr("subscriptionName", conf.getSubscriptionName())
+                        .attr("topics", () -> getTopicsResult.getNonPartitionedOrPartitionTopics())
+                        .log("Pattern consumer initialize topics.");
 
                 // Pattern consumer has his unique check mechanism, so do not need the feature "autoUpdatePartitions".
                 conf.setAutoUpdatePartitions(false);
@@ -736,7 +736,7 @@ public class PulsarClientImpl implements PulsarClient {
                 consumers.add(consumer);
             })
             .exceptionally(ex -> {
-                log.warn("[{}] Failed to get topics under namespace", namespaceName);
+                log.warn().attr("namespaceName", namespaceName).log("Failed to get topics under namespace");
                 consumerSubscribedFuture.completeExceptionally(ex);
                 return null;
             });
@@ -791,7 +791,7 @@ public class PulsarClientImpl implements PulsarClient {
         consumers.add(consumer);
         consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader))
                 .exceptionally(ex -> {
-                    log.warn("Failed to create multiTopicReader", ex);
+                    log.warn().exception(ex).log("Failed to create multiTopicReader");
                     readerFuture.completeExceptionally(ex);
                     return null;
                 });
@@ -805,9 +805,9 @@ public class PulsarClientImpl implements PulsarClient {
         CompletableFuture<Reader<T>> readerFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic, true, false).thenAccept(metadata -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
-            }
+            log.debug().attr("topic", topic)
+                    .attr("partitions", metadata.partitions)
+                    .log("Received topic metadata. partitions");
             if (metadata.partitions > 0
                     && MultiTopicsConsumerImpl.isIllegalMultiTopicsMessageId(conf.getStartMessageId())) {
                 readerFuture.completeExceptionally(
@@ -830,12 +830,12 @@ public class PulsarClientImpl implements PulsarClient {
             consumers.add(consumer);
 
             consumerSubscribedFuture.thenRun(() -> readerFuture.complete(reader)).exceptionally(ex -> {
-                log.warn("[{}] Failed to get create topic reader", topic, ex);
+                log.warn().attr("topic", topic).exception(ex).log("Failed to get create topic reader");
                 readerFuture.completeExceptionally(ex);
                 return null;
             });
         }).exceptionally(ex -> {
-            log.warn("[{}] Failed to get partitioned topic metadata", topic, ex);
+            log.warn().attr("topic", topic).exception(ex).log("Failed to get partitioned topic metadata");
             readerFuture.completeExceptionally(ex);
             return null;
         });
@@ -884,7 +884,7 @@ public class PulsarClientImpl implements PulsarClient {
             try {
                 e.getValue().close();
             } catch (Exception ex) {
-                log.error("Error closing lookup service {}", e.getKey(), ex);
+                log.error().attr("service", e.getKey()).exception(ex).log("Error closing lookup service");
             }
             closedUrlLookupServices.put(e.getKey(), e.getValue());
         });
@@ -895,7 +895,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        log.info("Client closing. URL: {}", lookup.getServiceUrl());
+        log.info().attr("url", lookup.getServiceUrl()).log("Client closing. URL");
         if (!state.compareAndSet(State.Open, State.Closing)) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -907,13 +907,13 @@ public class PulsarClientImpl implements PulsarClient {
 
         producers.forEach(p -> futures.add(p.closeAsync().handle((__, t) -> {
             if (t != null) {
-                log.error("Error closing producer {}", p, t);
+                log.error().attr("producer", p).exception(t).log("Error closing producer");
             }
             return null;
         })));
         consumers.forEach(c -> futures.add(c.closeAsync().handle((__, t) -> {
             if (t != null) {
-                log.error("Error closing consumer {}", c, t);
+                log.error().attr("consumer", c).exception(t).log("Error closing consumer");
             }
             return null;
         })));
@@ -930,7 +930,7 @@ public class PulsarClientImpl implements PulsarClient {
                         PulsarClientImpl.class, "closeAsync"));
         combinedFuture.handle((__, t) -> {
             if (t != null) {
-                log.error("Closing producers and consumers failed. Continuing with shutdown.", t);
+                log.error().exception(t).log("Closing producers and consumers failed. Continuing with shutdown.");
             }
             new Thread(() -> {
                 shutdownExecutor.shutdownNow();
@@ -938,7 +938,7 @@ public class PulsarClientImpl implements PulsarClient {
                 try {
                     shutdown();
                 } catch (PulsarClientException e) {
-                    log.error("Shutdown failed. Ignoring the exception.", e);
+                    log.error().exception(e).log("Shutdown failed. Ignoring the exception.");
                 }
                 state.set(State.Closed);
                 closeFuture.complete(null);
@@ -957,7 +957,7 @@ public class PulsarClientImpl implements PulsarClient {
                 try {
                     lookup.close();
                 } catch (Throwable t) {
-                    log.warn("Failed to shutdown lookup", t);
+                    log.warn().exception(t).log("Failed to shutdown lookup");
                     throwable = t;
                 }
             }
@@ -988,20 +988,20 @@ public class PulsarClientImpl implements PulsarClient {
                 // eventLoopGroup.
                 shutdownEventLoopGroup(eventLoopGroup);
             } catch (PulsarClientException e) {
-                log.warn("Failed to shutdown eventLoopGroup", e);
+                log.warn().exception(e).log("Failed to shutdown eventLoopGroup");
                 throwable = e;
             }
             try {
                 closeCnxPool(cnxPool);
             } catch (PulsarClientException e) {
-                log.warn("Failed to shutdown cnxPool", e);
+                log.warn().exception(e).log("Failed to shutdown cnxPool");
                 throwable = e;
             }
             if (timer != null && needStopTimer) {
                 try {
                     timer.stop();
                 } catch (Throwable t) {
-                    log.warn("Failed to shutdown timer", t);
+                    log.warn().exception(t).log("Failed to shutdown timer");
                     throwable = t;
                 }
             }
@@ -1015,7 +1015,7 @@ public class PulsarClientImpl implements PulsarClient {
                 try {
                     memoryBufferStats.close();
                 } catch (Throwable t) {
-                    log.warn("Failed to close memoryBufferStats", t);
+                    log.warn().exception(t).log("Failed to close memoryBufferStats");
                     throwable = t;
                 }
             }
@@ -1028,7 +1028,7 @@ public class PulsarClientImpl implements PulsarClient {
                 try {
                     conf.getAuthentication().close();
                 } catch (Throwable t) {
-                    log.warn("Failed to close authentication", t);
+                    log.warn().exception(t).log("Failed to close authentication");
                     throwable = t;
                 }
             }
@@ -1036,7 +1036,7 @@ public class PulsarClientImpl implements PulsarClient {
                 throw throwable;
             }
         } catch (Throwable t) {
-            log.warn("Failed to shutdown Pulsar client", t);
+            log.warn().exception(t).log("Failed to shutdown Pulsar client");
             throw PulsarClientException.unwrap(t);
         }
     }
@@ -1069,7 +1069,7 @@ public class PulsarClientImpl implements PulsarClient {
                 try {
                     externalExecutorProvider.shutdownNow();
                 } catch (Throwable t) {
-                    log.warn("Failed to shutdown externalExecutorProvider", t);
+                    log.warn().exception(t).log("Failed to shutdown externalExecutorProvider");
                     pulsarClientException = PulsarClientException.unwrap(t);
                 }
             }
@@ -1077,7 +1077,7 @@ public class PulsarClientImpl implements PulsarClient {
                 try {
                     internalExecutorProvider.shutdownNow();
                 } catch (Throwable t) {
-                    log.warn("Failed to shutdown internalExecutorService", t);
+                    log.warn().exception(t).log("Failed to shutdown internalExecutorService");
                     pulsarClientException = PulsarClientException.unwrap(t);
                 }
             }
@@ -1086,7 +1086,7 @@ public class PulsarClientImpl implements PulsarClient {
             try {
                 scheduledExecutorProvider.shutdownNow();
             } catch (Throwable t) {
-                log.warn("Failed to shutdown scheduledExecutorProvider", t);
+                log.warn().exception(t).log("Failed to shutdown scheduledExecutorProvider");
                 pulsarClientException = PulsarClientException.unwrap(t);
             }
         }
@@ -1095,7 +1095,7 @@ public class PulsarClientImpl implements PulsarClient {
             try {
                 lookupExecutorProvider.shutdownNow();
             } catch (Throwable t) {
-                log.warn("Failed to shutdown lookupExecutorProvider", t);
+                log.warn().exception(t).log("Failed to shutdown lookupExecutorProvider");
                 pulsarClientException = PulsarClientException.unwrap(t);
             }
         }
@@ -1113,7 +1113,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public synchronized void updateServiceUrl(String serviceUrl) throws PulsarClientException {
-        log.info("Updating service URL to {}", serviceUrl);
+        log.info().attr("serviceUrl", serviceUrl).log("Updating service URL");
 
         conf.setServiceUrl(serviceUrl);
         lookup.updateServiceUrl(serviceUrl);
@@ -1121,7 +1121,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public void updateAuthentication(Authentication authentication) throws IOException {
-        log.info("Updating authentication to {}", authentication);
+        log.info().attr("authentication", authentication).log("Updating authentication");
         if (conf.getAuthentication() != null) {
             conf.getAuthentication().close();
         }
@@ -1130,12 +1130,13 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public void updateTlsTrustCertsFilePath(String tlsTrustCertsFilePath) {
-        log.info("Updating tlsTrustCertsFilePath to {}", tlsTrustCertsFilePath);
+        log.info().attr("tlsTrustCertsFilePath", tlsTrustCertsFilePath).log("Updating tlsTrustCertsFilePath");
         conf.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
     }
 
     public void updateTlsTrustStorePathAndPassword(String tlsTrustStorePath, String tlsTrustStorePassword) {
-        log.info("Updating tlsTrustStorePath to {}, tlsTrustStorePassword to *****", tlsTrustStorePath);
+        log.info().attr("tlsTrustStorePath", tlsTrustStorePath)
+                .log("Updating tlsTrustStorePath to, tlsTrustStorePassword to *****");
         conf.setTlsTrustStorePath(tlsTrustStorePath);
         conf.setTlsTrustStorePassword(tlsTrustStorePassword);
     }
@@ -1172,7 +1173,7 @@ public class PulsarClientImpl implements PulsarClient {
             try {
                 return createLookup(serviceUrl);
             } catch (PulsarClientException e) {
-                log.warn("Failed to update url to lookup service {}, {}", url, e.getMessage());
+                log.warn().attr("service", url).exceptionMessage(e).log("Failed to update url to lookup service");
                 throw new IllegalStateException("Failed to update url " + url);
             }
         });
@@ -1252,7 +1253,7 @@ public class PulsarClientImpl implements PulsarClient {
             try {
                 previousLookup.close();
             } catch (Exception e) {
-                log.warn("Failed to close previous lookup service", e);
+                log.warn().exception(e).log("Failed to close previous lookup service");
             }
         }
     }
@@ -1324,8 +1325,9 @@ public class PulsarClientImpl implements PulsarClient {
             previousExceptionCount.getAndIncrement();
 
             ((ScheduledExecutorService) scheduledExecutorProvider.getExecutor()).schedule(() -> {
-                log.warn("[topic: {}] Could not get connection while getPartitionedTopicMetadata -- "
-                        + "Will try again in {} ms", topicName, nextDelay);
+                log.warn().attr("topic", topicName)
+                        .attr("nextDelayMs", nextDelay)
+                        .log("Could not get connection while getting partitioned topic metadata, will retry");
                 remainingTime.addAndGet(-nextDelay);
                 getPartitionedTopicMetadata(topicName, backoff, remainingTime, future, previousExceptionCount,
                         metadataAutoCreationEnabled, useFallbackForNonPIP344Brokers);
@@ -1403,7 +1405,9 @@ public class PulsarClientImpl implements PulsarClient {
             try {
                 schemaInfoProvider = pulsarClientImpl.getSchemaProviderLoadingCache().get(schemaTopicName);
             } catch (ExecutionException e) {
-                log.error("Failed to load schema info provider for topic {}", schemaTopicName, e);
+                log.error().attr("topic", schemaTopicName)
+                        .exception(e)
+                        .log("Failed to load schema info provider for topic");
                 return FutureUtil.failedFuture(e.getCause());
             }
             schema = schema.clone();
@@ -1420,7 +1424,9 @@ public class PulsarClientImpl implements PulsarClient {
                         }
                     }
                     try {
-                        log.info("Configuring schema for topic {} : {}", topicName, schemaInfo);
+                        log.info().attr("topic", topicName)
+                                .attr("schemaInfo", schemaInfo)
+                                .log("Configuring schema for topic");
                         finalSchema.configureSchemaInfo(topicName, "topic", schemaInfo);
                     } catch (RuntimeException re) {
                         return FutureUtil.failedFuture(re);

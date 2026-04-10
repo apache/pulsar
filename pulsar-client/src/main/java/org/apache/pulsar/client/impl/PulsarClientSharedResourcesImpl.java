@@ -32,8 +32,8 @@ import io.netty.util.Timer;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -42,7 +42,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 
-@Slf4j
+@CustomLog
 @Getter
 public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResources {
     Set<SharedResource> sharedResources;
@@ -160,7 +160,7 @@ public class PulsarClientSharedResourcesImpl implements PulsarClientSharedResour
             try {
                 memoryBufferStats.close();
             } catch (Throwable t) {
-                log.warn("Failed to close shared memoryBufferStats", t);
+                log.warn().exception(t).log("Failed to close shared memoryBufferStats");
             }
         }
     }

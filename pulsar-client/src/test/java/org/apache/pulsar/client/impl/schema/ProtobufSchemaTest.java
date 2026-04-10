@@ -34,13 +34,13 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProtobufSchemaTest {
 
     private static final String NAME = "foo";
