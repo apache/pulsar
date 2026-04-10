@@ -25,6 +25,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":managed-ledger"))
     api(project(":pulsar-broker-common"))
     implementation(project(":pulsar-client-original"))
