@@ -34,8 +34,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.Backoff;
@@ -67,7 +67,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
  *   <li>Routes reads/writes based on migration phase</li>
  * </ul>
  */
-@Slf4j
+@CustomLog
 public class DualMetadataStore implements MetadataStoreExtended {
 
     @Getter
@@ -134,7 +134,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
             Stat stat = this.sourceStore.put(MigrationState.PARTICIPANTS_PATH + "/id-", new byte[0],
                     Optional.empty(), EnumSet.of(CreateOption.Sequential, CreateOption.Ephemeral)).get();
             participantId = stat.getPath();
-            log.info("Participant metadata store created: {}", participantId);
+            log.info().attr("participantId", participantId).log("Participant metadata store created");
         } catch (Throwable e) {
             throw new MetadataStoreException(e);
         }
@@ -166,7 +166,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
     private void handleMigrationStart() {
         try {
             log.info("=== Starting Metadata Migration Preparation ===");
-            log.info("Target metadata store URL: {}", migrationState.getTargetUrl());
+            log.info().attr("targetUrl", migrationState.getTargetUrl()).log("Target metadata store URL");
 
             long startTime = System.currentTimeMillis();
             Backoff backoff = Backoff.builder()
@@ -178,7 +178,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
                 if (pending == 0) {
                     break;
                 } else {
-                    log.info("Waiting for {} pending source writes to complete", pendingSourceWrites.get());
+                    log.info().attr("pending", pendingSourceWrites.get()).log("Waiting for pending source writes to complete");
                     Thread.sleep(backoff.next().toMillis());
                 }
             }
@@ -203,7 +203,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
             log.info("=== Migration Preparation Complete ===");
 
         } catch (Exception e) {
-            log.error("Failed during migration preparation", e);
+            log.error().exception(e).log("Failed during migration preparation");
         }
     }
 
@@ -228,7 +228,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
             return;
         }
 
-        log.info("Initializing target metadata store: {}", targetUrl);
+        log.info().attr("targetUrl", targetUrl).log("Initializing target metadata store");
         this.targetStore = (MetadataStoreExtended) MetadataStoreFactoryImpl.create(
                 targetUrl,
                 MetadataStoreConfig.builder()
@@ -244,7 +244,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     private void recreateEphemeralNodesInTarget() throws Exception {
-        log.info("Found {} local ephemeral nodes to recreate", localEphemeralPaths.size());
+        log.info().attr("count", localEphemeralPaths.size()).log("Found local ephemeral nodes to recreate");
         var futures = localEphemeralPaths.stream()
                 .map(path ->
                         sourceStore.get(path)
@@ -475,7 +475,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
                 targetStore.close();
                 log.info("Target store closed");
             } catch (Exception e) {
-                log.error("Error closing target store", e);
+                log.error().exception(e).log("Error closing target store");
             }
         }
 
@@ -484,7 +484,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
             sourceStore.close();
             log.info("Source store closed");
         } catch (Exception e) {
-            log.error("Error closing source store", e);
+            log.error().exception(e).log("Error closing source store");
         }
 
         executor.shutdownNow();

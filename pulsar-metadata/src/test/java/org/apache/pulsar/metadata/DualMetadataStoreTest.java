@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -48,7 +48,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class DualMetadataStoreTest extends BaseMetadataStoreTest {
 
 
@@ -361,7 +361,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
 
         // Verify participant registration node exists
         List<String> participants = sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join();
-        log.info("participants: {}", participants);
+        log.info().attr("participants", participants).log("participants");
         assertEquals(participants.size(), 1);
         assertTrue(participants.get(0).startsWith("id-"));
     }
@@ -396,7 +396,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
 
         // Verify participant registration node exists under chroot
         List<String> participants = sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join();
-        log.info("Participants in chroot {}: {}", chrootPath, participants);
+        log.info().attr("chrootPath", chrootPath).attr("participants", participants).log("Participants in chroot");
         assertEquals(participants.size(), 1);
         assertTrue(participants.get(0).startsWith("id-"));
 

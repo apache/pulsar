@@ -28,8 +28,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -68,7 +68,7 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.client.ConnectStringParser;
 
-@Slf4j
+@CustomLog
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
     public static final String ZK_SCHEME = "zk";
@@ -163,7 +163,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         if (rc == Code.OK.intValue()) {
                             super.receivedSessionEvent(event);
                         } else {
-                            log.error("Failed to recreate persistent watch on ZooKeeper: {}", Code.get(rc));
+                            log.error().attr("code", Code.get(rc)).log("Failed to recreate persistent watch on ZooKeeper");
                             if (sessionWatcher != null) {
                                 sessionWatcher.setSessionInvalid();
                             }
@@ -236,11 +236,12 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                                 .map(op -> Triple.of(op.getPath(), op.getType().toString(), op.size()))
                                 .collect(Collectors.toList());
                         Long totalSize = ops.stream().collect(Collectors.summingLong(MetadataOp::size));
-                        log.warn("Connection loss while executing batch operation of {} "
-                                + "of total requested data size of {}. "
-                                + "Retrying individual operations one-by-one."
-                                + " ops that maybe large: {}",
-                                countsByType, totalSize, opsForLog);
+                        log.warn()
+                                .attr("countsByType", countsByType)
+                                .attr("totalSize", totalSize)
+                                .attr("largeOps", opsForLog)
+                                .log("Connection loss while executing batch operation."
+                                        + " Retrying individual operations one-by-one.");
 
                         // Retry with the individual operations
                         scheduleDelayedTask(100, TimeUnit.MILLISECONDS,
@@ -527,9 +528,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     private void handleWatchEvent(WatchedEvent event) {
-        if (log.isDebugEnabled()) {
-            log.debug("Received ZK watch : {}", event);
-        }
+        log.debug().attr("event", event).log("Received ZK watch");
         String path = event.getPath();
         if (path == null) {
             // Ignore Session events
@@ -617,7 +616,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     .build()) {
                 if (chrootZk.exists(chrootPath, false) == null) {
                     createFullPathOptimistic(chrootZk, chrootPath, new byte[0], CreateMode.PERSISTENT);
-                    log.info("Created zookeeper chroot path {} successfully", chrootPath);
+                    log.info().attr("chrootPath", chrootPath).log("Created zookeeper chroot path successfully");
                 }
             } catch (Exception e) {
                 return FutureUtil.failedFuture(e);

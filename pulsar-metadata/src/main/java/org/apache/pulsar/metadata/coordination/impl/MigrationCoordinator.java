@@ -33,7 +33,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.Backoff;
@@ -47,7 +47,7 @@ import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStoreProvider;
 /**
  * Coordinates metadata store migration process.
  */
-@Slf4j
+@CustomLog
 public class MigrationCoordinator {
     private final MetadataStore sourceStore;
     private final String targetUrl;
@@ -75,8 +75,8 @@ public class MigrationCoordinator {
      */
     public void startMigration() throws Exception {
         log.info("=== Starting Migration ===");
-        log.info("Source: {} (current)", sourceStore.getClass().getSimpleName());
-        log.info("Target: {}", targetUrl);
+        log.info().attr("source", sourceStore.getClass().getSimpleName()).log("Source (current)");
+        log.info().attr("target", targetUrl).log("Target");
 
         try {
             // 1. Create migration flag
@@ -94,7 +94,7 @@ public class MigrationCoordinator {
 
             log.info("=== Migration Complete ===");
         } catch (Exception e) {
-            log.error("Migration failed", e);
+            log.error().exception(e).log("Migration failed");
             updatePhase(MigrationPhase.FAILED);
             throw e;
         }
@@ -135,12 +135,12 @@ public class MigrationCoordinator {
                 return;
             }
 
-            log.info("Waiting for participants to prepare. pending: {}", pending);
+            log.info().attr("pending", pending).log("Waiting for participants to prepare");
             Thread.sleep(backoff.next().toMillis());
         }
 
-        log.error("Failed to wait for all participants to prepare. pending participants: {}",
-                sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).get());
+        log.error().attr("pendingParticipants", sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).get())
+                .log("Failed to wait for all participants to prepare");
     }
 
     private void copyPersistentData() throws Exception {
@@ -194,7 +194,7 @@ public class MigrationCoordinator {
             throw new Exception(exception.get());
         }
 
-        log.info("All data copied. total records={}", copiedCount.get());
+        log.info().attr("totalRecords", copiedCount.get()).log("All data copied");
     }
 
     private CompletableFuture<List<String>> getChildren(String parent) {
@@ -221,7 +221,7 @@ public class MigrationCoordinator {
                                     Set.of(new OptionOverrideVersionId(gr.getStat().getVersion()),
                                             new OptionOverrideModificationsCount(gr.getStat().getVersion())
                                     )
-                            ).thenRun(() -> log.debug("--- Copied {}", path));
+                            ).thenRun(() -> log.debug().attr("path", path).log("--- Copied"));
                         }
                     } else {
                         return CompletableFuture.completedFuture(null);

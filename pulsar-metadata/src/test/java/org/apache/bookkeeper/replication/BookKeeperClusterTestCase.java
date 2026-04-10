@@ -71,8 +71,7 @@ import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeTest;
@@ -80,9 +79,8 @@ import org.testng.annotations.BeforeTest;
 /**
  * A class runs several bookie servers for testing.
  */
+@CustomLog
 public abstract class BookKeeperClusterTestCase {
-
-    static final Logger LOG = LoggerFactory.getLogger(BookKeeperClusterTestCase.class);
 
     protected String testName;
 
@@ -156,7 +154,7 @@ public abstract class BookKeeperClusterTestCase {
     }
 
     protected void setUp(String ledgersRootPath) throws Exception {
-        LOG.info("Setting up test {}", getClass());
+        LOG.info().attr("testClass", getClass()).log("Setting up test");
         InMemoryMetaStore.reset();
         setMetastoreImplClass(baseConf);
         setMetastoreImplClass(baseClientConf);
@@ -169,8 +167,8 @@ public abstract class BookKeeperClusterTestCase {
             // start bookkeeper service
             this.metadataServiceUri = getMetadataServiceUri(ledgersRootPath);
             startBKCluster(metadataServiceUri);
-            LOG.info("Setup testcase {} @ metadata service {} in {} ms.",
-                    testName, metadataServiceUri,  sw.elapsed(TimeUnit.MILLISECONDS));
+            LOG.info().attr("testName", testName).attr("metadataServiceUri", metadataServiceUri)
+                    .attr("elapsedMs", sw.elapsed(TimeUnit.MILLISECONDS)).log("Setup testcase");
         } catch (Exception e) {
             LOG.error("Error setting up", e);
             throw e;
@@ -230,7 +228,7 @@ public abstract class BookKeeperClusterTestCase {
 
         MoreExecutors.shutdownAndAwaitTermination(executor, 10, TimeUnit.SECONDS);
 
-        LOG.info("Tearing down test {} in {} ms.", testName, sw.elapsed(TimeUnit.MILLISECONDS));
+        LOG.info().attr("testName", testName).attr("elapsedMs", sw.elapsed(TimeUnit.MILLISECONDS)).log("Tearing down test");
         if (tearDownException != null) {
             throw tearDownException;
         }
@@ -464,7 +462,7 @@ public abstract class BookKeeperClusterTestCase {
             if (tester.get().autoRecovery != null
                     && tester.get().autoRecovery.getAuditor() != null
                     && tester.get().autoRecovery.getAuditor().isRunning()) {
-                LOG.warn("Killing bookie {} who is the current Auditor", addr);
+                LOG.warn().attr("bookie", addr).log("Killing bookie who is the current Auditor");
             }
             servers.remove(tester.get());
             tester.get().shutdown();
@@ -541,11 +539,11 @@ public abstract class BookKeeperClusterTestCase {
                 public void run() {
                     try {
                         tester.get().getServer().suspendProcessing();
-                        LOG.info("bookie {} is asleep", tester.get().getAddress());
+                        LOG.info().attr("bookie", tester.get().getAddress()).log("bookie is asleep");
                         latch.countDown();
                         Thread.sleep(seconds * 1000);
                         tester.get().getServer().resumeProcessing();
-                        LOG.info("bookie {} is awake", tester.get().getAddress());
+                        LOG.info().attr("bookie", tester.get().getAddress()).log("bookie is awake");
                     } catch (Exception e) {
                         LOG.error("Error suspending bookie", e);
                     }
@@ -580,7 +578,7 @@ public abstract class BookKeeperClusterTestCase {
         Optional<ServerTester> tester = byAddress(addr);
         if (tester.isPresent()) {
             BookieServer bookie = tester.get().getServer();
-            LOG.info("Sleep bookie {}.", addr);
+            LOG.info().attr("bookie", addr).log("Sleep bookie");
             Thread sleeper = new Thread() {
                 @Override
                 public void run() {
@@ -669,14 +667,14 @@ public abstract class BookKeeperClusterTestCase {
     public BookieSocketAddress startNewBookieAndReturnAddress()
             throws Exception {
         ServerConfiguration conf = newServerConfiguration();
-        LOG.info("Starting new bookie on port: {}", conf.getBookiePort());
+        LOG.info().attr("port", conf.getBookiePort()).log("Starting new bookie");
         return startAndAddBookie(conf).getServer().getLocalAddress();
     }
 
     public BookieId startNewBookieAndReturnBookieId()
             throws Exception {
         ServerConfiguration conf = newServerConfiguration();
-        LOG.info("Starting new bookie on port: {}", conf.getBookiePort());
+        LOG.info().attr("port", conf.getBookiePort()).log("Starting new bookie");
         return startAndAddBookie(conf).getServer().getBookieId();
     }
 
@@ -715,7 +713,7 @@ public abstract class BookKeeperClusterTestCase {
         tester.getServer().start();
 
         waitForBookie.get(30, TimeUnit.SECONDS);
-        LOG.info("New bookie '{}' has been created.", address);
+        LOG.info().attr("bookie", address).log("New bookie has been created");
 
         if (isAutoRecoveryEnabled()) {
             tester.startAutoRecovery();
@@ -767,7 +765,7 @@ public abstract class BookKeeperClusterTestCase {
         );
         bkc.readBookiesBlocking();
 
-        LOG.info("New bookie '{}' has been created.", address);
+        LOG.info().attr("bookie", address).log("New bookie has been created");
         return tester;
     }
 
@@ -838,7 +836,7 @@ public abstract class BookKeeperClusterTestCase {
                 // AutoRecovery daemon
                 if (a != null && a.isRunning()
                         && replicationWorker != null && replicationWorker.isRunning()) {
-                    LOG.info("Found Auditor Bookie {}", t.getServer().getBookieId());
+                    LOG.info().attr("bookie", t.getServer().getBookieId()).log("Found Auditor Bookie");
                     return a;
                 }
             }

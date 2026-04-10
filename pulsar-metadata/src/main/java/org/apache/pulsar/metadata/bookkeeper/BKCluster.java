@@ -33,8 +33,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.bookie.Cookie;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -57,7 +57,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 /**
  * A class runs several bookie servers for testing.
  */
-@Slf4j
+@CustomLog
 public class BKCluster implements AutoCloseable {
 
     private final BKClusterConf clusterConf;
@@ -161,7 +161,7 @@ public class BKCluster implements AutoCloseable {
             try {
                 stopBKCluster();
             } catch (Exception e) {
-                log.error("Got Exception while trying to stop BKCluster", e);
+                log.error().exception(e).log("Got Exception while trying to stop BKCluster");
             }
             lockedPorts.forEach(PortManager::releaseLockedPort);
             lockedPorts.clear();
@@ -169,7 +169,7 @@ public class BKCluster implements AutoCloseable {
             try {
                 cleanupTempDirs();
             } catch (Exception e) {
-                log.error("Got Exception while trying to cleanupTempDirs", e);
+                log.error().exception(e).log("Got Exception while trying to cleanupTempDirs");
             }
 
             this.store.close();
@@ -236,7 +236,7 @@ public class BKCluster implements AutoCloseable {
         }
 
         if (clusterConf.clearOldData && dataDir.exists()) {
-            log.info("Wiping Bookie data directory at {}", dataDir.getAbsolutePath());
+            log.info().attr("dataDir", dataDir.getAbsolutePath()).log("Wiping Bookie data directory");
             cleanDirectory(dataDir);
         }
 
@@ -312,7 +312,7 @@ public class BKCluster implements AutoCloseable {
             throws Exception {
         ServerConfiguration conf = newServerConfiguration(index);
         bsConfs.add(conf);
-        log.info("Starting new bookie on port: {}", conf.getBookiePort());
+        log.info().attr("port", conf.getBookiePort()).log("Starting new bookie");
         LifecycleComponentStack server = startBookie(conf);
         bookieComponents.add(server);
         return conf.getBookiePort();
@@ -350,7 +350,7 @@ public class BKCluster implements AutoCloseable {
             throw new RuntimeException("Bookie failed to start within timeout period");
         }
 
-        log.info("New bookie '{}' has been created.", address);
+        log.info().attr("address", address).log("New bookie has been created");
 
         return server;
     }
@@ -361,8 +361,7 @@ public class BKCluster implements AutoCloseable {
             AutoRecoveryMain autoRecoveryProcess = new AutoRecoveryMain(conf);
             autoRecoveryProcess.start();
             autoRecoveryProcesses.put(bserver, autoRecoveryProcess);
-            log.debug("Starting Auditor Recovery for the bookie:"
-                    + bserver.getBookieId());
+            log.debug().attr("bookieId", bserver.getBookieId()).log("Starting Auditor Recovery for the bookie");
         }
     }
 
@@ -403,7 +402,7 @@ public class BKCluster implements AutoCloseable {
                 }
             }
         } catch (SocketException var3) {
-            log.warn("Exception while figuring out loopback interface. Will use null.", var3);
+            log.warn().exception(var3).log("Exception while figuring out loopback interface. Will use null");
             return null;
         }
 

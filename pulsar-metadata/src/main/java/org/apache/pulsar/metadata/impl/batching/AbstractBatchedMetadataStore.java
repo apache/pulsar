@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -44,7 +44,7 @@ import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 import org.jspecify.annotations.Nullable;
 
-@Slf4j
+@CustomLog
 public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore {
 
     private final ScheduledFuture<?> scheduledTask;

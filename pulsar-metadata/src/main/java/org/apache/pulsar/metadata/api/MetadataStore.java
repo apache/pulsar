@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.api;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.Beta;
+import io.github.merlimat.slog.Logger;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -28,8 +29,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Metadata store client interface.
@@ -40,7 +39,7 @@ import org.slf4j.LoggerFactory;
 @Beta
 public interface MetadataStore extends AutoCloseable {
 
-    Logger LOGGER = LoggerFactory.getLogger(MetadataStore.class);
+    Logger log = Logger.get(MetadataStore.class);
 
     /**
      * Read the value of one key, identified by the path
@@ -145,13 +144,14 @@ public interface MetadataStore extends AutoCloseable {
         return delete(path, expectedVersion)
                 .exceptionally(e -> {
                     if (e.getCause() instanceof NotFoundException) {
-                        LOGGER.info("Path {} not found while deleting (this is not a problem)", path);
+                        log.info().attr("path", path).log("Path not found while deleting (this is not a problem)");
                         return null;
                     } else {
                         if (expectedVersion.isEmpty()) {
-                            LOGGER.info("Failed to delete path {}", path, e);
+                            log.info().attr("path", path).exception(e).log("Failed to delete path");
                         } else {
-                            LOGGER.info("Failed to delete path {} with expected version {}", path, expectedVersion, e);
+                            log.info().attr("path", path).attr("expectedVersion", expectedVersion).exception(e)
+                                    .log("Failed to delete path");
                         }
                         throw new CompletionException(e);
                     }

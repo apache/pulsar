@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.EnumSet;
 import java.util.Optional;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -40,7 +40,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MigrationCoordinatorTest extends BaseMetadataStoreTest {
 
     protected String getOxiaServerConnectString() {
@@ -212,7 +212,7 @@ public class MigrationCoordinatorTest extends BaseMetadataStoreTest {
         assertEquals(state.getPhase(), MigrationPhase.COMPLETED);
 
         long duration = System.currentTimeMillis() - startTime;
-        log.info("Migration of {} nodes completed in {} ms", nodeCount, duration);
+        log.info().attr("nodeCount", nodeCount).attr("durationMs", duration).log("Migration completed");
 
         // Verify all nodes were copied
         for (int i = 0; i < nodeCount; i++) {

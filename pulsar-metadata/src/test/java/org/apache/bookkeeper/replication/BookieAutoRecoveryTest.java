@@ -49,8 +49,7 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.data.Stat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -60,9 +59,8 @@ import org.testng.annotations.Test;
  * Auditor-rereplication process: Auditor will publish the bookie failures,
  * consequently ReplicationWorker will get the notifications and act on it.
  */
+@CustomLog
 public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
-    private static final Logger LOG = LoggerFactory
-            .getLogger(BookieAutoRecoveryTest.class);
     private static final byte[] PASSWD = "admin".getBytes();
     private static final byte[] data = "TESTDATA".getBytes();
     private static final String openLedgerRereplicationGracePeriod = "3000"; // milliseconds
@@ -176,10 +174,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
         int newBookieIndex = lastBookieIndex();
         BookieServer newBookieServer = serverByIndex(newBookieIndex);
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting to finish the replication of failed bookie : "
-                    + replicaToKillAddr);
-        }
+        LOG.debug("Waiting to finish the replication of failed bookie : " + replicaToKillAddr);
         latch.await();
 
         // grace period to update the urledger metadata in zookeeper
@@ -232,10 +227,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
         int newBookieIndex = lastBookieIndex();
         BookieServer newBookieServer = serverByIndex(newBookieIndex);
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting to finish the replication of failed bookie : "
-                    + replicaToKillAddr);
-        }
+        LOG.debug("Waiting to finish the replication of failed bookie : " + replicaToKillAddr);
 
         // waiting to finish replication
         latch.await();
@@ -301,10 +293,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
         int newBookieIndex = lastBookieIndex();
         BookieServer newBookieServer = serverByIndex(newBookieIndex);
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting to finish the replication of failed bookie : "
-                    + replicaToKillAddr);
-        }
+        LOG.debug("Waiting to finish the replication of failed bookie : " + replicaToKillAddr);
         while (true) {
             if (latch.getCount() < numberOfLedgers || latch.getCount() <= 0) {
                 stopReplicationService();
@@ -387,8 +376,8 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
         watchUrLedgerNode(urZNode, latch);
 
         BookieId replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(2);
-        LOG.info("Killing last bookie, {}, in ensemble {}", replicaToKill,
-                lh.getLedgerMetadata().getAllEnsembles().get(0L));
+        LOG.info().attr("bookie", replicaToKill).attr("ensemble", lh.getLedgerMetadata().getAllEnsembles().get(0L))
+                .log("Killing last bookie in ensemble");
         killBookie(replicaToKill);
         startNewBookie();
 
@@ -402,8 +391,8 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
         }
 
         replicaToKill = lh.getLedgerMetadata().getAllEnsembles().get(0L).get(1);
-        LOG.info("Killing second bookie, {}, in ensemble {}", replicaToKill,
-                lh.getLedgerMetadata().getAllEnsembles().get(0L));
+        LOG.info().attr("bookie", replicaToKill).attr("ensemble", lh.getLedgerMetadata().getAllEnsembles().get(0L))
+                .log("Killing second bookie in ensemble");
         killBookie(replicaToKill);
 
         getAuditor(10, TimeUnit.SECONDS).submitAuditTask().get(); // ensure auditor runs
@@ -484,10 +473,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
         int newBookieIndex = lastBookieIndex();
         BookieServer newBookieServer = serverByIndex(newBookieIndex);
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting to finish the replication of failed bookie : "
-                    + replicaToKillAddr);
-        }
+        LOG.debug("Waiting to finish the replication of failed bookie : " + replicaToKillAddr);
         latch.await();
 
         // grace period to update the urledger metadata in zookeeper
@@ -562,10 +548,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
         int newBookieIndex = lastBookieIndex();
         BookieServer newBookieServer = serverByIndex(newBookieIndex);
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting to finish the replication of failed bookie : "
-                    + replicaToKillAddr);
-        }
+        LOG.debug("Waiting to finish the replication of failed bookie : " + replicaToKillAddr);
         latch.await();
 
         // grace period to update the urledger metadata in zookeeper

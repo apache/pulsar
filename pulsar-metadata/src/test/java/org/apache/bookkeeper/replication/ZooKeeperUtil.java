@@ -44,12 +44,12 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.test.ClientBase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * Test the zookeeper utilities.
  */
+@CustomLog
 public class ZooKeeperUtil implements ZooKeeperCluster {
 
     static {
@@ -57,7 +57,6 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
         // are disabled by default due to security reasons
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");
     }
-    static final Logger LOG = LoggerFactory.getLogger(ZooKeeperUtil.class);
 
     // ZooKeeper related variables
     protected Integer zooKeeperPort = 0;

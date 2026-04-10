@@ -39,8 +39,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLayoutManager;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -48,13 +47,9 @@ import org.testng.annotations.Test;
 /**
  * Tests verifies bookie vs ledger mapping generating by the BookieLedgerIndexer.
  */
+@CustomLog
 public class BookieLedgerIndexTest extends BookKeeperClusterTestCase {
 
-    // Depending on the taste, select the amount of logging
-    // by decommenting one of the two lines below
-    // private final static Logger LOG = Logger.getRootLogger();
-    private static final Logger LOG = LoggerFactory
-            .getLogger(BookieLedgerIndexTest.class);
 
     private Random rng; // Random Number Generator
     private ArrayList<byte[]> entries; // generated entries

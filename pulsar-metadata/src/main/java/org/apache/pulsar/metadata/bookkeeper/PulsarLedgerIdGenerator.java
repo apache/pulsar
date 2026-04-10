@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.meta.LedgerIdGenerator;
 import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks;
@@ -34,7 +34,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
-@Slf4j
+@CustomLog
 public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
 
     private final MetadataStoreExtended store;
@@ -67,7 +67,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                 }).thenAccept(ledgerId ->
                 genericCallback.operationComplete(BKException.Code.OK, ledgerId)
         ).exceptionally(ex -> {
-            log.error("Error generating ledger id: {}", ex.getMessage());
+            log.error().exceptionMessage(ex).log("Error generating ledger id");
             genericCallback.operationComplete(BKException.Code.MetaStoreException, -1L);
             return null;
         });
@@ -108,7 +108,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                     // delete the znode for id generation
                     store.delete(handleTheDeletePath(stat.getPath()), Optional.empty()).
                             exceptionally(ex -> {
-                                log.warn("Exception during deleting node for id generation: ", ex);
+                                log.warn().exception(ex).log("Exception during deleting node for id generation");
                                 return null;
                             });
 
@@ -124,7 +124,8 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                             return CompletableFuture.completedFuture(ledgerId);
                         }
                     } catch (IOException e) {
-                        log.error("Could not extract ledger-id from id gen path:" + stat.getPath(), e);
+                        log.error().attr("path", stat.getPath()).exception(e)
+                                .log("Could not extract ledger-id from id gen path");
                         return FutureUtil.failedFuture(e);
                     }
                 });
@@ -172,9 +173,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
 
                             for (int i = 0; i < highOrderDirs.length - 3; i++) {
                                 String path = ledgerPrefix + formatHalfId(((Long) highOrderDirs[i]).intValue());
-                                if (log.isDebugEnabled()) {
-                                    log.debug("DELETING HIGH ORDER DIR: {}", path);
-                                }
+                                log.debug().attr("path", path).log("Deleting high order dir");
                                 store.delete(path, Optional.of(0L));
                             }
                         }
@@ -193,9 +192,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
     }
 
     private CompletableFuture<Long> createHOBPathAndGenerateId(String ledgerPrefix, int hob) {
-        if (log.isDebugEnabled()) {
-            log.debug("Creating HOB path: {}", ledgerPrefix + formatHalfId(hob));
-        }
+        log.debug().attr("path", ledgerPrefix + formatHalfId(hob)).log("Creating HOB path");
 
         CompletableFuture<Long> future = new CompletableFuture<>();
         store.put(ledgerPrefix + formatHalfId(hob), new byte[0], Optional.empty())
@@ -239,7 +236,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                     // delete the znode for id generation
                     store.delete(handleTheDeletePath(stat.getPath()), Optional.empty()).
                             exceptionally(ex -> {
-                                log.warn("Exception during deleting node for id generation: ", ex);
+                                log.warn().exception(ex).log("Exception during deleting node for id generation");
                                 return null;
                             });
 
@@ -247,7 +244,8 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                         long ledgerId = getLedgerIdFromGenPath(stat.getPath(), prefix);
                         return CompletableFuture.completedFuture(ledgerId);
                     } catch (IOException e) {
-                        log.error("Could not extract ledger-id from id gen path:" + stat.getPath(), e);
+                        log.error().attr("path", stat.getPath()).exception(e)
+                                .log("Could not extract ledger-id from id gen path");
                         return FutureUtil.failedFuture(e);
                     }
                 });

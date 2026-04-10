@@ -44,7 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.LayoutManager;
 import org.apache.bookkeeper.meta.LedgerManagerFactory;
@@ -68,7 +68,7 @@ import org.testng.annotations.Test;
 /**
  * Test the zookeeper implementation of the ledger replication manager.
  */
-@Slf4j
+@CustomLog
 public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
     private Future<Long> getLedgerToReplicate(LedgerUnderreplicationManager m) {
@@ -76,10 +76,10 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             try {
                 log.info("Starting thread checking for ledgers");
                 long l = m.getLedgerToRereplicate();
-                log.info("Get ledger id: {}", Long.toHexString(l));
+                log.info().attr("ledgerId", Long.toHexString(l)).log("Get ledger id");
                 return l;
             } catch (Exception e) {
-                log.error("Error getting ledger id", e);
+                log.error().exception(e).log("Error getting ledger id");
                 return -1L;
             }
         }, executor);
@@ -624,7 +624,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         try {
             lum.markLedgerUnderreplicated(ledgerA, missingReplica);
         } catch (UnavailableException e) {
-            log.error("Unexpected exception while marking urLedger", e);
+            log.error().exception(e).log("Unexpected exception while marking urLedger");
             fail("Unexpected exception while marking urLedger" + e.getMessage());
         }
 
@@ -653,7 +653,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         try {
             lum.markLedgerUnderreplicated(ledgerA, missingReplica);
         } catch (UnavailableException e) {
-            log.debug("Unexpected exception while marking urLedger", e);
+            log.debug().exception(e).log("Unexpected exception while marking urLedger");
             fail("Unexpected exception while marking urLedger" + e.getMessage());
         }
         AtomicInteger callbackCount = new AtomicInteger();
@@ -669,8 +669,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         store.registerListener(n -> {
             if (n.getType() == NotificationType.Created && n.getPath().equals(urLockLedgerA)) {
                 znodeLatch.countDown();
-                log.debug("Recieved node creation event for the zNodePath:"
-                        + n.getPath());
+                log.debug("Recieved node creation event for the zNodePath:" + n.getPath());
             }
         });
 
@@ -799,8 +798,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
                 long ledgerToRereplicate = m.getLedgerToRereplicate();
                 m.releaseUnderreplicatedLedger(ledgerToRereplicate);
             } catch (UnavailableException e) {
-                log.error("UnavailableException when "
-                        + "taking or releasing lock", e);
+                log.error().exception(e).log("UnavailableException when taking or releasing lock");
             }
             latch.countDown();
         }

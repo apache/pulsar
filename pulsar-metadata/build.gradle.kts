@@ -29,6 +29,7 @@ dependencies {
     }
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.oxia.client)
+    implementation(libs.slog)
     implementation(libs.caffeine)
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.caffeine)

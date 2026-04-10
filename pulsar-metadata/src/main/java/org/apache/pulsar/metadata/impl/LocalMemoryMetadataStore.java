@@ -31,8 +31,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -49,7 +49,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-@Slf4j
+@CustomLog
 public class LocalMemoryMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended {
 
     static final String MEMORY_SCHEME = "memory";
@@ -102,7 +102,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 return value;
             });
             sequentialIdGenerator = STATIC_ID_GEN_MAP.computeIfAbsent(name, __ -> new AtomicLong());
-            log.info("Created LocalMemoryDataStore for '{}'", name);
+            log.info().attr("name", name).log("Created LocalMemoryDataStore");
         }
     }
 

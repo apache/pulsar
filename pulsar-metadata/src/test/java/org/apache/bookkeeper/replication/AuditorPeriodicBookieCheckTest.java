@@ -30,8 +30,7 @@ import org.apache.bookkeeper.conf.TestBKConfiguration;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -40,9 +39,8 @@ import org.testng.annotations.Test;
  * This test verifies that the period check on the auditor
  * will pick up on missing data in the client.
  */
+@CustomLog
 public class AuditorPeriodicBookieCheckTest extends BookKeeperClusterTestCase {
-    private static final Logger LOG = LoggerFactory
-            .getLogger(AuditorPeriodicBookieCheckTest.class);
 
     private AuditorElector auditorElector = null;
 

@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerMetadataBuilder;
@@ -66,7 +66,7 @@ import org.testng.annotations.Test;
 /**
  * Test the ledger manager iterator.
  */
-@Slf4j
+@CustomLog
 public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
 
     private String newLedgersRoot() {
@@ -412,11 +412,11 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
                 @Cleanup
                 LedgerManager writerLM = new PulsarLedgerManager(store, ledgersRoot);
                 Random writerRNG = new Random(rng.nextLong());
-                log.info("Writer {} waiting", writerIndex);
+                log.info().attr("writer", writerIndex).log("Writer waiting");
                 latch.await();
-                log.info("Writer {} started", writerIndex);
+                log.info().attr("writer", writerIndex).log("Writer started");
                 while (MathUtils.elapsedNanos(start) < runtime) {
-                    log.info("Writer {} writing", writerIndex);
+                    log.info().attr("writer", writerIndex).log("Writer writing");
                     long candidate = 0;
                     do {
                         candidate = Math.abs(writerRNG.nextLong());
@@ -428,7 +428,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
                     createLedger(writerLM, candidate);
                     removeLedger(writerLM, candidate);
                 }
-                log.info("Writer {} finished", writerIndex);
+                log.info().attr("writer", writerIndex).log("Writer finished");
                 return null;
             });
             futures.add(f);
@@ -439,11 +439,11 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
             Future<?> f = executor.submit(() -> {
                 @Cleanup
                 LedgerManager checkerLM = new PulsarLedgerManager(store, ledgersRoot);
-                log.info("Checker {} waiting", checkerIndex);
+                log.info().attr("checker", checkerIndex).log("Checker waiting");
                 latch.await();
-                log.info("Checker {} started", checkerIndex);
+                log.info().attr("checker", checkerIndex).log("Checker started");
                 while (MathUtils.elapsedNanos(start) < runtime) {
-                    log.info("Checker {} checking", checkerIndex);
+                    log.info().attr("checker", checkerIndex).log("Checker checking");
                     LedgerRangeIterator lri = checkerLM.getLedgerRanges(0);
                     Set<Long> returnedIds = ledgerRangeToSet(lri);
                     for (long id : mustExist) {
@@ -455,7 +455,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
                         assertTrue(ledgersReadAsync.contains(id));
                     }
                 }
-                log.info("Checker {} finished", checkerIndex);
+                log.info().attr("checker", checkerIndex).log("Checker finished");
                 return null;
             });
             futures.add(f);

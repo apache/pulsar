@@ -22,14 +22,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.discover.BookieServiceInfoUtils;
 import org.apache.bookkeeper.proto.DataFormats.BookieServiceInfoFormat;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.Stat;
 
-@Slf4j
+@CustomLog
 public class BookieServiceInfoSerde implements MetadataSerde<BookieServiceInfo> {
 
     private BookieServiceInfoSerde() {
@@ -39,9 +39,7 @@ public class BookieServiceInfoSerde implements MetadataSerde<BookieServiceInfo> 
 
     @Override
     public byte[] serialize(String path, BookieServiceInfo bookieServiceInfo) throws IOException {
-        if (log.isDebugEnabled()) {
-            log.debug("serialize BookieServiceInfo {}", bookieServiceInfo);
-        }
+        log.debug().attr("bookieServiceInfo", bookieServiceInfo).log("serialize BookieServiceInfo");
         try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
             BookieServiceInfoFormat.Builder builder = BookieServiceInfoFormat.newBuilder();
             List<BookieServiceInfoFormat.Endpoint> bsiEndpoints = bookieServiceInfo.getEndpoints().stream()

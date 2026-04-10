@@ -42,8 +42,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Predicate;
+import lombok.CustomLog;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -55,7 +55,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
-@Slf4j
+@CustomLog
 public class OxiaMetadataStore extends AbstractMetadataStore {
 
     private final AsyncOxiaClient client;
@@ -124,7 +124,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                             NotificationType.Deleted, keyDeleted.key()));
             notifyParentChildrenChanged(keyDeleted.key());
         } else {
-            log.warn("Unknown notification type {}", notification);
+            log.warn().attr("notification", notification).log("Unknown notification type");
         }
     }
 

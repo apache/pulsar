@@ -52,8 +52,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
@@ -76,7 +76,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.stats.MetadataStoreStats;
 
-@Slf4j
+@CustomLog
 public abstract class AbstractMetadataStore implements MetadataStoreExtended, Consumer<Notification> {
     private static final long CACHE_REFRESH_TIME_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
@@ -144,8 +144,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     @Override
                     public void onRemoval(String key, List<String> value, RemovalCause cause) {
                         if (cause == RemovalCause.SIZE) {
-                            log.warn("[{}] Evicting path {} from children cache because the size of the cache is too "
-                                    + "large. Consider increasing the maximum heap size.", metadataStoreName, key);
+                            log.warn()
+                                    .attr("store", metadataStoreName)
+                                    .attr("path", key)
+                                    .log("Evicting path from children cache because the size of the cache"
+                                            + " is too large. Consider increasing the maximum heap size.");
                         }
                     }
                 })
@@ -228,12 +231,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     : putInternal(event.getPath(), event.getValue(),
                     Optional.ofNullable(event.getExpectedVersion()), options);
             updateResult.thenApply(stat -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("successfully updated {}", event.getPath());
-                }
+                log.debug().attr("path", event.getPath()).log("successfully updated");
                 return result.complete(null);
             }).exceptionally(ex -> {
-                log.warn("Failed to update metadata {}", event.getPath(), ex.getCause());
+                log.warn().attr("path", event.getPath()).exception(ex.getCause()).log("Failed to update metadata");
                 if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
                     result.complete(null);
                 } else {
@@ -405,7 +406,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     try {
                         listener.accept(notification);
                     } catch (Throwable t) {
-                        log.error("Failed to process metadata store notification", t);
+                        log.error().exception(t).log("Failed to process metadata store notification");
                     }
                 });
 
@@ -443,7 +444,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
-        log.info("Deleting path: {} (v. {})", path, expectedVersion);
+        log.info().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleting path");
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -488,13 +489,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             }
 
             metadataCaches.forEach(c -> c.invalidate(path));
-            log.info("Deleted path: {} (v. {})", path, expectedVersion);
+            log.info().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleted path");
         });
     }
 
     @Override
     public CompletableFuture<Void> deleteRecursive(String path) {
-        log.info("Deleting recursively path: {}", path);
+        log.info().attr("path", path).log("Deleting recursively path");
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -504,7 +505,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                                 .map(child -> deleteRecursive(path + "/" + child))
                                 .collect(Collectors.toList())))
                 .thenCompose(__ -> {
-                    log.info("After deleting all children, now deleting path: {}", path);
+                    log.info().attr("path", path).log("After deleting all children, now deleting path");
                     return deleteIfExists(path, Optional.empty());
                 });
     }
@@ -646,12 +647,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     try {
                         l.accept(event);
                     } catch (Throwable t) {
-                        log.warn("Error in processing session event " + event, t);
+                        log.warn().attr("event", event).exception(t).log("Error in processing session event");
                     }
                 });
             });
         } catch (RejectedExecutionException e) {
-            log.warn("Error in processing session event " + event, e);
+            log.warn().attr("event", event).exception(e).log("Error in processing session event");
         }
     }
 
@@ -689,7 +690,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         try {
             eventExecutor.execute(() -> eventProcessor.accept(event));
         } catch (RejectedExecutionException e) {
-            log.warn("Rejected processing event {}", event);
+            log.warn().attr("event", event).log("Rejected processing event");
         }
     }
 

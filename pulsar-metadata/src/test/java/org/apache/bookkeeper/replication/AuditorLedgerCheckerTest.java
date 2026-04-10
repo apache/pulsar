@@ -77,8 +77,7 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -87,13 +86,9 @@ import org.testng.annotations.Test;
  * Tests publishing of under replicated ledgers by the Auditor bookie node when
  * corresponding bookies identifes as not running.
  */
+@CustomLog
 public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
 
-    // Depending on the taste, select the amount of logging
-    // by decommenting one of the two lines below
-    // private static final Logger LOG = Logger.getRootLogger();
-    private static final Logger LOG = LoggerFactory
-            .getLogger(AuditorLedgerCheckerTest.class);
 
     private static final byte[] ledgerPassword = "aaa".getBytes();
     private Random rng; // Random Number Generator
@@ -171,18 +166,14 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
             AuditorElector auditorElector = new AuditorElector(addr, baseConf);
             auditorElectors.put(addr, auditorElector);
             auditorElector.start();
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Starting Auditor Elector");
-            }
+            LOG.debug("Starting Auditor Elector");
         }
     }
 
     private void stopAuditorElectors() throws Exception {
         for (AuditorElector auditorElector : auditorElectors.values()) {
             auditorElector.shutdown();
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Stopping Auditor Elector!");
-            }
+            LOG.debug("Stopping Auditor Elector!");
         }
     }
 
@@ -193,9 +184,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
     public void testSimpleLedger() throws Exception {
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         Long ledgerId = lh1.getId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created ledger : " + ledgerId);
-        }
+        LOG.debug().attr("ledgerId", ledgerId).log("Created ledger");
         ledgerList.add(ledgerId);
         lh1.close();
 
@@ -206,9 +195,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         String shutdownBookie = shutdownBookie(bkShutdownIndex);
 
         // grace period for publishing the bk-ledger
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for ledgers to be marked as under replicated");
-        }
+        LOG.debug("Waiting for ledgers to be marked as under replicated");
         waitForAuditToComplete();
         underReplicaLatch.await(5, TimeUnit.SECONDS);
         Map<Long, String> urLedgerData = getUrLedgerData(urLedgerList);
@@ -237,9 +224,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         LedgerHandle lh2 = createAndAddEntriesToLedger();
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created following ledgers : {}, {}", lh1, lh2);
-        }
+        LOG.debug().attr("lh1", lh1).attr("lh2", lh2).log("Created following ledgers");
 
         int bkShutdownIndex = lastBookieIndex();
         ServerConfiguration bookieConf1 = confByIndex(bkShutdownIndex);
@@ -270,9 +255,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         String shutdownBookie = shutdownBookie(lastBookieIndex());
 
         // grace period for publishing the bk-ledger
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for ledgers to be marked as under replicated");
-        }
+        LOG.debug("Waiting for ledgers to be marked as under replicated");
         assertTrue("Ledger should be missing second replica",
                 waitForLedgerMissingReplicas(lh1.getId(), 10, shutdownBookie));
     }
@@ -281,9 +264,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
     public void testToggleLedgerReplication() throws Exception {
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         ledgerList.add(lh1.getId());
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created following ledgers : " + ledgerList);
-        }
+        LOG.debug().attr("ledgers", ledgerList).log("Created following ledgers");
 
         // failing another bookie
         CountDownLatch urReplicaLatch = registerUrLedgerWatcher(ledgerList
@@ -332,9 +313,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
     public void testReadOnlyBookieExclusionFromURLedgersCheck() throws Exception {
         LedgerHandle lh = createAndAddEntriesToLedger();
         ledgerList.add(lh.getId());
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created following ledgers : " + ledgerList);
-        }
+        LOG.debug().attr("ledgers", ledgerList).log("Created following ledgers");
 
         int count = ledgerList.size();
         final CountDownLatch underReplicaLatch = registerUrLedgerWatcher(count);
@@ -349,9 +328,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
                 .get(30, TimeUnit.SECONDS);
 
         // grace period for publishing the bk-ledger
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for Auditor to finish ledger check.");
-        }
+        LOG.debug("Waiting for Auditor to finish ledger check.");
         waitForAuditToComplete();
         assertFalse("latch should not have completed", underReplicaLatch.await(5, TimeUnit.SECONDS));
     }
@@ -364,17 +341,14 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         LedgerHandle lh = createAndAddEntriesToLedger();
         long ledgerId = lh.getId();
         ledgerList.add(ledgerId);
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created following ledgers : " + ledgerList);
-        }
+        LOG.debug().attr("ledgers", ledgerList).log("Created following ledgers");
 
         int count = ledgerList.size();
         final CountDownLatch underReplicaLatch = registerUrLedgerWatcher(count);
 
         int bkIndex = lastBookieIndex();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Moving bookie {} {} to read only...", bkIndex, serverByIndex(bkIndex));
-        }
+        LOG.debug().attr("bkIndex", bkIndex).attr("bookie", serverByIndex(bkIndex))
+                .log("Moving bookie to read only");
         ServerConfiguration bookieConf = confByIndex(bkIndex);
         BookieServer bk = serverByIndex(bkIndex);
         bookieConf.setReadOnlyModeEnabled(true);
@@ -384,18 +358,14 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
                 .get(30, TimeUnit.SECONDS);
 
         // grace period for publishing the bk-ledger
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for Auditor to finish ledger check.");
-        }
+        LOG.debug("Waiting for Auditor to finish ledger check.");
         waitForAuditToComplete();
         assertFalse("latch should not have completed", underReplicaLatch.await(1, TimeUnit.SECONDS));
 
         String shutdownBookie = shutdownBookie(bkIndex);
 
         // grace period for publishing the bk-ledger
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for ledgers to be marked as under replicated");
-        }
+        LOG.debug("Waiting for ledgers to be marked as under replicated");
         waitForAuditToComplete();
         underReplicaLatch.await(5, TimeUnit.SECONDS);
         Map<Long, String> urLedgerData = getUrLedgerData(urLedgerList);
@@ -415,9 +385,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
     public void testInnerDelayedAuditOfLostBookies() throws Exception {
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         Long ledgerId = lh1.getId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created ledger : " + ledgerId);
-        }
+        LOG.debug().attr("ledgerId", ledgerId).log("Created ledger");
         ledgerList.add(ledgerId);
         lh1.close();
 
@@ -438,9 +406,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
             }
         }).start();
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for ledgers to be marked as under replicated");
-        }
+        LOG.debug("Waiting for ledgers to be marked as under replicated");
         assertFalse("audit of lost bookie isn't delayed", underReplicaLatch.await(4, TimeUnit.SECONDS));
         assertEquals("under replicated ledgers identified when it was not expected", 0,
                 urLedgerList.size());
@@ -501,9 +467,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
 
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         Long ledgerId = lh1.getId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created ledger : " + ledgerId);
-        }
+        LOG.debug().attr("ledgerId", ledgerId).log("Created ledger");
         ledgerList.add(ledgerId);
         lh1.close();
 
@@ -525,9 +489,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
             }
         }).start();
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for ledgers to be marked as under replicated");
-        }
+        LOG.debug("Waiting for ledgers to be marked as under replicated");
         assertFalse("audit of lost bookie isn't delayed", underReplicaLatch.await(4, TimeUnit.SECONDS));
         assertEquals("under replicated ledgers identified when it was not expected", 0,
                 urLedgerList.size());
@@ -555,9 +517,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
 
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         Long ledgerId = lh1.getId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created ledger : " + ledgerId);
-        }
+        LOG.debug().attr("ledgerId", ledgerId).log("Created ledger");
         ledgerList.add(ledgerId);
         lh1.close();
 
@@ -579,9 +539,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
             }
         }).start();
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for ledgers to be marked as under replicated");
-        }
+        LOG.debug("Waiting for ledgers to be marked as under replicated");
         assertFalse("audit of lost bookie isn't delayed", underReplicaLatch.await(2, TimeUnit.SECONDS));
         assertEquals("under replicated ledgers identified when it was not expected", 0,
                 urLedgerList.size());
@@ -590,9 +548,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         urLedgerMgr.setLostBookieRecoveryDelay(4);
 
         // since we changed the BookieRecoveryDelay period to 4, the audittask shouldn't have been executed
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for ledgers to be marked as under replicated");
-        }
+        LOG.debug("Waiting for ledgers to be marked as under replicated");
         assertFalse("audit of lost bookie isn't delayed", underReplicaLatch.await(2, TimeUnit.SECONDS));
         assertEquals("under replicated ledgers identified when it was not expected", 0,
                 urLedgerList.size());
@@ -681,9 +637,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         Auditor auditorBookiesAuditor = getAuditorBookiesAuditor();
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         Long ledgerId = lh1.getId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created ledger : " + ledgerId);
-        }
+        LOG.debug().attr("ledgerId", ledgerId).log("Created ledger");
         ledgerList.add(ledgerId);
         lh1.close();
 
@@ -702,9 +656,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
             }
         }).start();
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for ledgers to be marked as under replicated");
-        }
+        LOG.debug("Waiting for ledgers to be marked as under replicated");
         assertFalse("audit of lost bookie isn't delayed", underReplicaLatch.await(2, TimeUnit.SECONDS));
         assertEquals("under replicated ledgers identified when it was not expected", 0,
                 urLedgerList.size());
@@ -737,9 +689,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         Auditor auditorBookiesAuditor = getAuditorBookiesAuditor();
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         Long ledgerId = lh1.getId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created ledger : " + ledgerId);
-        }
+        LOG.debug().attr("ledgerId", ledgerId).log("Created ledger");
         ledgerList.add(ledgerId);
         lh1.close();
 
@@ -758,9 +708,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
             }
         }).start();
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Waiting for ledgers to be marked as under replicated");
-        }
+        LOG.debug("Waiting for ledgers to be marked as under replicated");
         assertFalse("audit of lost bookie isn't delayed", underReplicaLatch.await(2, TimeUnit.SECONDS));
         assertEquals("under replicated ledgers identified when it was not expected", 0,
                 urLedgerList.size());
@@ -797,9 +745,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         // create a ledger with a bunch of entries
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         Long ledgerId = lh1.getId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created ledger : " + ledgerId);
-        }
+        LOG.debug().attr("ledgerId", ledgerId).log("Created ledger");
         ledgerList.add(ledgerId);
         lh1.close();
 
@@ -872,9 +818,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         // create a ledger with a bunch of entries
         LedgerHandle lh1 = createAndAddEntriesToLedger();
         Long ledgerId = lh1.getId();
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Created ledger : " + ledgerId);
-        }
+        LOG.debug().attr("ledgerId", ledgerId).log("Created ledger");
         ledgerList.add(ledgerId);
         lh1.close();
 
@@ -1008,9 +952,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
     private String shutdownBookie(int bkShutdownIndex) throws Exception {
         BookieServer bkServer = serverByIndex(bkShutdownIndex);
         String bookieAddr = bkServer.getBookieId().toString();
-        if (LOG.isInfoEnabled()) {
-            LOG.info("Shutting down bookie:" + bookieAddr);
-        }
+        LOG.info().attr("bookie", bookieAddr).log("Shutting down bookie");
         killBookie(bkShutdownIndex);
         auditorElectors.get(bookieAddr).shutdown();
         auditorElectors.remove(bookieAddr);
@@ -1022,7 +964,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
         int numEntriesToWrite = 100;
         // Create a ledger
         LedgerHandle lh = bkc.createLedger(digestType, ledgerPassword);
-        LOG.info("Ledger ID: " + lh.getId());
+        LOG.info().attr("ledgerId", lh.getId()).log("Created ledger");
         addEntry(numEntriesToWrite, lh);
         return lh;
     }
@@ -1078,9 +1020,7 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
                     urLedgerList.add(ledgerId);
                 }
             }
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Count down and waiting for next notification");
-            }
+            LOG.debug("Count down and waiting for next notification");
             // count down and waiting for next notification
             underReplicaLatch.countDown();
         }

@@ -32,8 +32,7 @@ import org.apache.bookkeeper.meta.LedgerManagerFactory;
 import org.apache.bookkeeper.meta.LedgerUnderreplicationManager;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.test.TestStatsProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -41,9 +40,8 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link AuditorPlacementPolicyCheckTask}.
  */
+@CustomLog
 public class AuditorPlacementPolicyCheckTaskTest extends BookKeeperClusterTestCase {
-    private static final Logger LOG = LoggerFactory
-            .getLogger(AuditorPlacementPolicyCheckTaskTest.class);
 
     private BookKeeperAdmin admin;
     private LedgerManager ledgerManager;

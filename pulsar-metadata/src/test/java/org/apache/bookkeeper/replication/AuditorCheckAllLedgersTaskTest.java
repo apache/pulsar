@@ -35,8 +35,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLayoutManager;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -44,9 +43,8 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link AuditorCheckAllLedgersTask}.
  */
+@CustomLog
 public class AuditorCheckAllLedgersTaskTest extends BookKeeperClusterTestCase {
-    private static final Logger LOG = LoggerFactory
-            .getLogger(AuditorCheckAllLedgersTaskTest.class);
 
     private static final int maxNumberOfConcurrentOpenLedgerOperations = 500;
     private static final int acquireConcurrentOpenLedgerOperationsTimeoutMSec = 120000;
