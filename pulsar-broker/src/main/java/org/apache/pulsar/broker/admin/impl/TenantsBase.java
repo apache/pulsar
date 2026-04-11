@@ -64,16 +64,18 @@ public class TenantsBase extends PulsarWebResource {
         final String clientAppId = clientAppId();
         validateBothSuperUserAndTenantOperation(null, TenantOperation.LIST_TENANTS)
                 .thenCompose(__ -> tenantResources().listTenantsAsync())
-                .thenAccept(tenants -> {
+                .<Void>handleAsync((tenants, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Failed to get tenants list", clientAppId, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    }
                     // deep copy the tenants to avoid concurrent sort exception
                     List<String> deepCopy = new ArrayList<>(tenants);
                     deepCopy.sort(null);
                     asyncResponse.resume(deepCopy);
-                }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get tenants list", clientAppId, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
-                });
+                }, webExecutor());
     }
 
     @GET

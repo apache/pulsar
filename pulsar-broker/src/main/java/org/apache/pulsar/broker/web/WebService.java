@@ -94,8 +94,8 @@ public class WebService implements AutoCloseable {
     @Deprecated
     private final WebExecutorStats executorStats;
     private final WebExecutorThreadPoolStats webExecutorThreadPoolStats;
+    @Getter
     private final WebExecutorThreadPool webServiceExecutor;
-
     private final ServerConnector httpConnector;
     private final ServerConnector httpsConnector;
     private final FilterInitializer filterInitializer;

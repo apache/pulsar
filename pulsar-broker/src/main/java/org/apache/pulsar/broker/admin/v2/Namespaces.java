@@ -107,12 +107,15 @@ public class Namespaces extends NamespacesBase {
     public void getTenantNamespaces(@Suspended final AsyncResponse response,
                                     @PathParam("tenant") String tenant) {
         internalGetTenantNamespaces(tenant)
-                .thenAccept(response::resume)
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to get namespaces list: {}", clientAppId(), ex);
-                    resumeAsyncResponseExceptionally(response, ex);
+                .<Void>handleAsync((namespaces, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Failed to get namespaces list: {}", clientAppId(), ex);
+                        resumeAsyncResponseExceptionally(response, ex);
+                        return null;
+                    }
+                    response.resume(namespaces);
                     return null;
-                });
+                }, webExecutor());
     }
 
     @GET

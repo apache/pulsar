@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -133,6 +134,7 @@ public abstract class PulsarWebResource {
     protected UriInfo uri;
 
     private PulsarService pulsar;
+    private Executor webExecutor;
 
     protected PulsarService pulsar() {
         if (pulsar == null) {
@@ -140,6 +142,13 @@ public abstract class PulsarWebResource {
         }
 
         return pulsar;
+    }
+
+    protected Executor webExecutor() {
+        if (webExecutor == null) {
+            webExecutor = pulsar().getWebService().getWebServiceExecutor();
+        }
+        return webExecutor;
     }
 
     protected ServiceConfiguration config() {
