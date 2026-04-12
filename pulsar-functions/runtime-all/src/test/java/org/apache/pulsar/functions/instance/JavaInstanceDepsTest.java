@@ -74,6 +74,7 @@ public class JavaInstanceDepsTest {
                 // (see the full list above)
                 // filter out those classes to see if there are any other classes that should not be allowed
                 if (!name.startsWith("org/apache/pulsar")
+                        && !name.startsWith("io/github/merlimat/slog")
                         && !name.startsWith("org/slf4j")
                         && !name.startsWith("org/apache/avro")
                         && !name.startsWith("com/fasterxml/jackson")
