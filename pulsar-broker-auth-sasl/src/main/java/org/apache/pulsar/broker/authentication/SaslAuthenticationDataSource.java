@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import lombok.CustomLog;
 
 @CustomLog
 public class SaslAuthenticationDataSource implements AuthenticationDataSource {

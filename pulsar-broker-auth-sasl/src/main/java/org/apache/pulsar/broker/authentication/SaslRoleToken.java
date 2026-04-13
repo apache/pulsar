@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import javax.naming.AuthenticationException;
+import lombok.CustomLog;
 
 @CustomLog
 public class SaslRoleToken implements Principal {
