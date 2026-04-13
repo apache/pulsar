@@ -121,8 +121,8 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
             } catch (Exception e) {
                 log.error().attr("topic", producer.getTopic())
                         .attr("producerName", producer.getProducerName())
-                        .exceptionMessage(e)
-                        .log("operation");
+                        .exception(e)
+                        .log("Failed to update producer stats");
             } finally {
                 // schedule the next stat info
                 statTimeout = pulsarClient.timer().newTimeout(stat, statsIntervalSeconds, TimeUnit.SECONDS);

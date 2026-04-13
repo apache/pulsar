@@ -61,7 +61,7 @@ public class ProtobufNativeSchemaUtils {
             log.debug().attr("descriptor", descriptor.getFullName())
                     .attr("bytes", schemaDataBytes).log("descriptor serialized");
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error().exception(e).log("Failed to serialize protobuf schema");
             throw new SchemaSerializationException(e);
         }
         return schemaDataBytes;
@@ -119,7 +119,7 @@ public class ProtobufNativeSchemaUtils {
             log.debug().attr("bytes", schemaDataBytes)
                     .attr("descriptor", descriptor.getFullName()).log("deserialized to descriptor");
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error().exception(e).log("Failed to deserialize protobuf schema");
             throw new SchemaSerializationException(e);
         }
 

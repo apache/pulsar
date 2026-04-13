@@ -389,8 +389,8 @@ public class TableViewImpl<T> implements TableView<T> {
                        long durationMillis = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
                        log.info().attr("topic", reader.getTopic())
                                .attr("replayed", messagesRead)
-                               .attr("0", durationMillis / 1000.0)
-                               .log("Started table view for topic - Replayed messages in seconds");
+                               .attr("durationSeconds", durationMillis / 1000.0)
+                               .log("Started table view for topic - Replayed messages");
                        future.complete(null);
                    }
                 });

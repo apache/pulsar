@@ -101,7 +101,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             } catch (Throwable e) {
                 if (consumer != null) {
                     log.warn().attr("topic", consumer.getTopic())
-                            .attr("consumername", consumer.getConsumerName())
+                            .attr("consumerName", consumer.getConsumerName())
                             .exception(e)
                             .log("Error executing interceptor beforeConsume callback topic: consumerName");
                 } else {

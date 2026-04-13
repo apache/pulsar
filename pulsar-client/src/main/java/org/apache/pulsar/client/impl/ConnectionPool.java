@@ -288,7 +288,8 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     private CompletableFuture<ClientCnx> createConnection(Key key) {
-            log.debug().attr("logicalAddress", key.logicalAddress).log("Connection for not found in cache");
+            log.debug().attr("logicalAddress", key.logicalAddress)
+                    .log("Connection was not found in cache for logical address");
 
         final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<>();
         // Trigger async connect to broker
