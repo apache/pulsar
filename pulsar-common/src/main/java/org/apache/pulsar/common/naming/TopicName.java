@@ -100,7 +100,7 @@ public class TopicName implements ServiceUnitId {
         }
         // Slow path: construct outside the bin-lock to avoid blocking other threads.
         TopicName newTp = new TopicName(topic);
-        TopicName existing = cache.putIfAbsent(topic, newTp);
+        TopicName existing = cache.put(topic, newTp);
         // If another thread raced us and already inserted, use its instance (keeps identity stable).
         return existing != null ? existing : newTp;
     }
