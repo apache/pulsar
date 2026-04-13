@@ -169,8 +169,8 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
                 log.error().attr("topic", consumerImpl.getTopic())
                         .attr("subscription", consumerImpl.subscription)
                         .attr("consumerName", consumerImpl.consumerName)
-                        .exceptionMessage(e)
-                        .log("operation");
+                        .exception(e)
+                        .log("Failed to update consumer stats");
             } finally {
                 // schedule the next stat info
                 statTimeout = pulsarClient.timer().newTimeout(stat, statsIntervalSeconds, TimeUnit.SECONDS);
