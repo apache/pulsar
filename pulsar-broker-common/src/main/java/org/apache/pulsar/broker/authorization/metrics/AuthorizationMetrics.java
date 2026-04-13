@@ -18,13 +18,22 @@
  */
 package org.apache.pulsar.broker.authorization.metrics;
 
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.client.Counter;
 
-public final class AuthorizationMetrics {
+public class AuthorizationMetrics {
     public static final String AUTHORIZATION_OPERATIONS_METRIC_NAME = "pulsar_authorization_operations_total";
+    public static final String AUTHORIZATION_COUNTER_METRIC_NAME = "pulsar.authorization.operation.count";
+    public static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.authorization";
     public static final String RESULT_SUCCESS = "success";
     public static final String RESULT_FAILURE = "failure";
     public static final String RESOURCE_TYPE_TOPIC_POLICY = "topic_policy";
+    public static final AttributeKey<String> RESOURCE_TYPE_KEY = AttributeKey.stringKey("pulsar.authorization.type");
+    public static final AttributeKey<String> OPERATION_KEY = AttributeKey.stringKey("pulsar.authorization.operation");
+    public static final AttributeKey<String> RESULT_KEY = AttributeKey.stringKey("pulsar.authorization.result");
 
     private static final Counter authorizationOperations = Counter.build()
             .name(AUTHORIZATION_OPERATIONS_METRIC_NAME)
@@ -32,14 +41,27 @@ public final class AuthorizationMetrics {
             .labelNames("resource_type", "operation", "result")
             .register();
 
-    private AuthorizationMetrics() {
+    private final LongCounter authorizationCounter;
+
+    public AuthorizationMetrics(OpenTelemetry openTelemetry) {
+        var meter = openTelemetry.getMeter(INSTRUMENTATION_SCOPE_NAME);
+        authorizationCounter = meter.counterBuilder(AUTHORIZATION_COUNTER_METRIC_NAME)
+                .setDescription("The number of authorization operations")
+                .setUnit("{operation}")
+                .build();
     }
 
-    public static void recordSuccess(String resourceType, String operation) {
+    public void recordSuccess(String resourceType, String operation) {
         authorizationOperations.labels(resourceType, operation, RESULT_SUCCESS).inc();
+        authorizationCounter.add(1, Attributes.of(RESOURCE_TYPE_KEY, resourceType,
+                OPERATION_KEY, operation,
+                RESULT_KEY, RESULT_SUCCESS));
     }
 
-    public static void recordFailure(String resourceType, String operation) {
+    public void recordFailure(String resourceType, String operation) {
         authorizationOperations.labels(resourceType, operation, RESULT_FAILURE).inc();
+        authorizationCounter.add(1, Attributes.of(RESOURCE_TYPE_KEY, resourceType,
+                OPERATION_KEY, operation,
+                RESULT_KEY, RESULT_FAILURE));
     }
 }
