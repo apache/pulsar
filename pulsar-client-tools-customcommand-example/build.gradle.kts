@@ -26,6 +26,7 @@ plugins {
 tasks.withType<PublishToMavenRepository>().configureEach { enabled = false }
 
 dependencies {
+    implementation(libs.slog)
     compileOnly(project(":pulsar-client-tools-api"))
     compileOnly(libs.picocli)
     compileOnly(libs.slf4j.api)

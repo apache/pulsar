@@ -31,7 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -43,7 +43,7 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class OffloadIndexTest {
 
     @Test
@@ -118,7 +118,7 @@ public class OffloadIndexTest {
     public void offloadIndexBlockImplTest() throws Exception {
         OffloadIndexBlockBuilder blockBuilder = OffloadIndexBlockBuilder.create();
         LedgerMetadata metadata = createLedgerMetadata(1); // use dummy ledgerId, from BK 4.12 the ledger is is required
-        log.debug("created metadata: {}", metadata.toString());
+        log.debug().attr("metadata", metadata).log("Created metadata");
 
         blockBuilder.withLedgerMetadata(metadata).withDataObjectLength(1).withDataBlockHeaderLength(23455);
 
@@ -186,8 +186,10 @@ public class OffloadIndexTest {
         assertEquals(dataHeaderLength, 23455);
 
         wrapper.readBytes(segmentMetadataLength);
-        log.debug("magic: {}, blockLength: {}, metadataLength: {}, indexCount: {}",
-            magic, indexBlockLength, segmentMetadataLength, indexEntryCount);
+        log.debug().attr("magic", magic).attr("blockLength", indexBlockLength)
+                .attr("metadataLength", segmentMetadataLength)
+                .attr("indexCount", indexEntryCount)
+                .log("Index block details");
 
         // verify entry
         OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
@@ -218,7 +220,7 @@ public class OffloadIndexTest {
         OffloadIndexBlock indexBlock2 = (OffloadIndexBlock) blockBuilder.fromStream(out2);
         // 1. verify metadata that got from inputstream success.
         LedgerMetadata metadata2 = indexBlock2.getLedgerMetadata();
-        log.debug("built metadata: {}", metadata2.toString());
+        log.debug().attr("metadata", metadata2).log("Built metadata");
         assertEquals(metadata2.getAckQuorumSize(), metadata.getAckQuorumSize());
         assertEquals(metadata2.getEnsembleSize(), metadata.getEnsembleSize());
         assertEquals(metadata2.getDigestType(), metadata.getDigestType());

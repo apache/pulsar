@@ -26,19 +26,19 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Connects with MetadataStore and sets watch to listen changes for active broker list.
  *
  */
+@CustomLog
 public class MetadataStoreCacheLoader implements Closeable {
 
     private final LoadManagerReportResources loadReportResources;
@@ -69,11 +69,11 @@ public class MetadataStoreCacheLoader implements Closeable {
             return loadReportResources.getChildrenAsync(LOADBALANCE_BROKERS_ROOT)
                     .thenComposeAsync(brokerNodes -> {
                         return updateBrokerList(brokerNodes).thenRun(() -> {
-                            log.info("Successfully updated broker info {}", brokerNodes);
+                            log.info().attr("info", brokerNodes).log("Successfully updated broker info");
                         });
                     })
                     .exceptionally(ex -> {
-                        log.warn("Error updating broker info after broker list changed", ex);
+                        log.warn().exception(ex).log("Error updating broker info after broker list changed");
                         return null;
                     });
         };
@@ -95,7 +95,7 @@ public class MetadataStoreCacheLoader implements Closeable {
             try {
                 updateBrokerList(loadReportResources.getChildren(LOADBALANCE_BROKERS_ROOT));
             } catch (Exception e) {
-                log.warn("Error updating broker from zookeeper.", e);
+                log.warn().exception(e).log("Error updating broker from zookeeper");
             }
         }
         return availableBrokers;
@@ -144,7 +144,5 @@ public class MetadataStoreCacheLoader implements Closeable {
 
         return future;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MetadataStoreCacheLoader.class);
 
 }

@@ -47,6 +47,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieException;
 import org.apache.bookkeeper.bookie.BookieImpl;
@@ -87,18 +88,14 @@ import org.apache.bookkeeper.util.DiskChecker;
 import org.apache.pulsar.common.util.PortManager;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 
 /**
  * A class runs several bookie servers for testing.
  */
+@CustomLog
 public abstract class BookKeeperClusterTestCase {
-
-    static final Logger LOG = LoggerFactory.getLogger(org.apache.bookkeeper.test.BookKeeperClusterTestCase.class);
-
     String testName;
 
     @BeforeMethod
@@ -137,7 +134,7 @@ public abstract class BookKeeperClusterTestCase {
         try {
             c.run();
         } catch (Throwable e) {
-            LOG.error("Captured error: ", e);
+            log.error().exception(e).log("Captured error: ");
             asyncExceptions.add(e);
         }
     }
@@ -169,7 +166,7 @@ public abstract class BookKeeperClusterTestCase {
     }
 
     protected void setUp(String ledgersRootPath) throws Exception {
-        LOG.info("Setting up test {}", getClass());
+        log.info().attr("testClass", getClass()).log("Setting up test");
         InMemoryMetaStore.reset();
         setMetastoreImplClass(baseConf);
         setMetastoreImplClass(baseClientConf);
@@ -181,10 +178,12 @@ public abstract class BookKeeperClusterTestCase {
             // start bookkeeper service
             this.metadataServiceUri = getMetadataServiceUri(ledgersRootPath);
             startBKCluster(metadataServiceUri);
-            LOG.info("Setup testcase {} @ metadata service {} in {} ms.",
-                    testName, metadataServiceUri,  sw.elapsed(TimeUnit.MILLISECONDS));
+            log.info().attr("testName", testName)
+                    .attr("metadataServiceUri", metadataServiceUri)
+                    .attr("elapsedMs", sw.elapsed(TimeUnit.MILLISECONDS))
+                    .log("Setup testcase");
         } catch (Exception e) {
-            LOG.error("Error setting up", e);
+            log.error().exception(e).log("Error setting up");
             throw e;
         }
     }
@@ -197,35 +196,37 @@ public abstract class BookKeeperClusterTestCase {
     public void tearDown() throws Exception {
         boolean failed = false;
         for (Throwable e : asyncExceptions) {
-            LOG.error("Got async exception: ", e);
+            log.error().exception(e).log("Got async exception: ");
             failed = true;
         }
         assertFalse(failed, "Async failure");
         Stopwatch sw = Stopwatch.createStarted();
-        LOG.info("TearDown");
+        log.info("TearDown");
         Exception tearDownException = null;
         // stop bookkeeper service
         try {
             stopBKCluster();
         } catch (Exception e) {
-            LOG.error("Got Exception while trying to stop BKCluster", e);
+            log.error().exception(e).log("Got Exception while trying to stop BKCluster");
             tearDownException = e;
         }
         // stop zookeeper service
         try {
             stopZKCluster();
         } catch (Exception e) {
-            LOG.error("Got Exception while trying to stop ZKCluster", e);
+            log.error().exception(e).log("Got Exception while trying to stop ZKCluster");
             tearDownException = e;
         }
         // cleanup temp dirs
         try {
             tmpDirs.cleanup();
         } catch (Exception e) {
-            LOG.error("Got Exception while trying to cleanupTempDirs", e);
+            log.error().exception(e).log("Got Exception while trying to cleanupTempDirs");
             tearDownException = e;
         }
-        LOG.info("Tearing down test {} in {} ms.", testName, sw.elapsed(TimeUnit.MILLISECONDS));
+        log.info().attr("testName", testName)
+                .attr("elapsedMs", sw.elapsed(TimeUnit.MILLISECONDS))
+                .log("Tearing down test");
         if (tearDownException != null) {
             throw tearDownException;
         }
@@ -437,7 +438,7 @@ public abstract class BookKeeperClusterTestCase {
             if (tester.get().autoRecovery != null
                     && tester.get().autoRecovery.getAuditor() != null
                     && tester.get().autoRecovery.getAuditor().isRunning()) {
-                LOG.warn("Killing bookie {} who is the current Auditor", addr);
+                log.warn().attr("value", addr).log("Killing bookiewho is the current Auditor");
             }
             servers.remove(tester.get());
             tester.get().shutdown();
@@ -514,13 +515,13 @@ public abstract class BookKeeperClusterTestCase {
                 public void run() {
                     try {
                         tester.get().getServer().suspendProcessing();
-                        LOG.info("bookie {} is asleep", tester.get().getAddress());
+                        log.info().attr("value", tester.get().getAddress()).log("bookieis asleep");
                         latch.countDown();
                         Thread.sleep(seconds * 1000);
                         tester.get().getServer().resumeProcessing();
-                        LOG.info("bookie {} is awake", tester.get().getAddress());
+                        log.info().attr("value", tester.get().getAddress()).log("bookieis awake");
                     } catch (Exception e) {
-                        LOG.error("Error suspending bookie", e);
+                        log.error().exception(e).log("Error suspending bookie");
                     }
                 }
             };
@@ -553,7 +554,7 @@ public abstract class BookKeeperClusterTestCase {
         Optional<ServerTester> tester = byAddress(addr);
         if (tester.isPresent()) {
             BookieServer bookie = tester.get().getServer();
-            LOG.info("Sleep bookie {}.", addr);
+            log.info().attr("value", addr).log("Sleep bookie.");
             Thread sleeper = new Thread() {
                 @Override
                 public void run() {
@@ -565,7 +566,7 @@ public abstract class BookKeeperClusterTestCase {
                         l.await();
                         bookie.resumeProcessing();
                     } catch (Exception e) {
-                        LOG.error("Error suspending bookie", e);
+                        log.error().exception(e).log("Error suspending bookie");
                     }
                 }
             };
@@ -642,14 +643,14 @@ public abstract class BookKeeperClusterTestCase {
     public BookieSocketAddress startNewBookieAndReturnAddress()
             throws Exception {
         ServerConfiguration conf = newServerConfiguration();
-        LOG.info("Starting new bookie on port: {}", conf.getBookiePort());
+        log.info().attr("value", conf.getBookiePort()).log("Starting new bookie on port:");
         return startAndAddBookie(conf).getServer().getLocalAddress();
     }
 
     public BookieId startNewBookieAndReturnBookieId()
             throws Exception {
         ServerConfiguration conf = newServerConfiguration();
-        LOG.info("Starting new bookie on port: {}", conf.getBookiePort());
+        log.info().attr("value", conf.getBookiePort()).log("Starting new bookie on port:");
         return startAndAddBookie(conf).getServer().getBookieId();
     }
 
@@ -688,7 +689,7 @@ public abstract class BookKeeperClusterTestCase {
         tester.getServer().start();
 
         waitForBookie.get(30, TimeUnit.SECONDS);
-        LOG.info("New bookie '{}' has been created.", address);
+        log.info().attr("value", address).log("New bookie '' has been created.");
 
         if (isAutoRecoveryEnabled()) {
             tester.startAutoRecovery();
@@ -714,7 +715,7 @@ public abstract class BookKeeperClusterTestCase {
         tester.getServer().start();
 
         waitForBookie.get(30, TimeUnit.SECONDS);
-        LOG.info("New bookie '{}' has been created.", address);
+        log.info().attr("value", address).log("New bookie '' has been created.");
 
         if (isAutoRecoveryEnabled()) {
             tester.startAutoRecovery();
@@ -789,7 +790,7 @@ public abstract class BookKeeperClusterTestCase {
                 // AutoRecovery daemon
                 if (a != null && a.isRunning()
                         && replicationWorker != null && replicationWorker.isRunning()) {
-                    LOG.info("Found Auditor Bookie {}", t.server.getBookieId());
+                    log.info().attr("value", t.server.getBookieId()).log("Found Auditor Bookie");
                     return a;
                 }
             }
@@ -905,14 +906,14 @@ public abstract class BookKeeperClusterTestCase {
         }
 
         void startAutoRecovery() throws Exception {
-            LOG.debug("Starting Auditor Recovery for the bookie: {}", address);
+            log.debug().attr("value", address).log("Starting Auditor Recovery for the bookie:");
             autoRecovery = new AutoRecoveryMain(conf);
             autoRecovery.start();
         }
 
         void stopAutoRecovery() {
             if (autoRecovery != null) {
-                LOG.debug("Shutdown Auditor Recovery for the bookie: {}", address);
+                log.debug().attr("value", address).log("Shutdown Auditor Recovery for the bookie:");
                 autoRecovery.shutdown();
             }
         }
@@ -966,7 +967,7 @@ public abstract class BookKeeperClusterTestCase {
             }
 
             if (autoRecovery != null) {
-                LOG.debug("Shutdown auto recovery for bookieserver: {}", address);
+                log.debug().attr("value", address).log("Shutdown auto recovery for bookieserver:");
                 autoRecovery.shutdown();
             }
         }

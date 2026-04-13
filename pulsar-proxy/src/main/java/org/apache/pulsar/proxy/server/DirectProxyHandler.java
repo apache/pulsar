@@ -47,6 +47,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.pulsar.PulsarVersion;
@@ -67,9 +68,8 @@ import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class DirectProxyHandler {
 
     @Getter
@@ -115,7 +115,9 @@ public class DirectProxyHandler {
         try {
             remoteHost = parseHost(brokerHostAndPort);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to parse broker host '{}'", inboundChannel, brokerHostAndPort, e);
+            log.warn().attr("channel", inboundChannel)
+                    .attr("brokerHost", brokerHostAndPort).exception(e)
+                    .log("Failed to parse broker host");
             inboundChannel.close();
             return;
         }
@@ -192,8 +194,11 @@ public class DirectProxyHandler {
         f.addListener(future -> {
             if (!future.isSuccess()) {
                 // Close the connection if the connection attempt has failed.
-                log.warn("[{}] Establishing connection to {} ({}) failed. Closing inbound channel.", inboundChannel,
-                        targetBrokerAddress, brokerHostAndPort, future.cause());
+                log.warn().attr("channel", inboundChannel)
+                        .attr("targetAddress", targetBrokerAddress)
+                        .attr("brokerHost", brokerHostAndPort)
+                        .exception(future.cause())
+                        .log("Establishing connection failed. Closing inbound channel.");
                 inboundChannel.close();
             }
         });
@@ -319,10 +324,10 @@ public class DirectProxyHandler {
         public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
             switch (state) {
             case Init:
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Received msg on broker connection: {}", inboundChannel, outboundChannel,
-                            msg.getClass());
-                }
+                log.debug().attr("inbound", inboundChannel)
+                        .attr("outbound", outboundChannel)
+                        .attr("msgClass", msg.getClass())
+                        .log("Received msg on broker connection");
 
                 // Do the regular decoding for the Connected message
                 super.channelRead(ctx, msg);
@@ -368,7 +373,9 @@ public class DirectProxyHandler {
                 try {
                     authenticationDataProvider = authentication.getAuthData(remoteHostName);
                 } catch (PulsarClientException e) {
-                    log.error("{} Error when refreshing authentication data provider: {}", ctx.channel(), e);
+                    log.error().attr("channel", ctx.channel())
+                            .exception(e)
+                            .log("Error refreshing authentication data provider");
                     return;
                 }
             }
@@ -385,13 +392,13 @@ public class DirectProxyHandler {
                     this.protocolVersion,
                     PulsarVersion.getVersion());
 
-                if (log.isDebugEnabled()) {
-                    log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
-                }
+                log.debug().attr("channel", ctx.channel())
+                        .attr("authMethod", authentication.getAuthMethodName())
+                        .log("Mutual auth");
 
                 writeAndFlush(request);
             } catch (Exception e) {
-                log.error("Error mutual verify", e);
+                log.error().exception(e).log("Error mutual verify");
             }
         }
 
@@ -403,9 +410,9 @@ public class DirectProxyHandler {
         @Override
         protected void handleConnected(CommandConnected connected) {
             checkArgument(state == BackendState.Init, "Unexpected state %s. BackendState.Init was expected.", state);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Received Connected from broker", inboundChannel, outboundChannel);
-            }
+            log.debug().attr("inbound", inboundChannel)
+                    .attr("outbound", outboundChannel)
+                    .log("Received Connected from broker");
 
             state = BackendState.HandshakeCompleted;
 
@@ -417,9 +424,9 @@ public class DirectProxyHandler {
 
         private void startDirectProxying(CommandConnected connected) {
             if (service.getProxyLogLevel() == 0) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] Removing decoder from pipeline", inboundChannel, outboundChannel);
-                }
+                log.debug().attr("inbound", inboundChannel)
+                        .attr("outbound", outboundChannel)
+                        .log("Removing decoder from pipeline");
                 // direct tcp proxy
                 FrameDecoderUtil.removeFrameDecoder(inboundChannel.pipeline());
                 FrameDecoderUtil.removeFrameDecoder(outboundChannel.pipeline());
@@ -460,7 +467,10 @@ public class DirectProxyHandler {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            log.warn("[{}] [{}] Caught exception: {}", inboundChannel, outboundChannel, cause.getMessage(), cause);
+            log.warn().attr("inbound", inboundChannel)
+                    .attr("outbound", outboundChannel)
+                    .exception(cause)
+                    .log("Caught exception");
             ctx.close();
         }
     }
@@ -493,5 +503,4 @@ public class DirectProxyHandler {
                 .build();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(DirectProxyHandler.class);
 }

@@ -33,6 +33,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Response;
+import lombok.CustomLog;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -58,16 +59,13 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ProcessorUtils;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyIsAHttpProxyTest.class);
 
     private Server backingServer1;
     private Server backingServer2;
@@ -149,7 +147,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                                 log.error("Async handler interrupted");
                                 ctx.complete();
                             } catch (Exception e) {
-                                log.error("Unexpected error in async handler", e);
+                                log.error().exception(e).log("Unexpected error in async handler");
                                 ctx.complete();
                             }
                         });
@@ -497,7 +495,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                             try {
                                 responses.put(content.get());
                             } catch (Exception e) {
-                                log.error("Error reading response", e);
+                                log.error().exception(e).log("Error reading response");
                                 promise.completeExceptionally(e);
                             }
                         }

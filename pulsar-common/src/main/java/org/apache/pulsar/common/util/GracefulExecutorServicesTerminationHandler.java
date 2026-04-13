@@ -89,7 +89,7 @@ class GracefulExecutorServicesTerminationHandler {
     }
 
     private void markShutdownCompleted() {
-        log.info("Shutdown completed.");
+        log.info("Shutdown completed");
         future.complete(null);
     }
 

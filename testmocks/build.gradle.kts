@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     api(libs.bookkeeper.server)
     api(libs.bookkeeper.server) {
         artifact { classifier = "tests" }

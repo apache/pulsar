@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Bookies;
@@ -66,15 +67,13 @@ import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Pulsar client admin API client.
  */
 @SuppressWarnings("deprecation")
+@CustomLog
 public class PulsarAdminImpl implements PulsarAdmin {
-    private static final Logger LOG = LoggerFactory.getLogger(PulsarAdmin.class);
 
     public static final int DEFAULT_REQUEST_TIMEOUT_SECONDS = 300;
 
@@ -123,7 +122,9 @@ public class PulsarAdminImpl implements PulsarAdmin {
 
         this.clientConfigData = clientConfigData;
         this.auth = clientConfigData != null ? clientConfigData.getAuthentication() : new AuthenticationDisabled();
-        LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl, auth.getAuthMethodName());
+        log.debug().attr("serviceUrl", serviceUrl)
+                .attr("authMethodName", auth.getAuthMethodName())
+                .log("created");
 
         this.auth.start();
 
@@ -438,7 +439,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         try {
             auth.close();
         } catch (IOException e) {
-            LOG.error("Failed to close the authentication service", e);
+            log.error().exception(e).log("Failed to close the authentication service");
         }
         client.close();
 

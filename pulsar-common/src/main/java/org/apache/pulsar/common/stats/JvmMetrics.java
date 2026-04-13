@@ -142,7 +142,7 @@ public class JvmMetrics {
         if (usedDirectMemory != -1L) {
             return usedDirectMemory;
         }
-        log.debug("Failed to get netty-direct-memory used count.");
+        log.debug("Failed to get netty-direct-memory used count");
 
         List<BufferPoolMXBean> pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
         for (BufferPoolMXBean pool : pools) {

@@ -3009,7 +3009,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     public void operationFailed(MetaStoreException topLevelException) {
                         if (topLevelException instanceof MetaStoreException.BadVersionException) {
                             log.warn()
-                                    .attr("error", topLevelException.getMessage())
+                                    .exceptionMessage(topLevelException)
                                     .log("Failed to update cursor metadata due to version conflict");
                             // it means previous owner of the ml might have updated the version incorrectly. So, check
                             // the ownership and refresh the version again.

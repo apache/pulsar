@@ -29,7 +29,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.tests.ManualTestUtil;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -70,7 +70,7 @@ import org.testng.annotations.Test;
  * You can use jfrconv from async profiler to convert them into html flamegraphs or use other tools such
  * as Eclipse Mission Control (https://adoptium.net/jmc) or IntelliJ to open them.
  */
-@Slf4j
+@CustomLog
 public class PulsarProfilingTest extends PulsarTestSuite {
     // this assumes that Transparent Huge Pages are available on the host machine
     // Please notice that "madvise" mode is recommended for performance reasons.
@@ -314,7 +314,7 @@ public class PulsarProfilingTest extends PulsarTestSuite {
                         log.info("Test timed out, ignoring this in profiling.");
                         return null;
                     } else {
-                        log.error("Failed to run pulsar-perf", t);
+                        log.error().exception(t).log("Failed to run pulsar-perf");
                     }
                     throw FutureUtil.wrapToCompletionException(t);
                 })

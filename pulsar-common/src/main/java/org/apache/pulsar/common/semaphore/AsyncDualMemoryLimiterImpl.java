@@ -24,10 +24,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.BooleanSupplier;
+import lombok.CustomLog;
 
 /**
  * Implementation of AsyncDualMemoryLimiter with separate limits for heap and direct memory.
  */
+@CustomLog
 public class AsyncDualMemoryLimiterImpl implements AsyncDualMemoryLimiter, AutoCloseable {
     private final ScheduledExecutorService executor;
     private final boolean shutdownExecutor;

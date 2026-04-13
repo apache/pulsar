@@ -21,9 +21,9 @@ package org.apache.pulsar.client.admin.internal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import javax.ws.rs.client.WebTarget;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 class WebTargets {
 
     static WebTarget addParts(WebTarget target, String[] parts) {

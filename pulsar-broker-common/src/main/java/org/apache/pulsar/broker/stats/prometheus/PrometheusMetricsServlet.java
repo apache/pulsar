@@ -35,9 +35,9 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
+@CustomLog
 public class PrometheusMetricsServlet extends HttpServlet {
     public static final String DEFAULT_METRICS_PATH = "/metrics";
     // Prometheus uses version 0.0.4 of the text format for metrics.
@@ -88,8 +88,9 @@ public class PrometheusMetricsServlet extends HttpServlet {
             // check if the request has been timed out, implement a soft timeout
             // so that response writing can continue to up to 2 * timeout
             if (metricsServletTimeoutMs > 0 && elapsedNanos > TimeUnit.MILLISECONDS.toNanos(metricsServletTimeoutMs)) {
-                log.warn("Prometheus metrics request was too long in queue ({}ms). Skipping sending metrics.",
-                        TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
+                log.warn()
+                        .attr("queuingTimeMillis", TimeUnit.NANOSECONDS.toMillis(elapsedNanos))
+                        .log("Prometheus metrics request was too long in queue, skipping");
                 if (!response.isCommitted()) {
                     response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
                 }
@@ -144,11 +145,13 @@ public class PrometheusMetricsServlet extends HttpServlet {
             long time = end - start;
             if (e instanceof EOFException) {
                 // NO STACKTRACE
-                log.error("Failed to send metrics, "
-                        + "likely the client or this server closed "
-                        + "the connection due to a timeout ({} ms elapsed): {}", time, e + "");
+                log.error()
+                        .attr("elapsedMillis", time)
+                        .exceptionMessage(e)
+                        .log("Failed to send metrics, likely the client or this server"
+                                + " closed the connection due to a timeout");
             } else {
-                log.error("Failed to generate prometheus stats, {} ms elapsed", time, e);
+                log.error().attr("elapsedTimeMs", time).exception(e).log("Failed to generate prometheus stats");
             }
             if (!res.isCommitted()) {
                 res.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
@@ -161,8 +164,10 @@ public class PrometheusMetricsServlet extends HttpServlet {
             } catch (IllegalStateException e) {
                 // this happens when metricsServletTimeoutMs expires
                 // java.lang.IllegalStateException: AsyncContext completed and/or Request lifecycle recycled
-                log.error("Failed to generate prometheus stats, "
-                        + "this is likely due to metricsServletTimeoutMs: {} ms elapsed: {}", time, e + "");
+                log.error()
+                        .attr("elapsedMillis", time)
+                        .exceptionMessage(e)
+                        .log("Failed to generate prometheus stats, likely due to metricsServletTimeoutMs");
             }
         }
     }
@@ -186,6 +191,4 @@ public class PrometheusMetricsServlet extends HttpServlet {
         }
         metricsProviders.add(metricsProvider);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PrometheusMetricsServlet.class);
 }

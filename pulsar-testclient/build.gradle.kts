@@ -23,6 +23,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-admin-original"))
     implementation(project(":pulsar-client-messagecrypto-bc"))

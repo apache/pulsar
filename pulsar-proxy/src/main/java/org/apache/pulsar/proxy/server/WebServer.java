@@ -42,6 +42,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -80,13 +81,12 @@ import org.eclipse.jetty.server.handler.StatisticsHandler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Manages web-service startup/stop on jetty server.
  *
  */
+@CustomLog
 public class WebServer {
     private static final String MATCH_ALL = "/*";
 
@@ -273,7 +273,9 @@ public class WebServer {
         try {
             requestBufferSize = Integer.parseInt(servletHolder.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE));
         } catch (NumberFormatException nfe){
-            log.warn("The init-param {} is invalidated, because it is not a number", INIT_PARAM_REQUEST_BUFFER_SIZE);
+            log.warn()
+                    .attr("INITPARAMREQUESTBUFFERSIZE", INIT_PARAM_REQUEST_BUFFER_SIZE)
+                    .log("The init-param is invalidated, because it is not a number");
         }
         if (requestBufferSize > 0 || config.getHttpMaxRequestHeaderSize() > 0) {
             int v = Math.max(requestBufferSize, config.getHttpMaxRequestHeaderSize());
@@ -376,7 +378,9 @@ public class WebServer {
             throw new IOException("Failed to start HTTP server on ports " + ports, e);
         }
 
-        log.info("Server started at end point {}", getServiceUri());
+        log.info()
+                .attr("getServiceUri", getServiceUri())
+                .log("Server started at end point");
     }
 
     public void stop() throws Exception {
@@ -436,7 +440,7 @@ public class WebServer {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 
@@ -451,7 +455,10 @@ public class WebServer {
                     defaultHeaders = ObjectMapperFactory.getMapper().getObjectMapper().readerFor(Map.class)
                             .readValue(headerJson);
                 } catch (JsonProcessingException e) {
-                    log.warn("Failed to deserialize json headers {}", headerJson, e);
+                    log.warn()
+                            .attr("headerJson", headerJson)
+                            .exception(e)
+                            .log("Failed to deserialize json headers");
                 }
             }
         }
@@ -477,6 +484,4 @@ public class WebServer {
         public void destroy() {
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(WebServer.class);
 }

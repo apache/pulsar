@@ -28,8 +28,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
@@ -49,7 +49,7 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 
-@Slf4j
+@CustomLog
 public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlacementPolicy {
     public static final String ISOLATION_BOOKIE_GROUPS = "isolationBookieGroups";
     public static final String SECONDARY_ISOLATION_BOOKIE_GROUPS = "secondaryIsolationBookieGroups";
@@ -157,7 +157,9 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             try {
                 return Optional.ofNullable(EnsemblePlacementPolicyConfig.decode(ensemblePlacementPolicyConfigData));
             } catch (EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException e) {
-                log.error("Failed to parse the ensemble placement policy config from the custom metadata", e);
+                log.error()
+                        .exception(e)
+                        .log("Failed to parse the ensemble placement policy config from the custom metadata");
                 return Optional.empty();
             }
         }
@@ -256,9 +258,11 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 // if primary-isolated-bookies are not enough then add consider secondary isolated bookie group as well.
                 int totalAvailableBookiesFromPrimaryAndSecondary = totalAvailableBookiesInPrimaryGroup;
                 if (totalAvailableBookiesInPrimaryGroup < ensembleSize) {
-                    log.info(
-                        "Not found enough available-bookies from primary isolation group [{}], checking secondary "
-                                + "group [{}]", primaryIsolationGroup, secondaryIsolationGroup);
+                    log.info()
+                            .attr("group", primaryIsolationGroup)
+                            .attr("group2", secondaryIsolationGroup)
+                            .log("Not found enough available-bookies from primary"
+                                    + " isolation group [], checking secondary group []");
                     for (String group : secondaryIsolationGroup) {
                         Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);
                         if (bookieGroup != null && !bookieGroup.isEmpty()) {
@@ -271,10 +275,12 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     }
                 }
                 if (totalAvailableBookiesFromPrimaryAndSecondary < ensembleSize) {
-                    log.info(
-                            "Not found enough available-bookies from primary isolation group [{}] and secondary "
-                                    + "isolation group [{}], checking from non-region bookies",
-                            primaryIsolationGroup, secondaryIsolationGroup);
+                    log.info()
+                            .attr("group", primaryIsolationGroup)
+                            .attr("group2", secondaryIsolationGroup)
+                            .log("Not found enough available-bookies from primary"
+                                    + " isolation group [] and secondary isolation"
+                                    + " group [], checking from non-region bookies");
                     nonRegionBookies.removeAll(otherGroupBookies);
                     for (BookieId bookie: nonRegionBookies) {
                         excludedBookies.remove(bookie);
@@ -282,7 +288,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                 }
             }
         } catch (Exception e) {
-            log.warn("Error getting bookie isolation info from metadata store: {}", e.getMessage());
+            log.warn().attr("store", e.getMessage()).log("Error getting bookie isolation info from metadata store");
         }
         return excludedBookies;
     }

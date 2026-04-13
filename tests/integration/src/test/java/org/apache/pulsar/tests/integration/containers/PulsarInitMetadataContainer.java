@@ -20,14 +20,14 @@
 package org.apache.pulsar.tests.integration.containers;
 
 import java.io.IOException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 
 /**
  * Initialize the Pulsar metadata.
  */
-@Slf4j
+@CustomLog
 public class PulsarInitMetadataContainer extends GenericContainer<PulsarInitMetadataContainer> {
 
     public static final String NAME = "init-metadata";
@@ -68,9 +68,10 @@ public class PulsarInitMetadataContainer extends GenericContainer<PulsarInitMeta
         if (res.getExitCode() == 0) {
             log.info("Successfully initialized cluster");
         } else {
-            log.warn("Failed to initialize Pulsar cluster. exit code: " + res.getExitCode());
-            log.warn("STDOUT: " + res.getStdout());
-            log.warn("STDERR: " + res.getStderr());
+            log.warn().attr("exitCode", res.getExitCode())
+                    .attr("stdout", res.getStdout())
+                    .attr("stderr", res.getStderr())
+                    .log("Failed to initialize Pulsar cluster");
             throw new IOException("Failed to initialized Pulsar Cluster");
         }
     }

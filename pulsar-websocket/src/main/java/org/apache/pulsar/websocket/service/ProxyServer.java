@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
@@ -59,9 +60,8 @@ import org.eclipse.jetty.server.handler.QoSHandler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class ProxyServer {
     private static final String MATCH_ALL = "/*";
     private final Server server;
@@ -174,9 +174,13 @@ public class ProxyServer {
     }
 
     public void start() throws PulsarServerException {
-        log.info("Starting web socket proxy at port {}", Arrays.stream(server.getConnectors())
-                .map(ServerConnector.class::cast).map(ServerConnector::getPort).map(Object::toString)
-                .collect(Collectors.joining(",")));
+        log.info()
+                .attr("port", Arrays.stream(server.getConnectors())
+                        .map(ServerConnector.class::cast)
+                        .map(ServerConnector::getPort)
+                        .map(Object::toString)
+                        .collect(Collectors.joining(",")))
+                .log("Starting web socket proxy at port");
         boolean showDetailedAddresses = conf.getWebServiceLogDetailedAddresses() != null
                 ? conf.getWebServiceLogDetailedAddresses() :
                 (conf.isWebServiceHaProxyProtocolEnabled() || conf.isWebServiceTrustXForwardedFor());
@@ -248,9 +252,7 @@ public class ProxyServer {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyServer.class);
 }

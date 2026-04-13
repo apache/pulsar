@@ -22,6 +22,7 @@ plugins {
     id("pulsar.nar-conventions")
 }
 dependencies {
+    implementation(libs.slog)
     implementation(project(":pulsar-io:pulsar-io-core"))
     implementation(project(":pulsar-config-validation"))
     implementation(libs.jfairy)

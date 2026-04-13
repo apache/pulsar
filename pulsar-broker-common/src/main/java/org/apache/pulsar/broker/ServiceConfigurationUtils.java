@@ -24,14 +24,12 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.Map;
 import java.util.Optional;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class ServiceConfigurationUtils {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ServiceConfigurationUtils.class);
 
     public static String getDefaultOrConfiguredAddress(String configuredAddress) {
         if (isBlank(configuredAddress)) {
@@ -45,7 +43,7 @@ public class ServiceConfigurationUtils {
             // Get the fully qualified hostname
             return InetAddress.getLocalHost().getCanonicalHostName();
         } catch (UnknownHostException ex) {
-            LOG.error(ex.getMessage(), ex);
+            log.error().exception(ex).log(ex.getMessage());
             throw new IllegalStateException("Failed to resolve localhost name.", ex);
         }
     }

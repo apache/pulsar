@@ -22,5 +22,6 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(libs.slf4j.api)
 }

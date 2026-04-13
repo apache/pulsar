@@ -85,10 +85,10 @@ sourceSets["main"].java.srcDir(generatePulsarVersion.map { layout.buildDirectory
 
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-client-api"))
     api(project(":pulsar-client-admin-api"))
 
-    implementation(libs.slog)
     implementation(libs.jackson.databind)
     implementation(libs.jackson.module.parameter.names)
     implementation(libs.jackson.datatype.jsr310)

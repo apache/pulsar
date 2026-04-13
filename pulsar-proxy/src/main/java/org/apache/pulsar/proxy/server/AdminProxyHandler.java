@@ -33,6 +33,7 @@ import javax.net.ssl.SSLContext;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
@@ -53,13 +54,10 @@ import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.io.Content;
 import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 class AdminProxyHandler extends ProxyServlet {
     private static final long serialVersionUID = 1L;
-
-    private static final Logger LOG = LoggerFactory.getLogger(AdminProxyHandler.class);
 
     private static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
@@ -230,7 +228,7 @@ class AdminProxyHandler extends ProxyServlet {
                     }
                     return new JettyHttpClient(contextFactory);
                 } catch (Exception e) {
-                    LOG.error("new jetty http client exception ", e);
+                    log.error().exception(e).log("new jetty http client exception");
                     throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
                 }
             }
@@ -273,13 +271,19 @@ class AdminProxyHandler extends ProxyServlet {
         } else {
             try {
                 url.append(getWebServiceUrl());
-                if (LOG.isDebugEnabled() && isBlank(brokerWebServiceUrl)) {
-                    LOG.debug("[{}:{}] Selected active broker is {}", request.getRemoteAddr(), request.getRemotePort(),
-                            url);
+                if (isBlank(brokerWebServiceUrl)) {
+                    log.debug()
+                            .attr("remoteAddr", request.getRemoteAddr())
+                            .attr("remotePort", request.getRemotePort())
+                            .attr("broker", url)
+                            .log("Selected active broker");
                 }
             } catch (Exception e) {
-                LOG.warn("[{}:{}] Failed to get next active broker {}", request.getRemoteAddr(),
-                        request.getRemotePort(), e.getMessage(), e);
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .exception(e)
+                        .log("Failed to get next active broker");
                 return null;
             }
         }
@@ -364,7 +368,7 @@ class AdminProxyHandler extends ProxyServlet {
                 sslFactory.createInternalSslContext();
                 return sslFactory;
             } catch (Exception e) {
-                LOG.error("Failed to create Pulsar SSLFactory ", e);
+                log.error().exception(e).log("Failed to create Pulsar SSLFactory");
                 throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
             }
         } catch (Exception e) {
@@ -376,7 +380,7 @@ class AdminProxyHandler extends ProxyServlet {
         try {
             this.pulsarSslFactory.update();
         } catch (Exception e) {
-            LOG.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 

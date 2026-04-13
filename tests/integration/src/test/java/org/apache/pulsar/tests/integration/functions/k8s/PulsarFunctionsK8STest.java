@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
  * and {@link org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator} classes
  * in a lightweight Kubernetes cluster which is provided by a k3s container running in Docker with Testcontainers.
  */
-@Slf4j
+@CustomLog
 public class PulsarFunctionsK8STest extends AbstractPulsarStandaloneK8STest {
     @Test
     public void testCreateFunctionInK8sWithSecrets()

@@ -48,6 +48,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.stats.ThreadRegistry;
@@ -56,13 +57,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 // CHECKSTYLE.ON: IllegalImport
 
 /**
  * A <i>Prometheus</i> based {@link StatsProvider} implementation.
  */
+@CustomLog
 public class PrometheusMetricsProvider implements StatsProvider {
 
     private ScheduledExecutorService executor;
@@ -121,7 +121,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
 
             try {
                 server.start();
-                log.info("Started Prometheus stats endpoint at {}", httpEndpoint);
+                log.info().attr("endpoint", httpEndpoint).log("Started Prometheus stats endpoint");
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -167,7 +167,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
             try {
                 server.stop();
             } catch (Exception e) {
-                log.warn("Failed to shutdown Jetty server", e);
+                log.warn().exception(e).log("Failed to shutdown Jetty server");
             } finally {
                 ThreadRegistry.clear();
             }
@@ -218,14 +218,9 @@ public class PrometheusMetricsProvider implements StatsProvider {
             collector.register(registry);
         } catch (Exception e) {
             // Ignore if these were already registered
-            if (log.isDebugEnabled()) {
-                log.debug("Failed to register Prometheus collector exports", e);
-            }
+            log.debug().exception(e).log("Failed to register Prometheus collector exports");
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PrometheusMetricsProvider.class);
-
     /*
      * Try to get Netty counter of used direct memory. This will be correct, unlike the JVM values.
      */
@@ -242,7 +237,8 @@ public class PrometheusMetricsProvider implements StatsProvider {
                 field.setAccessible(true);
                 tmpDirectMemoryUsage = (AtomicLong) field.get(null);
             } catch (Throwable t) {
-                log.warn("Failed to access netty DIRECT_MEMORY_COUNTER field {}", t.getMessage());
+                log.warn().exceptionMessage(t)
+                        .log("Failed to access netty DIRECT_MEMORY_COUNTER field");
             }
             directMemoryUsage = tmpDirectMemoryUsage;
             getDirectMemoryUsage = () -> directMemoryUsage != null ? directMemoryUsage.get() : Double.NaN;

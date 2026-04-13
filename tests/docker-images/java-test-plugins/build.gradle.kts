@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     // Use compileOnly so the plugin JAR doesn't bundle broker deps,
     // but need the full transitive classpath for compilation
     compileOnly(project(":pulsar-broker"))

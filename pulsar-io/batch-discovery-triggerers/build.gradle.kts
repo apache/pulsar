@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-io:pulsar-io-core"))
     implementation(libs.spring.context)
 }

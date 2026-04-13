@@ -39,6 +39,7 @@ configurations.matching { it.name.startsWith("test") }.all {
 }
 
 dependencies {
+    implementation(libs.slog)
     compileOnly(project(":managed-ledger"))
     compileOnly(libs.bookkeeper.server)
     compileOnly(libs.netty.buffer)

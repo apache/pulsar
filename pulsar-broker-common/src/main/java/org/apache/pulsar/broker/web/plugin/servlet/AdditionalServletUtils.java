@@ -25,8 +25,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
  * Util class to search and load {@link AdditionalServlets}.
  */
 @UtilityClass
-@Slf4j
+@CustomLog
 public class AdditionalServletUtils {
 
     public static final String ADDITIONAL_SERVLET_FILE = "additional_servlet.yml";
@@ -75,7 +75,7 @@ public class AdditionalServletUtils {
     public AdditionalServletDefinitions searchForServlets(String additionalServletDirectory,
                                                           String narExtractionDirectory) throws IOException {
         Path path = Paths.get(additionalServletDirectory).toAbsolutePath().normalize();
-        log.info("Searching for additional servlets in {}", path);
+        log.info().attr("path", path).log("Searching for additional servlets");
 
         AdditionalServletDefinitions servletDefinitions = new AdditionalServletDefinitions();
         if (!path.toFile().exists()) {
@@ -89,7 +89,7 @@ public class AdditionalServletUtils {
                     AdditionalServletDefinition def =
                             AdditionalServletUtils.getAdditionalServletDefinition(
                                     archive.toString(), narExtractionDirectory);
-                    log.info("Found additional servlet from {} : {}", archive, def);
+                    log.info().attr("servlet", archive).attr("def", def).log("Found additional servlet");
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
                     checkArgument(StringUtils.isNotBlank(def.getAdditionalServletClass()));
@@ -100,10 +100,15 @@ public class AdditionalServletUtils {
 
                     servletDefinitions.servlets().put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load additional servlet from {}."
-                            + " It is OK however if you want to use this additional servlet,"
-                            + " please make sure you put the correct additional servlet NAR"
-                            + " package in the additional servlets directory.", archive, t);
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load additional servlet from ."
+                                    + " It is OK however if you want to use this"
+                                    + " additional servlet, please make sure you"
+                                    + " put the correct additional servlet NAR"
+                                    + " package in the additional servlets"
+                                    + " directory.");
                 }
             }
         }

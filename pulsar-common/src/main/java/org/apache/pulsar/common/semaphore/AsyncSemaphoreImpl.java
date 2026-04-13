@@ -32,11 +32,13 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongConsumer;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.Runnables;
 
 /**
  * Implementation of AsyncSemaphore with timeout and queue size limits.
  */
+@CustomLog
 public class AsyncSemaphoreImpl implements AsyncSemaphore, AutoCloseable {
     private final AtomicLong availablePermits;
     private final Queue<PendingRequest> queue;

@@ -22,6 +22,7 @@ plugins {
     id("pulsar.nar-conventions")
 }
 dependencies {
+    implementation(libs.slog)
     compileOnly(project(":managed-ledger"))
     compileOnly(libs.bookkeeper.server)
     compileOnly(libs.netty.buffer)

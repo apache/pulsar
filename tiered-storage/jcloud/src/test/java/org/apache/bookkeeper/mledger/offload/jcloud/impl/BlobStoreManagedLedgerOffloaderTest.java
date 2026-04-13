@@ -42,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -57,16 +58,13 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.options.CopyOptions;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
+@CustomLog
 public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerOffloaderBase {
-
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderTest.class);
     private final ScheduledExecutorService scheduledExecutorService;
     private TieredStorageConfiguration mockedConfig;
     private final LedgerOffloaderStats offloaderStats;
@@ -135,7 +133,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
             offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
             Assert.fail("Shouldn't be able to add to bucket");
         } catch (ExecutionException e) {
-            log.error("Exception: ", e);
+            log.error().exception(e).log("Exception");
             Assert.assertTrue(e.getMessage().toLowerCase().contains("not found"));
         }
     }
@@ -537,7 +535,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
             toRead.readAsync(0, 0).get();
             Assert.fail("Shouldn't have been able to read");
         } catch (ExecutionException e) {
-            log.error("Exception: ", e);
+            log.error().exception(e).log("Exception");
             assertEquals(e.getCause().getClass(), IOException.class);
             Assert.assertTrue(e.getCause().getMessage().contains("Error reading from BlobStore"));
         }
@@ -628,7 +626,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         List<OffloadedLedgerMetadata> result = new ArrayList<>();
         offloader.scanLedgers(
                 (m) -> {
-                    log.info("found {}", m);
+                    log.info().attr("metadata", m).log("Found offloaded ledger");
                     if (m.getLedgerId() == toWrite.getId()) {
                         result.add(m);
                     }

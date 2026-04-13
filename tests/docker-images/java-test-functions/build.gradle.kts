@@ -23,6 +23,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(project(":pulsar-io:pulsar-io-core"))
     implementation(project(":pulsar-functions:pulsar-functions-api"))
     compileOnly(libs.avro)

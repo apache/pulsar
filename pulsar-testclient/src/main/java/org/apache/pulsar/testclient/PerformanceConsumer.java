@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.CustomLog;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
@@ -51,17 +52,14 @@ import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 @Command(name = "consume", description = "Test pulsar consumer performance.")
+@CustomLog
 public class PerformanceConsumer extends PerformanceTopicListArguments{
     private static final LongAdder messagesReceived = new LongAdder();
     private static final LongAdder bytesReceived = new LongAdder();
-    private static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
     private static final LongAdder totalMessagesReceived = new LongAdder();
@@ -232,7 +230,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info("Starting Pulsar performance consumer with config: {}", w.writeValueAsString(this));
+        log.info().attr("config", w.writeValueAsString(this)).log("Starting Pulsar performance consumer with config");
 
         final Recorder qRecorder = this.autoScaledReceiverQueueSize
                 ? new Recorder(this.receiverQueueSize, 5) : null;
@@ -302,14 +300,14 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 try {
                     messageReceiveLimiter.acquire();
                 } catch (InterruptedException e){
-                    log.error("Got error: ", e);
+                    log.error().exception(e).log("Got error");
                     Thread.currentThread().interrupt();
                 }
                 consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(() -> {
                     totalMessageAck.increment();
                     messageAck.increment();
                 }).exceptionally(throwable ->{
-                    log.error("Ack message {} failed with exception", msg, throwable);
+                    log.error().attr("message", msg).exception(throwable).log("Ack message failed with exception");
                     totalMessageAckFailed.increment();
                     if (PerfClientUtils.hasInterruptedException(throwable)) {
                         Thread.currentThread().interrupt();
@@ -326,7 +324,10 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                                 Thread.currentThread().interrupt();
                                 return null;
                             }
-                            log.error("Ack message {} failed with exception", msg, throwable);
+                            log.error()
+                                    .attr("message", msg)
+                                    .exception(throwable)
+                                    .log("Ack message failed with exception");
                             totalMessageAckFailed.increment();
                             return null;
                         }
@@ -341,9 +342,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 if (!this.isAbortTransaction) {
                     transaction.commit()
                             .thenRun(() -> {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Commit transaction {}", transaction.getTxnID());
-                                }
+                                log.debug().attr("transaction", transaction.getTxnID()).log("Commit transaction");
                                 totalEndTxnOpSuccessNum.increment();
                                 numTxnOpSuccess.increment();
                             })
@@ -352,15 +351,13 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                                     Thread.currentThread().interrupt();
                                     return null;
                                 }
-                                log.error("Commit transaction failed with exception : ", exception);
+                                log.error().exception(exception).log("Commit transaction failed with exception");
                                 totalEndTxnOpFailNum.increment();
                                 return null;
                             });
                 } else {
                     transaction.abort().thenRun(() -> {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Abort transaction {}", transaction.getTxnID());
-                        }
+                        log.debug().attr("transaction", transaction.getTxnID()).log("Abort transaction");
                         totalEndTxnOpSuccessNum.increment();
                         numTxnOpSuccess.increment();
                     }).exceptionally(exception -> {
@@ -368,9 +365,10 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                             Thread.currentThread().interrupt();
                             return null;
                         }
-                        log.error("Abort transaction {} failed with exception",
-                                transaction.getTxnID().toString(),
-                                exception);
+                        log.error()
+                                .attr("transaction", transaction.getTxnID().toString())
+                                .exception(exception)
+                                .log("Abort transaction failed with exception");
                         totalEndTxnOpFailNum.increment();
                         return null;
                     });
@@ -389,7 +387,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                         if (PerfClientUtils.hasInterruptedException(e)) {
                             Thread.currentThread().interrupt();
                         } else {
-                            log.error("Failed to new transaction with exception:", e);
+                            log.error().exception(e).log("Failed to new transaction with exception");
                             totalNumTxnOpenFail.increment();
                         }
                     }
@@ -426,7 +424,10 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
         for (int i = 0; i < this.numTopics; i++) {
             final TopicName topicName = TopicName.get(this.topics.get(i));
 
-            log.info("Adding {} consumers per subscription on topic {}", this.numConsumers, topicName);
+            log.info()
+                    .attr("adding", this.numConsumers)
+                    .attr("topic", topicName)
+                    .log("Adding consumers per subscription on topic");
 
             for (int j = 0; j < this.numSubscriptions; j++) {
                 String subscriberName = this.subscriptions.get(j);
@@ -439,8 +440,10 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
         for (Future<Consumer<ByteBuffer>> future : futures) {
             future.get();
         }
-        log.info("Start receiving from {} consumers per subscription on {} topics", this.numConsumers,
-                this.numTopics);
+        log.info()
+                .attr("receiving", this.numConsumers)
+                .attr("subscription", this.numTopics)
+                .log("Start receiving from consumers per subscription on topics");
 
         long start = System.nanoTime();
 
@@ -457,7 +460,7 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
 
         if (this.histogramFile != null) {
             String statsFileName = this.histogramFile;
-            log.info("Dumping latency stats to {}", statsFileName);
+            log.info().attr("stats", statsFileName).log("Dumping latency stats to");
 
             PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
             histogramLogWriter = new HistogramLogWriter(histogramLog);
@@ -490,41 +493,48 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
                 totalTxnOpSuccessNum = totalEndTxnOpSuccessNum.sum();
                 totalTxnOpFailNum = totalEndTxnOpFailNum.sum();
                 rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
-                log.info("--- Transaction: {} transaction end successfully --- {} transaction end failed "
-                                + "--- {}  Txn/s --- AckRate: {} msg/s",
-                        totalTxnOpSuccessNum,
-                        totalTxnOpFailNum,
-                        dec.format(rateOpenTxn),
-                        dec.format(rateAck));
+                log.infof("--- Transaction: %d transaction end successfully"
+                                + " --- %d transaction end failed"
+                                + " --- %.3f Txn/s --- AckRate: %.3f msg/s",
+                        totalTxnOpSuccessNum, totalTxnOpFailNum, rateOpenTxn, rateAck);
             }
-            log.info(
-                    "Throughput received: {} msg --- {}  msg/s --- {} Mbit/s  "
-                            + "--- Latency: mean: {} ms - med: {} "
-                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    intFormat.format(total),
-                    dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
-                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
-                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
-                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
+            log.infof("Throughput received: %7d msg --- %.3f msg/s --- %.3f Mbit/s"
+                            + " --- Latency: mean: %.3f ms - med: %d"
+                            + " - 95pct: %d - 99pct: %d"
+                            + " - 99.9pct: %d - 99.99pct: %d - Max: %d",
+                    total, rate, throughput,
+                    reportHistogram.getMean(),
+                    reportHistogram.getValueAtPercentile(50),
+                    reportHistogram.getValueAtPercentile(95),
+                    reportHistogram.getValueAtPercentile(99),
+                    reportHistogram.getValueAtPercentile(99.9),
+                    reportHistogram.getValueAtPercentile(99.99),
+                    reportHistogram.getMaxValue());
 
-            if (this.autoScaledReceiverQueueSize && log.isDebugEnabled() && qRecorder != null) {
+            if (this.autoScaledReceiverQueueSize && qRecorder != null) {
                 qHistogram = qRecorder.getIntervalHistogram(qHistogram);
-                log.debug("ReceiverQueueUsage: cnt={},mean={}, min={},max={},25pct={},50pct={},75pct={}",
-                        qHistogram.getTotalCount(), dec.format(qHistogram.getMean()),
-                        qHistogram.getMinValue(), qHistogram.getMaxValue(),
-                        qHistogram.getValueAtPercentile(25),
-                        qHistogram.getValueAtPercentile(50),
-                        qHistogram.getValueAtPercentile(75)
-                );
+                log.debug()
+                        .attr("cnt", qHistogram.getTotalCount())
+                        .attr("mean", dec.format(qHistogram.getMean()))
+                        .attr("min", qHistogram.getMinValue())
+                        .attr("max", qHistogram.getMaxValue())
+                        .attr("pct", qHistogram.getValueAtPercentile(25))
+                        .attr("pct2", qHistogram.getValueAtPercentile(50))
+                        .attr("pct3", qHistogram.getValueAtPercentile(75))
+                        .log("ReceiverQueueUsage: cnt= ,mean= , min= ,max= ,25pct= ,50pct= ,75pct");
                 qHistogram.reset();
                 for (Future<Consumer<ByteBuffer>> future : futures) {
                     ConsumerBase<?> consumerBase = (ConsumerBase<?>) future.get();
-                    log.debug("[{}] CurrentReceiverQueueSize={}", consumerBase.getConsumerName(),
-                            consumerBase.getCurrentReceiverQueueSize());
+                    log.debug()
+                            .attr("consumerName", consumerBase.getConsumerName())
+                            .attr("currentReceiverQueueSize", consumerBase.getCurrentReceiverQueueSize())
+                            .log("CurrentReceiverQueueSize");
                     if (consumerBase instanceof MultiTopicsConsumerImpl) {
                         for (ConsumerImpl<?> consumer : ((MultiTopicsConsumerImpl<?>) consumerBase).getConsumers()) {
-                            log.debug("[{}] SubConsumer.CurrentReceiverQueueSize={}", consumer.getConsumerName(),
-                                    consumer.getCurrentReceiverQueueSize());
+                            log.debug()
+                                    .attr("consumerName", consumer.getConsumerName())
+                                    .attr("currentReceiverQueueSize", consumer.getCurrentReceiverQueueSize())
+                                    .log("SubConsumer.CurrentReceiverQueueSize");
                         }
                     }
                 }
@@ -566,36 +576,33 @@ public class PerformanceConsumer extends PerformanceTopicListArguments{
             totalnumMessageAckFailed = totalMessageAckFailed.sum();
             numTransactionOpenFailed = totalNumTxnOpenFail.sum();
             numTransactionOpenSuccess = totalNumTxnOpenSuccess.sum();
-            log.info("-- Transaction: {}  transaction end successfully --- {} transaction end failed "
-                            + "--- {} transaction open successfully --- {} transaction open failed "
-                            + "--- {} Txn/s ",
-                    totalEndTxnSuccess,
-                    totalEndTxnFail,
-                    numTransactionOpenSuccess,
-                    numTransactionOpenFailed,
-                    dec.format(rateOpenTxn));
+            log.infof("-- Transaction: %d transaction end successfully"
+                            + " --- %d transaction end failed"
+                            + " --- %d transaction open successfully"
+                            + " --- %d transaction open failed --- %.3f Txn/s",
+                    totalEndTxnSuccess, totalEndTxnFail,
+                    numTransactionOpenSuccess, numTransactionOpenFailed, rateOpenTxn);
         }
-        log.info(
-            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s"
-                 + " --- AckRate: {}  msg/s --- ack failed {} msg",
-            totalMessagesReceived.sum(),
-            dec.format(rate),
-            dec.format(throughput),
-                rateAck,
-                totalnumMessageAckFailed);
+        log.infof("Aggregated throughput stats --- %d records received"
+                        + " --- %.3f msg/s --- %.3f Mbit/s"
+                        + " --- AckRate: %.1f msg/s --- ack failed %d msg",
+                totalMessagesReceived.sum(), rate, throughput, rateAck, totalnumMessageAckFailed);
     }
 
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
-        log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
-                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
-                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
-                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
-                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
+        log.infof("Aggregated latency stats --- Latency: mean: %.3f ms"
+                        + " - med: %d - 95pct: %d - 99pct: %d"
+                        + " - 99.9pct: %d - 99.99pct: %d"
+                        + " - 99.999pct: %d - Max: %d",
+                reportHistogram.getMean(),
+                reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95),
+                reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9),
+                reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999),
+                reportHistogram.getMaxValue());
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);
 }

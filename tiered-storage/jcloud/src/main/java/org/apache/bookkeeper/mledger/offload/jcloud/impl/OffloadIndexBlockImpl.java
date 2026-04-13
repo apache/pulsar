@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
@@ -40,11 +41,9 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.DataFormats;
 import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class OffloadIndexBlockImpl implements OffloadIndexBlock {
-    private static final Logger log = LoggerFactory.getLogger(OffloadIndexBlockImpl.class);
 
     private static final int INDEX_MAGIC_WORD = 0xDE47DE47;
 
@@ -104,8 +103,9 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     @Override
     public OffloadIndexEntry getIndexEntryForEntry(long messageEntryId) throws IOException {
         if (messageEntryId > segmentMetadata.getLastEntryId()) {
-            log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
-                messageEntryId, segmentMetadata.getLastEntryId());
+            log.warn().attr("entryId", messageEntryId)
+                    .attr("lastEntryId", segmentMetadata.getLastEntryId())
+                    .log("Requested entry beyond lastEntryId");
             throw new IndexOutOfBoundsException("Entry index: " + messageEntryId
                 + " beyond lastEntryId: " + segmentMetadata.getLastEntryId());
         }
@@ -210,7 +210,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
                     try {
                         addressArrayList.add(BookieId.parse(address));
                     } catch (IllegalArgumentException e) {
-                        log.error("Exception when create BookieSocketAddress. ", e);
+                        log.error().exception(e).log("Exception when creating BookieSocketAddress");
                     }
                 });
                 this.ensembles.put(segment.getFirstEntryId(), addressArrayList);

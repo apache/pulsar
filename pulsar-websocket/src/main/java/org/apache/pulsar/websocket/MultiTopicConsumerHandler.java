@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import javax.servlet.http.HttpServletRequest;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.common.naming.TopicName;
@@ -33,12 +34,11 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Subscribing for multi-topic.
  */
+@CustomLog
 public class MultiTopicConsumerHandler extends ConsumerHandler {
 
     public MultiTopicConsumerHandler(WebSocketService service, HttpServletRequest request,
@@ -68,12 +68,17 @@ public class MultiTopicConsumerHandler extends ConsumerHandler {
                         .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
             }
         } catch (TimeoutException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ",
-                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            log.warn()
+                    .attr("out", service.getConfig().getMetadataStoreOperationTimeoutSeconds())
+                    .attr("authorization", topic)
+                    .log("Time-out sec while checking authorization on");
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
-                    e.getMessage());
+            log.warn()
+                    .attr("role", authRole)
+                    .attr("topic", topic)
+                    .attr("message", e.getMessage())
+                    .log("Consumer-client with Role - failed to get permissions for topic");
             throw e;
         }
     }
@@ -114,6 +119,4 @@ public class MultiTopicConsumerHandler extends ConsumerHandler {
 
         return Codec.decode(parts.get(4));
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MultiTopicConsumerHandler.class);
 }

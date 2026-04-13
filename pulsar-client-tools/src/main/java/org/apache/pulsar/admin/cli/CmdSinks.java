@@ -42,8 +42,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -62,7 +62,7 @@ import picocli.CommandLine.Option;
 
 @Getter
 @Command(description = "Interface for managing Pulsar IO sinks (egress data from Pulsar)", aliases = "sink")
-@Slf4j
+@CustomLog
 public class CmdSinks extends CmdBase {
 
     private final CreateSink createSink;

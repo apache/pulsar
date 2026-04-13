@@ -29,16 +29,16 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Loads ServiceConfiguration with properties.
  *
  *
  */
+@CustomLog
 public class PulsarConfigurationLoader {
 
     /**
@@ -129,9 +129,10 @@ public class PulsarConfigurationLoader {
                     throw new RuntimeException(e);
                 }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Validating configuration field '{}' = '{}'", field.getName(), value);
-                }
+                log.debug()
+                        .attr("field", field.getName())
+                        .attr("value", value)
+                        .log("Validating configuration field");
                 boolean isRequired = field.getAnnotation(FieldContext.class).required();
                 long minValue = field.getAnnotation(FieldContext.class).minValue();
                 long maxValue = field.getAnnotation(FieldContext.class).maxValue();
@@ -223,6 +224,4 @@ public class PulsarConfigurationLoader {
     public static ServiceConfiguration convertFrom(PulsarConfiguration conf) throws RuntimeException {
         return convertFrom(conf, true);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarConfigurationLoader.class);
 }

@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import lombok.CustomLog;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -50,8 +51,6 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -63,8 +62,8 @@ import picocli.CommandLine.Parameters;
 @Command(name = "simulation-controller",
         description = "Provides a shell for the user to dictate how simulation clients should "
         + "incur load.")
+@CustomLog
 public class LoadSimulationController extends CmdBase{
-    private static final Logger log = LoggerFactory.getLogger(LoadSimulationController.class);
 
     // Input streams for each client to send commands through.
     private DataInputStream[] inputStreams;
@@ -215,7 +214,10 @@ public class LoadSimulationController extends CmdBase{
     // actual number of application arguments.
     private boolean checkAppArgs(final int numAppArgs, final int numRequired) {
         if (numAppArgs != numRequired) {
-            log.info("ERROR: Wrong number of application arguments (found {}, required {})", numAppArgs, numRequired);
+            log.info()
+                    .attr("found", numAppArgs)
+                    .attr("required", numRequired)
+                    .log("ERROR: Wrong number of application arguments (found , required");
             return false;
         }
         return true;
@@ -355,7 +357,7 @@ public class LoadSimulationController extends CmdBase{
             final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2),
                     commandArguments.get(3));
             if (changeIfExists(arguments, topic) == -1) {
-                log.info("Topic {} not found", topic);
+                log.info().attr("topic", topic).log("Topic not found");
             }
         }
     }
@@ -662,7 +664,7 @@ public class LoadSimulationController extends CmdBase{
                     PerfClientUtils.exit(0);
                     break;
                 default:
-                    log.info("ERROR: Unknown command \"{}\"", command);
+                    log.info().attr("command", command).log("ERROR: Unknown command \" \"");
                 }
             } catch (ParameterException ex) {
                 System.out.println(ex.getMessage());
@@ -697,12 +699,12 @@ public class LoadSimulationController extends CmdBase{
         final Socket[] sockets = new Socket[clients.length];
         inputStreams = new DataInputStream[clients.length];
         outputStreams = new DataOutputStream[clients.length];
-        log.info("Found {} clients:", clients.length);
+        log.info().attr("found", clients.length).log("Found clients");
         for (int i = 0; i < clients.length; ++i) {
             sockets[i] = new Socket(clients[i], clientPort);
             inputStreams[i] = new DataInputStream(sockets[i].getInputStream());
             outputStreams[i] = new DataOutputStream(sockets[i].getOutputStream());
-            log.info("Connected to {}", clients[i]);
+            log.info().attr("connected", clients[i]).log("Connected to");
         }
         start();
     }

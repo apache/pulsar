@@ -40,7 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -65,7 +65,7 @@ import org.testng.annotations.Test;
 /**
  * Integration tests for Pulsar ExtensibleLoadManagerImpl.
  */
-@Slf4j
+@CustomLog
 public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
     private static final int NUM_BROKERS = 3;
@@ -150,8 +150,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                         try (PulsarAdmin brokerAdmin = PulsarAdmin.builder().serviceHttpUrl(
                                 brokerContainer.getHttpServiceUrl()).build()) {
                             if (brokerAdmin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
-                                log.info("Broker {} does not see {} active brokers yet",
-                                        brokerContainer.getHostName(), NUM_BROKERS);
+                                log.info()
+                                        .attr("broker", brokerContainer.getHostName())
+                                        .attr("see", NUM_BROKERS)
+                                        .log("Broker does not see active brokers yet");
                                 return false;
                             }
                             try {
@@ -161,8 +163,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                             }
                             brokerAdmin.lookups().lookupPartitionedTopic(topicName);
                         } catch (Exception e) {
-                            log.warn("Broker {} is not ready yet: {}",
-                                    brokerContainer.getHostName(), e.getMessage());
+                            log.warn()
+                                    .attr("broker", brokerContainer.getHostName())
+                                    .attr("yet", e.getMessage())
+                                    .log("Broker is not ready yet");
                             return false;
                         }
                     }
@@ -191,7 +195,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 try {
                     result.add(admin.lookups().lookupPartitionedTopic(topicName));
                 } catch (PulsarAdminException e) {
-                    log.error("Lookup partitioned topic failed.", e);
+                    log.error().exception(e).log("Lookup partitioned topic failed.");
                 }
                 latch.countDown();
             });
@@ -241,7 +245,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/testSplitBundleAdminApi";
         createNonPartitionedTopicAndRetry(topicName);
         String broker = admin.lookups().lookupTopic(topicName);
-        log.info("The topic: {} owned by {}", topicName, broker);
+        log.info().attr("topic", topicName).attr("by", broker).log("The topic: owned by");
         BundlesData bundles = admin.namespaces().getBundles(DEFAULT_NAMESPACE);
         int numBundles = bundles.getNumBundles();
         var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
@@ -281,7 +285,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
         assertTrue(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
         admin.topics().createPartitionedTopic(topicName, 2);
         String broker = admin.lookups().lookupTopic(topicName);
-        log.info("The topic: {} owned by: {}", topicName, broker);
+        log.info().attr("topic", topicName).attr("by", broker).log("The topic: owned by");
         admin.namespaces().deleteNamespace(namespace, true);
         assertFalse(admin.namespaces().getNamespaces(DEFAULT_TENANT).contains(namespace));
     }
@@ -292,7 +296,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
         createNonPartitionedTopicAndRetry(topicName);
         String broker = admin.lookups().lookupTopic(topicName);
-        log.info("The topic: {} owned by: {}", topicName, broker);
+        log.info().attr("topic", topicName).attr("by", broker).log("The topic: owned by");
 
         int idx = extractBrokerIndex(broker);
         for (BrokerContainer container : pulsarCluster.getBrokers()) {
@@ -351,7 +355,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
 
             assertEquals(brokers.size(), 1);
             result.add(brokers.iterator().next());
-            log.info("Topic: {}, lookup result: {}", topic, brokers.iterator().next());
+            log.info().attr("topic", topic).attr("result", brokers.iterator().next()).log("Topic: , lookup result");
         }
 
         assertEquals(result.size(), NUM_BROKERS);
@@ -440,7 +444,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                         admin.lookups().lookupTopicAsync(topic).get(5, TimeUnit.SECONDS);
                         fail();
                     } catch (Exception ex) {
-                        log.error("Failed to lookup topic: ", ex);
+                        log.error().exception(ex).log("Failed to lookup topic");
                         assertThat(ex.getMessage()).contains("Service Unavailable");
                     }
                 }
@@ -457,7 +461,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 return true;
                 //expected when retried
             } catch (Exception e) {
-                log.error("Failed to create topic: ", e);
+                log.error().exception(e).log("Failed to create topic");
                 return false;
             }
         });

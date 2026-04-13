@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     compileOnly(project(":pulsar-broker"))
     compileOnly(libs.opentelemetry.api)
     implementation(project(":pulsar-broker-common"))

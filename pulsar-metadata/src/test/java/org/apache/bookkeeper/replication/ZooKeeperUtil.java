@@ -104,7 +104,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
     @Override
     public void startCluster() throws Exception {
         // create a ZooKeeper server(dataDir, dataLogDir, port)
-        log.debug().log("Running ZK server");
+        log.debug("Running ZK server");
         ClientBase.setupTestEnv();
         zkTmpDir = IOUtils.createTempDir("zookeeper", "test");
 
@@ -154,7 +154,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
         log.debug().attr("serverUp", b).log("Server up");
 
         // create a zookeeper client
-        log.debug().log("Instantiate ZK Client");
+        log.debug("Instantiate ZK Client");
         zkc = ZooKeeperClient.newBuilder()
                 .connectString(getZooKeeperConnectString())
                 .sessionTimeoutMs(10000)

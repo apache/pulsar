@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(libs.zookeeper)
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.hotspot)

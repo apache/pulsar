@@ -27,13 +27,13 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
  * Servlet filter that rejects HTTP requests using TRACE/TRACK methods.
  */
-@Slf4j
+@CustomLog
 public class DisableDebugHttpMethodFilter implements Filter {
 
     private final ServiceConfiguration serviceConfiguration;
@@ -53,13 +53,13 @@ public class DisableDebugHttpMethodFilter implements Filter {
                 // TRACE is not allowed
                 httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 
-                log.info("[{}] Rejected HTTP request using TRACE Method", request.getRemoteAddr());
+                log.info().attr("remoteAddr", request.getRemoteAddr()).log("Rejected HTTP request using TRACE Method");
                 return;
             } else if ("TRACK".equalsIgnoreCase(httpRequest.getMethod())) {
                 // TRACK is not allowed
                 httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 
-                log.info("[{}] Rejected HTTP request using TRACK Method", request.getRemoteAddr());
+                log.info().attr("remoteAddr", request.getRemoteAddr()).log("Rejected HTTP request using TRACK Method");
                 return;
             }
         }

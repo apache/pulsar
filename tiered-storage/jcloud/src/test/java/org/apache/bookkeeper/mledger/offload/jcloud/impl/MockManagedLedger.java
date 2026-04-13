@@ -25,7 +25,7 @@ import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -40,7 +40,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
-@Slf4j
+@CustomLog
 public class MockManagedLedger implements ManagedLedger {
     @Override
     public String getName() {

@@ -23,6 +23,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-broker-common"))
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-common"))

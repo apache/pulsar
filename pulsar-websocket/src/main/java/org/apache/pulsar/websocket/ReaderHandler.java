@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.client.api.Consumer;
@@ -49,8 +50,6 @@ import org.apache.pulsar.websocket.data.EndOfTopicResponse;
 import org.eclipse.jetty.ee8.websocket.api.Session;
 import org.eclipse.jetty.ee8.websocket.api.WriteCallback;
 import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -60,6 +59,7 @@ import org.slf4j.LoggerFactory;
  * </P>
  *
  */
+@CustomLog
 public class ReaderHandler extends AbstractWebSocketHandler {
 
     private static final int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
@@ -102,7 +102,10 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 try {
                     builder.cryptoFailureAction(ConsumerCryptoFailureAction.valueOf(action));
                 } catch (Exception e) {
-                    log.warn("Failed to configure cryptoFailureAction {}, {}", action, e.getMessage());
+                    log.warn()
+                            .attr("cryptoFailureAction", action)
+                            .attr("message", e.getMessage())
+                            .log("Failed to configure cryptoFailureAction");
                 }
             }
             if (service.getCryptoKeyReader().isPresent()) {
@@ -116,34 +119,50 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             }
             this.subscription = consumer.getSubscription();
             if (!this.service.addReader(this)) {
-                log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
-                        request.getRemotePort(), topic);
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .attr("topic", topic)
+                        .log("Failed to add reader handler for topic");
             }
             allowConnect = true;
         } catch (Exception e) {
-            log.warn("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
-                    request.getRemotePort(), subscription, topic, e);
+            log.warn()
+                    .attr("remoteAddr", request.getRemoteAddr())
+                    .attr("remotePort", request.getRemotePort())
+                    .attr("reader", subscription)
+                    .attr("topic", topic)
+                    .exception(e)
+                    .log("Failed in creating reader on topic");
             try {
                 response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                         "Failed to create reader: " + e.getMessage());
             } catch (IOException e1) {
-                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
-                        e1.getMessage(), e1);
+                log.warn()
+                        .attr("remoteAddr", request.getRemoteAddr())
+                        .attr("remotePort", request.getRemotePort())
+                        .exceptionMessage(e1)
+                        .exception(e1)
+                        .log("Failed to send error");
             }
         }
     }
 
     private void receiveMessage() {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}:{}] [{}] [{}] Receive next message",
-                    request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
-        }
+        log.debug()
+                .attr("remoteAddr", request.getRemoteAddr())
+                .attr("remotePort", request.getRemotePort())
+                .attr("topic", topic)
+                .attr("subscription", subscription)
+                .log("Receive next message");
 
         reader.readNextAsync().thenAccept(msg -> {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] [{}] Got message {}", getSession().getRemoteAddress(), topic, subscription,
-                        msg.getMessageId());
-            }
+            log.debug()
+                    .attr("remoteAddress", getSession().getRemoteAddress())
+                    .attr("topic", topic)
+                    .attr("subscription", subscription)
+                    .attr("message", msg.getMessageId())
+                    .log("Got message");
 
             ConsumerMessage dm = new ConsumerMessage();
             dm.messageId = Base64.getEncoder().encodeToString(msg.getMessageId().toByteArray());
@@ -165,8 +184,12 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                                 new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
-                                log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(), subscription,
-                                        getRemote().getRemoteAddress().toString(), th.getMessage());
+                                log.warn()
+                                        .attr("topic", reader.getTopic())
+                                        .attr("subscription", subscription)
+                                        .attr("msg", getRemote().getRemoteAddress().toString())
+                                        .attr("message", th.getMessage())
+                                        .log("/ ] Failed to deliver msg to");
                                 pendingMessages.decrementAndGet();
                                 // schedule receive as one of the delivery failed
                                 service.getExecutor().execute(() -> receiveMessage());
@@ -174,10 +197,11 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
                             @Override
                             public void writeSuccess() {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}/{}] message is delivered successfully to {} ", reader.getTopic(),
-                                            subscription, getRemote().getRemoteAddress().toString());
-                                }
+                                log.debug()
+                                        .attr("topic", reader.getTopic())
+                                        .attr("subscription", subscription)
+                                        .attr("successfully", getRemote().getRemoteAddress().toString())
+                                        .log("/ ] message is delivered successfully to");
                                 updateDeliverMsgStat(msgSize);
                             }
                         });
@@ -192,10 +216,17 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             }
         }).exceptionally(exception -> {
             if (exception.getCause() instanceof AlreadyClosedException) {
-                log.info("[{}/{}] Reader was closed while receiving msg from broker", reader.getTopic(), subscription);
+                log.info()
+                        .attr("topic", reader.getTopic())
+                        .attr("subscription", subscription)
+                        .log("/ ] Reader was closed while receiving msg from broker");
             } else {
-                log.warn("[{}/{}] Error occurred while reader handler was delivering msg to {}: {}", reader.getTopic(),
-                        subscription, getRemote().getRemoteAddress().toString(), exception.getMessage());
+                log.warn()
+                        .attr("topic", reader.getTopic())
+                        .attr("subscription", subscription)
+                        .attr("msg", getRemote().getRemoteAddress().toString())
+                        .attr("message", exception.getMessage())
+                        .log("/ ] Error occurred while reader handler was delivering msg to");
             }
             return null;
         });
@@ -218,7 +249,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                 return;
             }
         } catch (IOException e) {
-            log.warn("Failed to deserialize message id: {}", message, e);
+            log.warn().attr("id", message).exception(e).log("Failed to deserialize message id");
             close(WebSocketError.FailedToDeserializeFromJSON);
         }
 
@@ -241,22 +272,33 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                     .sendString(msg, new WriteCallback() {
                         @Override
                         public void writeFailed(Throwable th) {
-                            log.warn("[{}/{}] Failed to send end of topic msg to {} due to {}", reader.getTopic(),
-                                    subscription, getRemote().getRemoteAddress().toString(), th.getMessage());
+                            log.warn()
+                                    .attr("topic", reader.getTopic())
+                                    .attr("subscription", subscription)
+                                    .attr("msg", getRemote().getRemoteAddress().toString())
+                                    .attr("due", th.getMessage())
+                                    .log("/ ] Failed to send end of topic msg to due to");
                         }
 
                         @Override
                         public void writeSuccess() {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}/{}] End of topic message is delivered successfully to {} ",
-                                        reader.getTopic(), subscription, getRemote().getRemoteAddress().toString());
-                            }
+                            log.debug()
+                                    .attr("topic", reader.getTopic())
+                                    .attr("subscription", subscription)
+                                    .attr("successfully", getRemote().getRemoteAddress().toString())
+                                    .log("/ ] End of topic message is delivered successfully to");
                         }
                     });
         } catch (JsonProcessingException e) {
-            log.warn("[{}] Failed to generate end of topic response: {}", reader.getTopic(), e.getMessage());
+            log.warn()
+                    .attr("topic", reader.getTopic())
+                    .attr("response", e.getMessage())
+                    .log("Failed to generate end of topic response");
         } catch (Exception e) {
-            log.warn("[{}] Failed to send end of topic response: {}", reader.getTopic(), e.getMessage());
+            log.warn()
+                    .attr("topic", reader.getTopic())
+                    .attr("response", e.getMessage())
+                    .log("Failed to send end of topic response");
         }
     }
 
@@ -264,14 +306,12 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     public void close() throws IOException {
         if (reader != null) {
             if (!this.service.removeReader(this)) {
-                log.warn("[{}] Failed to remove reader handler", reader.getTopic());
+                log.warn().attr("topic", reader.getTopic()).log("Failed to remove reader handler");
             }
             reader.closeAsync().thenAccept(x -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Closed reader asynchronously", reader.getTopic());
-                }
+                log.debug().attr("topic", reader.getTopic()).log("Closed reader asynchronously");
             }).exceptionally(exception -> {
-                log.warn("[{}] Failed to close reader", reader.getTopic(), exception);
+                log.warn().attr("topic", reader.getTopic()).exception(exception).log("Failed to close reader");
                 return null;
             });
         }
@@ -322,12 +362,17 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                     .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
                     .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (TimeoutException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ",
-                    service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
+            log.warn()
+                    .attr("out", service.getConfig().getMetadataStoreOperationTimeoutSeconds())
+                    .attr("authorization", topic)
+                    .log("Time-out sec while checking authorization on");
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", authRole, topic,
-                    e.getMessage());
+            log.warn()
+                    .attr("role", authRole)
+                    .attr("topic", topic)
+                    .attr("message", e.getMessage())
+                    .log("Consumer-client with Role - failed to get permissions for topic");
             throw e;
         }
     }
@@ -351,7 +396,5 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         }
         return messageId;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ReaderHandler.class);
 
 }

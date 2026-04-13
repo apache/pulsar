@@ -40,20 +40,18 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.proxy.server.ProxyService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 @Path("/")
 @Api(value = "/proxy-stats", description = "Stats for proxy", tags = "proxy-stats", hidden = true)
 @Produces(MediaType.APPLICATION_JSON)
 @SuppressWarnings("deprecation")
 public class ProxyStats {
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyStats.class);
     public static final String ATTRIBUTE_PULSAR_PROXY_NAME = "pulsar-proxy";
 
     private ProxyService service;
@@ -139,13 +137,18 @@ public class ProxyStats {
             try {
                 if (authParams.getClientRole() == null
                         || !proxyService().getAuthorizationService().isSuperUser(authParams).get(30, SECONDS)) {
-                    log.error("Client with role [{}] is not authorized to {}", authParams.getClientRole(), action);
+                    log.error()
+                            .attr("authParams", authParams.getClientRole())
+                            .attr("action", action)
+                            .log("Client with role [] is not authorized to");
                     throw new org.apache.pulsar.common.util.RestException(Status.UNAUTHORIZED,
                             "Client is not authorized to perform operation");
                 }
             } catch (ExecutionException | TimeoutException | InterruptedException e) {
-                log.warn("Time-out {} sec while checking the role {} is a super user role ", 30,
-                        authParams.getClientRole());
+                log.warn()
+                        .attr("timeoutSeconds", 30)
+                        .attr("authParams", authParams.getClientRole())
+                        .log("Time-out while checking the role is a super user role");
                 throw new org.apache.pulsar.common.util.RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }

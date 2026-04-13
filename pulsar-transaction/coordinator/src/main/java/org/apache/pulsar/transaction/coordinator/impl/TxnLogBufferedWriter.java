@@ -31,9 +31,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -54,7 +54,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  * maximum latency, we will mark the first request time for each batch, and additional timing triggers writes.
  * You can enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
  */
-@Slf4j
+@CustomLog
 public class TxnLogBufferedWriter<T> {
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = 0x0e01;
@@ -146,9 +146,11 @@ public class TxnLogBufferedWriter<T> {
                                 boolean batchEnabled, TxnLogBufferedWriterMetricsStats metrics){
         if (batchedWriteMaxRecords <= 1 && batchEnabled){
             if (metrics != null){
-                log.warn("Transaction Log Buffered Writer with the metrics name beginning with {} has batching enabled"
-                        + " yet the maximum batch size was configured to less than or equal to 1 record, hence due to"
-                        + " performance reasons batching is disabled", metrics.getMetricsPrefix());
+                log.warn().attr("metricsPrefix", metrics.getMetricsPrefix())
+                        .log("Transaction Log Buffered Writer has batching enabled"
+                                + " yet the maximum batch size was configured to less than or"
+                                + " equal to 1 record, hence due to performance reasons"
+                                + " batching is disabled");
             } else {
                 log.warn("Transaction Log Buffered Writer has batching enabled"
                         + " yet the maximum batch size was configured to less than or equal to 1 record, hence due to"
@@ -189,8 +191,8 @@ public class TxnLogBufferedWriter<T> {
             }
             timeout = timer.newTimeout(timingFlushTask, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
         } catch (Exception e){
-            log.error("Start timing flush trigger failed."
-                    + " managedLedger: " + managedLedger.getName(), e);
+            log.error().attr("managedLedger", managedLedger.getName())
+                    .exception(e).log("Start timing flush trigger failed");
         }
     }
 
@@ -220,7 +222,7 @@ public class TxnLogBufferedWriter<T> {
                 .runAsync(
                         () -> internalAsyncAddData(data, callback, ctx), singleThreadExecutorForWrite)
                 .exceptionally(e -> {
-                    log.warn("Execute 'internalAsyncAddData' fail", e);
+                    log.warn().exception(e).log("Execute 'internalAsyncAddData' fail");
                     return null;
                 });
     }
@@ -284,7 +286,7 @@ public class TxnLogBufferedWriter<T> {
                 }, singleThreadExecutorForWrite)
                 .whenComplete((ignore, e) -> {
                     if (e != null) {
-                        log.warn("Execute 'trigFlushByTimingTask' fail", e);
+                        log.warn().exception(e).log("Execute 'trigFlushByTimingTask' fail");
                     }
                     nextTimingTrigger();
                 });
@@ -420,8 +422,10 @@ public class TxnLogBufferedWriter<T> {
         try {
             asyncAddArgs.callback.addFailed(ex, asyncAddArgs.ctx);
         } catch (Exception e){
-            log.error("After writing to the transaction batched log failure, the callback executed also"
-                    + " failed. managedLedger: " + managedLedger.getName(), e);
+            log.error().attr("managedLedger", managedLedger.getName())
+                    .exception(e)
+                    .log("After writing to the transaction batched log failure,"
+                            + " the callback executed also failed");
         } finally {
             if (recycle) {
                 asyncAddArgs.recycle();
@@ -571,12 +575,14 @@ public class TxnLogBufferedWriter<T> {
                     try {
                         asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
                     } catch (Exception e){
-                        log.error("After writing to the transaction batched log complete, the callback failed."
-                                + " managedLedger: " + managedLedger.getName(), e);
+                        log.error().attr("managedLedger", managedLedger.getName())
+                                .exception(e)
+                                .log("After writing to the transaction batched log complete,"
+                                        + " the callback failed");
                     }
                 }
             } catch (Exception e){
-                log.error("Handle callback fail after ML write complete", e);
+                log.error().exception(e).log("Handle callback fail after ML write complete");
             } finally {
                 flushContext.recycle();
             }
@@ -588,7 +594,7 @@ public class TxnLogBufferedWriter<T> {
                 final FlushContext flushContext = (FlushContext) ctx;
                 failureCallbackByContextAndRecycle(flushContext, exception);
             } catch (Exception e){
-                log.error("Handle callback fail after ML write fail", e);
+                log.error().exception(e).log("Handle callback fail after ML write fail");
             }
         }
 

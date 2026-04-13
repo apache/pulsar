@@ -33,6 +33,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.commons.io.HexDump;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -231,6 +232,7 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
     }
 
     @WebSocket
+    @CustomLog
     public static class ConsumerSocket {
         private static final String X_PULSAR_MESSAGE_ID = "messageId";
         private final CountDownLatch closeLatch;
@@ -250,14 +252,15 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
 
         @OnWebSocketClose
         public void onClose(int statusCode, String reason) {
-            log.info("Connection closed: {} - {}", statusCode, reason);
+            log.info().attr("statusCode", statusCode).attr("reason", reason)
+                    .log("Connection closed");
             this.session = null;
             this.closeLatch.countDown();
         }
 
         @OnWebSocketOpen
         public void onConnect(Session session) throws InterruptedException {
-            log.info("Got connect: {}", session);
+            log.info().attr("session", session).log("Got connect");
             this.session = session;
             this.connected.complete(null);
         }
@@ -285,7 +288,6 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             this.session.close();
         }
 
-        private static final Logger log = LoggerFactory.getLogger(ConsumerSocket.class);
     }
 
 }

@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     compileOnly(project(":pulsar-client-original"))
     implementation(project(":pulsar-common"))
     implementation(libs.slf4j.api)

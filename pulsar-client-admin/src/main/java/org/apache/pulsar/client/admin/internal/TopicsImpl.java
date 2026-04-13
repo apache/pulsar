@@ -48,6 +48,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
@@ -99,10 +100,9 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("deprecation")
+@CustomLog
 public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminV2Topics;
     // CHECKSTYLE.OFF: MemberName
@@ -539,8 +539,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                         @Override
                         public void failed(Throwable throwable) {
-                            log.warn("[{}] Failed to perform http post request: {}", path.getUri(),
-                                    throwable.getMessage());
+                            log.warn().attr("uri", path.getUri())
+                                    .exceptionMessage(throwable)
+                                    .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
                     });
@@ -578,8 +579,9 @@ public class TopicsImpl extends BaseResource implements Topics {
 
                         @Override
                         public void failed(Throwable throwable) {
-                            log.warn("[{}] Failed to perform http post request: {}", path.getUri(),
-                                    throwable.getMessage());
+                            log.warn().attr("uri", path.getUri())
+                                    .exceptionMessage(throwable)
+                                    .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
                     });
@@ -943,7 +945,8 @@ public class TopicsImpl extends BaseResource implements Topics {
                 // if we get a not found exception, it means that the position for the message we are trying to get
                 // does not exist. At this point, we can return the already found messages.
                 if (ex instanceof NotFoundException) {
-                    log.warn("Exception '{}' occurred while trying to peek Messages.", ex.getMessage());
+                    log.warn().exceptionMessage(ex)
+                            .log("Exception occurred while trying to peek Messages");
                     future.complete(messages);
                 } else {
                     future.completeExceptionally(ex);
@@ -1516,7 +1519,8 @@ public class TopicsImpl extends BaseResource implements Topics {
                 }
                 ret.add(message);
             } catch (Exception ex) {
-                log.error("Exception occurred while trying to get BatchMsgId: {}", batchMsgId, ex);
+                log.error().exception(ex).attr("batchMsgId", batchMsgId)
+                        .log("Exception occurred while trying to get BatchMsgId");
             }
         }
         buf.release();
@@ -1657,9 +1661,11 @@ public class TopicsImpl extends BaseResource implements Topics {
                 // In analyze-backlog, we treat 0 entries or null lastMessageId as scan completed for mere safety.
                 // 0 entries or a null lastMessageId indicates no entries were scanned.
                 if (currentResult.getEntries() <= 0 || StringUtils.isBlank(currentResult.getLastMessageId())) {
-                    log.info("[{}][{}] complete scan due total entry <= 0 or last message id is blank, "
-                            + "start position is: {}, current result: {}", topic, subscriptionName,
-                            startPositionRef.get(), currentResult);
+                    log.info().attr("topic", topic)
+                            .attr("subscription", subscriptionName)
+                            .attr("startPosition", startPositionRef.get())
+                            .attr("currentResult", currentResult)
+                            .log("Complete scan due total entry <= 0 or last message id is blank");
                     future.complete(mergedResult);
                     return;
                 }
@@ -2977,5 +2983,4 @@ public class TopicsImpl extends BaseResource implements Topics {
             .collect(Collectors.joining(","));
     }
 
-    private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);
 }

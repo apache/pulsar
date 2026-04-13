@@ -54,8 +54,8 @@ import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -81,7 +81,7 @@ import org.bouncycastle.openssl.PEMKeyPair;
 import org.bouncycastle.openssl.PEMParser;
 import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
 
-@Slf4j
+@CustomLog
 public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMetadata> {
     public static final String ECDSA = "ECDSA";
     public static final String RSA = "RSA";
@@ -148,9 +148,9 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             KeyGenerator kg = KeyGenerator.getInstance("AES");
             int aesKeyLength = Cipher.getMaxAllowedKeyLength("AES");
             if (aesKeyLength <= 128) {
-                log.warn("AES Cryptographic strength is limited to {} bits. "
-                        + "Consider installing JCE Unlimited Strength Jurisdiction Policy Files.",
-                        aesKeyLength);
+                log.warn().attr("aesKeyLength", aesKeyLength)
+                        .log("AES Cryptographic strength is limited."
+                                + " Consider installing JCE Unlimited Strength Jurisdiction Policy Files");
                 kg.init(aesKeyLength, secureRandom);
             } else {
                 kg.init(256, secureRandom);
@@ -163,7 +163,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         try {
             return THREAD_LOCAL_CIPHER.get();
         } catch (Exception e) {
-            log.error("Failed to get AES-GCM cipher instance. {}", e.getMessage());
+            log.error().exceptionMessage(e).log("Failed to get AES-GCM cipher instance");
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
     }
@@ -172,7 +172,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         try {
             return THREAD_LOCAL_KEY_GENERATOR.get();
         } catch (Exception e) {
-            log.error("Failed to get AES key generator instance. {}", e.getMessage());
+            log.error().exceptionMessage(e).log("Failed to get AES key generator instance");
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
     }
@@ -363,7 +363,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             encryptedKey = dataKeyCipher.doFinal(encryptionKey.getEncoded());
         } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchProviderException
                  | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
-            log.error("{} Failed to encrypt data key {}. {}", logCtx, keyName, e.getMessage());
+            log.error().attr("logCtx", logCtx).attr("keyName", keyName)
+                    .exceptionMessage(e).log("Failed to encrypt data key");
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
         EncryptionKeyInfo eki = new EncryptionKeyInfo(encryptedKey, keyInfo.getMetadata());
@@ -442,7 +443,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                 }
             } else {
                 // We should never reach here.
-                log.error("{} Failed to find encrypted Data key for key {}.", logCtx, keyName);
+                log.error().attr("logCtx", logCtx).attr("keyName", keyName)
+                        .log("Failed to find encrypted Data key for key");
             }
         }
 
@@ -470,7 +472,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             outBuffer.limit(bytesStored);
         } catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException
                 | InvalidAlgorithmParameterException | ShortBufferException e) {
-            log.error("{} Failed to encrypt message. {}", logCtx, e);
+            log.error().attr("logCtx", logCtx).exception(e).log("Failed to encrypt message");
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
     }
@@ -490,11 +492,13 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         try {
             privateKey = loadPrivateKey(keyInfo.getKey());
             if (privateKey == null) {
-                log.error("{} Failed to load private key {}.", logCtx, keyName);
+                log.error().attr("logCtx", logCtx).attr("keyName", keyName)
+                        .log("Failed to load private key");
                 return null;
             }
         } catch (Exception e) {
-            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
+            log.error().attr("logCtx", logCtx).attr("keyName", keyName)
+                    .exceptionMessage(e).log("Failed to decrypt data key to decrypt messages");
             return null;
         }
 
@@ -509,7 +513,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
                 dataKeyCipher = Cipher.getInstance(ECIES, BouncyCastleProvider.PROVIDER_NAME);
                 params = createIESParameterSpec();
             } else {
-                log.error("Unsupported key type {} for key {}.", privateKey.getAlgorithm(), keyName);
+                log.error().attr("keyType", privateKey.getAlgorithm()).attr("keyName", keyName)
+                        .log("Unsupported key type");
                 return null;
             }
             if (params != null) {
@@ -521,7 +526,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             return new SecretKeySpec(dataKeyValue, "AES");
 
         } catch (Exception e) {
-            log.error("{} Failed to decrypt data key {} to decrypt messages {}", logCtx, keyName, e.getMessage());
+            log.error().attr("logCtx", logCtx).attr("keyName", keyName)
+                    .exceptionMessage(e).log("Failed to decrypt data key to decrypt messages");
             return null;
         }
     }
@@ -552,7 +558,8 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             payload.reset();
             targetBuffer.reset();
 
-            log.error("{} Failed to decrypt message {}", logCtx, e.getMessage());
+            log.error().attr("logCtx", logCtx).exceptionMessage(e)
+                    .log("Failed to decrypt message");
             return false;
         }
     }

@@ -39,6 +39,7 @@ configurations.all {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(libs.jclouds.allblobstore)
     implementation("org.apache.jclouds.driver:jclouds-apachehc:${libs.versions.jclouds.get()}")
     implementation("org.apache.jclouds.driver:jclouds-okhttp:${libs.versions.jclouds.get()}") {

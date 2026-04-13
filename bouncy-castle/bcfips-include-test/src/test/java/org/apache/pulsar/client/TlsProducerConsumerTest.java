@@ -20,17 +20,16 @@ package org.apache.pulsar.client;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(TlsProducerConsumerTest.class);
 
     /**
      * verifies that messages whose size is larger than 2^14 bytes (max size of single TLS chunk) can be
@@ -40,10 +39,10 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
      */
     @Test(timeOut = 30000)
     public void testTlsLargeSizeMessage() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("test", methodName).log("Starting test");
 
         final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size {} --", messageSize);
+        log.info().attr("messageSize", messageSize).log("Message size");
 
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
@@ -69,15 +68,15 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("test", methodName).log("Exiting test");
     }
 
     @Test(timeOut = 30000)
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("test", methodName).log("Starting test");
 
         final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size {} --", messageSize);
+        log.info().attr("messageSize", messageSize).log("Message size");
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
@@ -88,7 +87,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
-            log.info("first test success: without certs set, meet exception ", ex);
+            log.info().exception(ex).log("First test success: without certs set, meet exception");
         }
 
         // Test 2 - Using TLS on binary protocol - sending certs
@@ -96,7 +95,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
-            log.info("second test success: with certs set, consumer sub success");
+            log.info("Second test success: with certs set, consumer sub success");
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }
@@ -104,10 +103,10 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("test", methodName).log("Starting test");
 
         final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size {} --", messageSize);
+        log.info().attr("messageSize", messageSize).log("Message size");
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on https without sending certs - expect failure
@@ -118,7 +117,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
             // OK
-            log.info("first test success: without certs set, meet exception ", ex);
+            log.info().exception(ex).log("First test success: without certs set, meet exception");
         }
 
         // Test 2 - Using TLS on https - sending certs
@@ -126,7 +125,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
-            log.info("second test success: with certs set, consumer sub success");
+            log.info("Second test success: with certs set, consumer sub success");
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }

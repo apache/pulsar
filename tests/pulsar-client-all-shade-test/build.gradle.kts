@@ -24,6 +24,7 @@ plugins {
 // Use the shadow JAR from pulsar-client-all which contains relocated netty/jackson/etc classes.
 
 dependencies {
+    implementation(libs.slog)
     testImplementation(project(":pulsar-client-all"))
     // API modules are not bundled in the shaded JAR
     testImplementation(project(":pulsar-client-api"))

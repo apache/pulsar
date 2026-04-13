@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import lombok.CustomLog;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -44,8 +45,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -55,8 +54,8 @@ import picocli.CommandLine.Option;
  */
 @Command(name = "simulation-client",
         description = "Simulate client load by maintaining producers and consumers for topics.")
+@CustomLog
 public class LoadSimulationClient extends CmdBase{
-    private static final Logger log = LoggerFactory.getLogger(LoadSimulationClient.class);
 
     // Values for command encodings.
     public static final byte CHANGE_COMMAND = 0;
@@ -356,7 +355,7 @@ public class LoadSimulationClient extends CmdBase{
             // has not been tested or considered and is not recommended.
             log.info("Listening for controller command...");
             final Socket socket = serverSocket.accept();
-            log.info("Connected to {}", socket.getInetAddress().getHostName());
+            log.info().attr("connected", socket.getInetAddress().getHostName()).log("Connected to");
             executor.submit(() -> {
                 try {
                     handle(socket);

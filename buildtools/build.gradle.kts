@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(libs.snakeyaml)
     implementation(libs.ant)
     implementation(libs.guava)

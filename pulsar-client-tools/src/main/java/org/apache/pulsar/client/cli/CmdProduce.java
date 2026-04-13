@@ -40,6 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import lombok.CustomLog;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.DecoderFactory;
@@ -73,8 +74,6 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -86,9 +85,8 @@ import picocli.CommandLine.Spec;
  * pulsar-client produce command implementation.
  */
 @Command(description = "Produce messages to a specified topic")
+@CustomLog
 public class CmdProduce extends AbstractCmd {
-
-    private static final Logger LOG = LoggerFactory.getLogger(PulsarClientTool.class);
     private static final int MAX_MESSAGES = 1000;
     static final String KEY_VALUE_ENCODING_TYPE_NOT_SET = "";
     private static final String KEY_VALUE_ENCODING_TYPE_SEPARATED = "separated";
@@ -213,7 +211,7 @@ public class CmdProduce extends AbstractCmd {
                 messageBodies.add(fileBytes);
             }
         } catch (Exception e) {
-            LOG.error(e.getMessage(), e);
+            log.error().exception(e).log(e.getMessage());
         }
 
         return messageBodies;
@@ -386,11 +384,11 @@ public class CmdProduce extends AbstractCmd {
                 }
             }
         } catch (Exception e) {
-            LOG.error("Error while producing messages");
-            LOG.error(e.getMessage(), e);
+            log.error().exception(e).log("Error while producing messages");
             returnCode = -1;
         } finally {
-            LOG.info("{} messages successfully produced", numMessagesSent);
+            log.info().attr("numMessages", numMessagesSent)
+                    .log("Messages successfully produced");
         }
 
         return returnCode;
@@ -480,7 +478,7 @@ public class CmdProduce extends AbstractCmd {
                 }
             }
         } catch (Exception e) {
-            LOG.error("Authentication plugin error: " + e.getMessage());
+            log.error().exceptionMessage(e).log("Authentication plugin error");
             return -1;
         }
 
@@ -489,16 +487,17 @@ public class CmdProduce extends AbstractCmd {
         try {
             produceClient.start();
         } catch (Exception e) {
-            LOG.error("Failed to start websocket-client", e);
+            log.error().exception(e).log("Failed to start websocket-client");
             return -1;
         }
 
         try {
-            LOG.info("Trying to create websocket session.. on {},{}", produceUri, produceRequest);
+            log.info().attr("uri", produceUri).attr("request", produceRequest)
+                    .log("Trying to create websocket session");
             produceClient.connect(produceSocket, produceRequest);
             connected.get();
         } catch (Exception e) {
-            LOG.error("Failed to create web-socket session", e);
+            log.error().exception(e).log("Failed to create web-socket session");
             return -1;
         }
 
@@ -517,28 +516,29 @@ public class CmdProduce extends AbstractCmd {
             }
             produceSocket.close();
         } catch (Exception e) {
-            LOG.error("Error while producing messages");
-            LOG.error(e.getMessage(), e);
+            log.error().exception(e).log("Error while producing messages");
             returnCode = -1;
         } finally {
-            LOG.info("{} messages successfully produced", numMessagesSent);
+            log.info().attr("numMessages", numMessagesSent)
+                    .log("Messages successfully produced");
         }
 
         try {
             produceClient.stop();
         } catch (Exception e) {
-            LOG.error("Failed to stop websocket-client", e);
+            log.error().exception(e).log("Failed to stop websocket-client");
         }
         try {
             httpClient.stop();
         } catch (Exception e) {
-            LOG.error("Failed to stop http-client", e);
+            log.error().exception(e).log("Failed to stop http-client");
         }
 
         return returnCode;
     }
 
     @WebSocket
+    @CustomLog
     public static class ProducerSocket {
 
         private final CountDownLatch closeLatch;
@@ -570,21 +570,22 @@ public class CmdProduce extends AbstractCmd {
 
         @OnWebSocketClose
         public void onClose(int statusCode, String reason) {
-            LOG.info("Connection closed: {} - {}", statusCode, reason);
+            log.info().attr("statusCode", statusCode).attr("reason", reason)
+                    .log("Connection closed");
             this.session = null;
             this.closeLatch.countDown();
         }
 
         @OnWebSocketOpen
         public void onConnect(Session session) {
-            LOG.info("Got connect: {}", session);
+            log.info().attr("session", session).log("Got connect");
             this.session = session;
             this.connected.complete(null);
         }
 
         @OnWebSocketMessage
         public synchronized void onMessage(String msg) throws JsonParseException {
-            LOG.info("ack= {}", msg);
+            log.info().attr("ack", msg).log("Received ack");
             if (this.result != null) {
                 this.result.complete(null);
             }

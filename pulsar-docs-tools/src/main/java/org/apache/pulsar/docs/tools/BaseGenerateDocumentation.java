@@ -29,8 +29,8 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -39,7 +39,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
 
-@Slf4j
+@CustomLog
 @Command(name = "gen-doc", showDefaultValues = true, scope = ScopeType.INHERIT)
 public abstract class BaseGenerateDocumentation implements Callable<Integer> {
 

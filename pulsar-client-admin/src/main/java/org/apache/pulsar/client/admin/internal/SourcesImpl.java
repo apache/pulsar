@@ -29,7 +29,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Source;
 import org.apache.pulsar.client.admin.Sources;
@@ -46,7 +46,7 @@ import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 
-@Slf4j
+@CustomLog
 @SuppressWarnings("deprecation")
 public class SourcesImpl extends ComponentResource implements Sources, Source {
 

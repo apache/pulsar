@@ -22,7 +22,6 @@ import static org.apache.pulsar.testclient.PerfClientUtils.addShutdownHook;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Timer;
@@ -30,6 +29,7 @@ import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.CustomLog;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -41,18 +41,14 @@ import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 @Command(name = "read", description = "Test pulsar reader performance.")
+@CustomLog
 public class PerformanceReader extends PerformanceTopicListArguments {
     private static final LongAdder messagesReceived = new LongAdder();
     private static final LongAdder bytesReceived = new LongAdder();
-    private static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
-    private static final DecimalFormat dec = new DecimalFormat("0.000");
 
     private static final LongAdder totalMessagesReceived = new LongAdder();
     private static final LongAdder totalBytesReceived = new LongAdder();
@@ -105,7 +101,7 @@ public class PerformanceReader extends PerformanceTopicListArguments {
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(this));
+        log.info().attr("config", w.writeValueAsString(this)).log("Starting Pulsar performance reader with config");
 
         final RateLimiter limiter = this.rate > 0 ? RateLimiter.create(this.rate) : null;
         ReaderListener<byte[]> listener = (reader, msg) -> {
@@ -116,8 +112,7 @@ public class PerformanceReader extends PerformanceTopicListArguments {
             totalBytesReceived.add(msg.getData().length);
 
             if (this.numMessages > 0 && totalMessagesReceived.sum() >= this.numMessages) {
-                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------",
-                        this.numMessages);
+                log.info().attr("number", this.numMessages).log("DONE (reached the maximum number: of consumption");
                 PerfClientUtils.exit(0);
             }
 
@@ -162,7 +157,7 @@ public class PerformanceReader extends PerformanceTopicListArguments {
 
         FutureUtil.waitForAll(futures).get();
 
-        log.info("Start reading from {} topics", this.numTopics);
+        log.info().attr("reading", this.numTopics).log("Start reading from topics");
 
         final long start = System.nanoTime();
         Thread shutdownHookThread = addShutdownHook(() -> {
@@ -174,8 +169,10 @@ public class PerformanceReader extends PerformanceTopicListArguments {
             TimerTask timoutTask = new TimerTask() {
                 @Override
                 public void run() {
-                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) "
-                            + "--------------", testTime);
+                    log.info()
+                            .attr("duration", testTime)
+                            .log("------------- DONE (reached the maximum duration:"
+                                    + " [ seconds] of consumption) --------------");
                     PerfClientUtils.exit(0);
                 }
             };
@@ -201,14 +198,18 @@ public class PerformanceReader extends PerformanceTopicListArguments {
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
-            log.info(
-                    "Read throughput: {} msg --- {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} "
-                            + "- 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    intFormat.format(total),
-                    dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
-                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
-                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
-                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
+            log.infof("Read throughput: %7d msg --- %.3f msg/s --- %.3f Mbit/s"
+                            + " --- Latency: mean: %.3f ms - med: %d"
+                            + " - 95pct: %d - 99pct: %d"
+                            + " - 99.9pct: %d - 99.99pct: %d - Max: %d",
+                    total, rate, throughput,
+                    reportHistogram.getMean(),
+                    reportHistogram.getValueAtPercentile(50),
+                    reportHistogram.getValueAtPercentile(95),
+                    reportHistogram.getValueAtPercentile(99),
+                    reportHistogram.getValueAtPercentile(99.9),
+                    reportHistogram.getValueAtPercentile(99.99),
+                    reportHistogram.getMaxValue());
 
             reportHistogram.reset();
             oldTime = now;
@@ -221,24 +222,24 @@ public class PerformanceReader extends PerformanceTopicListArguments {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesReceived.sum() / elapsed;
         double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
-        log.info(
-                "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
-                totalMessagesReceived,
-                dec.format(rate),
-                dec.format(throughput));
+        log.infof("Aggregated throughput stats --- %d records received --- %.3f msg/s --- %.3f Mbit/s",
+                totalMessagesReceived.sum(), rate, throughput);
     }
 
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
-        log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
-                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
-                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
-                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
-                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
+        log.infof("Aggregated latency stats --- Latency: mean: %.3f ms"
+                        + " - med: %d - 95pct: %d - 99pct: %d"
+                        + " - 99.9pct: %d - 99.99pct: %d"
+                        + " - 99.999pct: %d - Max: %d",
+                reportHistogram.getMean(),
+                reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95),
+                reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9),
+                reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999),
+                reportHistogram.getMaxValue());
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PerformanceReader.class);
 }

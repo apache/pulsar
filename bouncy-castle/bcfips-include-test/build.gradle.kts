@@ -34,6 +34,7 @@ configurations.all {
 }
 
 dependencies {
+    implementation(libs.slog)
     testImplementation(project(":bouncy-castle:bcfips"))
     testImplementation(project(":pulsar-common"))
     testImplementation(project(":pulsar-broker"))

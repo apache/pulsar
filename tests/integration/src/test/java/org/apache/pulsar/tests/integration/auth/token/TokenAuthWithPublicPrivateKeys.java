@@ -21,14 +21,14 @@ package org.apache.pulsar.tests.integration.auth.token;
 import com.google.common.io.Files;
 import java.io.File;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 
-@Slf4j
+@CustomLog
 public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBaseSuite {
 
     private static final String PRIVATE_KEY_PATH_INSIDE_CONTAINER = "/tmp/private.key";
@@ -57,21 +57,21 @@ public class TokenAuthWithPublicPrivateKeys extends PulsarTokenAuthenticationBas
                         "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
                         "--subject", REGULAR_USER_ROLE)
                 .getStdout().trim();
-        log.info("Created client token: {}", clientAuthToken);
+        log.info().attr("token", clientAuthToken).log("Created client token");
 
         superUserAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
                         "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
                         "--subject", SUPER_USER_ROLE)
                 .getStdout().trim();
-        log.info("Created super-user token: {}", superUserAuthToken);
+        log.info().attr("token", superUserAuthToken).log("Created super-user token");
 
         proxyAuthToken = container
                 .execCmd(PulsarCluster.PULSAR_COMMAND_SCRIPT, "tokens", "create",
                         "--private-key", "file://" + PRIVATE_KEY_PATH_INSIDE_CONTAINER,
                         "--subject", PROXY_ROLE)
                 .getStdout().trim();
-        log.info("Created proxy token: {}", proxyAuthToken);
+        log.info().attr("token", proxyAuthToken).log("Created proxy token");
     }
 
     @SuppressWarnings("deprecation")

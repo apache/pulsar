@@ -21,20 +21,17 @@ package org.apache.pulsar.metrics.prometheus.bookkeeper;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.bookkeeper.stats.OpStatsData;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.ThreadRegistry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * OpStatsLogger implementation that lazily registers OpStatsLoggers per thread
  * with added labels for the threadpool/thresd name and thread no.
  */
+@CustomLog
 public class ThreadScopedDataSketchesStatsLogger implements OpStatsLogger {
-
-    private static Logger logger = LoggerFactory.getLogger(ThreadScopedDataSketchesStatsLogger.class);
-
     private ThreadLocal<DataSketchesOpStatsLogger> statsLoggers;
     private DataSketchesOpStatsLogger defaultStatsLogger;
     private Map<String, String> originalLabels;
@@ -101,16 +98,18 @@ public class ThreadScopedDataSketchesStatsLogger implements OpStatsLogger {
         if (!statsLogger.isThreadInitialized()) {
             ThreadRegistry.ThreadPoolThread tpt = ThreadRegistry.get();
             if (tpt == null) {
-                logger.warn("Thread {} was not registered in the thread registry. Using default stats logger {}.",
-                        Thread.currentThread(), defaultStatsLogger);
+                log.warn().attr("thread", Thread.currentThread())
+                        .attr("defaultStatsLogger", defaultStatsLogger)
+                        .log("Thread was not registered in the thread registry. Using default stats logger");
                 statsLoggers.set(defaultStatsLogger);
                 DataSketchesOpStatsLogger previous = provider.opStats
                         .put(new ScopeContext(scopeContext.getScope(), originalLabels), defaultStatsLogger);
                 // If we overwrite a logger, metrics will not be collected correctly
                 if (previous != null && previous != defaultStatsLogger) {
-                    logger.error("Invalid state for thead " + Thread.currentThread() + ". Overwrote a stats logger."
-                                    + "New is {}, previous was {}",
-                            defaultStatsLogger, previous);
+                    log.error().attr("thread", Thread.currentThread())
+                            .attr("newLogger", defaultStatsLogger)
+                            .attr("previousLogger", previous)
+                            .log("Invalid state. Overwrote a stats logger");
                     throw new IllegalStateException("Invalid state. Overwrote a stats logger.");
                 }
                 return defaultStatsLogger;
@@ -124,9 +123,10 @@ public class ThreadScopedDataSketchesStatsLogger implements OpStatsLogger {
                         .put(new ScopeContext(scopeContext.getScope(), threadScopedlabels), statsLogger);
                 // If we overwrite a logger, metrics will not be collected correctly
                 if (previous != null && previous != statsLogger) {
-                    logger.error("Invalid state for thead " + Thread.currentThread() + ". Overwrote a stats logger."
-                                    + "New is {}, previous was {}",
-                            defaultStatsLogger, previous);
+                    log.error().attr("thread", Thread.currentThread())
+                            .attr("newLogger", defaultStatsLogger)
+                            .attr("previousLogger", previous)
+                            .log("Invalid state. Overwrote a stats logger");
                     throw new IllegalStateException("Invalid state. Overwrote a stats logger.");
                 }
             }

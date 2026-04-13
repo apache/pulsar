@@ -21,8 +21,7 @@ package org.apache.pulsar.tests;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestListener;
@@ -45,9 +44,9 @@ import org.testng.SkipException;
  * implementation that is part of the Maven Surefire plugin.
  *
  */
+@CustomLog
 public class FailFastNotifier
         implements IInvokedMethodListener, ITestListener {
-    private static final Logger LOG = LoggerFactory.getLogger(FailFastNotifier.class);
     private static final String PROPERTY_NAME_TEST_FAIL_FAST = "testFailFast";
     private static final boolean FAIL_FAST_ENABLED = Boolean.parseBoolean(
             System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST, "true"));
@@ -84,8 +83,9 @@ public class FailFastNotifier
                     try {
                         Files.createFile(FAIL_FAST_KILLSWITCH_FILE.toPath());
                     } catch (IOException e) {
-                        LOG.warn("Unable to create fail fast kill switch file '"
-                                + FAIL_FAST_KILLSWITCH_FILE.getAbsolutePath() + "'", e);
+                        log.warn().attr("file", FAIL_FAST_KILLSWITCH_FILE.getAbsolutePath())
+                                .exception(e)
+                                .log("Unable to create fail fast kill switch file");
                     }
                 }
             }

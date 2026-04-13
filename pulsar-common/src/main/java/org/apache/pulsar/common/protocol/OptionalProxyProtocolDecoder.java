@@ -74,7 +74,7 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
         if (cumulatedByteBuf != null) {
-            log.info("Release cumulated byte buffer when channel inactive.");
+            log.info("Release cumulated byte buffer when channel inactive");
             cumulatedByteBuf = null;
         }
     }

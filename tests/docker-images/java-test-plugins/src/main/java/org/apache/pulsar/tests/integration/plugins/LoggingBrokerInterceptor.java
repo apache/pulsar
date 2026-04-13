@@ -34,14 +34,12 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import lombok.CustomLog;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class LoggingBrokerInterceptor implements BrokerInterceptor {
-
-    private final Logger log = LoggerFactory.getLogger(LoggingBrokerInterceptor.class);
 
 
     @Override
@@ -66,7 +64,7 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void initialize(PulsarService pulsarService) {
-        log.info("initialize: " + (pulsarService != null ? "OK" : "NULL"));
+        log.info().attr("status", pulsarService != null ? "OK" : "NULL").log("initialize");
     }
 
     @Override
@@ -78,8 +76,8 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
     @Override
     @SuppressWarnings("deprecation")
     public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
-        log.info("beforeSendMessage: "
-                + ("producer".equals(msgMetadata.getProducerName()) ? "OK" : "WRONG"));
+        log.info().attr("status", "producer".equals(msgMetadata.getProducerName()) ? "OK" : "WRONG")
+                .log("beforeSendMessage");
     }
 
     @Override

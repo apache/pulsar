@@ -25,15 +25,15 @@ import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class WebSocketWebResource {
 
     public static final String ATTRIBUTE_PROXY_SERVICE_NAME = "webProxyService";
@@ -107,10 +107,11 @@ public class WebSocketWebResource {
     protected void validateSuperUserAccess() {
         if (service().getConfig().isAuthenticationEnabled()) {
             String appId = clientAppId();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
-                        clientAppId(), appId);
-            }
+            log.debug()
+                    .attr("requestUri", uri.getRequestUri())
+                    .attr("authenticated", clientAppId())
+                    .attr("role", appId)
+                    .log("Check super user access: Authenticated: -- Role");
             if (!service().getConfig().getSuperUserRoles().contains(appId)) {
                 throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
             }
@@ -155,6 +156,4 @@ public class WebSocketWebResource {
         }
         return true;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(WebSocketWebResource.class);
 }

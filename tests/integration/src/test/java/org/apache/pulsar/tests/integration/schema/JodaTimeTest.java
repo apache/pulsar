@@ -26,7 +26,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -41,7 +41,7 @@ import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class JodaTimeTest extends PulsarTestSuite {
 
     private PulsarClient client;
@@ -133,6 +133,6 @@ public class JodaTimeTest extends PulsarTestSuite {
         producer.close();
         consumer.close();
 
-        log.info("Successfully Joda time logical type message : {}", received);
+        log.info().attr("message", received).log("Successfully Joda time logical type message");
     }
 }

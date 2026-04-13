@@ -21,15 +21,14 @@ package org.apache.zookeeper.server.admin;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import lombok.CustomLog;
 import org.apache.zookeeper.common.IOUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A class for streaming data out.
  */
+@CustomLog
 public class StreamOutputter implements CommandOutputter {
-    private static final Logger LOG = LoggerFactory.getLogger(StreamOutputter.class);
     private final String clientIP;
 
     public StreamOutputter(final String clientIP) {
@@ -46,7 +45,8 @@ public class StreamOutputter implements CommandOutputter {
         try (final InputStream is = response.getInputStream()) {
             IOUtils.copyBytes(is, os, 1024, true);
         } catch (final IOException e) {
-            LOG.warn("Exception streaming out data to {}", clientIP, e);
+            log.warn().attr("clientIP", clientIP).exception(e)
+                    .log("Exception streaming out data");
         }
     }
 }

@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(libs.bookkeeper.stats.api)
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.hotspot)

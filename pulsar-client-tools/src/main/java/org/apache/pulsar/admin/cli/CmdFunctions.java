@@ -36,8 +36,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
@@ -57,7 +57,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Slf4j
+@CustomLog
 @Command(description = "Interface for managing Pulsar Functions "
         + "(lightweight, Lambda-style compute processes that work with Pulsar)")
 public class CmdFunctions extends CmdBase {

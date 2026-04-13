@@ -19,11 +19,11 @@
 package org.apache.pulsar.tests.integration.topologies;
 
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
 import org.testcontainers.containers.Network;
 
-@Slf4j
+@CustomLog
 public class PulsarGeoCluster {
 
     @Getter
@@ -65,14 +65,18 @@ public class PulsarGeoCluster {
 
         for (PulsarCluster cluster : clusters) {
             cluster.start();
-            log.info("Successfully started all components for cluster {}.", cluster.getClusterName());
+            log.info()
+                    .attr("cluster", cluster.getClusterName())
+                    .log("Successfully started all components for cluster .");
         }
     }
 
     public void stop() throws Exception {
         for (PulsarCluster cluster : clusters) {
             cluster.stop();
-            log.info("Successfully stopped all components for cluster {}.", cluster.getClusterName());
+            log.info()
+                    .attr("cluster", cluster.getClusterName())
+                    .log("Successfully stopped all components for cluster .");
         }
         // stop the configuration store
         this.csContainer.stop();

@@ -97,7 +97,7 @@ public class TGTRefreshThread extends Thread {
 
     @Override
     public void run() {
-        log.info("TGT refresh thread started.");
+        log.info("TGT refresh thread started");
         while (!Thread.currentThread().isInterrupted()) {
             // renewal thread's main loop. if it exits from here, thread will exit.
             KerberosTicket tgt = getTGT();
@@ -157,7 +157,7 @@ public class TGTRefreshThread extends Thread {
                 }
             }
             if (now == nextRefresh) {
-                log.info("refreshing now because expiry is before next scheduled refresh time.");
+                log.info("Refreshing now because expiry is before next scheduled refresh time");
             } else if (now < nextRefresh) {
                 Date until = new Date(nextRefresh);
                 log.info().attr("until", until.toString()).log("TGT refresh sleeping");
@@ -165,7 +165,7 @@ public class TGTRefreshThread extends Thread {
                     Thread.sleep(nextRefresh - now);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
-                    log.warn("TGT renewal thread has been interrupted and will exit.");
+                    log.warn("TGT renewal thread has been interrupted and will exit");
                     break;
                 }
             } else {

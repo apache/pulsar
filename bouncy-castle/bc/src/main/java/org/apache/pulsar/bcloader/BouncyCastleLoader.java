@@ -21,14 +21,14 @@ package org.apache.pulsar.bcloader;
 import static org.apache.pulsar.common.util.SecurityUtility.BC;
 import java.security.Provider;
 import java.security.Security;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.BCLoader;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 /**
  * This is a Bouncy Castle provider Loader.
  */
-@Slf4j
+@CustomLog
 public class BouncyCastleLoader implements BCLoader {
     public static Provider provider;
     static {
@@ -36,7 +36,7 @@ public class BouncyCastleLoader implements BCLoader {
             Security.addProvider(new BouncyCastleProvider());
         }
         provider = Security.getProvider(BC);
-        log.info("BouncyCastle Provider BC: {}", provider);
+        log.info().attr("provider", provider).log("BouncyCastle Provider BC loaded");
     }
 
     @Override

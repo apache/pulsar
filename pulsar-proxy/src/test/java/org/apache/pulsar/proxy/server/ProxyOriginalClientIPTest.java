@@ -22,8 +22,8 @@ import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
 import nl.altindag.console.ConsoleCaptor;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.assertj.core.api.ThrowingConsumer;
 import org.awaitility.Awaitility;
@@ -37,7 +37,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ProxyOriginalClientIPTest extends MockedPulsarServiceBaseTest {
     HttpClient httpClient;

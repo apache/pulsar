@@ -54,6 +54,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -76,12 +77,11 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.proxy.extensions.ProxyExtensions;
 import org.apache.pulsar.proxy.stats.PulsarProxyOpenTelemetry;
 import org.apache.pulsar.proxy.stats.TopicStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Pulsar proxy service.
  */
+@CustomLog
 public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
@@ -274,7 +274,9 @@ public class ProxyService implements Closeable {
             try {
                 listenChannel = bootstrap.bind(proxyConfig.getBindAddress(),
                         proxyConfig.getServicePort().get()).sync().channel();
-                LOG.info("Started Pulsar Proxy at {}", listenChannel.localAddress());
+                log.info()
+                        .attr("localAddress", listenChannel.localAddress())
+                        .log("Started Pulsar Proxy at");
             } catch (Exception e) {
                 throw new IOException("Failed to bind Pulsar Proxy on port " + proxyConfig.getServicePort().get(), e);
             }
@@ -289,7 +291,9 @@ public class ProxyService implements Closeable {
                     sslContextRefresher));
             listenChannelTls = tlsBootstrap.bind(proxyConfig.getBindAddress(),
                     proxyConfig.getServicePortTls().get()).sync().channel();
-            LOG.info("Started Pulsar TLS Proxy on {}", listenChannelTls.localAddress());
+            log.info()
+                    .attr("localAddress", listenChannelTls.localAddress())
+                    .log("Started Pulsar TLS Proxy on");
         }
 
         final String hostname =
@@ -336,7 +340,10 @@ public class ProxyService implements Closeable {
                 try {
                     startProxyExtension(extensionName, address, initializer, serverBootstrap);
                 } catch (IOException e) {
-                    LOG.error("{}", e.getMessage(), e.getCause());
+                    log.error()
+                            .exceptionMessage(e)
+                            .exception(e.getCause())
+                            .log("Failed to start proxy extension");
                     throw new RuntimeException(e.getMessage(), e.getCause());
                 }
             });
@@ -373,7 +380,10 @@ public class ProxyService implements Closeable {
         } catch (Exception e) {
             throw new IOException("Failed to bind extension `" + extensionName + "` on " + address, e);
         }
-        LOG.info("Successfully bound extension `{}` on {}", extensionName, address);
+        log.info()
+                .attr("extensionName", extensionName)
+                .attr("address", address)
+                .log("Successfully bound extension");
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {
@@ -385,7 +395,7 @@ public class ProxyService implements Closeable {
             try {
                 listenChannel.close().sync();
             } catch (InterruptedException e) {
-                LOG.info("Shutdown of listenChannel interrupted");
+                log.info("Shutdown of listenChannel interrupted");
                 Thread.currentThread().interrupt();
             }
         }
@@ -394,7 +404,7 @@ public class ProxyService implements Closeable {
             try {
                 listenChannelTls.close().sync();
             } catch (InterruptedException e) {
-                LOG.info("Shutdown of listenChannelTls interrupted");
+                log.info("Shutdown of listenChannelTls interrupted");
                 Thread.currentThread().interrupt();
             }
         }
@@ -403,7 +413,7 @@ public class ProxyService implements Closeable {
         try {
             shutdownEventLoop(acceptorGroup).sync();
         } catch (InterruptedException e) {
-            LOG.info("Shutdown of acceptorGroup interrupted");
+            log.info("Shutdown of acceptorGroup interrupted");
             Thread.currentThread().interrupt();
         }
 
@@ -452,18 +462,20 @@ public class ProxyService implements Closeable {
         try {
             shutdownEventLoop(workerGroup).sync();
         } catch (InterruptedException e) {
-            LOG.info("Shutdown of workerGroup interrupted");
+            log.info("Shutdown of workerGroup interrupted");
             Thread.currentThread().interrupt();
         }
         for (EventLoopGroup group : extensionsWorkerGroups) {
             try {
                 shutdownEventLoop(group).sync();
             } catch (InterruptedException e) {
-                LOG.info("Shutdown of {} interrupted", group);
+                log.info()
+                        .attr("group", group)
+                        .log("Shutdown of interrupted");
                 Thread.currentThread().interrupt();
             }
         }
-        LOG.info("ProxyService closed.");
+        log.info("ProxyService closed.");
     }
 
     private void closeAllConnections() {
@@ -471,16 +483,18 @@ public class ProxyService implements Closeable {
             workerGroup.submit(() -> {
                 // Close all the connections
                 if (!clientCnxs.isEmpty()) {
-                    LOG.info("Closing {} proxy connections, including connections to brokers", clientCnxs.size());
+                    log.info()
+                            .attr("size", clientCnxs.size())
+                            .log("Closing proxy connections, including connections to brokers");
                     for (ProxyConnection clientCnx : clientCnxs) {
                         clientCnx.ctx().close();
                     }
                 } else {
-                    LOG.info("No proxy connections to close");
+                    log.info("No proxy connections to close");
                 }
             }).sync();
         } catch (InterruptedException e) {
-            LOG.info("Closing of connections interrupted");
+            log.info("Closing of connections interrupted");
             Thread.currentThread().interrupt();
         }
     }
@@ -563,8 +577,6 @@ public class ProxyService implements Closeable {
             this.metricsServlet.addRawMetricsProvider(metricsProvider);
         }
     }
-
-    private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);
 
     protected LookupProxyHandler newLookupProxyHandler(ProxyConnection proxyConnection) {
         return new LookupProxyHandler(this, proxyConnection);

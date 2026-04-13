@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.functions;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Context;
@@ -29,15 +29,18 @@ import org.apache.pulsar.functions.api.Record;
  * This function processes any message with any schema,
  * and outputs the message with the same schema to another topic.
  */
-@Slf4j
+@CustomLog
 public class GenericObjectFunction implements Function<GenericObject, Void> {
 
     @Override
     @SuppressWarnings("unchecked")
     public Void process(GenericObject genericObject, Context context) throws Exception {
         Record<?> currentRecord = context.getCurrentRecord();
-        log.info("apply to {} {}", genericObject, genericObject.getNativeObject());
-        log.info("record with schema {} {}", currentRecord.getSchema(), currentRecord);
+        log.info().attr("object", genericObject)
+                .attr("nativeObject", genericObject.getNativeObject())
+                .log("apply");
+        log.info().attr("schema", currentRecord.getSchema())
+                .attr("record", currentRecord).log("record with schema");
         // do some processing...
         final boolean isStruct;
         switch (currentRecord.getSchema().getSchemaInfo().getType()) {

@@ -35,9 +35,9 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
+import lombok.CustomLog;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -56,7 +56,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     private static final String BASE_PATH = "/metrics/broker";
@@ -130,7 +130,10 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         try {
             handlerPath = Paths.get(testHandlerUrl.toURI());
         } catch (Exception e) {
-            log.error("failed to get handler Path, handlerUrl: {}. Exception: ", testHandlerUrl, e);
+            log.error()
+                    .attr("handlerUrl", testHandlerUrl)
+                    .exception(e)
+                    .log("failed to get handler Path, . Exception");
             return;
         }
         String servletDirectory = handlerPath.toFile().getParent();
@@ -155,7 +158,9 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
             @Override
             public void service(ServletRequest servletRequest, ServletResponse servletResponse)
                     throws ServletException, IOException {
-                log.info("[service] path: {}", ((Request) servletRequest).getOriginalURI());
+                log.info()
+                        .attr("path", ((Request) servletRequest).getOriginalURI())
+                        .log("service]");
                 String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
                 ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
                 servletResponse.setContentLength(value.getBytes().length);
@@ -205,7 +210,9 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
     @Test
     public void test() throws IOException {
         int httpPort = proxyWebServer.getListenPortHTTP().get();
-        log.info("proxy service httpPort {}", httpPort);
+        log.info()
+                .attr("httpPort", httpPort)
+                .log("proxy service httpPort");
         String paramValue = "value - " + RandomUtils.nextInt();
         final Map<String, String> headers = new HashMap<>();
         String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue,

@@ -24,10 +24,9 @@ import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.CustomLog;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.common.tls.InetAddressUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public interface ConnectionController {
 
@@ -49,8 +48,8 @@ public interface ConnectionController {
     }
 
 
+    @CustomLog
     class DefaultConnectionController implements ConnectionController {
-        private static final Logger log = LoggerFactory.getLogger(DefaultConnectionController.class);
         private static final Map<String, MutableInt> CONNECTIONS = new HashMap<>();
         private static final ReentrantLock lock = new ReentrantLock();
         private static int totalConnectionNum = 0;
@@ -86,18 +85,22 @@ public interface ConnectionController {
                     totalConnectionNum++;
                 }
                 if (maxConnectionsLimitEnabled && totalConnectionNum > maxConnections) {
-                    log.info("Reject connect request from {}, because reached the maximum number of connections {}",
-                            remoteAddress, totalConnectionNum);
+                    log.info()
+                            .attr("request", remoteAddress)
+                            .attr("connections", totalConnectionNum)
+                            .log("Reject connect request from , because reached the maximum number of connections");
                     return State.REACH_MAX_CONNECTION;
                 }
                 if (maxConnectionsLimitPerIpEnabled && CONNECTIONS.get(ip).intValue() > maxConnectionPerIp) {
-                    log.info("Reject connect request from {}, because reached the maximum number "
-                                    + "of connections per Ip {}",
-                            remoteAddress, CONNECTIONS.get(ip).intValue());
+                    log.info()
+                            .attr("request", remoteAddress)
+                            .attr("ip", CONNECTIONS.get(ip).intValue())
+                            .log("Reject connect request from ,"
+                                    + " because reached the maximum number of connections per Ip");
                     return State.REACH_MAX_CONNECTION_PER_IP;
                 }
             } catch (Exception e) {
-                log.error("increase connection failed", e);
+                log.error().exception(e).log("increase connection failed");
             } finally {
                 lock.unlock();
             }

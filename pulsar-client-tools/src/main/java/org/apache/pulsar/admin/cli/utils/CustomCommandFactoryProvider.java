@@ -30,14 +30,14 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-@Slf4j
+@CustomLog
 public class CustomCommandFactoryProvider {
 
     @VisibleForTesting
@@ -69,7 +69,7 @@ public class CustomCommandFactoryProvider {
             if (factory != null) {
                 result.add(factory);
             }
-            log.debug("Successfully loaded command factory for name `{}`", name);
+            log.debug().attr("name", name).log("Successfully loaded command factory");
         }
         return result;
     }
@@ -78,7 +78,7 @@ public class CustomCommandFactoryProvider {
                                                                        String narExtractionDirectory)
             throws IOException {
         Path path = Paths.get(directory).toAbsolutePath().normalize();
-        log.debug("Searching for command factories  in {}", path);
+        log.debug().attr("path", path).log("Searching for command factories");
 
         CustomCommandFactoryDefinitions customCommandFactoryDefinitions = new CustomCommandFactoryDefinitions();
         if (!path.toFile().exists()) {
@@ -91,7 +91,8 @@ public class CustomCommandFactoryProvider {
                 try {
                     CustomCommandFactoryDefinition def =
                             getCustomCommandFactoryDefinition(archive.toString(), narExtractionDirectory);
-                    log.debug("Found command factory from {} : {}", archive, def);
+                    log.debug().attr("archive", archive).attr("definition", def)
+                            .log("Found command factory");
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
                     checkArgument(StringUtils.isNotBlank(def.getFactoryClass()));
@@ -102,10 +103,11 @@ public class CustomCommandFactoryProvider {
 
                     customCommandFactoryDefinitions.getFactories().put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load command factories from {}."
-                            + " It is OK however if you want to use this command factory,"
-                            + " please make sure you put the correct NAR"
-                            + " package in the directory.", archive, t);
+                    log.warn().exception(t).attr("archive", archive)
+                            .log("Failed to load command factories."
+                                    + " It is OK however if you want to use this command factory,"
+                                    + " please make sure you put the correct NAR"
+                                    + " package in the directory");
                 }
             }
         }
@@ -167,7 +169,8 @@ public class CustomCommandFactoryProvider {
             if (e instanceof IOException) {
                 throw (IOException) e;
             }
-            log.error("Failed to load class {}", def.getFactoryClass(), e);
+            log.error().exception(e).attr("factoryClass", def.getFactoryClass())
+                    .log("Failed to load class");
             throw new IOException(e);
         }
     }

@@ -22,9 +22,8 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import javax.naming.AuthenticationException;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
+@CustomLog
 public class SaslRoleTokenSigner {
     private static final String SIGNATURE = "&s=";
 

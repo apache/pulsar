@@ -22,17 +22,16 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import javax.ws.rs.core.Response.Status;
+import lombok.CustomLog;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ConsumerStats;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ProducerStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class WebSocketProxyStatsBase extends WebSocketWebResource {
-    private static final Logger LOG = LoggerFactory.getLogger(WebSocketProxyStatsBase.class);
 
     protected Collection<Metrics> internalGetMetrics() throws Exception {
         // Ensure super user access only
@@ -40,7 +39,7 @@ public class WebSocketProxyStatsBase extends WebSocketWebResource {
         try {
             return service().getProxyStats().getMetrics();
         } catch (Exception e) {
-            LOG.error("[{}] Failed to generate metrics", clientAppId(), e);
+            log.error().attr("clientAppId", clientAppId()).exception(e).log("Failed to generate metrics");
             throw new RestException(e);
         }
     }
@@ -63,7 +62,7 @@ public class WebSocketProxyStatsBase extends WebSocketWebResource {
         String topicNameStr = topicName.toString();
         if (!service().getProducers().containsKey(topicNameStr) && !service().getConsumers().containsKey(topicNameStr)
                 && !service().getReaders().containsKey(topicNameStr)) {
-            LOG.warn("topic doesn't exist {}", topicNameStr);
+            log.warn().attr("exist", topicNameStr).log("topic doesn't exist");
             throw new RestException(Status.NOT_FOUND, "Topic does not exist");
         }
         ProxyTopicStat topicStat = new ProxyTopicStat();

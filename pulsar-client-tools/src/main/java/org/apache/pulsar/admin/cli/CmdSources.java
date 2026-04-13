@@ -41,8 +41,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
@@ -62,7 +62,7 @@ import picocli.CommandLine.Option;
 
 @Getter
 @Command(description = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)", aliases = "source")
-@Slf4j
+@CustomLog
 public class CmdSources extends CmdBase {
 
     private final CreateSource createSource;

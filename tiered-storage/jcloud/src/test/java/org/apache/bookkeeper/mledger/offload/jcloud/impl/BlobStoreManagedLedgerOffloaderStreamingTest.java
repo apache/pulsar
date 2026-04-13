@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -46,14 +47,11 @@ import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfig
 import org.apache.bookkeeper.mledger.proto.OffloadContext;
 import org.jclouds.blobstore.BlobStore;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManagedLedgerOffloaderBase {
-
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderStreamingTest.class);
     private TieredStorageConfiguration mockedConfig;
     private static final Random random = new Random();
     private final LedgerOffloaderStats offloaderStats;
@@ -109,7 +107,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         UUID uuid = UUID.randomUUID();
         long beginLedger = 0;
         long beginEntry = 0;
-        log.error("try begin offload");
+        log.info("Trying to begin offload");
         @Cleanup
         OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, new HashMap<>()).get();
@@ -119,10 +117,10 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             random.nextBytes(data);
             final OffloadHandle.OfferEntryResult offerEntryResult = offloadHandle
                     .offerEntry(EntryImpl.create(0, i, data));
-            log.info("offer result: {}", offerEntryResult);
+            log.info().attr("result", offerEntryResult).log("Offer result");
         }
         final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
-        log.info("Offload reasult: {}", offloadResult);
+        log.info().attr("result", offloadResult).log("Offload result");
     }
 
     @Test

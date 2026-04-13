@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -36,7 +36,7 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 /**
  * Mock implementation of ReadHandle.
  */
-@Slf4j
+@CustomLog
 class PulsarMockReadHandle implements ReadHandle {
     private final PulsarMockBookKeeper bk;
     private final long ledgerId;
@@ -60,13 +60,14 @@ class PulsarMockReadHandle implements ReadHandle {
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
         return bk.getProgrammedFailure().thenComposeAsync((res) -> {
-            log.debug("readEntries: first={} last={} total={}", firstEntry, lastEntry, entries.size());
+            log.debug().attr("first", firstEntry).attr("last", lastEntry)
+                    .attr("total", entries.size()).log("readEntries");
             List<LedgerEntry> seq = new ArrayList<>();
             long entryId = firstEntry;
             while (entryId <= lastEntry && entryId < entries.size()) {
                 seq.add(entries.get((int) entryId++).duplicate());
             }
-            log.debug("Entries read: {}", seq);
+            log.debug().attr("entries", seq).log("Entries read");
             LedgerEntriesImpl ledgerEntries = LedgerEntriesImpl.create(seq);
             PulsarMockReadHandleInterceptor pulsarMockReadHandleInterceptor = readHandleInterceptorSupplier.get();
             if (pulsarMockReadHandleInterceptor != null) {

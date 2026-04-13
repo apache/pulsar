@@ -27,6 +27,7 @@ package org.apache.bookkeeper.test;
 import static org.apache.bookkeeper.bookie.BookKeeperServerStats.BOOKIE_SCOPE;
 import static org.apache.bookkeeper.bookie.BookKeeperServerStats.LD_INDEX_SCOPE;
 import static org.apache.bookkeeper.bookie.BookKeeperServerStats.LD_LEDGER_SCOPE;
+import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.bookie.BookieResources;
@@ -53,15 +54,12 @@ import org.apache.bookkeeper.replication.ReplicationWorker;
 import org.apache.bookkeeper.server.Main;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.DiskChecker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class to encapsulate all the test objects.
  */
+@CustomLog
 public class ServerTester {
-    static final Logger LOG = LoggerFactory.getLogger(ServerTester.class);
-
     /**
      * Mock implementation of UncleanShutdownDetection.
      */
@@ -172,14 +170,14 @@ public class ServerTester {
     }
 
     public void startAutoRecovery() throws Exception {
-        LOG.debug("Starting Auditor Recovery for the bookie: {}", address);
+        log.debug().attr("address", address).log("Starting Auditor Recovery for the bookie");
         autoRecovery = new AutoRecoveryMain(conf);
         autoRecovery.start();
     }
 
     public void stopAutoRecovery() {
         if (autoRecovery != null) {
-            LOG.debug("Shutdown Auditor Recovery for the bookie: {}", address);
+            log.debug().attr("address", address).log("Shutdown Auditor Recovery for the bookie");
             autoRecovery.shutdown();
         }
     }
@@ -233,7 +231,7 @@ public class ServerTester {
         }
 
         if (autoRecovery != null) {
-            LOG.debug("Shutdown auto recovery for bookieserver: {}", address);
+            log.debug().attr("address", address).log("Shutdown auto recovery for bookieserver");
             autoRecovery.shutdown();
         }
     }

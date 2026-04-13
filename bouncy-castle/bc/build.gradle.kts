@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     compileOnly(project(":pulsar-common")) {
         exclude(group = "io.prometheus", module = "simpleclient_caffeine")
     }

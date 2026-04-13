@@ -29,6 +29,7 @@ tasks.withType<Test> {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(project(":pulsar-broker"))
     implementation(project(":pulsar-broker-common"))
     implementation(project(":pulsar-common"))

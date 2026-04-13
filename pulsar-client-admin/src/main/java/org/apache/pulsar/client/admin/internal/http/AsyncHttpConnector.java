@@ -56,11 +56,11 @@ import javax.ws.rs.ProcessingException;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.Response.Status;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
@@ -98,7 +98,7 @@ import org.glassfish.jersey.client.spi.Connector;
 /**
  * Customized Jersey client connector with multi-host support.
  */
-@Slf4j
+@CustomLog
 public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private static final TimeoutException REQUEST_TIMEOUT_EXCEPTION =
             FutureUtil.createTimeoutException("Request timeout", AsyncHttpConnector.class, "retryOrTimeout(...)");
@@ -338,7 +338,8 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 try {
                     callback.response(jerseyResponse);
                 } catch (Exception ex) {
-                    log.error("failed to handle the http response {}", jerseyResponse, ex);
+                    log.error().exception(ex).attr("response", jerseyResponse)
+                            .log("Failed to handle the http response");
                 }
             }
         }));
@@ -376,18 +377,15 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                 resultFuture.completeExceptionally(throwable);
                             } else {
                                 if (retries > 0) {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Retrying operation. Remaining retries: {}", retries);
-                                    }
+                                    log.debug().attr("remainingRetries", retries)
+                                            .log("Retrying operation");
                                     retryOperation(
                                             resultFuture,
                                             operation,
                                             retries - 1);
                                 } else {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Number of retries has been exhausted. Failing the operation.",
-                                                throwable);
-                                    }
+                                    log.debug().exception(throwable)
+                                            .log("Number of retries has been exhausted. Failing the operation");
                                     resultFuture.completeExceptionally(
                                             new RetryException("Could not complete the operation. Number of retries "
                                                     + "has been exhausted. Failed reason: " + throwable.getMessage(),
@@ -586,7 +584,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                 eventLoopGroup.shutdownGracefully();
             }
         } catch (IOException e) {
-            log.warn("Failed to close http client", e);
+            log.warn().exception(e).log("Failed to close http client");
         }
     }
 
@@ -619,7 +617,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
 

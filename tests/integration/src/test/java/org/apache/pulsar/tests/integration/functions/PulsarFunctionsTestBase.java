@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.functions;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
@@ -27,7 +27,7 @@ import org.testng.annotations.DataProvider;
 /**
  * A cluster to run pulsar functions for testing functions related features.
  */
-@Slf4j
+@CustomLog
 public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     //
@@ -126,10 +126,12 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     protected void setupFunctionWorkers() {
         final int numFunctionWorkers = 2;
-        log.info("Setting up {} function workers : function runtime type = {}",
-            numFunctionWorkers, functionRuntimeType);
+        log.info()
+                .attr("up", numFunctionWorkers)
+                .attr("type", functionRuntimeType)
+                .log("Setting up function workers : function runtime type");
         pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numFunctionWorkers);
-        log.info("{} function workers has started", numFunctionWorkers);
+        log.info().attr("count", numFunctionWorkers).log("function workers has started");
     }
 
     protected void teardownFunctionWorkers() {

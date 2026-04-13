@@ -57,7 +57,7 @@ import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.admin.cli.extensions.CustomCommandFactory;
 import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.Bookies;
@@ -127,7 +127,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
 
-@Slf4j
+@CustomLog
 public class PulsarAdminToolTest {
 
     @Test
@@ -2664,7 +2664,7 @@ public class PulsarAdminToolTest {
     public void customCommandsFactoryImmutable() throws Exception {
         File narFile = new File(PulsarAdminTool.class.getClassLoader()
                 .getResource("cliextensions/customCommands-nar.nar").getFile());
-        log.info("NAR FILE is {}", narFile);
+        log.info().attr("value", narFile).log("NAR FILE is");
 
         PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
         PulsarAdmin admin = mock(PulsarAdmin.class);
@@ -2714,7 +2714,7 @@ public class PulsarAdminToolTest {
     private static String runCustomCommand(String[] args) throws Exception {
         File narFile = new File(PulsarAdminTool.class.getClassLoader()
                 .getResource("cliextensions/customCommands-nar.nar").getFile());
-        log.info("NAR FILE is {}", narFile);
+        log.info().attr("value", narFile).log("NAR FILE is");
 
         PulsarAdminBuilder builder = mock(PulsarAdminBuilder.class);
         PulsarAdmin admin = mock(PulsarAdmin.class);
@@ -2735,7 +2735,7 @@ public class PulsarAdminToolTest {
         try (CaptureStdOut capture = new CaptureStdOut(tool.commander, logs)) {
             tool.run(args);
         }
-        log.info("Captured out: {}", logs);
+        log.info().attr("value", logs).log("Captured out:");
         return logs.toString();
     }
 

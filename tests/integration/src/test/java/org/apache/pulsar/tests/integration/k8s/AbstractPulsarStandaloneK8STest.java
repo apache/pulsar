@@ -54,7 +54,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator;
 import org.apache.tools.tar.TarEntry;
@@ -74,7 +74,7 @@ import org.testng.annotations.BeforeClass;
  * The main reason to use this base class is to test features in Pulsar which are integrated into Kubernetes
  * APIs.
  */
-@Slf4j
+@CustomLog
 public abstract class AbstractPulsarStandaloneK8STest {
     private static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
             "apachepulsar/java-test-image:latest");
@@ -110,8 +110,8 @@ public abstract class AbstractPulsarStandaloneK8STest {
         apiClient = Config.fromConfig(kubeConfig);
         kubeConfigFile = File.createTempFile("kubeconfig", ".yaml");
         Files.writeString(kubeConfigFile.toPath(), kubeConfigYaml);
-        log.info("Pulsar broker URL: {} http URL: {}", pulsarBrokerUrl, pulsarWebServiceUrl);
-        log.info("For debugging k8s, use KUBECONFIG={}", kubeConfigFile.getAbsolutePath());
+        log.info().attr("uRL", pulsarBrokerUrl).attr("uRL", pulsarWebServiceUrl).log("Pulsar broker URL: http URL");
+        log.info().attr("kUBECONFIG", kubeConfigFile.getAbsolutePath()).log("For debugging k8s, use KUBECONFIG");
         importPulsarImage();
         deployPulsarStandalonePod();
         log.info("Waiting for Pulsar cluster to be ready");
@@ -139,7 +139,9 @@ public abstract class AbstractPulsarStandaloneK8STest {
             File targetDirectoryForLogs = getTargetDirectoryForLogs();
             Exec exec = new Exec(apiClient);
             try {
-                log.info("Copying logs from Pulsar standalone pod to target directory: {}", targetDirectoryForLogs);
+                log.info()
+                        .attr("directory", targetDirectoryForLogs)
+                        .log("Copying logs from Pulsar standalone pod to target directory");
                 Process process = exec.newExecutionBuilder(getNamespace(), PULSAR_STANDALONE_POD,
                         new String[]{"sh", "-c", "cd /pulsar/logs && tar cf - *"}
                 ).setTty(false).setStdin(false).setStderr(false).setStdout(true).execute();
@@ -153,17 +155,23 @@ public abstract class AbstractPulsarStandaloneK8STest {
                     }
                 }
             } catch (Exception e) {
-                log.error("Error copying logs from Pulsar standalone pod to target directory.", e);
+                log.error().exception(e).log("Error copying logs from Pulsar standalone pod to target directory.");
             }
 
             CoreV1Api coreApi = new CoreV1Api(apiClient);
             File eventsFile = new File(targetDirectoryForLogs, "k8s_events.json");
             try {
-                log.info("Copying events from Kubernetes cluster namespace {} to {}.", getNamespace(), eventsFile);
+                log.info()
+                        .attr("namespace", getNamespace())
+                        .attr("to", eventsFile)
+                        .log("Copying events from Kubernetes cluster namespace to .");
                 CoreV1EventList eventList = coreApi.listNamespacedEvent(getNamespace()).execute();
                 Files.writeString(eventsFile.toPath(), eventList.toJson());
             } catch (Exception e) {
-                log.error("Error copying events from Kubernetes cluster to {}.", eventsFile, e);
+                log.error()
+                        .attr("to", eventsFile)
+                        .exception(e)
+                        .log("Error copying events from Kubernetes cluster to .");
             }
         }
     }

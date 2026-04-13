@@ -20,7 +20,7 @@ package org.apache.pulsar.tests.integration.functions;
 
 import java.io.ByteArrayOutputStream;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
@@ -38,7 +38,7 @@ import org.apache.pulsar.functions.api.Record;
 /**
  * This function removes a "field" from a AVRO message.
  */
-@Slf4j
+@CustomLog
 public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
 
     private static final String FIELD_TO_REMOVE = "age";
@@ -47,10 +47,12 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
     @SuppressWarnings({"deprecation", "unchecked"})
     public Void process(GenericObject genericObject, Context context) throws Exception {
         Record<?> currentRecord = context.getCurrentRecord();
-        log.info("apply to {} {}", genericObject, genericObject.getNativeObject());
-        log.info("record with schema {} version {} {}", currentRecord.getSchema(),
-                currentRecord.getMessage().get().getSchemaVersion(),
-                currentRecord);
+        log.info().attr("object", genericObject)
+                .attr("nativeObject", genericObject.getNativeObject())
+                .log("apply");
+        log.info().attr("schema", currentRecord.getSchema())
+                .attr("version", currentRecord.getMessage().get().getSchemaVersion())
+                .attr("record", currentRecord).log("record with schema");
         Object nativeObject = genericObject.getNativeObject();
         Schema<?> schema = currentRecord.getSchema();
 
@@ -159,7 +161,8 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
                 outputObject = nativeObject;
             }
         }
-        log.info("output {} schema {}", outputObject, outputSchema);
+        log.info().attr("output", outputObject)
+                .attr("schema", outputSchema).log("output");
         context.newOutputMessage(context.getOutputTopic(), outputSchema)
                 .value(outputObject).send();
         return null;

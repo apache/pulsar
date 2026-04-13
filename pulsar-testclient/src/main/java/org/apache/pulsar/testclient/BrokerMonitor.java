@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -46,8 +47,6 @@ import org.apache.pulsar.testclient.utils.FixedColumnLengthTableMaker;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -58,8 +57,8 @@ import picocli.CommandLine.Option;
 @Command(name = "monitor-brokers",
         description = "Monitors brokers and prints to the console information about their system "
         + "resource usages, \ntheir topic and bundle counts, their message rates, and other metrics.")
+@CustomLog
 public class BrokerMonitor extends CmdBase {
-    private static final Logger log = LoggerFactory.getLogger(BrokerMonitor.class);
 
     private static final String BROKER_ROOT = "/loadbalance/brokers";
     private static final int ZOOKEEPER_TIMEOUT_MILLIS = 30000;
@@ -218,7 +217,7 @@ public class BrokerMonitor extends CmdBase {
             rows[finalRow][4] = totalThroughput;
             rows[finalRow][5] = maxMaxUsage;
             final String table = globalTableMaker.make(rows);
-            log.info("Overall Broker Data:\n{}", table);
+            log.info().attr("data", table).log("Overall Broker Data:\n");
         }
     }
 
@@ -394,7 +393,7 @@ public class BrokerMonitor extends CmdBase {
                     loadReport.getAllocatedBandwidthIn(), loadReport.getAllocatedBandwidthOut());
 
             final String table = localTableMaker.make(rows);
-            log.info("\nLoad Report for {}:\n{}\n", broker, table);
+            log.info().attr("report", broker).attr("table", table).log("\nLoad Report for :\n \n");
         }
 
         // Print the broker data in a tabular form for a broker using ModularLoadManagerImpl.
@@ -439,7 +438,7 @@ public class BrokerMonitor extends CmdBase {
                     timeAverageData.getLongTermMsgThroughputIn(), timeAverageData.getLongTermMsgThroughputOut());
 
             final String table = localTableMaker.make(rows);
-            log.info("\nBroker Data for {}:\n{}\n", broker, table);
+            log.info().attr("data", broker).attr("table", table).log("\nBroker Data for :\n \n");
         }
     }
 
@@ -498,7 +497,7 @@ public class BrokerMonitor extends CmdBase {
                     .newTableView(Schema.JSON(BrokerLoadData.class))
                     .topic(BROKER_LOAD_DATA_STORE_TOPIC).create();
         } catch (Throwable e) {
-            log.info("Failed to start BrokerMonitor", e);
+            log.info().exception(e).log("Failed to start BrokerMonitor");
             throw new RuntimeException(e);
         }
     }
@@ -530,7 +529,7 @@ public class BrokerMonitor extends CmdBase {
                 brokerLoadData.getMsgThroughputIn(), brokerLoadData.getMsgThroughputOut());
 
         final String table = localTableMaker.make(rows);
-        log.info("\nBroker Data for {}:\n{}\n", broker, table);
+        log.info().attr("data", broker).attr("table", table).log("\nBroker Data for :\n \n");
     }
 
     private synchronized void printBrokerLoadDataStore() {

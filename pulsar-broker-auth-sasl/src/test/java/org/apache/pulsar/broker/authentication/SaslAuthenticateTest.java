@@ -45,7 +45,7 @@ import javax.security.auth.login.Configuration;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
@@ -69,7 +69,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.CollectionUtils;
 
-@Slf4j
+@CustomLog
 public class SaslAuthenticateTest extends ProducerConsumerBase {
     public static File kdcDir;
     public static File kerberosWorkDir;
@@ -168,7 +168,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        log.info("-- {} --, start at host: {}", methodName, localHostname);
+        log.info().attr("value", methodName).exception(localHostname).log("-- {} --, start at host:");
         // use http lookup to verify HttpClient works well.
         isTcpLookup = false;
 
@@ -211,7 +211,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             .serviceHttpUrl(brokerUrl.toString())
             .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
             .build();
-        log.info("-- {} --, end.", methodName);
+        log.info().attr("value", methodName).log("----, end.");
 
         super.producerBaseSetup();
     }
@@ -227,7 +227,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     // Test could verify with kerberos configured.
     @Test
     public void testProducerAndConsumerPassed() throws Exception {
-        log.info("-- {} -- start", methodName);
+        log.info().attr("value", methodName).log("---- start");
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topic("persistent://my-property/my-ns/my-topic")
@@ -242,7 +242,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            log.info("Produced message: [{}]", message);
+            log.info().attr("value", message).log("Produced message: []");
         }
 
         Message<byte[]> msg = null;
@@ -250,7 +250,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("value", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -258,14 +258,14 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         consumer.acknowledgeCumulative(msg);
         consumer.close();
 
-        log.info("-- {} -- end", methodName);
+        log.info().attr("value", methodName).log("---- end");
     }
 
     // Test sasl server/client auth.
     @SuppressWarnings("deprecation")
     @Test
     public void testSaslServerAndClientAuth() throws Exception {
-        log.info("-- {} -- start", methodName);
+        log.info().attr("value", methodName).log("---- start");
         String hostName = "localhost";
 
         // prepare client and server side resource
@@ -305,7 +305,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             // expected
         }
 
-        log.info("-- {} -- end", methodName);
+        log.info().attr("value", methodName).log("---- end");
     }
 
     @Test

@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.zookeeper.metrics.Counter;
 import org.apache.zookeeper.metrics.CounterSet;
 import org.apache.zookeeper.metrics.Gauge;
@@ -57,7 +58,6 @@ import org.eclipse.jetty.ee8.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee8.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -65,9 +65,8 @@ import org.slf4j.LoggerFactory;
  *
  * @since 3.6.0
  */
+@CustomLog
 public class PrometheusMetricsProvider implements MetricsProvider {
-
-    private static final Logger LOG = LoggerFactory.getLogger(PrometheusMetricsProvider.class);
     private static final String LABEL = "key";
     private static final String[] LABELS = {LABEL};
 
@@ -98,7 +97,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
      * </p>
      */
     private final CollectorRegistry collectorRegistry = CollectorRegistry.defaultRegistry;
-    private final RateLogger rateLogger = new RateLogger(LOG, 60 * 1000);
+    private final RateLogger rateLogger = new RateLogger(
+            LoggerFactory.getLogger(PrometheusMetricsProvider.class), 60 * 1000);
     private String host = "0.0.0.0";
     private int port = 7000;
     private boolean exportJvmInfo = true;
@@ -112,7 +112,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     @Override
     public void configure(Properties configuration) throws MetricsProviderLifeCycleException {
-        LOG.info("Initializing metrics, configuration: {}", configuration);
+        log.info().attr("configuration", configuration).log("Initializing metrics");
         this.host = configuration.getProperty("httpHost", "0.0.0.0");
         this.port = Integer.parseInt(configuration.getProperty("httpPort", "7000"));
         this.exportJvmInfo = Boolean.parseBoolean(configuration.getProperty("exportJvmInfo", "true"));
@@ -128,8 +128,9 @@ public class PrometheusMetricsProvider implements MetricsProvider {
     public void start() throws MetricsProviderLifeCycleException {
         this.executorOptional = createExecutor();
         try {
-            LOG.info("Starting /metrics HTTP endpoint at host: {}, port: {}, exportJvmInfo: {}",
-                    host, port, exportJvmInfo);
+            log.info().attr("host", host).attr("port", port)
+                    .attr("exportJvmInfo", exportJvmInfo)
+                    .log("Starting /metrics HTTP endpoint");
             if (exportJvmInfo) {
                 DefaultExports.initialize();
             }
@@ -141,7 +142,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             context.addServlet(new ServletHolder(servlet), "/metrics");
             server.start();
         } catch (Exception err) {
-            LOG.error("Cannot start /metrics server", err);
+            log.error().exception(err).log("Cannot start /metrics server");
             if (server != null) {
                 try {
                     server.stop();
@@ -172,7 +173,7 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             try {
                 server.stop();
             } catch (Exception err) {
-                LOG.error("Cannot safely stop Jetty server", err);
+                log.error().exception(err).log("Cannot safely stop Jetty server");
             } finally {
                 server = null;
             }
@@ -383,7 +384,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             try {
                 inner.inc(delta);
             } catch (IllegalArgumentException err) {
-                LOG.error("invalid delta {} for metric {}", delta, name, err);
+                log.error().attr("delta", delta).attr("metric", name)
+                        .exception(err).log("invalid delta for metric");
             }
         }
 
@@ -415,7 +417,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             try {
                 inner.labels(key).inc(delta);
             } catch (final IllegalArgumentException e) {
-                LOG.error("invalid delta {} for metric {} with key {}", delta, name, key, e);
+                log.error().attr("delta", delta).attr("metric", name)
+                        .attr("key", key).exception(e).log("invalid delta for metric");
             }
         }
     }
@@ -513,7 +516,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             try {
                 inner.observe(delta);
             } catch (final IllegalArgumentException err) {
-                LOG.error("invalid delta {} for metric {}", delta, name, err);
+                log.error().attr("delta", delta).attr("metric", name)
+                        .exception(err).log("invalid delta for metric");
             }
         }
     }
@@ -551,7 +555,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
             try {
                 inner.labels(key).observe(value);
             } catch (final IllegalArgumentException err) {
-                LOG.error("invalid value {} for metric {} with key {}", value, name, key, err);
+                log.error().attr("value", value).attr("metric", name)
+                        .attr("key", key).exception(err).log("invalid value for metric");
             }
         }
 
@@ -572,7 +577,8 @@ public class PrometheusMetricsProvider implements MetricsProvider {
 
     private Optional<ExecutorService> createExecutor() {
         if (numWorkerThreads < 1) {
-            LOG.info("Executor service was not created as numWorkerThreads {} is less than 1", numWorkerThreads);
+            log.info().attr("numWorkerThreads", numWorkerThreads)
+                    .log("Executor service was not created as numWorkerThreads is less than 1");
             return Optional.empty();
         }
 
@@ -582,25 +588,27 @@ public class PrometheusMetricsProvider implements MetricsProvider {
                 0L,
                 TimeUnit.MILLISECONDS,
                 queue, new PrometheusWorkerThreadFactory());
-        LOG.info("Executor service was created with numWorkerThreads {} and maxQueueSize {}",
-                numWorkerThreads,
-                maxQueueSize);
+        log.info().attr("numWorkerThreads", numWorkerThreads)
+                .attr("maxQueueSize", maxQueueSize)
+                .log("Executor service was created");
         return Optional.of(executor);
     }
 
     private void shutdownExecutor() {
         if (executorOptional.isPresent()) {
-            LOG.info("Shutdown executor service with timeout {}", workerShutdownTimeoutMs);
+            log.info().attr("timeoutMs", workerShutdownTimeoutMs)
+                    .log("Shutdown executor service");
             final ExecutorService executor = executorOptional.get();
             executor.shutdown();
             try {
                 if (!executor.awaitTermination(workerShutdownTimeoutMs, TimeUnit.MILLISECONDS)) {
-                    LOG.error("Not all the Prometheus worker threads terminated properly after {} timeout",
-                            workerShutdownTimeoutMs);
+                    log.error().attr("timeoutMs", workerShutdownTimeoutMs)
+                            .log("Not all Prometheus worker threads terminated properly");
                     executor.shutdownNow();
                 }
             } catch (final Exception e) {
-                LOG.error("Error occurred while terminating Prometheus worker threads", e);
+                log.error().exception(e)
+                        .log("Error occurred while terminating Prometheus worker threads");
                 executor.shutdownNow();
             }
         }

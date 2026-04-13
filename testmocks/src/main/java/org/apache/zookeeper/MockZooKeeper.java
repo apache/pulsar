@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
 import org.apache.zookeeper.AsyncCallback.ChildrenCallback;
 import org.apache.zookeeper.AsyncCallback.DataCallback;
@@ -61,9 +62,8 @@ import org.apache.zookeeper.proto.SetDataRequest;
 import org.objenesis.Objenesis;
 import org.objenesis.ObjenesisStd;
 import org.objenesis.instantiator.ObjectInstantiator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class MockZooKeeper extends ZooKeeper {
     // ephemeralOwner value for persistent nodes
     private static final long NOT_EPHEMERAL = 0L;
@@ -259,7 +259,7 @@ public class MockZooKeeper extends ZooKeeper {
                 if (e instanceof InterruptedException ie) {
                     throw ie;
                 }
-                log.error("Unexpected exception", e);
+                log.error().exception(e).log("Unexpected exception");
                 throw new KeeperException.SystemErrorException();
             }
         }
@@ -283,7 +283,7 @@ public class MockZooKeeper extends ZooKeeper {
             if (cause instanceof InterruptedException ie) {
                 throw ie;
             }
-            log.error("Unexpected exception", e);
+            log.error().exception(e).log("Unexpected exception");
             throw new KeeperException.SystemErrorException();
         }
     }
@@ -296,7 +296,7 @@ public class MockZooKeeper extends ZooKeeper {
             try {
                 runnable.run();
             } catch (Throwable t) {
-                log.error("Unexpected exception", t);
+                log.error().exception(t).log("Unexpected exception");
             }
             return;
         }
@@ -312,7 +312,7 @@ public class MockZooKeeper extends ZooKeeper {
                     inExecutorThreadLocal.set(false);
                 }
             } catch (Throwable t) {
-                log.error("Unexpected exception", t);
+                log.error().exception(t).log("Unexpected exception");
             }
         });
     }
@@ -324,7 +324,7 @@ public class MockZooKeeper extends ZooKeeper {
                 return null;
             });
         } catch (Exception e) {
-            log.error("Unexpected error", e);
+            log.error().exception(e).log("Unexpected error");
         }
     }
 
@@ -487,7 +487,7 @@ public class MockZooKeeper extends ZooKeeper {
                     });
                 }
             } catch (Throwable ex) {
-                log.error("create path : {} error", path, ex);
+                log.error().attr("path", path).exception(ex).log("create path error");
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             }
         });
@@ -566,7 +566,7 @@ public class MockZooKeeper extends ZooKeeper {
                     cb.processResult(0, path, ctx, value.getContent(), stat);
                 }
             } catch (Throwable ex) {
-                log.error("get data : {} error", path, ex);
+                log.error().attr("path", path).exception(ex).log("get data error");
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
             }
         });
@@ -600,7 +600,7 @@ public class MockZooKeeper extends ZooKeeper {
                 }
                 cb.processResult(0, path, ctx, children);
             } catch (Throwable ex) {
-                log.error("get children : {} error", path, ex);
+                log.error().attr("path", path).exception(ex).log("get children error");
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             }
         });
@@ -655,7 +655,7 @@ public class MockZooKeeper extends ZooKeeper {
                 List<String> children = findFirstLevelChildren(path);
                 cb.processResult(0, path, ctx, children, stat);
             } catch (Throwable ex) {
-                log.error("get children : {} error", path, ex);
+                log.error().attr("path", path).exception(ex).log("get children error");
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
             }
         });
@@ -731,7 +731,7 @@ public class MockZooKeeper extends ZooKeeper {
                     cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
                 }
             } catch (Throwable ex) {
-                log.error("exist : {} error", path, ex);
+                log.error().attr("path", path).exception(ex).log("exist error");
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             }
         });
@@ -781,7 +781,8 @@ public class MockZooKeeper extends ZooKeeper {
             throw new KeeperException.BadVersionException(path);
         }
 
-        log.debug("[{}] Updating -- current version: {}", path, currentVersion);
+        log.debug().attr("path", path).attr("currentVersion", currentVersion)
+                .log("Updating");
         mockZNode.updateData(data);
         Stat stat = mockZNode.getStat();
         toNotify.addAll(getWatchers(path));
@@ -826,13 +827,15 @@ public class MockZooKeeper extends ZooKeeper {
 
                 // Check version
                 if (version != -1 && version != currentVersion) {
-                    log.debug("[{}] Current version: {} -- Expected: {}", path, currentVersion, version);
+                    log.debug().attr("path", path).attr("currentVersion", currentVersion)
+                            .attr("expectedVersion", version).log("Version mismatch");
                     Stat currentStat = mockZNode.getStat();
                     cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx, currentStat);
                     return;
                 }
 
-                log.debug("[{}] Updating -- current version: {}", path, currentVersion);
+                log.debug().attr("path", path).attr("currentVersion", currentVersion)
+                .log("Updating");
                 mockZNode.updateData(data);
                 stat = mockZNode.getStat();
                 cb.processResult(0, path, ctx, stat);
@@ -848,7 +851,7 @@ public class MockZooKeeper extends ZooKeeper {
                     }
                 });
             } catch (Throwable ex) {
-                log.error("Update data : {} error", path, ex);
+                log.error().attr("path", path).exception(ex).log("Update data error");
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             }
         });
@@ -960,7 +963,7 @@ public class MockZooKeeper extends ZooKeeper {
                     });
                 }
             } catch (Throwable ex) {
-                log.error("delete path : {} error", path, ex);
+                log.error().attr("path", path).exception(ex).log("delete path error");
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx);
             }
         });
@@ -1027,8 +1030,9 @@ public class MockZooKeeper extends ZooKeeper {
                     }, res);
                 }
                 default -> {
-                    log.error("Unsupported operation for path {} type {} kind {} request {}", op.getPath(),
-                            op.getType(), op.getKind(), op.toRequestRecord());
+                    log.error().attr("path", op.getPath()).attr("type", op.getType())
+                            .attr("kind", op.getKind()).attr("request", op.toRequestRecord())
+                            .log("Unsupported operation");
                     res.add(new OpResult.ErrorResult(KeeperException.Code.APIERROR.intValue()));
                 }
             }
@@ -1047,8 +1051,10 @@ public class MockZooKeeper extends ZooKeeper {
             if (e instanceof KeeperException keeperException) {
                 res.add(new OpResult.ErrorResult(keeperException.code().intValue()));
             } else {
-                log.error("Error handling {} operation for path {} type {} kind {} request {}", opName, op.getPath(),
-                        op.getType(), op.getKind(), op.toRequestRecord(), e);
+                log.error().attr("operation", opName).attr("path", op.getPath())
+                        .attr("type", op.getType()).attr("kind", op.getKind())
+                        .attr("request", op.toRequestRecord()).exception(e)
+                        .log("Error handling operation");
                 res.add(new OpResult.ErrorResult(KeeperException.Code.RUNTIMEINCONSISTENCY.intValue()));
             }
         }
@@ -1090,7 +1096,7 @@ public class MockZooKeeper extends ZooKeeper {
                 try {
                     c.close();
                 } catch (Exception e) {
-                    log.error("Error closing closeable", e);
+                    log.error().exception(e).log("Error closing closeable");
                 }
             });
             closeables.clear();
@@ -1107,7 +1113,7 @@ public class MockZooKeeper extends ZooKeeper {
             try {
                 shutdownTask.get();
             } catch (ExecutionException e) {
-                log.error("Error shutting down", e);
+                log.error().exception(e).log("Error shutting down");
             }
             MoreExecutors.shutdownAndAwaitTermination(executor, 10, TimeUnit.SECONDS);
         }
@@ -1217,6 +1223,4 @@ public class MockZooKeeper extends ZooKeeper {
                     .forEach(e -> watchers.remove(e.getKey(), e.getValue()));
         });
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MockZooKeeper.class);
 }

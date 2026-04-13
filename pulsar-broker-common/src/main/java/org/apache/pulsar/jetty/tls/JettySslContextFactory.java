@@ -20,12 +20,12 @@ package org.apache.pulsar.jetty.tls;
 
 import java.util.Set;
 import javax.net.ssl.SSLContext;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
-@Slf4j
+@CustomLog
 public class JettySslContextFactory {
     static {
         // DO NOT EDIT - Load Conscrypt provider

@@ -24,14 +24,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
-@Slf4j
+@CustomLog
 public class TenantResources extends BaseResources<TenantInfo> {
     public TenantResources(MetadataStore store, int operationTimeoutSec) {
         super(store, TenantInfo.class, operationTimeoutSec);

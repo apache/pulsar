@@ -23,6 +23,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-common"))
     implementation(project(":pulsar-opentelemetry"))
     implementation(project(":managed-ledger"))

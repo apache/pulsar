@@ -26,7 +26,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -48,7 +48,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     private final String testTenant = "pulsar";
     private final String testNamespace = "perf";
@@ -64,7 +64,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         serviceConfiguration.setTransactionCoordinatorEnabled(true);
         super.internalSetup(serviceConfiguration);
         PerfClientUtils.setExitProcedure(code -> {
-            log.error("JVM exit code is {}", code);
+            log.error().attr("code", code).log("JVM exit code is");
             if (code != 0) {
                 throw new RuntimeException("JVM should exit with code " + code);
             }

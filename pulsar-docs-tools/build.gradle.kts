@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(libs.swagger.annotations)
     implementation(libs.swagger.core)
     implementation(libs.picocli)

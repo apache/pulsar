@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockOIDCIdentityProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -49,19 +50,17 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     private final String testTenant = "pulsar";
     private final String testNamespace = "perf";
     private final String myNamespace = testTenant + "/" + testNamespace;
     private final String testTopic = "persistent://" + myNamespace + "/test-";
-    private static final Logger log = LoggerFactory.getLogger(Oauth2PerformanceTransactionTest.class);
 
     // Credentials File, which contains "client_id" and "client_secret"
     private static final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
@@ -108,7 +107,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         conf.setBrokerClientAuthenticationParameters(authenticationParameters);
         super.init();
         PerfClientUtils.setExitProcedure(code -> {
-            log.error("JVM exit code is {}", code);
+            log.error().attr("code", code).log("JVM exit code is");
             if (code != 0) {
                 throw new RuntimeException("JVM should exit with code " + code);
             }
@@ -127,7 +126,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     @SuppressWarnings("deprecation")
     protected final void clientSetup() throws Exception {
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
-        log.info("Credentials File path: {}", path);
+        log.info().attr("path", path).log("Credentials File path");
         closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(authenticationPlugin, authenticationParameters)

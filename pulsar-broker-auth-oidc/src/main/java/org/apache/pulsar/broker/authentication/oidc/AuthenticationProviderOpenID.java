@@ -52,6 +52,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import lombok.CustomLog;
 import okhttp3.OkHttpClient;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -65,8 +66,6 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An {@link AuthenticationProvider} implementation that supports the usage of a JSON Web Token (JWT)
@@ -85,9 +84,8 @@ import org.slf4j.LoggerFactory;
  * Supported algorithms are: RS256, RS384, RS512, ES256, ES384, ES512 where the naming conventions follow
  * this RFC: https://datatracker.ietf.org/doc/html/rfc7518#section-3.1.
  */
+@CustomLog
 public class AuthenticationProviderOpenID implements AuthenticationProvider {
-    private static final Logger log = LoggerFactory.getLogger(AuthenticationProviderOpenID.class);
-
     // Must match the value used by the OAuth2 Client Plugin.
     private static final String AUTH_METHOD_NAME = "token";
 
@@ -266,11 +264,12 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             } else if (roles.size() == 1) {
                 return roles.get(0);
             } else {
-                log.debug("JWT for subject [{}] has multiple roles; using the first one.", jwt.getSubject());
+                log.debug().attr("value", jwt.getSubject())
+                        .log("JWT for subject [] has multiple roles; using the first one.");
                 return roles.get(0);
             }
         } catch (JWTDecodeException e) {
-            log.error("Exception while retrieving role from JWT", e);
+            log.error().exception(e).log("Exception while retrieving role from JWT");
             return null;
         }
     }
@@ -495,7 +494,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         }
         for (String issuer : allowedIssuers) {
             if (!issuer.toLowerCase().startsWith("https://")) {
-                log.warn("Allowed issuer is not using https scheme: {}", issuer);
+                log.warn().attr("issuer", issuer).log("Allowed issuer is not using https scheme");
                 if (requireHttps) {
                     throw new IllegalArgumentException("Issuer URL does not use https, but must: " + issuer);
                 }

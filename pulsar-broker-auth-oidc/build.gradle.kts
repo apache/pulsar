@@ -23,6 +23,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(project(":pulsar-broker-common"))
     implementation(libs.auth0.java.jwt)
     implementation(libs.auth0.jwks.rsa)

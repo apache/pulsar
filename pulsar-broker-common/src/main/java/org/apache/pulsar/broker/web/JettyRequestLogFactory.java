@@ -23,7 +23,7 @@ import java.net.SocketAddress;
 import java.util.TimeZone;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.eclipse.jetty.io.Connection;
 import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.ConnectionMetaData;
@@ -99,7 +99,7 @@ public class JettyRequestLogFactory {
      * when detailed addresses are enabled.
      * This is necessary when Proxy Protocol is used to pass the original client IP.
      */
-    @Slf4j
+    @CustomLog
     private static class OriginalClientIPRequestLog extends ContainerLifeCycle implements RequestLog {
         private final ThreadLocal<StringBuilder> requestLogStringBuilder = ThreadLocal.withInitial(StringBuilder::new);
         private final CustomRequestLog delegate;
@@ -175,7 +175,7 @@ public class JettyRequestLogFactory {
             try {
                 delegateLogWriter.write(sb.toString());
             } catch (Exception e) {
-                log.warn("Failed to write request log", e);
+                log.warn().exception(e).log("Failed to write request log");
             }
         }
 

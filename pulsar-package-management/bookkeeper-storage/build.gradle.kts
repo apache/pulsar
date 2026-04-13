@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-package-management:pulsar-package-core"))
     implementation(libs.distributedlog.core)
 

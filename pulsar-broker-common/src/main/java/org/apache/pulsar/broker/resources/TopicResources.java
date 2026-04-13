@@ -28,7 +28,7 @@ import java.util.function.BiConsumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -38,7 +38,7 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
-@Slf4j
+@CustomLog
 public class TopicResources {
     private static final String MANAGED_LEDGER_PATH = "/managed-ledgers";
 
@@ -91,19 +91,19 @@ public class TopicResources {
 
     public CompletableFuture<Void> clearNamespacePersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns;
-        log.info("Clearing namespace persistence for namespace: {}, path {}", ns, path);
+        log.info().attr("namespace", ns).attr("path", path).log("Clearing namespace persistence for namespace: , path");
         return store.deleteIfExists(path, Optional.empty());
     }
 
     public CompletableFuture<Void> clearDomainPersistence(NamespaceName ns) {
         String path = MANAGED_LEDGER_PATH + "/" + ns + "/persistent";
-        log.info("Clearing domain persistence for namespace: {}, path {}", ns, path);
+        log.info().attr("namespace", ns).attr("path", path).log("Clearing domain persistence for namespace: , path");
         return store.deleteIfExists(path, Optional.empty());
     }
 
     public CompletableFuture<Void> clearTenantPersistence(String tenant) {
         String path = MANAGED_LEDGER_PATH + "/" + tenant;
-        log.info("Clearing tenant persistence for tenant: {}, path {}", tenant, path);
+        log.info().attr("tenant", tenant).attr("path", path).log("Clearing tenant persistence for tenant: , path");
         return store.deleteRecursive(path);
     }
 
@@ -146,7 +146,11 @@ public class TopicResources {
             try {
                 listener.onSessionEvent(sessionEvent);
             } catch (Exception e) {
-                log.warn("Failed to handle session event {} for listener {}", sessionEvent, listener, e);
+                log.warn()
+                        .attr("event", sessionEvent)
+                        .attr("listener", listener)
+                        .exception(e)
+                        .log("Failed to handle session event for listener");
             }
         });
     }

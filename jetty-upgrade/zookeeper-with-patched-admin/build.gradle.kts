@@ -23,6 +23,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     implementation(libs.zookeeper)
     implementation(project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics"))
     implementation(libs.jetty.server)
