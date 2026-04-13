@@ -57,8 +57,10 @@ runs:
             sudo mount -o remount,nodiscard,commit=999999,barrier=0 /mnt || true
             # disable discard/trim at device level since remount with nodiscard doesn't seem to be effective
             # https://www.spinics.net/lists/linux-ide/msg52562.html
-            for i in /sys/block/sd*/queue/discard_max_bytes; do
-              echo 0 | sudo tee $i
+            for i in /sys/block/*/queue/discard_max_bytes; do
+              if [ -f "$i" ]; then
+                echo 0 | sudo tee "$i"
+              fi
             done
             # disable any background jobs that run SSD discard/trim
             sudo systemctl disable fstrim.timer || true
