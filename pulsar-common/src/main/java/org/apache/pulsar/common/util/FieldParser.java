@@ -21,7 +21,6 @@ package org.apache.pulsar.common.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-
 import com.fasterxml.jackson.databind.DeserializationConfig;
 import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
 import com.fasterxml.jackson.databind.introspect.AnnotatedClassResolver;
@@ -100,7 +99,8 @@ public final class FieldParser {
 
         if (to.isEnum()) {
             // Converting string to enum
-            DeserializationConfig deserializationConfig = ObjectMapperFactory.getMapper().getObjectMapper().getDeserializationConfig();
+            DeserializationConfig deserializationConfig =
+                    ObjectMapperFactory.getMapper().getObjectMapper().getDeserializationConfig();
             // No replacement API available in Jackson 2.x
             AnnotatedClass annotatedEnum = AnnotatedClassResolver.resolve(
                     deserializationConfig,
