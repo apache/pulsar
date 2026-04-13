@@ -53,8 +53,10 @@ runs:
             fi
             # disable discard/trim at device level since remount with nodiscard doesn't seem to be effective
             # https://www.spinics.net/lists/linux-ide/msg52562.html
-            for i in /sys/block/sd*/queue/discard_max_bytes; do
-              echo 0 | sudo tee $i
+            for i in /sys/block/*/queue/discard_max_bytes; do
+              if [ -f "$i" ]; then
+                echo 0 | sudo tee "$i"
+              fi
             done
             # disable unnecessary timers
             sudo systemctl stop fstrim.timer fstrim.service \
