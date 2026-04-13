@@ -85,10 +85,11 @@ public class PulsarSaslServer {
                     serviceHostname = null;
                 }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("serviceHostname is '{}', servicePrincipalName is '{}', SASL mechanism(mech) is '{}'.",
-                        serviceHostname, servicePrincipalName, GSSAPI);
-                }
+                log.debug()
+                    .attr("serviceHostname", serviceHostname)
+                    .attr("servicePrincipalName", servicePrincipalName)
+                    .attr("mechanism", GSSAPI)
+                    .log("SASL configuration");
 
                 try {
                     return Subject.doAs(subject, new PrivilegedExceptionAction<SaslServer>() {
@@ -171,8 +172,10 @@ public class PulsarSaslServer {
             }
             if (!allowedIdsPattern.matcher(authenticationID).matches()) {
                 ac.setAuthorized(false);
-                log.info("Forbidden access to client: authenticationID {}, is not allowed (see {} property).",
-                    authenticationID, SaslConstants.JAAS_CLIENT_ALLOWED_IDS);
+                log.info()
+                    .attr("authenticationID", authenticationID)
+                    .attr("property", SaslConstants.JAAS_CLIENT_ALLOWED_IDS)
+                    .log("Forbidden access to client: not allowed");
                 return;
             }
 

@@ -175,10 +175,11 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
         try {
             token = SaslRoleToken.parse(unSigned);
-            if (log.isDebugEnabled()) {
-                log.debug("server side get role token: {}, session in token:{}, session in request:{}",
-                    token, token.getSession(), httpRequest.getRemoteAddr());
-            }
+            log.debug()
+                .attr("token", token)
+                .attr("sessionInToken", token.getSession())
+                .attr("remoteAddr", httpRequest.getRemoteAddr())
+                .log("Server side get role token");
         } catch (Exception e) {
             log.error().exception(e).log("token parse failed, with exception: ");
             return SASL_AUTH_ROLE_TOKEN_EXPIRED;
@@ -198,10 +199,13 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         SaslRoleToken token = new SaslRoleToken(role, sessionId, expireAtMs);
 
         String signed = signer.sign(token.toString());
-        if (log.isDebugEnabled()) {
-            log.debug("create role token token: {}, role: {} session :{}, expires:{}\nsigned:{}",
-                token, token.getUserRole(), token.getSession(), token.getExpires(), signed);
-        }
+        log.debug()
+            .attr("token", token)
+            .attr("role", token.getUserRole())
+            .attr("session", token.getSession())
+            .attr("expires", token.getExpires())
+            .attr("signed", signed)
+            .log("Created role token");
         return signed;
     }
 
@@ -255,7 +259,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             if (saslAuthRoleToken.equalsIgnoreCase(SASL_AUTH_ROLE_TOKEN_EXPIRED)) {
                 setResponseHeaderState(response, SASL_AUTH_ROLE_TOKEN_EXPIRED);
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Role token expired");
-                    log.debug().attr("value", request.getRequestURI()).exception(saslAuthRoleToken).log("[{}] Server side role token expired:");
+                    log.debug()
+                        .attr("requestUri", request.getRequestURI())
+                        .attr("roleToken", saslAuthRoleToken)
+                        .log("Server side role token expired");
                 return false;
             }
 
@@ -266,7 +273,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 request.setAttribute(AuthenticatedRoleAttributeName, saslAuthRoleToken);
                 request.setAttribute(AuthenticatedDataAttributeName,
                     new AuthenticationDataHttps(request));
-                    log.debug().attr("value", request.getRequestURI()).exception(saslAuthRoleToken).log("[{}] Server side role token OK to go on:");
+                    log.debug()
+                        .attr("requestUri", request.getRequestURI())
+                        .attr("roleToken", saslAuthRoleToken)
+                        .log("Server side role token OK");
                 return true;
             } else {
                 checkState(request.getHeader(SASL_HEADER_STATE).equalsIgnoreCase(SASL_STATE_SERVER_CHECK_TOKEN));
@@ -308,10 +318,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 return false;
             } else {
                 // auth not complete
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] SASL server authentication not complete, send {} back to client.",
-                        request.getRequestURI(), HttpServletResponse.SC_UNAUTHORIZED);
-                }
+                log.debug()
+                    .attr("requestUri", request.getRequestURI())
+                    .attr("statusCode", HttpServletResponse.SC_UNAUTHORIZED)
+                    .log("SASL server authentication not complete");
                 setResponseHeaderState(response, SASL_STATE_NEGOTIATE);
                 response.setHeader(SASL_STATE_SERVER, String.valueOf(state.getStateId()));
                 response.setHeader(SASL_AUTH_TOKEN, Base64.getEncoder().encodeToString(brokerData.getBytes()));
