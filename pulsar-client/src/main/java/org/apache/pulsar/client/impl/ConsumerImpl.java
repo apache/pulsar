@@ -1787,6 +1787,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
         int skippedMessages = 0;
+        int processedMessages = 0;
         try {
             for (int i = 0; i < batchSize; ++i) {
                 final MessageImpl<T> message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
@@ -1816,13 +1817,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     continue;
                 }
                 executeNotifyCallback(message);
+                processedMessages++;
             }
             if (ackBitSet != null) {
                 ackBitSet.recycle();
             }
-        } catch (IllegalStateException e) {
-            log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName, e);
-            discardCorruptedMessage(messageId, cnx, ValidationError.BatchDeSerializeError);
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            // For IllegalArgumentException see PR: https://github.com/apache/pulsar/pull/24061
+            discardCorruptedBatchMessage(messageId, cnx, batchSize,
+                    skippedMessages, processedMessages, ValidationError.BatchDeSerializeError);
         }
 
         if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
@@ -2154,6 +2157,38 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         log.error("[{}][{}] Discarding corrupted message at {}:{}", topic, subscription, messageId.getLedgerId(),
                 messageId.getEntryId());
         discardMessage(messageId, currentCnx, validationError, 1);
+    }
+
+    /**
+     * When batch index ack is enabled, ack the messages that failed to deserialize by their index,
+     * while keeping successfully enqueued messages unacknowledged to avoid message loss.
+     */
+    private void discardCorruptedBatchMessage(MessageIdData messageId, ClientCnx currentCnx,
+            int batchSize, int skipped, int processed, ValidationError validationError) {
+        log.error("[{}] [{}] Discarding corrupted batch messages with batch index ack at {}:{}, "
+                        + "batchSize={}, skipped={}, processed={}, exception={}",
+                subscription, consumerName, messageId.getLedgerId(), messageId.getEntryId(),
+                batchSize, skipped, processed, validationError);
+        BitSetRecyclable ackBitSet = null;
+        int corruptedStartIndex = skipped + processed;
+        if (conf.isBatchIndexAckEnabled()) {
+            // When batch index ack is enabled, only ack the messages that failed to deserialize.
+            // Messages that have been successfully enqueued remain unacknowledged,
+            // waiting for the user to consume and acknowledge them normally.
+            ackBitSet = BitSetRecyclable.create();
+            ackBitSet.set(0, batchSize);
+            for (int i = corruptedStartIndex; i < batchSize; i++) {
+                ackBitSet.clear(i);
+            }
+        }
+        ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(),
+                ackBitSet, AckType.Individual, validationError, Collections.emptyMap(), -1);
+        currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
+        if (ackBitSet != null) {
+            ackBitSet.recycle();
+        }
+        increaseAvailablePermits(currentCnx, batchSize - corruptedStartIndex);
+        stats.incrementNumReceiveFailed();
     }
 
     private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError,
