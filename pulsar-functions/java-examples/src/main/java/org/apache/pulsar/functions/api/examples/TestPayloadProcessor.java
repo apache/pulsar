@@ -39,7 +39,7 @@ public class TestPayloadProcessor implements MessagePayloadProcessor {
         String configs = conf.entrySet().stream()
                 .map(entry -> entry.getKey() + "=" + entry.getValue())
                 .collect(Collectors.joining(", "));
-        log.info().attr("configs", configs).log("TestPayloadProcessor constructor with configs");
+        log.infof("TestPayloadProcessor constructor with configs %s", configs);
     }
 
     @Override
