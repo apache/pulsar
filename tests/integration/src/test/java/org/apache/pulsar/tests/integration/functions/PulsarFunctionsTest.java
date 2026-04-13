@@ -918,11 +918,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             if (payloadProcessorConfig.getConfig() == null || payloadProcessorConfig.getConfig().isEmpty()) {
                 assertTrue(functionLogs.contains("TestPayloadProcessor constructor without configs"));
             } else {
-                String configs = payloadProcessorConfig.getConfig().entrySet().stream()
-                        .map(entry -> entry.getKey() + "=" + entry.getValue())
-                        .collect(Collectors.joining(", "));
-                String expectedLogs = String.format("TestPayloadProcessor constructor with configs %s", configs);
-                assertTrue(functionLogs.contains(expectedLogs));
+                assertTrue(functionLogs.contains("TestPayloadProcessor constructor with configs"));
+                for (Map.Entry<String, Object> entry : payloadProcessorConfig.getConfig().entrySet()) {
+                    assertTrue(functionLogs.contains(entry.getKey() + "=" + entry.getValue()),
+                            "Expected config key=value in logs: " + entry.getKey() + "=" + entry.getValue());
+                }
             }
         }
     }
