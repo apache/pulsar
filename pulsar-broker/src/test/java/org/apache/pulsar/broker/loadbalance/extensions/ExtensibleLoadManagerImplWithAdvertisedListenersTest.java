@@ -72,23 +72,33 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
     @Test(timeOut = 30_000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testTransferClientReconnectionWithoutLookup(TopicDomain topicDomain, SubscriptionType subscriptionType)
             throws Exception {
-        ExtensibleLoadManagerImplTest.testTransferClientReconnectionWithoutLookup(
-                clients,
-                topicDomain, subscriptionType,
-                defaultTestNamespace, admin,
-                brokerServiceUrl,
-                pulsar1, pulsar2, primaryLoadManager, secondaryLoadManager);
+        var testClients = createTestClients(4);
+        try {
+            ExtensibleLoadManagerImplTest.testTransferClientReconnectionWithoutLookup(
+                    testClients,
+                    topicDomain, subscriptionType,
+                    defaultTestNamespace, admin,
+                    brokerServiceUrl,
+                    pulsar1, pulsar2, primaryLoadManager, secondaryLoadManager);
+        } finally {
+            closeTestClients(testClients);
+        }
     }
 
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicSubscriptionTypeTest")
     public void testUnloadClientReconnectionWithLookup(TopicDomain topicDomain,
                                                        SubscriptionType subscriptionType) throws Exception {
-        ExtensibleLoadManagerImplTest.testUnloadClientReconnectionWithLookup(
-                clients,
-                topicDomain, subscriptionType,
-                defaultTestNamespace, admin,
-                brokerServiceUrl,
-                pulsar1);
+        var testClients = createTestClients(1);
+        try {
+            ExtensibleLoadManagerImplTest.testUnloadClientReconnectionWithLookup(
+                    testClients,
+                    topicDomain, subscriptionType,
+                    defaultTestNamespace, admin,
+                    brokerServiceUrl,
+                    pulsar1);
+        } finally {
+            closeTestClients(testClients);
+        }
     }
 
     @DataProvider(name = "isPersistentTopicTest")
@@ -98,10 +108,15 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
 
     @Test(timeOut = 30 * 1000, dataProvider = "isPersistentTopicTest")
     public void testOptimizeUnloadDisable(TopicDomain topicDomain) throws Exception {
-        ExtensibleLoadManagerImplTest.testOptimizeUnloadDisable(
-                clients,
-                topicDomain, defaultTestNamespace, admin,
-                brokerServiceUrl, pulsar1, pulsar2);
+        var testClients = createTestClients(1);
+        try {
+            ExtensibleLoadManagerImplTest.testOptimizeUnloadDisable(
+                    testClients,
+                    topicDomain, defaultTestNamespace, admin,
+                    brokerServiceUrl, pulsar1, pulsar2);
+        } finally {
+            closeTestClients(testClients);
+        }
     }
 
 }
