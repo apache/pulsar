@@ -95,7 +95,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         try {
             this.allowedIdsPattern = Pattern.compile(allowedIdsPatternRegExp);
         } catch (PatternSyntaxException error) {
-            log.error().attr("value", allowedIdsPatternRegExp).exception(error).log("Invalid regular expression for id");
+            log.error().attr("value", allowedIdsPatternRegExp).exception(error)
+                    .log("Invalid regular expression for id");
             throw new IOException(error);
         }
 
@@ -283,7 +284,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 setResponseHeaderState(response, SASL_STATE_COMPLETE);
                 response.setHeader(SASL_STATE_SERVER, sanitizeHeaderValue(request.getHeader(SASL_STATE_SERVER)));
                 response.setStatus(HttpServletResponse.SC_OK);
-                    log.debug().attr("requestUri", request.getRequestURI()).log("Server side role token verified success");
+                    log.debug().attr("requestUri", request.getRequestURI())
+                            .log("Server side role token verified success");
                 return false;
             }
         } else {
@@ -303,7 +305,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
 
             // authentication has completed, it has get the auth role.
             if (state.isComplete()) {
-                    log.debug().attr("requestUri", request.getRequestURI()).log("SASL server authentication complete, send OK to client");
+                    log.debug().attr("requestUri", request.getRequestURI())
+                            .log("SASL server authentication complete, send OK to client");
                 String authRole = state.getAuthRole();
                 String authToken = createAuthRoleToken(authRole, String.valueOf(state.getStateId()));
                 response.setHeader(SASL_AUTH_ROLE_TOKEN, authToken);

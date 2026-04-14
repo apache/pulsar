@@ -62,7 +62,8 @@ public class PulsarSaslServer {
             try {
                 final Object[] principals = subject.getPrincipals().toArray();
                 final Principal servicePrincipal = (Principal) principals[0];
-                    log.debug().attr("servicePrincipal", servicePrincipal).log("Authentication will use SASL/JAAS/Kerberos");
+                    log.debug().attr("servicePrincipal", servicePrincipal)
+                            .log("Authentication will use SASL/JAAS/Kerberos");
 
                 // e.g. servicePrincipalNameAndHostname := "broker/myhost.foo.com@EXAMPLE.COM"
                 final String servicePrincipalNameAndHostname = servicePrincipal.getName();
