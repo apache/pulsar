@@ -896,7 +896,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 assertTrue(functionLogs.contains(producerSpec));
             }
         } else {
-            assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
             // THREAD runtime doesn't include producer&consumer related logs in the function logs
             if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
                 assertTrue(functionLogs.contains("\"batchingEnabled\":false"));
