@@ -3405,14 +3405,25 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             assignedBrokerLookupData.ifPresentOrElse(lookup -> {
                         LookupData lookupData = getLookupData(lookup);
-                        writeAndFlush(Commands.newCloseConsumer(consumerId, -1L,
+                        writeCloseConsumerAndCloseConnectionOnFailure(Commands.newCloseConsumer(consumerId, -1L,
                                 lookupData.getBrokerUrl(),
-                                lookupData.getBrokerUrlTls()));
+                                lookupData.getBrokerUrlTls()), consumerId);
                     },
-                    () -> writeAndFlush(Commands.newCloseConsumer(consumerId, -1L, null, null)));
+                    () -> writeCloseConsumerAndCloseConnectionOnFailure(
+                            Commands.newCloseConsumer(consumerId, -1L, null, null), consumerId));
         } else {
             close();
         }
+    }
+
+    private void writeCloseConsumerAndCloseConnectionOnFailure(ByteBuf cmd, long consumerId) {
+        ctx.writeAndFlush(cmd).addListener(future -> {
+            if (!future.isSuccess()) {
+                log.warn("[{}] Forcing connection to close since cannot send close consumer command for consumer {}",
+                        remoteAddress, consumerId, future.cause());
+                close();
+            }
+        });
     }
 
     /**
