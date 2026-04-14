@@ -129,11 +129,9 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
             try {
                 remainingJson = remainingJson.substring(nextFunctionListEnd + 1);
             } catch (Throwable t) {
-                if (log.isDebugEnabled()) {
-                    log.debug()
-                            .attr("exception", t.getMessage())
-                            .log("Got exception while moving past function-list-end");
-                }
+                log.debug()
+                        .attr("exception", t.getMessage())
+                        .log("Got exception while moving past function-list-end");
                 moreToParse = false;
             }
             if (remainingJson.indexOf("[") < 0) {
@@ -179,13 +177,11 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         int funcCount = 0;
         for (val l : finfos) {
             for (val m : l.entrySet()) {
-                if (log.isDebugEnabled()) {
-                    log.debug()
-                            .attr("key", m.getKey())
-                            .attr("value", m.getValue())
-                            .attr("size", m.getValue().size())
-                            .log("accumulating for key= , value= (size )");
-                }
+                log.debug()
+                        .attr("key", m.getKey())
+                        .attr("value", m.getValue())
+                        .attr("size", m.getValue().size())
+                        .log("accumulating for key= , value= (size )");
                 funcCount += m.getValue().size();
             }
         }
@@ -197,14 +193,12 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         int minFuncCount = Integer.MAX_VALUE;
         for (val l : finfos) {
             for (val m : l.entrySet()) {
-                if (log.isDebugEnabled()) {
-                    log.debug()
-                            .attr("currentmin", minFuncCount)
-                            .attr("key", m.getKey())
-                            .attr("value", m.getValue())
-                            .attr("size", m.getValue().size())
-                            .log("comparing current_min= with key= , value= (size )");
-                }
+                log.debug()
+                        .attr("currentmin", minFuncCount)
+                        .attr("key", m.getKey())
+                        .attr("value", m.getValue())
+                        .attr("size", m.getValue().size())
+                        .log("comparing current_min= with key= , value= (size )");
                 minFuncCount = Math.min(minFuncCount, m.getValue().size());
             }
         }
@@ -227,10 +221,8 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
                 "PUT",
                 rebalanceUrl
         );
-        if (log.isDebugEnabled()) {
-            log.debug().attr("is", rebalanceUrl).log("callRebalance: leader's rebalance url is");
-            log.debug().attr("is", result).log("callRebalance: curl for rebalance: result is");
-        }
+        log.debug().attr("is", rebalanceUrl).log("callRebalance: leader's rebalance url is");
+        log.debug().attr("is", result).log("callRebalance: curl for rebalance: result is");
     }
 
     private void callDrain(final String workerToDrain) throws Exception {
@@ -250,10 +242,8 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
                 "PUT",
                 drainUrl
         );
-        if (log.isDebugEnabled()) {
-            log.debug().attr("is", drainUrl).log("callDrain: leader's drain url is");
-            log.debug().attr("is", result).log("callDrain: curl for drain: result is");
-        }
+        log.debug().attr("is", drainUrl).log("callDrain: leader's drain url is");
+        log.debug().attr("is", result).log("callDrain: curl for drain: result is");
     }
 
     private void createFunctionWorker(String functionName, String topicPrefix) throws Exception {
@@ -325,9 +315,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         // Add some workers; then call rebalance, and check that functions were assigned to all of the workers.
         allocateFunctions("testRebalanceAddWorkers", "test-rebalance");
 
-        if (log.isDebugEnabled()) {
-            this.showWorkerStatus("testRebalanceAddWorkers after allocating functions");
-        }
+        this.showWorkerStatus("testRebalanceAddWorkers after allocating functions");
 
         WorkerInfo oldClusterLeaderInfo = getClusterLeader();
         log.info().attr("is", oldClusterLeaderInfo).log("Cluster leader before adding more workers is");
@@ -401,17 +389,13 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
                 .attr("with", startFuncCount)
                 .log("testDrain: got info about workers with functions before drain");
 
-        if (log.isDebugEnabled()) {
-            this.showWorkerStatus("testDrain after allocating functions");
-        }
+        this.showWorkerStatus("testDrain after allocating functions");
 
         WorkerInfo clusterLeaderInfo = getClusterLeader();
 
         // Drain
         callDrain(clusterLeaderInfo.getWorkerId());
-        if (log.isDebugEnabled()) {
-            this.showWorkerStatus("testDrain after drain");
-        }
+        this.showWorkerStatus("testDrain after drain");
 
         val endFinfos = getFunctionAssignments();
         int endFuncCount = getFuncAssignmentsCount(endFinfos);
