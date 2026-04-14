@@ -1395,6 +1395,9 @@ public abstract class NamespacesBase extends AdminResource {
         if (StringUtils.isBlank(destinationBroker)) {
             return CompletableFuture.completedFuture(null);
         }
+        String bundleName = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                .getBundle(namespaceName.toString(), bundleRange)
+                .toString();
         return pulsar().getLoadManager().get().getAvailableBrokersAsync()
                 .thenCompose(brokers -> {
                     if (!brokers.contains(destinationBroker)) {
@@ -1416,7 +1419,7 @@ public abstract class NamespacesBase extends AdminResource {
                         return;
                     }
                     // For ExtensibleLoadManager, this operation will be ignored.
-                    pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleRange, destinationBroker);
+                    pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleName, destinationBroker);
                 });
     }
 

@@ -413,6 +413,26 @@ public class ModularLoadManagerImplTest {
         Assert.assertEquals(brokerServiceUrl, topicLookupAfterUnload);
     }
 
+    @Test
+    public void testBrokerAffinityLookupUsesFullBundleName() throws Exception {
+        String affinityBroker1 = "affinity-broker-1";
+        String affinityBroker2 = "affinity-broker-2";
+        NamespaceBundle bundle1 = makeBundle("tenant-1", "ns-1");
+        NamespaceBundle bundle2 = makeBundle("tenant-1", "ns-2");
+
+        LoadManager wrapper = pulsar1.getLoadManager().get();
+        wrapper.setNamespaceBundleAffinity(bundle1.toString(), affinityBroker1);
+        wrapper.setNamespaceBundleAffinity(bundle2.toString(), affinityBroker2);
+
+        Optional<ResourceUnit> leastLoadedBroker1 = wrapper.getLeastLoaded(bundle1);
+        Optional<ResourceUnit> leastLoadedBroker2 = wrapper.getLeastLoaded(bundle2);
+
+        Assert.assertTrue(leastLoadedBroker1.isPresent());
+        Assert.assertTrue(leastLoadedBroker2.isPresent());
+        Assert.assertEquals(leastLoadedBroker1.get().getResourceId(), affinityBroker1);
+        Assert.assertEquals(leastLoadedBroker2.get().getResourceId(), affinityBroker2);
+    }
+
     /**
      * It verifies that once broker owns max-number of topics: load-manager doesn't allocates new bundles to that broker
      * unless all the brokers are in same state.
