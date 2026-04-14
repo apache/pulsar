@@ -40,6 +40,8 @@ Configuration:
         value: "info"
       - name: "pulsar.routing.appender.default"
         value: "Console"
+      - name: "pulsar.log.format"
+        value: "text"
       - name: "pulsar.log.console.json.template"
         value: "classpath:EcsLayout.json"
 
@@ -55,59 +57,48 @@ Configuration:
 
     # Console
     Console:
-      - name: Console
-        target: SYSTEM_OUT
-        PatternLayout:
-          Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
-      - name: ConsoleJson
-        target: SYSTEM_OUT
-        JsonTemplateLayout:
-          eventTemplateUri: ${sys:pulsar.log.console.json.template}
+      name: Console
+      target: SYSTEM_OUT
+      SystemPropertyArbiter:
+        - propertyName: pulsar.log.format
+          propertyValue: json
+          JsonTemplateLayout:
+            eventTemplateUri: ${sys:pulsar.log.console.json.template}
+        - propertyName: pulsar.log.format
+          propertyValue: text
+          PatternLayout:
+            Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
 
     # Rolling file appender configuration
     RollingFile:
-      - name: RollingFile
-        fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
-        filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
-        immediateFlush: ${sys:pulsar.log.immediateFlush}
-        PatternLayout:
-          Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
-        Policies:
-          TimeBasedTriggeringPolicy:
-            interval: 1
-            modulate: true
-          SizeBasedTriggeringPolicy:
-            size: 1 GB
-        # Delete file older than 30days
-        DefaultRolloverStrategy:
-            Delete:
-              basePath: ${sys:pulsar.log.dir}
-              maxDepth: 2
-              IfFileName:
-                glob: "${sys:pulsar.log.file}*log.gz"
-              IfLastModified:
-                age: 30d
-      - name: RollingFileJson
-        fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
-        filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
-        immediateFlush: ${sys:pulsar.log.immediateFlush}
-        JsonTemplateLayout:
-          eventTemplateUri: ${sys:pulsar.log.console.json.template}
-        Policies:
-          TimeBasedTriggeringPolicy:
-            interval: 1
-            modulate: true
-          SizeBasedTriggeringPolicy:
-            size: 1 GB
-        # Delete file older than 30days
-        DefaultRolloverStrategy:
-            Delete:
-              basePath: ${sys:pulsar.log.dir}
-              maxDepth: 2
-              IfFileName:
-                glob: "${sys:pulsar.log.file}*log.gz"
-              IfLastModified:
-                age: 30d
+      name: RollingFile
+      fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
+      filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
+      immediateFlush: ${sys:pulsar.log.immediateFlush}
+      SystemPropertyArbiter:
+        - propertyName: pulsar.log.format
+          propertyValue: json
+          JsonTemplateLayout:
+            eventTemplateUri: ${sys:pulsar.log.console.json.template}
+        - propertyName: pulsar.log.format
+          propertyValue: text
+          PatternLayout:
+            Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
+      Policies:
+        TimeBasedTriggeringPolicy:
+          interval: 1
+          modulate: true
+        SizeBasedTriggeringPolicy:
+          size: 1 GB
+      # Delete file older than 30days
+      DefaultRolloverStrategy:
+          Delete:
+            basePath: ${sys:pulsar.log.dir}
+            maxDepth: 2
+            IfFileName:
+              glob: "${sys:pulsar.log.file}*log.gz"
+            IfLastModified:
+              age: 30d
 
     Prometheus:
       name: Prometheus
@@ -129,8 +120,15 @@ Configuration:
                       name: "Rolling-${ctx:function}"
                       fileName : "${sys:pulsar.log.dir}/functions/${ctx:function}/${ctx:functionname}-${ctx:instance}.log"
                       filePattern : "${sys:pulsar.log.dir}/functions/${sys:pulsar.log.file}-${ctx:instance}-%d{MM-dd-yyyy}-%i.log.gz"
-                      PatternLayout:
-                        Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%n"
+                      SystemPropertyArbiter:
+                        - propertyName: pulsar.log.format
+                          propertyValue: json
+                          JsonTemplateLayout:
+                            eventTemplateUri: ${sys:pulsar.log.console.json.template}
+                        - propertyName: pulsar.log.format
+                          propertyValue: text
+                          PatternLayout:
+                            Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%n"
                       Policies:
                         TimeBasedTriggeringPolicy:
                           interval: 1
