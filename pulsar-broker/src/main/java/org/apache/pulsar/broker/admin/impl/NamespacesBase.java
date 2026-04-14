@@ -1395,9 +1395,15 @@ public abstract class NamespacesBase extends AdminResource {
         if (StringUtils.isBlank(destinationBroker)) {
             return CompletableFuture.completedFuture(null);
         }
-        String bundleName = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                .getBundle(namespaceName.toString(), bundleRange)
-                .toString();
+        final String bundleName;
+        try {
+            bundleName = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                    .getBundle(namespaceName.toString(), bundleRange)
+                    .toString();
+        } catch (RuntimeException e) {
+            return FutureUtil.failedFuture(e);
+        }
+
         return pulsar().getLoadManager().get().getAvailableBrokersAsync()
                 .thenCompose(brokers -> {
                     if (!brokers.contains(destinationBroker)) {
