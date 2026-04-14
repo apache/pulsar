@@ -43,6 +43,11 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
 
     private final AtomicInteger throttledProducersCount = new AtomicInteger(0);
     private final AtomicBoolean processingQueuedProducers = new AtomicBoolean(false);
+
+    /**
+     * Executor used for the last {@link #scheduleUnthrottling} from this limiter (set when throttling starts).
+     * Used to schedule an immediate follow-up run after publish-rate limits change.
+     */
     private volatile ScheduledExecutorService lastUnthrottleExecutor;
     private final Consumer<Producer> throttleAction;
     private final Consumer<Producer> unthrottleAction;
@@ -172,10 +177,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
     private void scheduleImmediateUnthrottling() {
         ScheduledExecutorService executor = lastUnthrottleExecutor;
         if (executor != null) {
-            // Wake the existing unthrottle path without waiting on an old delay.
             scheduleUnthrottling(executor, 0L);
         }
-        // If executor is null, no throttle has happened yet on this limiter
     }
 
     public void update(PublishRate maxPublishRate) {
@@ -199,6 +202,8 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         } else {
             tokenBucketOnByte = null;
         }
+        // After any bucket rebuild, wake unthrottling:
+        // old scheduled delay may be invalid and cause unnecessary wait time for producers to be unthrottled.
         scheduleImmediateUnthrottling();
     }
 
