@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -44,7 +44,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extends MockedPulsarServiceBaseTest {
 
@@ -105,7 +105,7 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
                     try {
                         client.close();
                     } catch (PulsarClientException e) {
-                        log.error("Failed to close client {}", client, e);
+                        log.error().attr("closeClient", client).exception(e).log("Failed to close client");
                     }
                 }
             };
@@ -128,7 +128,8 @@ public class PatternConsumerTopicWatcherBackPressureMultipleConsumersTest extend
                                 .subscribeAsync();
                 consumerFutures.add(consumerFuture);
                 consumerFuture.exceptionally(throwable -> {
-                    log.error("Failed to subscribe to pattern {}", topicsPattern, throwable);
+                    log.error().attr("toPattern", topicsPattern).exception(throwable)
+                            .log("Failed to subscribe to pattern");
                     return null;
                 });
             }

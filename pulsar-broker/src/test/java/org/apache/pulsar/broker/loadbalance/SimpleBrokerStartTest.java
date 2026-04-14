@@ -23,7 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Optional;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -31,7 +31,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class SimpleBrokerStartTest {
 
@@ -116,14 +116,14 @@ public class SimpleBrokerStartTest {
         Assert.assertEquals(cGroupEnabled, existsCGroup);
 
         double totalCpuLimit = LinuxInfoUtils.getTotalCpuLimit(cGroupEnabled);
-        log.info("totalCpuLimit: {}", totalCpuLimit);
+        log.info().attr("totalCpuLimit", totalCpuLimit).log("totalCpuLimit");
         Assert.assertTrue(totalCpuLimit > 0.0);
 
         if (cGroupEnabled) {
             Assert.assertNotNull(LinuxInfoUtils.getMetrics());
 
             long cpuUsageForCGroup = LinuxInfoUtils.getCpuUsageForCGroup();
-            log.info("cpuUsageForCGroup: {}", cpuUsageForCGroup);
+            log.info().attr("cpuUsageForCGroup", cpuUsageForCGroup).log("cpuUsageForCGroup");
             Assert.assertTrue(cpuUsageForCGroup > 0);
         }
     }

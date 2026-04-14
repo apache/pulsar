@@ -20,14 +20,14 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.PulsarClientException.TopicDoesNotExistException;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class SimpleProducerConsumerDisallowAutoCreateTopicTest extends SharedPulsarBaseTest {
 
@@ -51,7 +51,7 @@ public class SimpleProducerConsumerDisallowAutoCreateTopicTest extends SharedPul
                     .subscribe();
             fail("");
         } catch (Exception ex) {
-            log.info("got an expected error", ex);
+            log.info().exception(ex).log("got an expected error");
             assertTrue(ex instanceof TopicDoesNotExistException,
                     "Expected TopicDoesNotExistException but got: " + ex.getClass().getName());
         } finally {

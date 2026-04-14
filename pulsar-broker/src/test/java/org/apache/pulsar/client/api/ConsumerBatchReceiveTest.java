@@ -22,16 +22,16 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test
+@CustomLog
 public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "partitioned")
@@ -459,14 +459,14 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
                 ((ConsumerBase<?>) consumer).hasBatchReceiveTimeout()));
     }
 
-
     private void receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(Consumer<String> consumer,
                                                        BatchReceivePolicy batchReceivePolicy,
                                                        int numOfExpectedBatches) throws PulsarClientException {
         Messages<String> messages;
         for (int i = 0; i < numOfExpectedBatches; i++) {
             messages = consumer.batchReceive();
-            log.info("Received {} messages in a single batch receive verifying batch size.", messages.size());
+            log.info().attr("received", messages.size())
+                    .log("Received messages in a single batch receive verifying batch size.");
             Assert.assertEquals(messages.size(), batchReceivePolicy.getMaxNumMessages());
         }
     }
@@ -554,10 +554,10 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
     private void receiveAsync(Consumer<String> consumer, int expected, CountDownLatch latch) {
         consumer.batchReceiveAsync().thenAccept(messages -> {
             if (messages != null) {
-                log.info("Received {} messages in a single batch receive.", messages.size());
+                log.info().attr("received", messages.size()).log("Received messages in a single batch receive.");
                 for (Message<String> message : messages) {
                     Assert.assertNotNull(message.getValue());
-                    log.info("Get message {} from batch", message.getValue());
+                    log.info().attr("getMessage", message.getValue()).log("Get message from batch");
                     latch.countDown();
                 }
                 consumer.acknowledgeAsync(messages);
@@ -576,7 +576,7 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
         for (int i = 0; i < messages; i++) {
             String message = "my-message-" + i;
             producer.sendAsync(message).thenAccept(messageId -> {
-                log.info("Message {} published {}", message, messageId);
+                log.info().attr("message", message).attr("published", messageId).log("Message published");
                 if (messageId != null) {
                     latch.countDown();
                 }
@@ -592,10 +592,10 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
             messages = consumer.batchReceive();
             if (messages != null) {
                 messageReceived += messages.size();
-                log.info("Received {} messages in a single batch receive.", messages.size());
+                log.info().attr("received", messages.size()).log("Received messages in a single batch receive.");
                 for (Message<String> message : messages) {
                     Assert.assertNotNull(message.getValue());
-                    log.info("Get message {} from batch", message.getValue());
+                    log.info().attr("getMessage", message.getValue()).log("Get message from batch");
                 }
                 consumer.acknowledge(messages);
             }
@@ -610,10 +610,10 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
             messages = consumer.batchReceive();
             if (messages != null) {
                 messageReceived += messages.size();
-                log.info("Received {} messages in a single batch receive.", messages.size());
+                log.info().attr("received", messages.size()).log("Received messages in a single batch receive.");
                 for (Message<String> message : messages) {
                     Assert.assertNotNull(message.getValue());
-                    log.info("Get message {} from batch", message.getValue());
+                    log.info().attr("getMessage", message.getValue()).log("Get message from batch");
                     // don't ack, test message redelivery
                 }
             }
@@ -624,10 +624,10 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
             messages = consumer.batchReceive();
             if (messages != null) {
                 messageReceived += messages.size();
-                log.info("Received {} messages in a single batch receive.", messages.size());
+                log.info().attr("received", messages.size()).log("Received messages in a single batch receive.");
                 for (Message<String> message : messages) {
                     Assert.assertNotNull(message.getValue());
-                    log.info("Get message {} from batch", message.getValue());
+                    log.info().attr("getMessage", message.getValue()).log("Get message from batch");
                 }
                 consumer.acknowledge(messages);
             }
@@ -635,7 +635,6 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
         Assert.assertTrue(messageReceived >= expected * 2,
                 "Expected at least " + (expected * 2) + " messages but received " + messageReceived);
     }
-
 
     @Test(timeOut = 30000)
     public void testBatchReceiveTheSameTopicMessages() throws Exception {
@@ -716,5 +715,4 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
         Assert.fail();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ConsumerBatchReceiveTest.class);
 }

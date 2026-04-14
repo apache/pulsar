@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockOIDCIdentityProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -44,8 +45,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -59,8 +58,8 @@ import org.testng.annotations.Test;
  *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken.
  */
 @Test(groups = "broker-api")
+@CustomLog
 public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(TokenOauth2AuthenticatedProducerConsumerTest.class);
 
     private MockOIDCIdentityProvider server;
 
@@ -112,7 +111,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
     // setup both admin and pulsar client
     protected final void clientSetup() throws Exception {
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
-        log.info("Credentials File path: {}", path.toString());
+        log.info().attr("path", path.toString()).log("Credentials File path");
 
         closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
@@ -167,7 +166,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -178,7 +177,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
 
     @Test
     public void testTokenProducerAndConsumer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         clientSetup();
 
         // test rest by admin
@@ -190,12 +189,12 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         // test protocol by producer/consumer
         testSyncProducerAndConsumer();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test
     public void testOAuth2TokenRefreshedWithoutReconnect() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         clientSetup();
 
         // test rest by admin
@@ -220,7 +219,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -256,7 +255,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }

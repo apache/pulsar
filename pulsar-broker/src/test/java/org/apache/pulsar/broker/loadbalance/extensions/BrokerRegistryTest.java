@@ -41,8 +41,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -68,7 +68,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test for {@link BrokerRegistry}.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BrokerRegistryTest {
 
@@ -351,7 +351,7 @@ public class BrokerRegistryTest {
             brokerRegistry.getAvailableBrokersAsync().get();
             fail();
         } catch (Exception ex) {
-            log.info("Failed to getAvailableBrokersAsync.", ex);
+            log.info().exception(ex).log("Failed to getAvailableBrokersAsync.");
             assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
         }
 
@@ -359,7 +359,7 @@ public class BrokerRegistryTest {
             brokerRegistry.getAvailableBrokerLookupDataAsync().get();
             fail();
         } catch (Exception ex) {
-            log.info("Failed to getAvailableBrokerLookupDataAsync.", ex);
+            log.info().exception(ex).log("Failed to getAvailableBrokerLookupDataAsync.");
             assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
         }
 
@@ -367,7 +367,7 @@ public class BrokerRegistryTest {
             brokerRegistry.lookupAsync("test").get();
             fail();
         } catch (Exception ex) {
-            log.info("Failed to lookupAsync.", ex);
+            log.info().exception(ex).log("Failed to lookupAsync.");
             assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
         }
 
@@ -377,7 +377,7 @@ public class BrokerRegistryTest {
             });
             fail();
         } catch (Exception ex) {
-            log.info("Failed to lookupAsync.", ex);
+            log.info().exception(ex).log("Failed to lookupAsync.");
             assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
         }
     }

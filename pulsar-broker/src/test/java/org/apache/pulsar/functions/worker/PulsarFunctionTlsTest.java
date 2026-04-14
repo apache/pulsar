@@ -37,7 +37,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -62,7 +62,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "functions-worker")
 public class PulsarFunctionTlsTest {
 
@@ -259,7 +259,7 @@ public class PulsarFunctionTlsTest {
             FunctionConfig functionConfig = createFunctionConfig(jarFilePathUrl, testTenant, "my-ns",
                 functionName, "my.*", "sink-topic-" + i, "sub-" + i);
 
-            log.info(" -------- Start test function : {}", functionName);
+            log.info().attr("function", functionName).log("Start test function");
 
             int finalI = i;
             // Wait for a leader to be ready and create the function.
@@ -328,8 +328,10 @@ public class PulsarFunctionTlsTest {
         functionConfig.setAutoAck(true);
         functionConfig.setOutput(sinkTopic);
 
-        log.info("Function Config: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
-            .writeValueAsString(functionConfig));
+        log.info()
+                .attr("config", new ObjectMapper().writerWithDefaultPrettyPrinter()
+                        .writeValueAsString(functionConfig))
+                .log("Function Config");
 
         return functionConfig;
     }

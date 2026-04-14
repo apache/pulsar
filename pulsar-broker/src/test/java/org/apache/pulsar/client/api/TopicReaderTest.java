@@ -41,6 +41,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
@@ -55,16 +56,14 @@ import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
+@CustomLog
 public class TopicReaderTest extends SharedPulsarBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(TopicReaderTest.class);
 
     protected String methodName;
 
@@ -128,7 +127,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
             msg = reader.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -186,7 +185,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
             msg = reader.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -248,7 +247,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
             msg = reader1.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet1, receivedMessage, expectedMessage);
         }
@@ -258,7 +257,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
             msg = reader2.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet2, receivedMessage, expectedMessage);
         }
@@ -465,7 +464,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
             msg = reader.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -510,7 +509,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
             Message<byte[]> msg = reader2.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             assertEquals(receivedMessage, expectedMessage);
         }
@@ -520,7 +519,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
 
     @Test
     public void testECDSAEncryption() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -580,18 +579,18 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
         for (int i = 0; i < totalMsg; i++) {
             msg = reader.readNext(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
         producer.close();
         reader.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test
     public void testMultiReaderECDSAEncryption() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -814,7 +813,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
         while (reader.hasMessageAvailable()) {
             msg = (MessageImpl<byte[]>) reader.readNext(1, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + (index++);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -833,7 +832,7 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
         while (reader.hasMessageAvailable()) {
             msg = (MessageImpl<byte[]>) reader.readNext(1, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + (index++);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -1180,12 +1179,12 @@ public class TopicReaderTest extends SharedPulsarBaseTest {
             if (id instanceof BatchMessageIdImpl) {
                 MessageId lastMessageId = reader.getConsumer().getLastMessageId();
                 assertTrue(lastMessageId instanceof BatchMessageIdImpl);
-                log.info("id {} instance of BatchMessageIdImpl", id);
+                log.info().attr("id", id).log("id instance of BatchMessageIdImpl");
             } else {
                 assertTrue(id instanceof MessageIdImpl);
                 MessageId lastMessageId = reader.getConsumer().getLastMessageId();
                 assertTrue(lastMessageId instanceof MessageIdImpl);
-                log.info("id {} instance of MessageIdImpl", id);
+                log.info().attr("id", id).log("id instance of MessageIdImpl");
             }
             reader.close();
         }

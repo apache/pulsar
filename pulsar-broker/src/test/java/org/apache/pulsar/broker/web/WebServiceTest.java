@@ -56,6 +56,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -78,8 +79,6 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -89,6 +88,7 @@ import org.testng.annotations.Test;
  * tests for now as this test class was added quite a bit after the class was written.
  */
 @Test(groups = "broker")
+@CustomLog
 public class WebServiceTest {
 
     private PulsarTestContext pulsarTestContext;
@@ -106,7 +106,6 @@ public class WebServiceTest {
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
     private static final String CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-
 
     @Test
     public void testWebExecutorMetrics() throws Exception {
@@ -422,10 +421,10 @@ public class WebServiceTest {
                 }
             }
 
-            log.info("Response Content: {}", content);
+            log.info().attr("responseContent", content).log("Response Content");
             assertTrue(content.toString().contains("process_cpu_seconds_total"));
         } catch (IOException e) {
-            log.error("Failed to decompress the content, likely the content is not compressed ", e);
+            log.error().exception(e).log("Failed to decompress the content, likely the content is not compressed ");
             fail();
         } finally {
             connection.disconnect();
@@ -460,7 +459,7 @@ public class WebServiceTest {
             connection.disconnect();
         }
 
-        log.info("Response Content: {}", content);
+        log.info().attr("responseContent", content).log("Response Content");
 
         assertTrue(content.toString().contains("process_cpu_seconds_total"));
     }
@@ -491,7 +490,7 @@ public class WebServiceTest {
                 response = new URL(brokerLookUpUrl).openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
-            log.info("Response: {}", resp);
+            log.info().attr("response", resp).log("Response");
             return resp;
         } finally {
             Closeables.close(response, false);
@@ -595,5 +594,4 @@ public class WebServiceTest {
         pulsar = null;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(WebServiceTest.class);
 }

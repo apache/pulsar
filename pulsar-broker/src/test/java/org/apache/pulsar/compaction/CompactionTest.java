@@ -59,8 +59,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
@@ -117,7 +117,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-@Slf4j
+@CustomLog
 public class CompactionTest extends MockedPulsarServiceBaseTest {
     protected ScheduledExecutorService compactionScheduler;
     protected BookKeeper bk;
@@ -2156,12 +2156,15 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         Mockito.doAnswer(invocationOnMock -> {
             List<Position> positions = invocationOnMock.getArgument(0);
             Map<String, Long> properties = invocationOnMock.getArgument(2);
-            log.info("acknowledgeMessage positions: {} properties: {}", positions, properties);
+            log.info()
+                    .attr("positions", positions)
+                    .attr("properties", properties)
+                    .log("acknowledgeMessage positions: properties");
             compactedLedgerId.set(properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));
             try {
                 return invocationOnMock.callRealMethod();
             } finally {
-                log.info("acknowledgeMessage completed {}", positions);
+                log.info().attr("positions", positions).log("acknowledgeMessage completed");
                 compactionAckedLatch.countDown();
                 // add delay here to introduce possible races with deletion
                 Thread.sleep(500);
@@ -2484,7 +2487,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
         final BiConsumer<String, String> send = (key, value) -> {
             final var msgId = producer.newMessage().key(key).value(value).sendAsync().join();
-            log.info("Sent {} => {} to {}", key, value, msgId);
+            log.info().attr("sent", key).attr("value", value).attr("msgId", msgId).log("Sent => to");
         };
 
         send.accept("key-0", "value");

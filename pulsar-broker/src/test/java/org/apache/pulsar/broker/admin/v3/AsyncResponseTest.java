@@ -44,13 +44,13 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.web.RestException;
 
 /**
  * Async response test.
  */
-@Slf4j
+@CustomLog
 @Path("/test")
 public class AsyncResponseTest {
 
@@ -64,7 +64,7 @@ public class AsyncResponseTest {
                 try {
                     Thread.sleep(delayMilliseconds);
                 } catch (InterruptedException e) {
-                    log.error("Failed to handle test method asyncGet.", e);
+                    log.error().exception(e).log("Failed to handle test method asyncGet");
                     response.resume(new RestException(e));
                 }
             }

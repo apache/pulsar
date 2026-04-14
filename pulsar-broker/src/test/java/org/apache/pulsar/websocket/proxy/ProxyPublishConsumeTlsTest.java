@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.TlsProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -42,14 +43,13 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
+@CustomLog
 public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
     protected String methodName;
 
@@ -122,7 +122,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
             consumeClient.start();
             ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
             Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
-            log.info("Connecting to : {}", consumeUri);
+            log.info().attr("uri", consumeUri).log("Connecting to");
             Assert.assertTrue(consumerFuture.get().isOpen());
 
             SimpleProducerSocket produceSocket = new SimpleProducerSocket();
@@ -144,10 +144,8 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
                 produceClient.stop();
                 log.info("proxy clients are stopped successfully");
             } catch (Exception e) {
-                log.error("failed to close clients ", e);
+                log.error().exception(e).log("failed to close clients");
             }
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTlsTest.class);
 }

@@ -27,7 +27,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
 import org.apache.commons.lang3.RandomUtils;
@@ -44,7 +44,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
@@ -122,7 +122,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
     @Test
     public void test() throws IOException {
         int httpPort = pulsar.getWebService().getListenPortHTTP().get();
-        log.info("pulsar webService httpPort {}", httpPort);
+        log.info().attr("httpPort", httpPort).log("pulsar webService httpPort");
         String paramValue = "value - " + RandomUtils.nextInt();
         String response = httpGet("http://localhost:" + httpPort + BASE_PATH + "?" + QUERY_PARAM + "=" + paramValue);
         Assert.assertEquals(response, paramValue);
@@ -148,7 +148,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         @Override
         public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
                 IOException {
-            log.info("[service] path: {}", ((Request) servletRequest).getHttpURI());
+            log.info().attr("path", ((Request) servletRequest).getHttpURI()).log("[service]");
             String value = servletRequest.getParameterMap().get(QUERY_PARAM)[0];
             ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
             servletResponse.setContentLength(value.getBytes().length);
@@ -179,7 +179,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         @Override
         public void service(ServletRequest servletRequest, ServletResponse servletResponse) throws ServletException,
                 IOException {
-            log.info("[service] path: {}", ((Request) servletRequest).getHttpURI());
+            log.info().attr("path", ((Request) servletRequest).getHttpURI()).log("[service]");
             String value = pulsarService == null ? "null" : PulsarService.class.getName();
             ServletOutputStream servletOutputStream = servletResponse.getOutputStream();
             servletResponse.setContentLength(value.getBytes().length);

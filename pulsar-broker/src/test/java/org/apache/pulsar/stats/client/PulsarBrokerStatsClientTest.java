@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.SharedPulsarCluster;
@@ -48,12 +49,11 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "stats")
+@CustomLog
 public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
 
     private String methodName;
@@ -92,12 +92,12 @@ public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
         assertTrue(client.getApiException(new ServerErrorException(500)) instanceof ServerSideErrorException);
         assertTrue(client.getApiException(new ServerErrorException(503)) instanceof PulsarAdminException);
 
-        log.info("Client: -- {}", client);
+        log.info().attr("client", client).log("Client");
     }
 
     @Test
     public void testTopicInternalStats() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final String topicName = newTopicName();
         final String subscriptionName = "my-subscriber-name";
@@ -156,8 +156,6 @@ public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
         assertFalse(cursor.subscriptionHavePendingRead);
         assertFalse(cursor.subscriptionHavePendingReplayRead);
         assertFalse(cursor.active);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarBrokerStatsClientTest.class);
 }

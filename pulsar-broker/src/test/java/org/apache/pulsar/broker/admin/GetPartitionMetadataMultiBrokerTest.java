@@ -26,7 +26,7 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -47,7 +47,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-@Slf4j
+@CustomLog
 public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTest {
 
     private PulsarService pulsar2;
@@ -283,7 +283,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
                 PartitionedTopicMetadata topicMetadata = client
                         .getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled, false)
                         .join();
-                log.info("Get topic metadata: {}", topicMetadata.partitions);
+                log.info().attr("partitions", topicMetadata.partitions).log("Get topic metadata");
             } catch (Exception ex) {
                 Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
                 assertTrue(unwrapEx instanceof PulsarClientException.TopicDoesNotExistException

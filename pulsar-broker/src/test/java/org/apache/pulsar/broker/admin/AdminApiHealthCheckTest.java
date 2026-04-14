@@ -33,7 +33,7 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.HealthChecker;
@@ -56,7 +56,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-@Slf4j
+@CustomLog
 public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
 
     private final ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
@@ -233,7 +233,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
             admin.brokers().healthcheck();
             fail("Should not reach here");
         } catch (PulsarAdminException e) {
-            log.info("Exception caught", e);
+            log.info().exception(e).log("Exception caught");
             assertTrue(e.getMessage().contains("LowOverheadTimeoutException"));
         }
         // To ensure we don't have any subscription, the producers and readers are closed.

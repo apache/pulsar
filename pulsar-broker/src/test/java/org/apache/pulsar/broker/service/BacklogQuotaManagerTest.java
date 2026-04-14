@@ -46,6 +46,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
@@ -83,8 +84,6 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -92,9 +91,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker")
 public class BacklogQuotaManagerTest {
-    private static final Logger log = LoggerFactory.getLogger(BacklogQuotaManagerTest.class);
 
     public static final String CLUSTER_NAME = "usc";
     private static final String QUOTA_CHECK_COUNT = "pulsar_storage_backlog_quota_check_duration_seconds_count";
@@ -172,7 +171,7 @@ public class BacklogQuotaManagerTest {
             admin.tenants().createTenant("prop",
                     new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {
-            LOG.error("Error setting up broker test", t);
+            log.error().exception(t).log("Error setting up broker test");
             fail("Broker test setup failed");
         }
     }
@@ -193,7 +192,7 @@ public class BacklogQuotaManagerTest {
                 bkEnsemble = null;
             }
         } catch (Throwable t) {
-            LOG.error("Error cleaning up broker test setup state", t);
+            log.error().exception(t).log("Error cleaning up broker test setup state");
             fail("Broker test cleanup failed");
         }
     }
@@ -297,7 +296,8 @@ public class BacklogQuotaManagerTest {
                 if (msg == null) {
                     break;
                 }
-                LOG.info("msg read: {} - {}", msg.getMessageId(), msg.getData()[0]);
+                log.info().attr("msgId", msg.getMessageId())
+                        .attr("data", msg.getData()[0]).log("Message read");
             }
         }
     }
@@ -376,7 +376,8 @@ public class BacklogQuotaManagerTest {
                 if (msg == null) {
                     break;
                 }
-                LOG.info("msg read: {} - {}", msg.getMessageId(), msg.getData()[0]);
+                log.info().attr("msgId", msg.getMessageId())
+                        .attr("data", msg.getData()[0]).log("Message read");
             }
             producer.close();
             reader.close();
@@ -500,7 +501,7 @@ public class BacklogQuotaManagerTest {
             // Move subscription 1 passed subscription 2
             for (int i = 0; i < 3; i++) {
                 Message<byte[]> message = consumer1.receive();
-                log.info("Subscription 1 about to ack message ID {}", message.getMessageId());
+                log.info().attr("msgId", message.getMessageId()).log("Subscription 1 about to ack");
                 consumer1.acknowledge(message);
             }
 
@@ -530,7 +531,7 @@ public class BacklogQuotaManagerTest {
             consumer2.acknowledge(secondOldestMessage);
             for (int i = 0; i < 2; i++) {
                 Message<byte[]> message = consumer2.receive();
-                log.info("Subscription 2 about to ack message ID {}", message.getMessageId());
+                log.info().attr("msgId", message.getMessageId()).log("Subscription 2 about to ack");
                 consumer2.acknowledge(message);
             }
 
@@ -739,7 +740,7 @@ public class BacklogQuotaManagerTest {
             consumer1.acknowledge(oldestMessage);
             c1MarkDeletePositionBefore = waitForMarkDeletePositionToChange(topic1, subName1,
                     c1MarkDeletePositionBefore);
-            log.info("Moved subscription 1, by 1 message {}", oldestMessage.getMessageId());
+            log.info().attr("msgId", oldestMessage.getMessageId()).log("Moved subscription 1, by 1 message");
 
             // 3. Expected the oldestBacklogMessageAgeSeconds is based on last ledger close time
             long expectedMessageAgeSeconds =
@@ -1095,7 +1096,8 @@ public class BacklogQuotaManagerTest {
                 if (msg == null) {
                     break;
                 }
-                LOG.info("msg read: {} - {}", msg.getMessageId(), msg.getData()[0]);
+                log.info().attr("msgId", msg.getMessageId())
+                        .attr("data", msg.getData()[0]).log("Message read");
             }
             producer.close();
             reader.close();
@@ -1828,16 +1830,16 @@ public class BacklogQuotaManagerTest {
         for (int i = 0; i <= numMsgs; i++) {
             try {
                 producer.send(content);
-                LOG.info("sent [{}]", i);
+                log.info().attr("index", i).log("Sent");
             } catch (PulsarClientException.TimeoutException cte) {
                 // producer close may cause a timeout on send
-                LOG.info("timeout on [{}]", i);
+                log.info().attr("index", i).log("Timeout");
             }
         }
 
         for (int i = 0; i < numMsgs; i++) {
             consumer.receive();
-            LOG.info("received [{}]", i);
+            log.info().attr("index", i).log("Received");
         }
 
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
@@ -2198,5 +2200,4 @@ public class BacklogQuotaManagerTest {
         TopicStats stats = getTopicStats(topic1);
         assertTrue(stats.getBacklogSize() < 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
-    private static final Logger LOG = LoggerFactory.getLogger(BacklogQuotaManagerTest.class);
 }

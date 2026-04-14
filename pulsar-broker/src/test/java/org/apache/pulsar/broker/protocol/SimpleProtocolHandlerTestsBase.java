@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -51,7 +51,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
 
@@ -105,7 +105,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
                         }
                         @Override
                         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                            log.error("error", cause);
+                            log.error().exception(cause).log("error");
                             ctx.close();
                         }
                     });

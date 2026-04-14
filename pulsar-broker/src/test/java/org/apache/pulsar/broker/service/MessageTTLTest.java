@@ -33,6 +33,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -46,16 +47,13 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class MessageTTLTest extends BrokerTestBase {
-
-    private static final Logger log = LoggerFactory.getLogger(MessageTTLTest.class);
 
     @BeforeClass
     @Override
@@ -105,7 +103,7 @@ public class MessageTTLTest extends BrokerTestBase {
 
         PersistentTopicInternalStats internalStatsBeforeExpire = admin.topics().getInternalStats(topicName);
         CursorStats statsBeforeExpire = internalStatsBeforeExpire.cursors.get(subscriptionName);
-        log.info("markDeletePosition before expire {}", statsBeforeExpire.markDeletePosition);
+        log.info().attr("beforeExpire", statsBeforeExpire.markDeletePosition).log("markDeletePosition before expire");
         assertEquals(statsBeforeExpire.markDeletePosition,
                 PositionFactory.create(firstMessageId.getLedgerId(), -1).toString());
 
@@ -116,7 +114,7 @@ public class MessageTTLTest extends BrokerTestBase {
             // verify that the markDeletePosition was moved forward, and exacly to the last message
             PersistentTopicInternalStats internalStatsAfterExpire = admin.topics().getInternalStats(topicName);
             CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
-            log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
+            log.info().attr("afterExpire", statsAfterExpire.markDeletePosition).log("markDeletePosition after expire");
             assertEquals(statsAfterExpire.markDeletePosition, PositionFactory.create(lastMessageId.getLedgerId(),
                     lastMessageId.getEntryId()).toString());
         });

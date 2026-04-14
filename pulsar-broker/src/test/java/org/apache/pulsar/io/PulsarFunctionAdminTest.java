@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -50,8 +51,6 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -60,6 +59,7 @@ import org.testng.annotations.Test;
  * Test Pulsar sink on function.
  */
 @Test(groups = "broker-io")
+@CustomLog
 public class PulsarFunctionAdminTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -85,14 +85,12 @@ public class PulsarFunctionAdminTest {
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
     private static final String TLS_TRUST_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionAdminTest.class);
     @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
 
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);

@@ -36,6 +36,7 @@ import java.util.function.Supplier;
 import javax.crypto.SecretKey;
 import javax.ws.rs.InternalServerErrorException;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -53,8 +54,6 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.zookeeper.KeeperException.Code;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -62,15 +61,14 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(AuthenticatedProducerConsumerTest.class);
 
     private static final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
     @SuppressWarnings("deprecation")
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
-
 
     @BeforeMethod
     @Override
@@ -174,7 +172,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -186,7 +184,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "batch")
     public void testTlsSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
@@ -203,12 +201,12 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(dataProvider = "batch")
     public void testBasicCryptSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         AuthenticationBasic authPassword = new AuthenticationBasic();
         authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
         internalSetup(authPassword);
@@ -221,12 +219,12 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(dataProvider = "batch")
     public void testBasicArp1SyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         AuthenticationBasic authPassword = new AuthenticationBasic();
         authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
@@ -239,13 +237,13 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
     @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "batch")
     public void testAnonymousSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
@@ -282,7 +280,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -293,7 +291,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testAuthenticationFilterNegative() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
@@ -315,7 +313,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -327,7 +325,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testInternalServerExceptionOnLookup() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));

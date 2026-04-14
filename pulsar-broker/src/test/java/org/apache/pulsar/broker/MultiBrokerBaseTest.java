@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -39,7 +39,7 @@ import org.apache.pulsar.common.util.PortManager;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
-@Slf4j
+@CustomLog
 public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
     protected List<PulsarTestContext> additionalPulsarTestContexts;
     protected List<PulsarService> additionalBrokers;
@@ -172,7 +172,7 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
         try {
             additionalCleanup();
         } catch (Exception e) {
-            log.warn("Exception during additional cleanup", e);
+            log.warn().exception(e).log("Exception during additional cleanup");
         }
         super.internalCleanup();
         if (!useDynamicBrokerPorts()) {
@@ -216,7 +216,7 @@ public abstract class MultiBrokerBaseTest extends MockedPulsarServiceBaseTest {
                     pulsarService.getConfiguration().getWebServicePort().ifPresent(PortManager::releaseLockedPort);
                     pulsarService.getConfiguration().getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
                 } catch (Exception e) {
-                    log.warn("Failed to stop additional broker", e);
+                    log.warn().exception(e).log("Failed to stop additional broker");
                 }
             }
             additionalBrokers = null;

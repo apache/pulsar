@@ -52,6 +52,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -82,14 +83,13 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "quarantine")
+@CustomLog
 public class PersistentDispatcherFailoverConsumerTest {
 
     private ServerCnx serverCnx;
@@ -723,7 +723,5 @@ public class PersistentDispatcherFailoverConsumerTest {
         blockField.set(consumer, blocked);
         return consumer;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherFailoverConsumerTest.class);
 
 }

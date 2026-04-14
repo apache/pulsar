@@ -63,8 +63,8 @@ import javax.ws.rs.NotAcceptableException;
 import javax.ws.rs.core.Response.Status;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -156,7 +156,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
@@ -243,8 +243,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             try {
                 cleanupCluster();
             } catch (Exception e) {
-                log.error("Failed to clean up state by deleting namespaces and tenants after test. "
-                        + "Restarting the test broker.", e);
+                log.error().exception(e).log("Failed to clean up state by deleting namespaces"
+                        + " and tenants after test. Restarting the test broker.");
                 restartClusterAndResetUsageCount();
             }
         }
@@ -260,14 +260,18 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             try {
                 admin.tenants().deleteTenant(tenant, true);
             } catch (Exception e) {
-                log.error("Failed to delete tenant {} after test", tenant, e);
+                log.error().attr("tenant", tenant).exception(e)
+                        .log("Failed to delete tenant after test");
                 String zkDirectory = "/managed-ledgers/" + tenant;
                 try {
-                    log.info("Listing {} to see if existing keys are preventing deletion.", zkDirectory);
+                    log.info().attr("zkDirectory", zkDirectory)
+                            .log("Listing to see if existing keys are preventing deletion.");
                     pulsar.getPulsarResources().getLocalMetadataStore().get().getChildren(zkDirectory)
-                            .get(5, TimeUnit.SECONDS).forEach(key -> log.info("Child key '{}'", key));
+                            .get(5, TimeUnit.SECONDS).forEach(key ->
+                                    log.info().attr("key", key).log("Child key"));
                 } catch (Exception ignore) {
-                    log.error("Failed to list tenant {} ZK directory {} after test", tenant, zkDirectory, e);
+                    log.error().attr("tenant", tenant).attr("zkDirectory", zkDirectory)
+                            .exception(e).log("Failed to list tenant ZK directory after test");
                 }
                 throw e;
             }
@@ -1641,7 +1645,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         //  0. without isolation policy configured, lookup will success.
         String brokerUrl = admin.lookups().lookupTopic(ns1Name + "/topic1");
         assertTrue(brokerUrl.contains(brokerName));
-        log.info("0 get lookup url {}", brokerUrl);
+        log.info().attr("brokerUrl", brokerUrl).log("get lookup url");
 
         // create
         String policyName1 = "policy-1";
@@ -1666,7 +1670,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         //  1. with matched isolation broker configured and matched, lookup will success.
         brokerUrl = admin.lookups().lookupTopic(ns1Name + "/topic2");
         assertTrue(brokerUrl.contains(brokerName));
-        log.info(" 1 get lookup url {}", brokerUrl);
+        log.info().attr("brokerUrl", brokerUrl).log("get lookup url with isolation");
 
         //  2. update isolation policy, without broker matched, lookup will fail.
         nsPolicyData1.getPrimary().clear();
@@ -2559,7 +2563,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             Assert.fail();
         } catch (PulsarClientException e) {
-            log.info("Exception: ", e);
+            log.info().exception(e).log("Exception");
         }
 
         // check producer/consumer auto create non-partitioned topic
@@ -2577,7 +2581,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             Assert.fail();
         } catch (PulsarClientException e) {
-            log.info("Exception: ", e);
+            log.info().exception(e).log("Exception");
         }
     }
 
@@ -2636,7 +2640,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.topics().createSubscription(topic, "test-sub3", MessageId.earliest);
             Assert.fail();
         } catch (PulsarAdminException e) {
-            log.info("create subscription failed. Exception: ", e);
+            log.info().exception(e).log("create subscription failed");
         }
 
         cleanup();

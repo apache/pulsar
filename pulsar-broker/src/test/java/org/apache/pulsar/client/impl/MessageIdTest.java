@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Future;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -36,13 +37,11 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.EnumValuesDataProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 @Test
+@CustomLog
 public class MessageIdTest extends SharedPulsarBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(MessageIdTest.class);
 
     @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
     public void producerSendAsync(TopicType topicType) throws PulsarClientException, PulsarAdminException {
@@ -97,7 +96,7 @@ public class MessageIdTest extends SharedPulsarBaseTest {
         // And
         // expect that there's a message id for each sent out message
         // and that all messages have been received by the consumer
-        log.info("Message IDs = {}", messageIds);
+        log.info().attr("iDs", messageIds).log("Message IDs");
         assertEquals(messageIds.size(), numberOfMessages, "Not all messages published successfully");
 
         for (int i = 0; i < numberOfMessages; i++) {
@@ -106,7 +105,7 @@ public class MessageIdTest extends SharedPulsarBaseTest {
             MessageId messageId = message.getMessageId();
             assertTrue(messageIds.remove(messageId), "Failed to receive message");
         }
-        log.info("Remaining message IDs = {}", messageIds);
+        log.info().attr("iDs", messageIds).log("Remaining message IDs");
         assertEquals(messageIds.size(), 0, "Not all messages received successfully");
         consumer.unsubscribe();
     }
@@ -144,14 +143,14 @@ public class MessageIdTest extends SharedPulsarBaseTest {
 
         // Then
         // expect that the Message Ids of subsequently sent messages are in ascending order
-        log.info("Message IDs = {}", messageIds);
+        log.info().attr("iDs", messageIds).log("Message IDs");
         assertEquals(messageIds.size(), numberOfMessages, "Not all messages published successfully");
 
         for (int i = 0; i < numberOfMessages; i++) {
             MessageId messageId = consumer.receive().getMessageId();
             assertTrue(messageIds.remove(messageId), "Failed to receive Message");
         }
-        log.info("Remaining message IDs = {}", messageIds);
+        log.info().attr("iDs", messageIds).log("Remaining message IDs");
         assertEquals(messageIds.size(), 0, "Not all messages received successfully");
         consumer.unsubscribe();
     }

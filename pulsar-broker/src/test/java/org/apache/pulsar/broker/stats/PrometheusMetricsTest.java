@@ -66,7 +66,7 @@ import java.util.stream.Collectors;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.io.IOUtils;
@@ -109,7 +109,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PrometheusMetricsTest extends BrokerTestBase {
     @SuppressWarnings("deprecation")
@@ -1374,7 +1374,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 .filter(str -> StringUtils.isNotBlank(str))
                 .collect(Collectors.toSet());
     }
-
 
     @Test
     public void testManagedLedgerCacheStats() throws Exception {

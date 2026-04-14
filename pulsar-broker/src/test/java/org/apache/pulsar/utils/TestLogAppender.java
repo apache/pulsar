@@ -69,6 +69,16 @@ public class TestLogAppender extends AbstractAppender implements AutoCloseable {
     }
 
     /**
+     * Create a new TestLogAppender for a given slog logger. Use the {@link #close()} method to stop it and unregister
+     * it from Log4J.
+     * @param log The name of the slog logger instance will be used as the logger name to register the appender to.
+     * @return return the new TestLogAppender instance.
+     */
+    public static TestLogAppender create(io.github.merlimat.slog.Logger log) {
+        return create(Optional.of(log.name()));
+    }
+
+    /**
      * Create a new TestLogAppender for a given class. Use the {@link #close()} method to stop it and unregister it
      * from Log4J.
      * @param clazz The name of the class will be used as the logger name to register the appender to.

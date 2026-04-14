@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -37,7 +37,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ExtensibleLoadManagerCloseTest {
 
@@ -114,7 +114,7 @@ public class ExtensibleLoadManagerCloseTest {
             broker.close();
             closeTimeMsList.add(System.currentTimeMillis() - startTimeMs);
         }
-        log.info("Brokers close time: {}", closeTimeMsList);
+        log.info().attr("closeTimeMsList", closeTimeMsList).log("Brokers close time");
         for (var closeTimeMs : closeTimeMsList) {
             Assert.assertTrue(closeTimeMs < 5000L);
         }
@@ -137,7 +137,7 @@ public class ExtensibleLoadManagerCloseTest {
         final var start = System.currentTimeMillis();
         brokers.get(0).close();
         final var closeTimeMs = System.currentTimeMillis() - start;
-        log.info("Broker close time: {}", closeTimeMs);
+        log.info().attr("closeTimeMs", closeTimeMs).log("Broker close time");
         Assert.assertTrue(closeTimeMs < 5000L);
     }
 }

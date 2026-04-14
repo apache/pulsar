@@ -37,6 +37,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -61,6 +62,7 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker-io")
 public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
 
@@ -283,7 +285,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
 
         // validate prometheus metrics empty
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-        LOG.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("prometheusMetrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
         TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_sink_received_total");
@@ -388,7 +390,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
 
         // get stats after producing
         prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
-        LOG.info("prometheusMetrics: {}", prometheusMetrics);
+        log.info().attr("prometheusMetrics", prometheusMetrics).log("prometheus metrics");
 
         metrics = TestPulsarFunctionUtils.parseMetrics(prometheusMetrics);
         m = metrics.get("pulsar_sink_received_total");

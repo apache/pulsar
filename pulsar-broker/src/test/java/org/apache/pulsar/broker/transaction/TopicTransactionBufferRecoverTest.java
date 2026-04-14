@@ -43,7 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -101,7 +101,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     private static final String RECOVER_COMMIT = NAMESPACE1 + "/recover-commit";
@@ -177,10 +177,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             String msg = content + i;
             if (i % 2 == 0) {
                 MessageId messageId = producer.newMessage(tnx1).value(msg).send();
-                log.info("Txn1 send message : {}, messageId : {}", msg, messageId);
+                log.info().attr("sendMessage", msg).attr("messageid", messageId).log("Txn1 send message , messageId");
             } else {
                 MessageId messageId = producer.newMessage(tnx2).value(msg).send();
-                log.info("Txn2 send message : {}, messageId : {}", msg, messageId);
+                log.info().attr("sendMessage", msg).attr("messageid", messageId).log("Txn2 send message , messageId");
             }
         }
         Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -191,7 +191,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // only can receive message 1
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNotNull(message);
-        log.info("Txn1 commit receive message : {}, messageId : {}", message.getValue(), message.getMessageId());
+        log.info().attr("receiveMessage", message.getValue()).attr("messageid", message.getMessageId())
+                .log("Txn1 commit receive message , messageId");
         consumer.acknowledge(message);
 
         // can't receive message
@@ -225,8 +226,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
             for (int i = messageCnt; i > 1; i--) {
                 message = consumer.receive();
-                log.info("Txn2 commit receive message : {}, messageId : {}",
-                        message.getValue(), message.getMessageId());
+                log.info().attr("receiveMessage", message.getValue()).attr("messageid", message.getMessageId())
+                        .log("Txn2 commit receive message , messageId");
                 consumer.acknowledge(message);
             }
 
@@ -238,8 +239,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
             for (int i = messageCnt / 2; i > 1; i--) {
                 message = consumer.receive();
-                log.info("Txn2 commit receive message : {}, messageId : {}",
-                        message.getValue(), message.getMessageId());
+                log.info().attr("receiveMessage", message.getValue()).attr("messageid", message.getMessageId())
+                        .log("Txn2 commit receive message , messageId");
                 consumer.acknowledge(message);
             }
 
@@ -376,7 +377,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         // take snapshot by change times
         MessageId messageId2 = producer.newMessage(tnx2).value("test").send();
         tnx2.commit().get();
-
 
         TransactionBufferSnapshot snapshot = reader.readNext().getValue();
         assertEquals(snapshot.getMaxReadPositionEntryId(), ((MessageIdImpl) messageId2).getEntryId() + 1);
@@ -718,7 +718,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         SystemTopicClient.Reader<TransactionBufferSnapshotIndexes> indexesReader =
                 transactionBufferSnapshotIndexService.createReader(TopicName.get(SNAPSHOT_INDEX)).get();
-
 
         List<TransactionBufferSnapshotIndex> indexList = new LinkedList<>();
 

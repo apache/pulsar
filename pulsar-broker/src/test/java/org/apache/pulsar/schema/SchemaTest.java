@@ -50,8 +50,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -103,7 +103,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "schema")
 public class SchemaTest extends MockedPulsarServiceBaseTest {
 
@@ -257,20 +257,20 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(personConsume.getName(), "Tom");
         assertEquals(personConsume.getId(), 1);
         Schema<?> schema = message.getReaderSchema().get();
-        log.info("the-schema {}", schema);
+        log.info().attr("schema", schema).log("the-schema");
         assertEquals(personTwoSchema.getSchemaInfo(), schema.getSchemaInfo());
         org.apache.avro.Schema nativeSchema = (org.apache.avro.Schema) schema.getNativeSchema().get();
-        log.info("nativeSchema-schema {}", nativeSchema);
+        log.info().attr("schema", nativeSchema).log("nativeSchema-schema");
         assertNotNull(nativeSchema);
 
         // verify that with AUTO_CONSUME we can access the original schema
         // and the Native AVRO schema
         Message<?> message2 = consumer2.receive();
         Schema<?> schema2 = message2.getReaderSchema().get();
-        log.info("the-schema {}", schema2);
+        log.info().attr("schema", schema2).log("the-schema");
         assertEquals(personTwoSchema.getSchemaInfo(), schema2.getSchemaInfo());
         org.apache.avro.Schema nativeSchema2 = (org.apache.avro.Schema) schema.getNativeSchema().get();
-        log.info("nativeSchema-schema {}", nativeSchema2);
+        log.info().attr("schema", nativeSchema2).log("nativeSchema-schema");
         assertNotNull(nativeSchema2);
 
         producer.close();
@@ -359,20 +359,20 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(personConsume.getName(), "Tom");
         assertEquals(personConsume.getId(), 1);
         KeyValueSchemaImpl schema = (KeyValueSchemaImpl) message.getReaderSchema().get();
-        log.info("the-schema {}", schema);
+        log.info().attr("schema", schema).log("the-schema");
         assertEquals(personTwoSchema.getSchemaInfo(), schema.getValueSchema().getSchemaInfo());
         org.apache.avro.Schema nativeSchema = (org.apache.avro.Schema) schema.getValueSchema().getNativeSchema().get();
-        log.info("nativeSchema-schema {}", nativeSchema);
+        log.info().attr("schema", nativeSchema).log("nativeSchema-schema");
         assertNotNull(nativeSchema);
 
         // verify that with AUTO_CONSUME we can access the original schema
         // and the Native AVRO schema
         Message<?> message2 = consumer2.receive();
         KeyValueSchemaImpl schema2 = (KeyValueSchemaImpl) message2.getReaderSchema().get();
-        log.info("the-schema {}", schema2);
+        log.info().attr("schema", schema2).log("the-schema");
         assertEquals(personTwoSchema.getSchemaInfo(), schema2.getValueSchema().getSchemaInfo());
         org.apache.avro.Schema nativeSchema2 = (org.apache.avro.Schema) schema.getValueSchema().getNativeSchema().get();
-        log.info("nativeSchema-schema {}", nativeSchema2);
+        log.info().attr("schema", nativeSchema2).log("nativeSchema-schema");
         assertNotNull(nativeSchema2);
 
         producer.close();
@@ -505,8 +505,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         Schema<?> schema = message.getReaderSchema().get();
         Schema<?> schema1 = message1.getReaderSchema().get();
-        log.info("schema {}", schema);
-        log.info("schema1 {}", schema1);
+        log.info().attr("schema", schema).log("schema");
+        log.info().attr("schema1", schema1).log("schema1");
         assertEquals(schema.getSchemaInfo(), schema1.getSchemaInfo());
 
         producer.close();
@@ -763,9 +763,11 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
 
         Message<KeyValue<Schemas.PersonOne, Schemas.PersonTwo>> message = consumer.receive();
         Message<GenericRecord> message2 = consumer2.receive();
-        log.info("message: {},{}", message.getValue(), message.getValue().getClass());
-        log.info("message2: {},{}", message2.getValue().getNativeObject(),
-                message2.getValue().getNativeObject().getClass());
+        log.info().attr("message", message.getValue()).attr("class", message.getValue().getClass()).log("message");
+        log.info()
+                .attr("message2", message2.getValue().getNativeObject())
+                .attr("class", message2.getValue().getNativeObject().getClass())
+                .log("message2");
         KeyValue<GenericRecord, GenericRecord> keyValue2 =
                 (KeyValue<GenericRecord, GenericRecord>) message2.getValue().getNativeObject();
         assertEquals(message.getValue().getKey().id, keyValue2.getKey().getField("id"));
@@ -1123,8 +1125,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             if (message == null) {
                 Assert.fail("Failed to receive multiple schema message.");
             }
-            log.info("auto consumer get native object class: {}, value: {}",
-                    message.getValue().getNativeObject().getClass(), message.getValue().getNativeObject());
+            log.info()
+                    .attr("class", message.getValue().getNativeObject().getClass())
+                    .attr("value", message.getValue().getNativeObject())
+                    .log("auto consumer get native object class: , value");
             checkSchemaForAutoSchema(message);
         }
     }
@@ -1474,10 +1478,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < 100; i++) {
             final String msg = "msg-with-broken-schema-" + i;
             latestSend.set(producer.newMessage(Schema.BOOL).value(false).sendAsync().thenApply(v -> {
-                log.info("send complete {}", msg);
+                log.info().attr("complete", msg).log("send complete");
                 return null;
             }).exceptionally(ex -> {
-                log.error("failed to send {}", msg, ex);
+                log.error().attr("message", msg).exception((Throwable) ex).log("Failed to send");
                 return null;
             }));
         }

@@ -35,21 +35,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(ConsumerRedeliveryTest.class);
 
     @DataProvider(name = "ackReceiptEnabled")
     public Object[][] ackReceiptEnabled() {
@@ -373,7 +371,8 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
                 .create();
         for (int i = 0; i < batchSize; i++) {
             String value = "msg-" + i;
-            producer.sendAsync(value).thenAccept(id -> log.info("{} was sent to {}", value, id));
+            producer.sendAsync(value).thenAccept(
+                    id -> log.info().attr("value", value).attr("id", id).log("message sent"));
         }
         List<Message<String>> msgs = new ArrayList<>();
         for (int i = 0; i < batchSize; i++) {
@@ -395,7 +394,7 @@ public class ConsumerRedeliveryTest extends SharedPulsarBaseTest {
             if (msg == null) {
                 break;
             }
-            log.info("Received {} from {}", msg.getValue(), msg.getMessageId());
+            log.info().attr("received", msg.getValue()).attr("from", msg.getMessageId()).log("Received from");
             msgs.add(msg);
         }
         List<String> values = msgs.stream().map(Message::getValue).collect(Collectors.toList());

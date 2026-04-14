@@ -68,6 +68,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -130,17 +131,15 @@ import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker-admin")
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(NamespacesTest.class);
     private Namespaces namespaces;
 
     private List<NamespaceName> testLocalNamespaces;
@@ -444,7 +443,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition1: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition1");
                 return true;
             });
 
@@ -460,7 +459,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition2: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition2");
                 return true;
             });
         try {
@@ -475,7 +474,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition3: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition3");
                 return true;
             });
         try {
@@ -491,7 +490,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition4: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition4");
                 return true;
             });
         try {
@@ -507,7 +506,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition5: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition5");
                 return true;
             });
         try {
@@ -523,7 +522,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 // test is disabled and failing so I can't see what paths are needed here
                 // if it ever gets enabled and fixed, first check what is expected and update these
                 // paths
-                log.info("Condition6: {} {}", op, path);
+                log.info().attr("op", op).attr("path", path).log("Condition6");
                 return true;
             });
         try {
@@ -1762,7 +1761,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             fail();
         } catch (PulsarClientException e) {
-            log.info("Exception: ", e);
+            log.info().exception(e).log("Exception");
         }
 
         // remove namespace limit
@@ -1791,7 +1790,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsarClient.newConsumer().topic(topic + "4").subscriptionName("test_sub").subscribe().close();
             fail();
         } catch (PulsarClientException e) {
-            log.info("Exception: ", e);
+            log.info().exception(e).log("Exception");
         }
 
         // set namespace limit to 5
@@ -1802,7 +1801,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             pulsarClient.newConsumer().topic(topic + "6").subscriptionName("test_sub").subscribe().close();
             fail();
         } catch (PulsarClientException e) {
-            log.info("Exception: ", e);
+            log.info().exception(e).log("Exception");
         }
 
         // remove namespace limit

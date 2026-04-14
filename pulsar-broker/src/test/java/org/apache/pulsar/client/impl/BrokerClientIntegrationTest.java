@@ -57,6 +57,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -102,8 +103,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -111,8 +110,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(BrokerClientIntegrationTest.class);
 
     @BeforeMethod
     @Override
@@ -316,7 +315,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "subType")
     public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         final String subscriptionName = "my-subscriber-name" + subType;
@@ -394,7 +393,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         for (int i = 0; i < numMessagesPerBatch; i++) {
             msg = consumer2.receive();
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-batch-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             consumer2.acknowledge(msg);
@@ -403,7 +402,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         consumer2.close();
         producer.close();
         batchProducer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test(dataProvider = "subType")
@@ -664,7 +663,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
     @Test
     public void testCleanProducer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final int operationTimeOut = 500;
         @Cleanup
@@ -684,7 +683,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         Set<ProducerBase<byte[]>> producers = (Set<ProducerBase<byte[]>>) prodField
                 .get(pulsarClient);
         assertTrue(producers.isEmpty());
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     /**
@@ -712,7 +711,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test
     public void testAddEntryOperationTimeout() throws Exception {
 
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         conf.setManagedLedgerAddEntryTimeoutSeconds(1);
 
@@ -754,7 +753,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             if (ex == null) {
                 addedSuccessfully.set(true);
             } else {
-                log.error("add-entry failed for {}", methodName, ex);
+                log.error().attr("entry", methodName).exception(ex).log("add-entry failed for");
             }
             latch.countDown();
             return null;
@@ -859,7 +858,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "booleanFlagProvider")
     public void testConsumerWithPooledMessages(boolean isBatchingEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
@@ -916,7 +915,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test(dataProvider = "booleanFlagProvider")
     @SuppressWarnings("unchecked")
     public void testPooledMessageWithAckTimeout(boolean isBatchingEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
@@ -960,7 +959,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "booleanFlagProvider")
     public void testConsumerWithPooledMessagesWithReader(boolean isBatchingEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
@@ -1011,7 +1010,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
     @Test
     public void testActiveConsumerCleanup() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         int numMessages = 100;
         final CountDownLatch latch = new CountDownLatch(numMessages);
@@ -1024,7 +1023,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             (ConsumerImpl) pulsarClient.newConsumer().topic(topic).subscriptionName(sub).messageListener((c1, msg) -> {
                 Assert.assertNotNull(msg, "Message cannot be null");
                 String receivedMessage = new String(msg.getData());
-                log.debug("Received message [{}] in the listener", receivedMessage);
+                log.debug().attr("message", receivedMessage).log("Received message in the listener");
                 c1.acknowledgeAsync(msg);
                 latch.countDown();
             }).subscribe();
@@ -1053,7 +1052,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
                 consumer = pulsarClient2.newConsumer().topic(topic).subscriptionName(sub).messageListener((c1, msg) -> {
                     Assert.assertNotNull(msg, "Message cannot be null");
                     String receivedMessage = new String(msg.getData());
-                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    log.debug().attr("message", receivedMessage).log("Received message in the listener");
                     c1.acknowledgeAsync(msg);
                     latch.countDown();
                 }).subscribe();
@@ -1062,7 +1061,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             }
         }
         assertNotNull(consumer);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
 
         // cleanup.
         countDownLatch.countDown();

@@ -48,6 +48,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -78,8 +79,6 @@ import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -88,9 +87,9 @@ import org.testng.annotations.Test;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
 @Test(groups = "broker-impl")
+@CustomLog
 public class TopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
-    private static final Logger log = LoggerFactory.getLogger(TopicsConsumerImplTest.class);
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
 
     @Override
@@ -188,8 +187,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         List<String> topics = ((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitions();
         List<ConsumerImpl<byte[]>> consumers = ((MultiTopicsConsumerImpl) consumer).getConsumers();
 
-        topics.forEach(topic -> log.info("topic: {}", topic));
-        consumers.forEach(c -> log.info("consumer: {}", c.getTopic()));
+        topics.forEach(topic -> log.info().attr("topic", topic).log("topic"));
+        consumers.forEach(c -> log.info().attr("topic", c.getTopic()).log("consumer"));
 
         IntStream.range(0, 6).forEach(index ->
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
@@ -370,7 +369,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             futures.add(producer2.sendAsync((messagePredicate + "producer2-" + i).getBytes()));
             futures.add(producer3.sendAsync((messagePredicate + "producer3-" + i).getBytes()));
         }
-        log.info("Waiting for async publish to complete : {}", futures.size());
+        log.info().attr("complete", futures.size()).log("Waiting for async publish to complete");
         for (Future<MessageId> future : futures) {
             future.get();
         }
@@ -389,10 +388,16 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                         fail("message acknowledge failed", e1);
                     }
                     latch.countDown();
-                    log.info("receive index: {}, latch countDown: {}", index, latch.getCount());
+                    log.info()
+                            .attr("index", index)
+                            .attr("countDown", latch.getCount())
+                            .log("receive index: , latch countDown");
                 })
                 .exceptionally(ex -> {
-                    log.warn("receive index: {}, failed receive message {}", index, ex.getMessage());
+                    log.warn()
+                            .attr("index", index)
+                            .exceptionMessage(ex)
+                            .log("Failed to receive message");
                     ex.printStackTrace();
                     return null;
                 })));
@@ -876,8 +881,10 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                 String receivedMessage = new String(msg.getData());
                 latch.countDown();
 
-                log.info("Received message [{}] in the listener, latch: {}",
-                    receivedMessage, latch.getCount());
+                log.info()
+                        .attr("message", receivedMessage)
+                        .attr("latch", latch.getCount())
+                        .log("Received message in the listener, latch");
                 // since not acked, it should retry another time
                 //c1.acknowledgeAsync(msg);
             })
@@ -955,7 +962,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         for (int i = 0; i < totalMessages; i++) {
             producer1.send((messagePredicate + "topic1-partition-2 index:" + i).getBytes());
             producer2.send((messagePredicate + "topic2-partition-2 index:" + i).getBytes());
-            log.info("produce message to partition-2 again. messageindex: {}", i);
+            log.info().attr("messageindex", i).log("produce message to partition-2 again. messageindex");
         }
         int messageSet = 0;
         Message<byte[]> message = consumer.receive();
@@ -1180,7 +1187,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         Map<String, MessageId> map = multiMessageId.getMap();
         assertEquals(map.size(), 6);
         map.forEach((k, v) -> {
-            log.info("topic: {}, messageId:{} ", k, v.toString());
+            log.info().attr("topic", k).attr("messageId", v.toString()).log("topic: , messageId");
             assertTrue(v instanceof MessageIdImpl);
             MessageIdImpl messageId1 = (MessageIdImpl) v;
             if (k.contains(topicName1)) {
@@ -1219,7 +1226,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         Map<String, MessageId> map2 = multiMessageId2.getMap();
         assertEquals(map2.size(), 6);
         map2.forEach((k, v) -> {
-            log.info("topic: {}, messageId:{} ", k, v.toString());
+            log.info().attr("topic", k).attr("messageId", v.toString()).log("topic: , messageId");
             assertTrue(v instanceof MessageIdImpl);
             MessageIdImpl messageId1 = (MessageIdImpl) v;
             if (k.contains(topicName1)) {
@@ -1400,7 +1407,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                     .subscribe());
         }
 
-        log.info("Topics are distributed to consumers as {}", eventListener.getActiveConsumers());
+        log.info().attr("as", eventListener.getActiveConsumers()).log("Topics are distributed to consumers as");
         Map<String, Integer> assigned = new HashMap<>();
         eventListener.getActiveConsumers().forEach((k, v) -> assigned.compute(v, (t, c) -> c == null ? 1 : ++c));
         assertEquals(assigned.size(), consumers);
@@ -1433,7 +1440,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
                     .subscribe());
         }
 
-        log.info("Topics are distributed to consumers as {}", eventListener.getActiveConsumers());
+        log.info().attr("as", eventListener.getActiveConsumers()).log("Topics are distributed to consumers as");
         Map<String, Integer> assigned = new HashMap<>();
         eventListener.getActiveConsumers().forEach((k, v) -> assigned.compute(v, (t, c) -> c == null ? 1 : ++c));
         assertEquals(assigned.size(), consumers);

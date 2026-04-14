@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -49,14 +50,12 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(ZeroQueueSizeTest.class);
     private final int totalMessages = 10;
 
     @Test
@@ -551,7 +550,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
             consumer.pause();
         }
 
-        log.info("Received messages: {}", receivedMessages);
+        log.info().attr("messages", receivedMessages).log("Received messages");
         assertEquals(receivedMessages.size(), numMessages);
         for (int i = 0; i < numMessages; i++) {
             assertEquals(receivedMessages.get(i).intValue(), i);

@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -83,7 +83,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     public static byte[] createMessageWrittenToLedger(String msg) {
@@ -355,7 +355,6 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         Thread.sleep(100);
         long timeAfterBrokerTimestamp = System.currentTimeMillis();
 
-
         CompletableFuture<Void> publishTimeFuture = findMessage(result, cursorNew, timeAfterPublishTime);
         publishTimeFuture.get();
         assertNull(result.exception);
@@ -548,19 +547,19 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         bkc.deleteLedger(ledgers.get(9).getLedgerId());
 
         MessageId messageId = findMessageIdByPublishTime(initTimeMillis + 17, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(3).getLedgerId(), 2, -1));
 
         messageId = findMessageIdByPublishTime(initTimeMillis + 27, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(4).getLedgerId(), 0, -1));
 
         messageId = findMessageIdByPublishTime(initTimeMillis + 43, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(8).getLedgerId(), 3, -1));
 
         messageId = findMessageIdByPublishTime(initTimeMillis + 48, ledger).join();
-        log.info("messageId: {}", messageId);
+        log.info().attr("messageid", messageId).log("messageId");
         assertEquals(messageId, new MessageIdImpl(ledgers.get(9).getLedgerId(), 0, -1));
 
         ledger.close();
@@ -612,19 +611,19 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         Result result = new Result();
 
         findMessage(result, cursor, initTimeMillis + 17, -1).join();
-        log.info("position: {}", result.position);
+        log.info().attr("position", result.position).log("position");
         assertNull(result.exception);
         assertEquals(result.position, PositionFactory.create(ledgers.get(3).getLedgerId(), 1));
 
         result = new Result();
         findMessage(result, cursor, initTimeMillis + 27, -1).join();
-        log.info("position: {}", result.position);
+        log.info().attr("position", result.position).log("position");
         assertNull(result.exception);
         assertEquals(result.position, PositionFactory.create(ledgers.get(3).getLedgerId(), 4));
 
         result = new Result();
         findMessage(result, cursor, initTimeMillis + 43, -1).join();
-        log.info("position: {}", result.position);
+        log.info().attr("position", result.position).log("position");
         assertNull(result.exception);
         assertEquals(result.position, PositionFactory.create(ledgers.get(8).getLedgerId(), 2));
 
@@ -638,7 +637,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
                 long entryTimestamp = entry.getEntryTimestamp();
                 return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
             } catch (Exception e) {
-                log.error("Error deserializing message for message position find", e);
+                log.error().exception(e).log("Error deserializing message for message position find");
             } finally {
                 entry.release();
             }

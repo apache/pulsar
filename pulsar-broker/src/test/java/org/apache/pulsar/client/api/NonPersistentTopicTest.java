@@ -45,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -75,8 +76,6 @@ import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -84,8 +83,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class NonPersistentTopicTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentTopicTest.class);
     private final String configClusterName = "r1";
 
     @DataProvider(name = "subscriptionType")
@@ -179,7 +178,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "subscriptionType")
     public void testNonPersistentTopic(SubscriptionType type) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
@@ -201,7 +200,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             if (msg != null) {
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());
-                log.debug("Received message: [{}]", receivedMessage);
+                log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
                 String expectedMessage = "my-message-" + i;
                 testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             } else {
@@ -212,13 +211,13 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
 
     }
 
     @Test(dataProvider = "subscriptionType")
     public void testPartitionedNonPersistentTopic(SubscriptionType type) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String topic = "non-persistent://my-property/my-ns/partitioned-topic";
         admin.topics().createPartitionedTopic(topic, 5);
@@ -244,7 +243,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             if (msg != null) {
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());
-                log.debug("Received message: [{}]", receivedMessage);
+                log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
                 String expectedMessage = "my-message-" + i;
                 testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             } else {
@@ -255,14 +254,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
 
     }
     @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "subscriptionType")
     public void testPartitionedNonPersistentTopicWithTcpLookup(SubscriptionType type) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final int numPartitions = 5;
         final String topic = "non-persistent://my-property/my-ns/partitioned-topic";
@@ -301,7 +300,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             if (msg != null) {
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());
-                log.debug("Received message: [{}]", receivedMessage);
+                log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
                 String expectedMessage = "my-message-" + i;
                 testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             } else {
@@ -312,7 +311,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -320,7 +319,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "subscriptionType")
     public void testConsumerInternalQueueMaxOut(SubscriptionType type) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         final int queueSize = 10;
@@ -343,7 +342,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             if (msg != null) {
                 consumer.acknowledge(msg);
                 String receivedMessage = new String(msg.getData());
-                log.debug("Received message: [{}]", receivedMessage);
+                log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
                 String expectedMessage = "my-message-" + i;
                 testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             } else {
@@ -354,7 +353,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
 
     }
 
@@ -389,7 +388,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                         String message = "my-message-" + messageIndex;
                         producer.send(message.getBytes());
                     } catch (Exception e) {
-                        log.error("Failed to send message", e);
+                        log.error().exception(e).log("Failed to send message");
                         failed.set(true);
                     }
                     latch.countDown();
@@ -438,7 +437,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      */
     @Test
     public void testMultipleSubscription() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         final String topic = "non-persistent://my-property/my-ns/unacked-topic";
         ConsumerImpl<byte[]> consumer1Shared = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
@@ -508,7 +507,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         consumer2Shared.close();
         consumer1FailOver.close();
         consumer2FailOver.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
 
     }
 
@@ -1136,7 +1135,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         try {
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().updateRates()).get();
         } catch (Exception e) {
-            log.error("Stats executor error", e);
+            log.error().exception(e).log("Stats executor error");
         }
     }
 }

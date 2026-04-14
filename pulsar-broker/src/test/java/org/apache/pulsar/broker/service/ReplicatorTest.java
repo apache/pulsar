@@ -56,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -113,8 +114,6 @@ import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -126,6 +125,7 @@ import org.testng.annotations.Test;
  * Starts 3 brokers that are in 3 different clusters.
  */
 @Test(groups = "broker-replication")
+@CustomLog
 public class ReplicatorTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -273,27 +273,27 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest);
-        log.info("--- Starting producer --- " + url1);
+        log.info().attr("url1", url1).log("--- Starting producer ---");
 
         @Cleanup
         MessageProducer producer2 = new MessageProducer(url2, dest);
-        log.info("--- Starting producer --- " + url2);
+        log.info().attr("url2", url2).log("--- Starting producer ---");
 
         @Cleanup
         MessageProducer producer3 = new MessageProducer(url3, dest);
-        log.info("--- Starting producer --- " + url3);
+        log.info().attr("url3", url3).log("--- Starting producer ---");
 
         @Cleanup
         MessageConsumer consumer1 = new MessageConsumer(url1, dest);
-        log.info("--- Starting Consumer --- " + url1);
+        log.info().attr("url1", url1).log("--- Starting Consumer ---");
 
         @Cleanup
         MessageConsumer consumer2 = new MessageConsumer(url2, dest);
-        log.info("--- Starting Consumer --- " + url2);
+        log.info().attr("url2", url2).log("--- Starting Consumer ---");
 
         @Cleanup
         MessageConsumer consumer3 = new MessageConsumer(url3, dest);
-        log.info("--- Starting Consumer --- " + url3);
+        log.info().attr("url3", url3).log("--- Starting Consumer ---");
 
         // Produce from cluster1 and consume from the rest
         producer1.produce(2);
@@ -414,7 +414,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
             int id1 = (int) record1.getField("id");
             int id2 = (int) record2.getField("id");
             int id3 = (int) record3.getField("id");
-            log.info("Received ids, id1: {}, id2: {}, id3: {}, lastId: {}", id1, id2, id3, lastId);
+            log.info().attr("id1", id1).attr("id2", id2).attr("id3", id3).attr("lastid", lastId)
+                    .log("Received ids, id1, id2, id3, lastId");
             assertTrue(id1 == id2 && id2 == id3);
             assertTrue(id1 > lastId);
             lastId = id1;
@@ -549,27 +550,27 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
             @Cleanup
             MessageProducer producer1 = new MessageProducer(url1, dest);
-            log.info("--- Starting producer --- " + url1);
+            log.info().attr("url1", url1).log("--- Starting producer ---");
 
             @Cleanup
             MessageProducer producer2 = new MessageProducer(url2, dest);
-            log.info("--- Starting producer --- " + url2);
+            log.info().attr("url2", url2).log("--- Starting producer ---");
 
             @Cleanup
             MessageProducer producer3 = new MessageProducer(url3, dest);
-            log.info("--- Starting producer --- " + url3);
+            log.info().attr("url3", url3).log("--- Starting producer ---");
 
             @Cleanup
             MessageConsumer consumer1 = new MessageConsumer(url1, dest);
-            log.info("--- Starting Consumer --- " + url1);
+            log.info().attr("url1", url1).log("--- Starting Consumer ---");
 
             @Cleanup
             MessageConsumer consumer2 = new MessageConsumer(url2, dest);
-            log.info("--- Starting Consumer --- " + url2);
+            log.info().attr("url2", url2).log("--- Starting Consumer ---");
 
             @Cleanup
             MessageConsumer consumer3 = new MessageConsumer(url3, dest);
-            log.info("--- Starting Consumer --- " + url3);
+            log.info().attr("url3", url3).log("--- Starting Consumer ---");
 
             // Produce a message that isn't replicated
             producer1.produce(1, producer1.newMessage().disableReplication());
@@ -701,7 +702,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(status.getReplicationBacklog(), 0);
     }
 
-
     @Test(timeOut = 30000)
     public void testResetReplicatorSubscriptionPosition() throws Exception {
         final TopicName dest = TopicName
@@ -742,11 +742,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest);
-        log.info("--- Starting producer --- " + url1);
+        log.info().attr("url1", url1).log("--- Starting producer ---");
 
         @Cleanup
         MessageConsumer consumer1 = new MessageConsumer(url1, dest);
-        log.info("--- Starting Consumer --- " + url1);
+        log.info().attr("url1", url1).log("--- Starting Consumer ---");
 
         // Produce from cluster1 and consume from the rest
         producer1.produce(2);
@@ -766,27 +766,27 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest, true);
-        log.info("--- Starting producer --- " + url1);
+        log.info().attr("url1", url1).log("--- Starting producer ---");
 
         @Cleanup
         MessageProducer producer2 = new MessageProducer(url2, dest, true);
-        log.info("--- Starting producer --- " + url2);
+        log.info().attr("url2", url2).log("--- Starting producer ---");
 
         @Cleanup
         MessageProducer producer3 = new MessageProducer(url3, dest, true);
-        log.info("--- Starting producer --- " + url3);
+        log.info().attr("url3", url3).log("--- Starting producer ---");
 
         @Cleanup
         MessageConsumer consumer1 = new MessageConsumer(url1, dest);
-        log.info("--- Starting Consumer --- " + url1);
+        log.info().attr("url1", url1).log("--- Starting Consumer ---");
 
         @Cleanup
         MessageConsumer consumer2 = new MessageConsumer(url2, dest);
-        log.info("--- Starting Consumer --- " + url2);
+        log.info().attr("url2", url2).log("--- Starting Consumer ---");
 
         @Cleanup
         MessageConsumer consumer3 = new MessageConsumer(url3, dest);
-        log.info("--- Starting Consumer --- " + url3);
+        log.info().attr("url3", url3).log("--- Starting Consumer ---");
 
         // Produce from cluster1 and consume from the rest
         producer1.produceBatch(10);
@@ -1040,7 +1040,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
 
-
         // Next message will not be replicated, because r2 has reached the quota
         producer1.produce(1);
 
@@ -1197,7 +1196,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Test(dataProvider = "partitionedTopic")
     public void testReplicatorOnPartitionedTopic(boolean isPartitionedTopic) throws Exception {
 
-        log.info("--- Starting ReplicatorTest::{} --- ", methodName);
+        log.info().attr("methodName", methodName).log("--- Starting ReplicatorTest::");
 
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/partitionedNs-" + isPartitionedTopic);
         final String persistentTopicName = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/partTopic-"
@@ -1503,7 +1502,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer.close();
     }
 
-
     @Test
     public void createPartitionedTopicTest() throws Exception {
         final String cluster1 = pulsar1.getConfig().getClusterName();
@@ -1686,17 +1684,17 @@ public class ReplicatorTest extends ReplicatorTestBase {
             AsyncCallbacks.DeleteCallback cb = (AsyncCallbacks.DeleteCallback) invocation.getArguments()[1];
             Object ctx = invocation.getArguments()[2];
             if (isMakeAckFail.get()) {
-                log.info("async-delete {} will be failed", pos);
+                log.info().attr("asyncDelete", pos).log("async-delete will be failed");
                 cb.deleteFailed(new ManagedLedgerException("mocked error"), ctx);
             } else {
-                log.info("async-delete {} will success", pos);
+                log.info().attr("asyncDelete", pos).log("async-delete will success");
                 cursor.asyncDelete(pos, cb, ctx);
             }
             return null;
         }).when(spyCursor).asyncDelete(Mockito.any(Position.class), Mockito.any(AsyncCallbacks.DeleteCallback.class),
                 Mockito.any());
 
-        log.info("--- Starting producer --- " + url1);
+        log.info().attr("url1", url1).log("--- Starting producer ---");
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         // Produce from cluster1 and consume from the rest
         producer1.produce(2);
@@ -1727,12 +1725,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Awaitility.await().timeout(30, TimeUnit.SECONDS).until(
                 () -> {
-                    log.info("++++++++++++ {}, {}", cursor.getMarkDeletedPosition(), cursor.getReadPosition());
+                    log.info().attr("markDeletedPosition", cursor.getMarkDeletedPosition())
+                            .attr("readPosition", cursor.getReadPosition()).log("++++++++++++");
                     return cursor.getMarkDeletedPosition().getEntryId() == (cursor.getReadPosition().getEntryId() - 1);
                 });
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
     @Test
     public void testWhenUpdateReplicationCluster() throws Exception {
@@ -1744,7 +1741,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWhenUpdateReplicationCluster"));
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest);
-        log.info("--- Starting producer --- " + url1);
+        log.info().attr("url1", url1).log("--- Starting producer ---");
 
         producer1.produce(2);
 
@@ -1782,13 +1779,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin2.topicPolicies().setMaxProducers(dest2.toString(), 1);
         @Cleanup
         MessageProducer producer1 = new MessageProducer(url1, dest1);
-        log.info("--- Starting producer1 --- " + url1);
+        log.info().attr("url1", url1).log("--- Starting producer1 ---");
 
         producer1.produce(1);
 
         @Cleanup
         MessageProducer producer2 = new MessageProducer(url2, dest2);
-        log.info("--- Starting producer2 --- " + url2);
+        log.info().attr("url2", url2).log("--- Starting producer2 ---");
 
         producer2.produce(1);
 

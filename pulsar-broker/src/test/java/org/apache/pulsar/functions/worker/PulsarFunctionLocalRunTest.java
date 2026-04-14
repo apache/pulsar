@@ -47,6 +47,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -91,8 +92,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -105,6 +104,7 @@ import org.testng.annotations.Test;
  * Test Pulsar sink on function.
  */
 @Test(groups = { "flaky" })
+@CustomLog
 public class PulsarFunctionLocalRunTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -173,9 +173,6 @@ public class PulsarFunctionLocalRunTest {
 
     private URLClassLoader pulsarApiExamplesClassLoader;
     private Class<?> avroTestObjectClass;
-
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionLocalRunTest.class);
     private FileServer fileServer;
 
     @DataProvider(name = "validRoleName")
@@ -202,7 +199,7 @@ public class PulsarFunctionLocalRunTest {
 
     @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
@@ -552,7 +549,7 @@ public class PulsarFunctionLocalRunTest {
 
         // validate prometheus metrics
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
@@ -870,7 +867,7 @@ public class PulsarFunctionLocalRunTest {
 
         // validate prometheus metrics
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
@@ -1035,7 +1032,7 @@ public class PulsarFunctionLocalRunTest {
 
         // validate prometheus metrics
         String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
         Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {

@@ -43,7 +43,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -87,7 +87,7 @@ import org.testng.annotations.Test;
 /**
  * End to end transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class TransactionEndToEndTest extends TransactionTestBase {
 
@@ -364,7 +364,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         producer.close();
         consumer.close();
         resetTopicOutput();
-        log.info("message commit test enableBatch {}", enableBatch);
+        log.info().attr("enableBatch", enableBatch).log("message commit test enableBatch");
     }
 
     @Test
@@ -634,7 +634,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             for (int i = 0; i < messageCnt; i++) {
                 Message<byte[]> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
-                log.info("receive msgId: {}, count : {}", message.getMessageId(), i);
+                log.info().attr("msgId", message.getMessageId()).attr("count", i).log("receive msgId: , count");
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
             }
 
@@ -651,7 +651,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
                 consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
-                log.info("receive msgId: {}, count: {}", message.getMessageId(), i);
+                log.info().attr("msgId", message.getMessageId()).attr("count", i).log("receive msgId: , count");
             }
 
             // 2) ack committed by a new txn
@@ -815,7 +815,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         producer.close();
         consumer.close();
         resetTopicOutput();
-        log.info("receive transaction messages count: {}", receiveCnt);
+        log.info().attr("count", receiveCnt).log("receive transaction messages count");
     }
 
     @Test
@@ -864,7 +864,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 if (i % 3 == 0) {
                     consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
                 }
-                log.info("receive msgId abort: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
+                log.info()
+                        .attr("abort", message.getMessageId())
+                        .attr("retryCount", retryCnt)
+                        .attr("count", i)
+                        .log("receive msgId abort: , retryCount : , count");
             }
             try {
                 consumer.acknowledgeCumulativeAsync(message.getMessageId(), abortTxn).get();
@@ -896,7 +900,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 if (i % 3 == 0) {
                     consumer.acknowledgeCumulativeAsync(message.getMessageId(), commitTxn).get();
                 }
-                log.info("receive msgId abort: {}, retryCount : {}, count : {}", message.getMessageId(), retryCnt, i);
+                log.info()
+                        .attr("abort", message.getMessageId())
+                        .attr("retryCount", retryCnt)
+                        .attr("count", i)
+                        .log("receive msgId abort: , retryCount : , count");
             }
 
             commitTxn.commit().get();

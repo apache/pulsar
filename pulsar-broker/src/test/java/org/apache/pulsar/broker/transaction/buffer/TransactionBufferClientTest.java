@@ -45,6 +45,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -74,16 +75,14 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class TransactionBufferClientTest extends TransactionTestBase {
 
-    private static final Logger log = LoggerFactory.getLogger(TransactionBufferClientTest.class);
     private TransactionBufferClient tbClient;
     TopicName partitionedTopicName = TopicName.get("persistent", "public", "test", "tb-client");
     int partitions = 10;
@@ -210,7 +209,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
             assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
     }
-
 
     @Test
     public void testTransactionBufferMetrics() throws Exception {

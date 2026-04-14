@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.net.BookieId;
@@ -64,7 +64,7 @@ import org.testng.annotations.Test;
 /**
  * Unit tests for schema admin api.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
@@ -171,16 +171,16 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
                                        String topicName) throws Exception {
         SchemaInfo si = schema.getSchemaInfo();
         admin.schemas().createSchema(topicName, si);
-        log.info("Upload schema to topic {} : {}", topicName, si);
+        log.info().attr("topic", topicName).attr("schema", si).log("Upload schema to topic");
 
         SchemaInfo readSi = admin.schemas().getSchemaInfo(topicName);
-        log.info("Read schema of topic {} : {}", topicName, readSi);
+        log.info().attr("topic", topicName).attr("schema", readSi).log("Read schema of topic");
 
         ((SchemaInfoImpl) readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
         readSi = admin.schemas().getSchemaInfo(topicName + "-partition-0");
-        log.info("Read schema of topic {} : {}", topicName, readSi);
+        log.info().attr("topic", topicName).attr("schema", readSi).log("Read schema of topic");
 
         ((SchemaInfoImpl) readSi).setTimestamp(0);
         assertEquals(readSi, si);
@@ -228,17 +228,17 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
                                        String topicName) throws Exception {
         SchemaInfo si = schema.getSchemaInfo();
         admin.schemas().createSchema(topicName, si);
-        log.info("Upload schema to topic {} : {}", topicName, si);
+        log.info().attr("topic", topicName).attr("schema", si).log("Upload schema to topic");
 
         SchemaInfoWithVersion readSi = admin.schemas().getSchemaInfoWithVersion(topicName);
-        log.info("Read schema of topic {} : {}", topicName, readSi);
+        log.info().attr("topic", topicName).attr("schema", readSi).log("Read schema of topic");
 
         ((SchemaInfoImpl) readSi.getSchemaInfo()).setTimestamp(0);
         assertEquals(readSi.getSchemaInfo(), si);
         assertEquals(readSi.getVersion(), 0);
 
         readSi = admin.schemas().getSchemaInfoWithVersion(topicName + "-partition-0");
-        log.info("Read schema of topic {} : {}", topicName, readSi);
+        log.info().attr("topic", topicName).attr("schema", readSi).log("Read schema of topic");
 
         ((SchemaInfoImpl) readSi.getSchemaInfo()).setTimestamp(0);
         assertEquals(readSi.getSchemaInfo(), si);

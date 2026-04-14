@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -69,7 +69,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test for {@link org.apache.pulsar.client.impl.TableViewImpl}.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class TableViewTest extends MockedPulsarServiceBaseTest {
 
@@ -275,19 +275,20 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
                 .create();
-        log.info("start tv size: {}", tv.size());
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        log.info().attr("size", tv.size()).log("start tv size");
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v)).log("entry"));
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);
-        tv.forEachAndListen((k, v) -> log.info("checkpoint {} -> {}", k, new String(v)));
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v))
+                .log("checkpoint entry"));
 
         // Send more data
         Set<String> keys2 = this.publishMessages(topic, count * 2, false);
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count * 2);
         });
         assertEquals(tv.keySet(), keys2);
@@ -322,9 +323,9 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
                 .create();
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v)).log("entry"));
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), 10);
         });
         assertEquals(tv.keySet(), keys);
@@ -343,17 +344,18 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
-        log.info("start tv size: {}", tv.size());
+        log.info().attr("size", tv.size()).log("start tv size");
         if (topicDomain.equals(TopicDomain.non_persistent.value())) {
             keys = this.publishMessages(topic, count, false);
         }
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v)).log("entry"));
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);
-        tv.forEachAndListen((k, v) -> log.info("checkpoint {} -> {}", k, new String(v)));
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v))
+                .log("checkpoint entry"));
 
         admin.topics().updatePartitionedTopic(topic, 4);
         TopicName topicName = TopicName.get(topic);
@@ -366,7 +368,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         Set<String> keys2 =
                 this.publishMessages(topicName.getPartition(3).toString(), count * 2, false);
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count * 2);
         });
         assertEquals(tv.keySet(), keys2);
@@ -533,10 +535,10 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
             .defaultCryptoKeyReader("file:" + ECDSA_PRIVATE_KEY)
             .create();
-        log.info("start tv size: {}", tv.size());
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        log.info().attr("size", tv.size()).log("start tv size");
+        tv.forEachAndListen((k, v) -> log.info().attr("key", k).attr("value", new String(v)).log("entry"));
         Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
+            log.info().attr("size", tv.size()).log("Current tv size");
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);

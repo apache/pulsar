@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack;
 
-
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
@@ -47,7 +46,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -96,7 +95,7 @@ import org.testng.annotations.Test;
 /**
  * Test for consuming transaction messages.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PendingAckPersistentTest extends TransactionTestBase {
 
@@ -113,7 +112,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     protected void cleanup() {
         super.internalCleanup();
     }
-
 
     @DataProvider(name = "retryableErrors")
     public Object[][] retryableErrors() {
@@ -720,7 +718,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         consumer.acknowledgeAsync(message1.getMessageId(), transaction1);
         transaction1.commit().get();
 
-
         Transaction transaction2 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
@@ -762,7 +759,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         consumer.acknowledgeAsync(message5.getMessageId(), transaction3);
         transaction3.commit().get();
 
-
         PersistentTopic persistentTopic =
                 (PersistentTopic) getPulsarServiceList()
                         .get(0)
@@ -798,7 +794,6 @@ public class PendingAckPersistentTest extends TransactionTestBase {
             completableFuture.get();
             return true;
         });
-
 
         @SuppressWarnings("unchecked")
         LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction =

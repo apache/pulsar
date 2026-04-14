@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.protocol;
 
 import java.io.File;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.util.PortManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -33,7 +33,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarClientBasedHandlerTest {
 
     private static final String clusterName = "cluster";
@@ -71,7 +71,9 @@ public class PulsarClientBasedHandlerTest {
                 .protocol(PulsarClientBasedHandler.PROTOCOL);
         pulsar.close();
         final var elapsedMs = System.currentTimeMillis() - beforeStop;
-        log.info("It spends {} ms to stop the broker ({} for protocol handler)", elapsedMs, handler.closeTimeMs);
+        log.info().attr("elapsedMs", elapsedMs)
+                .attr("handlerCloseTimeMs", handler.closeTimeMs)
+                .log("Broker stop timing");
         Assert.assertTrue(elapsedMs
                < +handler.closeTimeMs + shutdownTimeoutMs + 1000); // tolerate 1 more second for other processes
     }

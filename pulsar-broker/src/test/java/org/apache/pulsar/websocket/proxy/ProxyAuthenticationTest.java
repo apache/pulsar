@@ -35,6 +35,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -45,14 +46,13 @@ import org.awaitility.Awaitility;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
+@CustomLog
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     private ProxyServer proxyServer;
@@ -99,7 +99,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             produceClient.stop();
             log.info("proxy clients are stopped successfully");
         } catch (Exception e) {
-            log.error(e.getMessage());
+            log.error().exception(e).log("Failed to stop proxy clients");
         }
 
         super.internalCleanup();
@@ -129,7 +129,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         consumeClient.start();
         ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
         Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
-        log.info("Connecting to : {}", consumeUri);
+        log.info().attr("uri", consumeUri).log("Connecting to");
 
         ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
         produceClient.start();
@@ -217,6 +217,4 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         Response response = invocationBuilder.get();
         Assert.assertEquals(response.getStatus(), 200);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticationTest.class);
 }

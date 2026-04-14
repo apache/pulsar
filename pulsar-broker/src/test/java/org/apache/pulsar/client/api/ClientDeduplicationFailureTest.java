@@ -39,7 +39,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -57,7 +57,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "quarantine")
 public class ClientDeduplicationFailureTest {
     LocalBookkeeperEnsemble bkEnsemble;
@@ -73,7 +73,7 @@ public class ClientDeduplicationFailureTest {
 
     @BeforeMethod(timeOut = 300000, alwaysRun = true)
     void setup(Method method) throws Exception {
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("upMethod", method.getName()).log("--- Setting up method");
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
@@ -95,7 +95,6 @@ public class ClientDeduplicationFailureTest {
         config.setLoadBalancerAutoUnloadSplitBundlesEnabled(false);
 
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-
 
         pulsar = new PulsarService(config);
         pulsar.start();
@@ -168,12 +167,12 @@ public class ClientDeduplicationFailureTest {
                     atomicLong.incrementAndGet();
 
                 }).exceptionally(ex -> {
-                    log.info("publish exception:", ex);
+                    log.info().exception(ex).log("publish exception:");
                     return null;
                 });
                 i++;
             }
-            log.info("done Producing! Last send: {}", i);
+            log.info().attr("lastSend", i).log("done Producing! Last send");
         }
 
         public void start() {
@@ -217,7 +216,6 @@ public class ClientDeduplicationFailureTest {
                 .topic(sourceTopic)
                 .producerName("test-producer-1")
                 .create();
-
 
         ProducerThread producerThread = new ProducerThread(producer);
         producerThread.start();
@@ -265,7 +263,7 @@ public class ClientDeduplicationFailureTest {
             }
 
             if (message.getValue().equals("end")) {
-                log.info("Last seq Id received: {}", prevMessage.getSequenceId());
+                log.info().attr("idReceived", prevMessage.getSequenceId()).log("Last seq Id received");
                 break;
             }
             if (prevMessage == null) {
@@ -277,7 +275,7 @@ public class ClientDeduplicationFailureTest {
             count++;
         }
 
-        log.info("# of messages read: {}", count);
+        log.info().attr("messagesRead", count).log("# of messages read");
 
         assertNotNull(prevMessage);
         assertEquals(prevMessage.getSequenceId(), producerThread.getLastSeqId());
@@ -312,7 +310,7 @@ public class ClientDeduplicationFailureTest {
                     msgRecvd.add(msg);
                     consumer2.acknowledge(msg);
                 } catch (PulsarClientException e) {
-                    log.error("Failed to consume message: {}", e, e);
+                    log.error().attr("consumeMessage", e).exception(e).log("Failed to consume message");
                     break;
                 }
             }
@@ -370,9 +368,10 @@ public class ClientDeduplicationFailureTest {
         for (int i = 10; i < 20; i++) {
             CompletableFuture<MessageId> future = producer.newMessage().sequenceId(i).value("foo-" + i).sendAsync();
             int finalI = i;
-            future.thenRun(() -> log.error("message: {} successful", finalI))
+            future.thenRun(() -> log.error().attr("message", finalI).log("message successful"))
                     .exceptionally((Function<Throwable, Void>) throwable -> {
-                log.info("message: {} failed: {}", finalI, throwable, throwable);
+                log.info().attr("message", finalI).attr("failed", throwable).exception(throwable)
+                        .log("message: failed");
                 return null;
             });
             futures.add(future);

@@ -31,7 +31,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -59,7 +59,7 @@ import org.testng.annotations.Test;
  * Test Pulsar sink on function.
  *
  */
-@Slf4j
+@CustomLog
 @Test(groups = "functions-worker")
 public class PulsarWorkerAssignmentTest {
     LocalBookkeeperEnsemble bkEnsemble;
@@ -80,7 +80,7 @@ public class PulsarWorkerAssignmentTest {
     @BeforeMethod(timeOut = 60000)
     void setup(Method method) throws Exception {
 
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
@@ -152,7 +152,7 @@ public class PulsarWorkerAssignmentTest {
                 bkEnsemble = null;
             }
         } catch (Exception e) {
-            log.warn("Encountered errors at shutting down PulsarWorkerAssignmentTest", e);
+            log.warn().exception(e).log("Encountered errors at shutting down PulsarWorkerAssignmentTest");
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();
@@ -240,7 +240,9 @@ public class PulsarWorkerAssignmentTest {
             }
         }, 50, 150);
         // validate pulsar sink consumer has started on the topic
-        log.info("admin.topics().getStats(sinkTopic): {}", new Gson().toJson(admin.topics().getStats(sinkTopic)));
+        log.info()
+                .attr("sinkTopic", new Gson().toJson(admin.topics().getStats(sinkTopic)))
+                .log("admin.topics.getStats(sinkTopic");
         assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions()
                 .values().iterator().next().getConsumers().size(), 1);
     }

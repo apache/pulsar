@@ -54,6 +54,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.commons.collections4.CollectionUtils;
@@ -100,14 +101,13 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "flaky")
 public class NamespaceServiceTest extends BrokerTestBase {
 
@@ -174,12 +174,12 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LocalPolicies localPolicies = pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(nsname).get();
         NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, localPolicies.bundles);
         assertEquals(localZkBundles, updatedNsBundles);
-        log.info("LocalPolicies: {}", localPolicies);
+        log.info().attr("localPolicies", localPolicies).log("LocalPolicies");
 
         Policies policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(nsname).get();
         NamespaceBundles zkBundles = bundleFactory.getBundles(nsname, policies.bundles);
         assertEquals(zkBundles, updatedNsBundles);
-        log.info("Policies: {}", policies);
+        log.info().attr("policies", policies).log("Policies");
 
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
@@ -480,7 +480,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LocalPolicies policies = this.pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(nsname).get();
         NamespaceBundles localZkBundles = bundleFactory.getBundles(nsname, policies.bundles);
         assertEquals(localZkBundles, updatedNsBundles);
-        log.info("Policies: {}", policies);
+        log.info().attr("policies", policies).log("Policies");
 
         // (3) validate ownership of new split bundles by local owner
         bundleList.forEach(b -> {
@@ -1115,5 +1115,4 @@ public class NamespaceServiceTest extends BrokerTestBase {
         return utilityFactory.splitBundles(targetBundle, 2, null).join();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(NamespaceServiceTest.class);
 }

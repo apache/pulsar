@@ -38,7 +38,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -69,7 +69,7 @@ import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 
-@Slf4j
+@CustomLog
 public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
 
     protected final String defaultTenant = "public";
@@ -342,8 +342,9 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         try {
             cleanupPulsarResources();
         } catch (Exception e) {
-            log.warn("Failed to cleanup Pulsar resources during shutdown, "
-                    + "continuing with broker/ZK/BK shutdown", e);
+            log.warn().exception(e).log(
+                    "Failed to cleanup Pulsar resources during shutdown,"
+                            + " continuing with broker/ZK/BK shutdown");
         }
 
         // shutdown.

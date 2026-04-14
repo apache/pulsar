@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Producer;
@@ -37,7 +37,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class ProducerReconnectionTest extends SharedPulsarBaseTest {
 
@@ -103,7 +103,7 @@ public class ProducerReconnectionTest extends SharedPulsarBaseTest {
         Thread.sleep(3000);
 
         HandlerState.State state2 = producer.getState();
-        log.info("producer state: {}", state2);
+        log.info().attr("state", state2).log("producer state");
         assertTrue(state2 == HandlerState.State.Closed || state2 == HandlerState.State.Closing);
         assertEquals(producer.getPendingQueueSize(), 0);
 

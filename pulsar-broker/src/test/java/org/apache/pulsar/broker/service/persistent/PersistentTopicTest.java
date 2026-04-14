@@ -59,7 +59,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -103,8 +103,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PersistentTopicTest extends BrokerTestBase {
 
@@ -564,7 +563,6 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertTrue(persistentSubscription2.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
     }
 
-
     @Test
     public void testCreateNonExistentPartitions() throws PulsarAdminException, PulsarClientException {
         final String topicName = "persistent://prop/ns-abc/testCreateNonExistentPartitions";
@@ -696,7 +694,7 @@ public class PersistentTopicTest extends BrokerTestBase {
             try {
                 topic.initialize().get(3, TimeUnit.SECONDS);
             } catch (ExecutionException e) {
-                log.warn("Failed to initialize: {}", e.getCause().getMessage());
+                log.warn().exceptionMessage(e.getCause()).log("Failed to initialize");
             }
             return !topic.getManagedLedger().getCursors().iterator().hasNext();
         });

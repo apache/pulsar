@@ -39,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -67,7 +67,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
 
@@ -197,7 +197,6 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
             assertFalse(clustersApplied2.contains(cluster1));
             assertTrue(clustersApplied2.contains(cluster2));
         });
-
 
         // Cluster1: Global policy overwrite namespace policy.
         // Cluster2: Global policy never overwrite namespace policy.
@@ -545,7 +544,6 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.testIncompatibleMultiVersionSchema(enableDeduplication);
     }
 
-
     @Test
     public void testTopicPoliciesReplicationRule() throws Exception {
         super.testTopicPoliciesReplicationRule();
@@ -786,8 +784,8 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
                     break;
                 }
             }
-            log.info("topics1: {}", topics1);
-            log.info("topics2: {}", topics2);
+            log.info().attr("topics1", topics1).log("topics1");
+            log.info().attr("topics2", topics2).log("topics2");
             assertTrue(systemTopicCreated1);
             assertTrue(systemTopicCreated2);
             assertEquals(topics1, topics2);

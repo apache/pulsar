@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.eclipse.jetty.websocket.api.Callback;
@@ -36,10 +37,9 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @WebSocket
+@CustomLog
 public class SimpleProducerSocket {
 
     private final CountDownLatch closeLatch;
@@ -70,14 +70,14 @@ public class SimpleProducerSocket {
 
     @OnWebSocketClose
     public void onClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
+        log.info().attr("statusCode", statusCode).attr("reason", reason).log("Connection closed");
         this.session = null;
         this.closeLatch.countDown();
     }
 
     @OnWebSocketOpen
     public void onConnect(Session session) throws Exception {
-        log.info("Got connect: {}", session);
+        log.info().attr("session", session).log("Got connect");
         this.session = session;
         sendMessage(this.messagesToSendWhenConnected);
     }
@@ -101,7 +101,5 @@ public class SimpleProducerSocket {
     public List<String> getBuffer() {
         return producerBuffer;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SimpleProducerSocket.class);
 
 }

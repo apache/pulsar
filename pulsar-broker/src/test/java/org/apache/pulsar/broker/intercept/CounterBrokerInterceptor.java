@@ -30,9 +30,9 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.PulsarService;
@@ -49,7 +49,7 @@ import org.apache.pulsar.common.intercept.InterceptException;
 import org.eclipse.jetty.server.Response;
 
 
-@Slf4j
+@CustomLog
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     private final AtomicInteger beforeSendCount = new AtomicInteger();
@@ -97,29 +97,23 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void onConnectionCreated(ServerCnx cnx) {
-        if (log.isDebugEnabled()) {
-            log.debug("Connection created {}", cnx);
-        }
+        log.debug().attr("cnx", cnx).log("Connection created");
         connectionCreationCount.incrementAndGet();
     }
 
     @Override
     public void producerCreated(ServerCnx cnx, Producer producer,
                                 Map<String, String> metadata) {
-        if (log.isDebugEnabled()) {
-            log.debug("Producer created with name={}, id={}",
-                    producer.getProducerName(), producer.getProducerId());
-        }
+        log.debug().attr("name", producer.getProducerName())
+                .attr("id", producer.getProducerId()).log("Producer created");
         producerCount.incrementAndGet();
     }
 
     @Override
     public void producerClosed(ServerCnx cnx, Producer producer,
                                 Map<String, String> metadata) {
-        if (log.isDebugEnabled()) {
-            log.debug("Producer with name={}, id={} closed",
-                    producer.getProducerName(), producer.getProducerId());
-        }
+        log.debug().attr("name", producer.getProducerName())
+                .attr("id", producer.getProducerId()).log("Producer closed");
         producerCount.decrementAndGet();
     }
 
@@ -127,10 +121,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void consumerCreated(ServerCnx cnx,
                                  Consumer consumer,
                                  Map<String, String> metadata) {
-        if (log.isDebugEnabled()) {
-            log.debug("Consumer created with name={}, id={}",
-                    consumer.consumerName(), consumer.consumerId());
-        }
+        log.debug().attr("name", consumer.consumerName())
+                .attr("id", consumer.consumerId()).log("Consumer created");
         consumerCount.incrementAndGet();
     }
 
@@ -138,19 +130,15 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void consumerClosed(ServerCnx cnx,
                                 Consumer consumer,
                                 Map<String, String> metadata) {
-        if (log.isDebugEnabled()) {
-            log.debug("Consumer with name={}, id={} closed",
-                    consumer.consumerName(), consumer.consumerId());
-        }
+        log.debug().attr("name", consumer.consumerName())
+                .attr("id", consumer.consumerId()).log("Consumer closed");
         consumerCount.decrementAndGet();
     }
 
     @Override
     public void onMessagePublish(Producer producer, ByteBuf headersAndPayload, Topic.PublishContext publishContext) {
-        if (log.isDebugEnabled()) {
-            log.debug("Message broker received topic={}, producer={}",
-                    producer.getTopic().getName(), producer.getProducerName());
-        }
+        log.debug().attr("topic", producer.getTopic().getName())
+                .attr("producer", producer.getProducerName()).log("Message broker received");
         messagePublishCount.incrementAndGet();
     }
 
@@ -158,20 +146,16 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
                                  long entryId,
                                  Topic.PublishContext publishContext) {
-        if (log.isDebugEnabled()) {
-            log.debug("Message published topic={}, producer={}",
-                    producer.getTopic().getName(), producer.getProducerName());
-        }
+        log.debug().attr("topic", producer.getTopic().getName())
+                .attr("producer", producer.getProducerName()).log("Message published");
         messageCount.incrementAndGet();
     }
 
     @Override
     public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
                                    long entryId, ByteBuf headersAndPayload) {
-        if (log.isDebugEnabled()) {
-            log.debug("Message dispatched topic={}, consumer={}",
-                    consumer.getSubscription().getTopic().getName(), consumer.consumerName());
-        }
+        log.debug().attr("topic", consumer.getSubscription().getTopic().getName())
+                .attr("consumer", consumer.consumerName()).log("Message dispatched");
         messageDispatchCount.incrementAndGet();
     }
 
@@ -188,10 +172,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                   Entry entry,
                                   long[] ackSet,
                                   MessageMetadata msgMetadata) {
-        if (log.isDebugEnabled()) {
-            log.debug("Send message to topic {}, subscription {}",
-                    subscription.getTopic(), subscription.getName());
-        }
+        log.debug().attr("topic", subscription.getTopic())
+                .attr("subscription", subscription.getName()).log("Send message");
         beforeSendCount.incrementAndGet();
     }
 
@@ -201,18 +183,16 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                   long[] ackSet,
                                   MessageMetadata msgMetadata,
                                   Consumer consumer) {
-        if (log.isDebugEnabled()) {
-            log.debug("Send message to topic {}, subscription {}, consumer {}",
-                    subscription.getTopic(), subscription.getName(), consumer.consumerName());
-        }
+        log.debug().attr("topic", subscription.getTopic())
+                .attr("subscription", subscription.getName())
+                .attr("consumer", consumer.consumerName()).log("Send message");
         beforeSendCountAtConsumerLevel.incrementAndGet();
     }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
-        }
+        log.debug().attr("count", count).attr("command", command.getType().name())
+                .log("On Pulsar command");
         if (command.getType().equals(BaseCommand.Type.ACK)) {
             handleAckCount.incrementAndGet();
         }
@@ -231,9 +211,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
         count.incrementAndGet();
         String url = ((HttpServletRequest) request).getRequestURL().toString();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] On [{}] Webservice request", count, url);
-        }
+        log.debug().attr("count", count).attr("url", url).log("On Webservice request");
         if (url.contains("/admin/v2/tenants/test-interceptor-failed-tenant")) {
             throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create tenant failed");
         }
@@ -248,10 +226,9 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count.incrementAndGet();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] On [{}] Webservice response {}",
-                    count, ((HttpServletRequest) request).getRequestURL().toString(), response);
-        }
+        log.debug().attr("count", count)
+                .attr("url", ((HttpServletRequest) request).getRequestURL().toString())
+                .attr("response", response).log("On Webservice response");
         if (response instanceof Response) {
             Response res = (Response) response;
             responseList.add(new ResponseEvent(res.getRequest().getHttpURI().getPath(), res.getStatus()));

@@ -79,7 +79,7 @@ import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -175,7 +175,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @SuppressWarnings("unchecked")
 @Test(groups = "broker")
 public class ServerCnxTest {
@@ -212,7 +212,6 @@ public class ServerCnxTest {
     private ManagedCursor cursorMock;
     private ConcurrentHashSet<EmbeddedChannel> channelsStoppedAnswerHealthCheck = new ConcurrentHashSet<>();
     private ManagedLedgerFactory managedLedgerFactory;
-
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -3079,7 +3078,6 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
 
-
         channel.writeInbound(Commands.newLookup(invalidTopicName, true, 1));
         Object obj = getResponse();
         assertEquals(obj.getClass(), CommandLookupTopicResponse.class);
@@ -3818,7 +3816,6 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-
     @Test(timeOut = 30000)
     public void sendEndTxnResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
@@ -3964,7 +3961,6 @@ public class ServerCnxTest {
 
         channel.finish();
     }
-
 
     @Test(timeOut = 30000)
     public void sendEndTxnOnSubscriptionFailed() throws Exception {

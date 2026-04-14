@@ -42,7 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -68,7 +68,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class MessageDuplicationTest extends BrokerTestBase {
 
@@ -113,7 +113,6 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName2);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 1);
-
 
         byteBuf1 = getMessage(producerName1, 1);
         publishContext1 = getPublishContext(producerName1, 1);
@@ -265,7 +264,6 @@ public class MessageDuplicationTest extends BrokerTestBase {
         MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService,
                 mock(PersistentTopic.class), managedLedger));
         doReturn(true).when(messageDeduplication).isEnabled();
-
 
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
 
@@ -522,7 +520,6 @@ public class MessageDuplicationTest extends BrokerTestBase {
         messageDeduplication.purgeInactiveProducers();
         assertTrue(messageDeduplication.getInactiveProducers().isEmpty());
     }
-
 
     @Test
     public void testMessageDeduplicationShouldNotWorkForSystemTopic() throws PulsarAdminException {

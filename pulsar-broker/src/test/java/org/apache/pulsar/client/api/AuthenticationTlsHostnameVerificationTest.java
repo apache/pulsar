@@ -25,22 +25,21 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.tls.PublicSuffixMatcher;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.assertj.core.util.Sets;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(AuthenticationTlsHostnameVerificationTest.class);
 
     // Man in middle certificate which tries to act as a broker by sending its own valid certificate
     private static final String TLS_MIM_TRUST_CERT_FILE_PATH =
@@ -138,7 +137,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     @Test(dataProvider = "hostnameVerification")
     public void testTlsSyncProducerAndConsumerWithInvalidBrokerHost(boolean hostnameVerificationEnabled)
             throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         cleanup();
 
         this.hostnameVerificationEnabled = hostnameVerificationEnabled;
@@ -168,7 +167,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
             }
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -184,7 +183,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      */
     @Test
     public void testTlsSyncProducerAndConsumerCorrectBrokerHost() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         cleanup();
         // setup broker cert which has CN = "localhost"
         conf.setBrokerServicePortTls(Optional.of(0));
@@ -211,7 +210,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -219,7 +218,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         consumer.acknowledgeCumulative(msg);
         consumer.close();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -229,7 +228,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      */
     @Test
     public void testDefaultHostVerifier() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         Method matchIdentityStrict = TlsHostnameVerifier.class.getDeclaredMethod("matchIdentityStrict",
                 String.class, String.class, PublicSuffixMatcher.class);
         matchIdentityStrict.setAccessible(true);
@@ -239,7 +238,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         // unmatched remainder: "1-broker." should not contain "."
         Assert.assertFalse((boolean) matchIdentityStrict.invoke(null, "pulsar-broker1.com", "pulsar*com", null));
         Assert.assertFalse((boolean) matchIdentityStrict.invoke(null, "pulsar.com", "*", null));
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
 }

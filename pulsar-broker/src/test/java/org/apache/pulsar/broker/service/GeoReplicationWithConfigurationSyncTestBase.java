@@ -23,7 +23,7 @@ import com.google.common.io.Resources;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -35,7 +35,7 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 
-@Slf4j
+@CustomLog
 public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRetrySupport {
 
     protected final String defaultTenant = "public";

@@ -30,7 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
@@ -57,7 +57,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
 public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
 
     protected static final String DEFAULT_NS = "public/default";
@@ -214,8 +214,10 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
             }
         }
 
-        log.info("s3 cached unacked messages: " + cachedMessagesInMem3.size() + ", acked list: "
-                + randomlyAcked.size() + ", acked set: " + new HashSet<>(randomlyAcked).size());
+        log.info().attr("cachedUnacked", cachedMessagesInMem3.size())
+                .attr("ackedList", randomlyAcked.size())
+                .attr("ackedSet", new HashSet<>(randomlyAcked).size())
+                .log("s3 cached unacked messages");
         assertEquals(randomlyAcked.size(), new HashSet<>(randomlyAcked).size());
 
         for (int i = 600; i < 900; i++) {
@@ -349,10 +351,11 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
             assertEquals(statsPrecise.get("s4").getMsgBacklog(), 100 + cachedMessagesInMem4.size());
         });
 
-        log.info("subscription cached unacked messages: " + cachedMessagesInMem3.size() + ", acked list: "
-                + randomlyAcked.size() + ", acked set: " + new HashSet<>(randomlyAcked).size());
+        log.info().attr("cachedUnacked", cachedMessagesInMem3.size())
+                .attr("ackedList", randomlyAcked.size())
+                .attr("ackedSet", new HashSet<>(randomlyAcked).size())
+                .log("subscription cached unacked messages");
         assertEquals(randomlyAcked.size(), new HashSet<>(randomlyAcked).size());
-
 
         // c1: continuously ack all messages.
         // c2: ack all messages that un-acked
@@ -382,13 +385,15 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
         } else {
             targetMessageId = messageId200;
         }
-        log.info("cursor3 before seek. md-pos: {}, individualAcks: {}, targetPosition: {}, backlog: {}",
-                cursor3.getMarkDeletedPosition(), cursor3.getIndividuallyDeletedMessages(), targetMessageId,
-                cursor3.getNumberOfEntriesInBacklog(false));
+        log.info().attr("mdPos", cursor3.getMarkDeletedPosition())
+                .attr("individualacks", cursor3.getIndividuallyDeletedMessages())
+                .attr("targetposition", targetMessageId).attr("backlog", cursor3.getNumberOfEntriesInBacklog(false))
+                .log("cursor3 before seek. md-pos, individualAcks, targetPosition, backlog");
         c3.seek(targetMessageId);
-        log.info("cursor3 after seek. md-pos: {}, individualAcks: {}, targetPosition: {}, backlog: {}",
-                cursor3.getMarkDeletedPosition(), cursor3.getIndividuallyDeletedMessages(), targetMessageId,
-                cursor3.getNumberOfEntriesInBacklog(false));
+        log.info().attr("mdPos", cursor3.getMarkDeletedPosition())
+                .attr("individualacks", cursor3.getIndividuallyDeletedMessages())
+                .attr("targetposition", targetMessageId).attr("backlog", cursor3.getNumberOfEntriesInBacklog(false))
+                .log("cursor3 after seek. md-pos, individualAcks, targetPosition, backlog");
 
         // c4.
         c4.acknowledgeCumulative(targetMessageId);
@@ -413,8 +418,10 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
             for (Map.Entry<String, ? extends SubscriptionStats> item : stats.entrySet()) {
                 long preciseBacklog = statsPrecise.get(item.getKey()).getMsgBacklog();
                 long backlog = item.getValue().getMsgBacklog();
-                log.info("subscription: " + item.getKey() + ", preciseBacklog: "
-                        + preciseBacklog + ", backlog: " + backlog);
+                log.info().attr("subscription", item.getKey())
+                        .attr("preciseBacklog", preciseBacklog)
+                        .attr("backlog", backlog)
+                        .log("subscription backlog check");
                 assertEquals(backlog, preciseBacklog);
             }
         });

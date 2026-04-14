@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Position;
@@ -45,7 +45,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
 
     @BeforeClass(alwaysRun = true)
@@ -95,7 +95,7 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
                     Thread.sleep(3000);
                     invocationOnMock.callRealMethod();
                 } catch (Throwable ex) {
-                    log.error("Unexpected exception when calling mark delete", ex);
+                    log.error().exception(ex).log("Unexpected exception when calling mark delete");
                 }
             });
             return true;

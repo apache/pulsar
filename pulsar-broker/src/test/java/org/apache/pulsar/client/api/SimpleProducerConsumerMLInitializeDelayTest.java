@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -32,7 +32,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class SimpleProducerConsumerMLInitializeDelayTest extends SharedPulsarBaseTest {
 
@@ -72,7 +72,7 @@ public class SimpleProducerConsumerMLInitializeDelayTest extends SharedPulsarBas
             previousMsgId = messageIdImpl;
         }
         Assert.assertEquals(msgIds.size(), 100);
-        log.info("messages were sent: {}", msgIds.toString());
+        log.info().attr("sent", msgIds.toString()).log("messages were sent");
         List<String> msgsReceived = new ArrayList<>();
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
                 .subscriptionName(subscription).subscribe();

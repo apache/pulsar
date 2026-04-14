@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.admin;
 
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -35,7 +35,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod

@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
@@ -51,7 +51,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
 
@@ -86,7 +86,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
                 sendManyMessages(topicName, ledgerCount, messageCountPerLedger, messageCountPerEntry);
         int sendMessageCount = Arrays.asList(sendMessages).stream()
                 .flatMap(s -> s.stream()).collect(Collectors.toList()).size();
-        log.info("send {} messages", sendMessageCount);
+        log.info().attr("count", sendMessageCount).log("Sent messages");
 
         log.info("make individual ack.");
         ConsumerAndReceivedMessages consumerAndReceivedMessages1 =
@@ -104,7 +104,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
                 expectedMarkDeletedPosition.getEntryId());
         consumer.close();
 
-        log.info("Make lost ledger [{}].", individualPosition.getLedgerId());
+        log.info().attr("ledgerId", individualPosition.getLedgerId()).log("Make lost ledger");
         getTopic(topicName, false).get().get().close(false);
         PulsarService pulsar = SharedPulsarCluster.get().getPulsarService();
         pulsar.getBookKeeperClient().deleteLedger(individualPosition.getLedgerId());
@@ -132,8 +132,11 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
                                             final long markDeletedEntryId) throws Exception {
         Awaitility.await().atMost(Duration.ofSeconds(45)).untilAsserted(() -> {
             Position persistentMarkDeletedPosition = getCursor(topicName, subName).getMarkDeletedPosition();
-            log.info("markDeletedPosition {}:{}, expected {}:{}", persistentMarkDeletedPosition.getLedgerId(),
-                    persistentMarkDeletedPosition.getEntryId(), markDeletedLedgerId, markDeletedEntryId);
+            log.info().attr("markDeletedLedger", persistentMarkDeletedPosition.getLedgerId())
+                    .attr("markDeletedEntry", persistentMarkDeletedPosition.getEntryId())
+                    .attr("expectedLedger", markDeletedLedgerId)
+                    .attr("expectedEntry", markDeletedEntryId)
+                    .log("Mark deleted position");
             Assert.assertTrue(persistentMarkDeletedPosition.getLedgerId() >= markDeletedLedgerId);
             if (persistentMarkDeletedPosition.getLedgerId() > markDeletedLedgerId){
                 return;
@@ -234,7 +237,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
                 break;
             }
         }
-        log.info("receive {} messages", messageIds.size());
+        log.info().attr("count", messageIds.size()).log("Received messages");
         return new ConsumerAndReceivedMessages(consumer, sortMessageId(messageIds, enabledBatch));
     }
 

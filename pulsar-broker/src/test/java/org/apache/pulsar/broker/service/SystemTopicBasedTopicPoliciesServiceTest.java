@@ -40,7 +40,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
@@ -62,7 +62,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final String NAMESPACE1 = "system-topic/namespace-1";
@@ -285,8 +285,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNull(listMap.get(topicName));
     }
 
-
-
     private void prepareData() throws PulsarAdminException {
         admin.clusters().createCluster("test", ClusterData.builder()
                 .serviceUrl(brokerUrl.toString()).build());
@@ -487,7 +485,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 Mockito.spy(new SystemTopicBasedTopicPoliciesService(pulsar));
         FieldUtils.writeField(pulsar, "topicPoliciesService", spyService, true);
 
-
         admin.namespaces().createNamespace(NAMESPACE5);
         final String topic = "persistent://" + NAMESPACE5 + "/test" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 1);
@@ -523,7 +520,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             assertTrue(logFound);
         });
 
-
         // Since cleanPoliciesCacheInitMap() is executed, should add the failed reader into readerCache again.
         // Then in SystemTopicBasedTopicPoliciesService, readerCache has a closed reader,
         // and policyCacheInitMap do not contain a future.
@@ -551,7 +547,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                     spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
             Assert.assertNull(readerCompletableFuture1);
         });
-
 
         // make sure not do cleanPoliciesCacheInitMap() twice
         // totally trigger prepareInitPoliciesCacheAsync() twice, so the time of cleanPoliciesCacheInitMap() is 2.
@@ -581,7 +576,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         SystemTopicBasedTopicPoliciesService spyService =
                 Mockito.spy(new SystemTopicBasedTopicPoliciesService(pulsar));
         FieldUtils.writeField(pulsar, "topicPoliciesService", spyService, true);
-
 
         admin.namespaces().createNamespace(NAMESPACE5);
         final String topic = "persistent://" + NAMESPACE5 + "/test" + UUID.randomUUID();
@@ -620,7 +614,6 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                     spyReaderCaches.get(NamespaceName.get(NAMESPACE5));
             Assert.assertNull(readerCompletableFuture1);
         });
-
 
         // make sure not do cleanPoliciesCacheInitMap() twice
         // totally trigger prepareInitPoliciesCacheAsync() once, so the time of cleanPoliciesCacheInitMap() is 1.

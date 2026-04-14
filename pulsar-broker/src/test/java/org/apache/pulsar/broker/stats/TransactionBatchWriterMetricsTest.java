@@ -35,7 +35,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -67,7 +67,7 @@ import org.testng.annotations.Test;
 /**
  * Test for consuming transaction messages.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTest {
 
@@ -106,7 +106,6 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         conf.setBrokerShutdownTimeoutMs(5000L);
         return conf;
     }
-
 
     @Override
     protected void startBroker() throws Exception {

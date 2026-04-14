@@ -51,6 +51,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
@@ -74,13 +75,12 @@ import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
+@CustomLog
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
 
@@ -149,12 +149,12 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest(consumeUri);
             Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
             Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeRequest2);
-            log.info("Connecting to : {}", consumeUri);
+            log.info().attr("uri", consumeUri).log("Connecting to");
 
             readClient.start();
             ClientUpgradeRequest readRequest = new ClientUpgradeRequest(readUri);
             Future<Session> readerFuture = readClient.connect(readSocket, readRequest);
-            log.info("Connecting to : {}", readUri);
+            log.info().attr("uri", readUri).log("Connecting to");
 
             // let it connect
             assertTrue(consumerFuture1.get().isOpen());
@@ -217,7 +217,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             consumeClient.start();
             ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest(consumeUri);
             Future<Session> consumerFuture = consumeClient.connect(consumeSocket, consumeRequest);
-            log.info("Connecting to : {}", consumeUri);
+            log.info().attr("uri", consumeUri).log("Connecting to");
 
             // let it connect
             assertTrue(consumerFuture.get().isOpen());
@@ -623,12 +623,12 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             consumeClient1.start();
             ClientUpgradeRequest consumeRequest1 = new ClientUpgradeRequest(consumeUri);
             Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
-            log.info("Connecting to : {}", consumeUri);
+            log.info().attr("uri", consumeUri).log("Connecting to");
 
             readClient.start();
             ClientUpgradeRequest readRequest = new ClientUpgradeRequest(readUri);
             Future<Session> readerFuture = readClient.connect(readSocket, readRequest);
-            log.info("Connecting to : {}", readUri);
+            log.info().attr("uri", readUri).log("Connecting to");
 
             assertTrue(consumerFuture1.get().isOpen());
             assertTrue(readerFuture.get().isOpen());
@@ -739,7 +739,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             ClientUpgradeRequest consumeRequest2 = new ClientUpgradeRequest(consumeUri);
             Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeRequest1);
             Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeRequest2);
-            log.info("Connecting to : {}", consumeUri);
+            log.info().attr("uri", consumeUri).log("Connecting to");
 
             // let it connect
             assertTrue(consumerFuture1.get().isOpen());
@@ -1095,7 +1095,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             try {
                 client.stop();
             } catch (Exception e) {
-                log.error(e.getMessage());
+                log.error().exception(e).log("Error stopping client");
             }
         }
         log.info("proxy clients are stopped successfully");
@@ -1166,6 +1166,4 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             stopWebSocketClient(consumerClient1, consumerClient2);
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyPublishConsumeTest.class);
 }

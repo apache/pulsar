@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -33,7 +33,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-@Slf4j
+@CustomLog
 public class ConsumerMemoryLimitTest extends SharedPulsarBaseTest {
 
     @Test
@@ -68,7 +68,7 @@ public class ConsumerMemoryLimitTest extends SharedPulsarBaseTest {
 
         c1.setCurrentReceiverQueueSize(10);
         Awaitility.await().until(() -> c1.incomingMessages.size() == n);
-        log.info("memory usage:{}", client.getMemoryLimitController().currentUsagePercent());
+        log.info().attr("usage", client.getMemoryLimitController().currentUsagePercent()).log("memory usage");
 
         //1. check memory limit reached,
         Assert.assertTrue(client.getMemoryLimitController().currentUsagePercent() > 1);
@@ -88,7 +88,7 @@ public class ConsumerMemoryLimitTest extends SharedPulsarBaseTest {
         Assert.expectThrows(PulsarClientException.MemoryBufferIsFullError.class, () -> producer.send(new byte[10]));
 
         //4. ConsumerBase#reduceCurrentReceiverQueueSize is called already. Queue size reduced to 5.
-        log.info("RQS:{}", c1.getCurrentReceiverQueueSize());
+        log.info().attr("rQS", c1.getCurrentReceiverQueueSize()).log("RQS");
         Assert.assertEquals(c1.getCurrentReceiverQueueSize(), 5);
 
         for (int i = 0; i < n; i++) {

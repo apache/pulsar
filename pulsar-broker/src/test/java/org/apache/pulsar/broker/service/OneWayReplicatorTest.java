@@ -65,9 +65,9 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -128,7 +128,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
@@ -680,7 +680,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 if (createProducerCounter.incrementAndGet() > failTimes) {
                     return originalProducer;
                 }
-                log.info("Retry create replicator.producer count: {}", createProducerCounter);
+                log.info().attr("replicatorproducerCount", createProducerCounter)
+                        .log("Retry create replicator.producer count");
                 // Release producer and fail callback.
                 originalProducer.closeAsync();
                 throw new RuntimeException("mock error");
@@ -718,7 +719,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Delay close cursor, until "replicator.producer" create successfully.
         // The next once retry time of create "replicator.producer" will be 3.2s.
         Thread.sleep(4 * 1000);
-        log.info("Replicator.state: {}", replicator.getState());
+        log.info().attr("replicatorstate", replicator.getState()).log("Replicator.state");
         cursorCloseSignal.startClose();
         cursorCloseSignal.startCallback();
 
@@ -876,7 +877,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 if (createProducerCounter.incrementAndGet() > failTimes) {
                     return originalProducer;
                 }
-                log.info("Retry create replicator.producer count: {}", createProducerCounter);
+                log.info().attr("replicatorproducerCount", createProducerCounter)
+                        .log("Retry create replicator.producer count");
                 // Release producer and fail callback.
                 originalProducer.closeAsync();
                 throw new RuntimeException("mock error");
@@ -910,14 +912,14 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         CompletableFuture<Void> topicCloseFuture = persistentTopic.close(true);
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             String state = String.valueOf(replicator.get().getState());
-            log.error("replicator state: {}", state);
+            log.error().attr("replicatorState", state).log("replicator state");
             assertTrue(state.equals("Disconnected") || state.equals("Terminated"));
         });
 
         // 5.Delay close cursor, until "replicator.producer" create successfully.
         // The next once retry time of create "replicator.producer" will be 3.2s.
         Thread.sleep(4 * 1000);
-        log.info("Replicator.state: {}", replicator.get().getState());
+        log.info().attr("replicatorstate", replicator.get().getState()).log("Replicator.state");
         cursorCloseSignal.startClose();
         cursorCloseSignal.startCallback();
         // Wait for topic close successfully.
@@ -968,7 +970,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             persistentTopic.close(true, false).join();
             fail("Expected close fails due to a producer close fails");
         } catch (Exception ex) {
-            log.info("Expected error: {}", ex.getMessage());
+            log.info().exceptionMessage(ex).log("Expected error");
         }
 
         // Broker will call `topic.unfenceTopicToResume` if close clients fails.
@@ -1071,7 +1073,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
         // Wait for async tasks that were triggered by expanding topic partitions.
         Thread.sleep(3 * 1000);
-
 
         // Verify: the topics on the remote cluster did not been expanded.
         assertEquals(admin2.topics().getPartitionedTopicMetadata(topicName).partitions, 2);
@@ -1181,8 +1182,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
 
         // Step 4. Verify: the message can be replicated to the remote cluster.
         Awaitility.await().atMost(Duration.ofSeconds(300)).untilAsserted(() -> {
-            log.info("replication backlog: {}",
-                    admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog());
+            log.info()
+                    .attr("replicationBacklog", admin1.topics().getStats(topicName)
+                            .getReplication().get(cluster2).getReplicationBacklog())
+                    .log("replication backlog");
             assertEquals(admin1.topics().getStats(topicName).getReplication().get(cluster2).getReplicationBacklog(), 0);
             assertEquals(getTheLatestMessage(topicName, client2, admin2), msg);
         });
@@ -1434,7 +1437,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             if (topicName.equals(producerCnf.getTopicName())) {
                 // There is a switch to determine create producer successfully or not.
                 if (failedCreateProducer.get()) {
-                    log.info("Retry create replicator.producer count: {}", createProducerCounter);
+                    log.info().attr("replicatorproducerCount", createProducerCounter)
+                            .log("Retry create replicator.producer count");
                     // Release producer and fail callback.
                     originalProducer.closeAsync();
                     throw new RuntimeException("mock error");
@@ -1482,7 +1486,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                     topicDisconnected += Double.valueOf(metric.value).intValue();
                 }
             }
-            log.info("{}, {},", topicConnected, topicDisconnected);
+            log.info().attr("topicConnected", topicConnected).attr("topicDisconnected", topicDisconnected).log("done");
             assertEquals(topicConnected, 0);
             assertEquals(topicDisconnected, 1);
         });
@@ -1523,7 +1527,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                     topicDisconnected += Double.valueOf(metric.value).intValue();
                 }
             }
-            log.info("{}, {}", topicConnected, topicDisconnected);
+            log.info().attr("topicConnected", topicConnected).attr("topicDisconnected", topicDisconnected).log("done");
             assertEquals(topicConnected, 1);
             assertEquals(topicDisconnected, 0);
         });
@@ -1655,7 +1659,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             SchemaType schemaType = message.getValue().getSchemaType();
             assertTrue(schemaType.equals(SchemaType.STRING) || schemaType.equals(SchemaType.BOOLEAN));
             msgReceived.add(message.getValue().getNativeObject().toString());
-            log.info("received msg: {}", message.getValue().getNativeObject().toString());
+            log.info().attr("receivedMsg", message.getValue().getNativeObject().toString()).log("received msg");
         }
         assertEquals(msgReceived, Arrays.asList("msg1", "false", "msg3"));
         List<SchemaInfo> schemaInfoList = admin2.schemas().getAllSchemas(topicName);
@@ -1784,7 +1788,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             latestSend = producer1.sendAsync(new byte[]{1});
         }
         latestSend.join();
-        log.info("Cluster: {}, Publish finished", cluster1);
+        log.info().attr("cluster", cluster1).log("Cluster, Publish finished");
 
         // Inject two delay:
         // 1. delay publish responding,
@@ -1892,7 +1896,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             latestSend = producer1.sendAsync(new byte[]{1});
         }
         latestSend.join();
-        log.info("Cluster: {}, Publish finished", cluster1);
+        log.info().attr("cluster", cluster1).log("Cluster, Publish finished");
         producer1.close();
 
         // Start replication.

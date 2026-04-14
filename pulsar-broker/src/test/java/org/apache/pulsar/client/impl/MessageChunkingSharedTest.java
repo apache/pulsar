@@ -34,7 +34,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -52,7 +52,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class MessageChunkingSharedTest extends SharedPulsarBaseTest {
 
@@ -75,7 +75,7 @@ public class MessageChunkingSharedTest extends SharedPulsarBaseTest {
         values.add(createChunkedMessage(4)); // number of chunks < receiver queue size
         for (String value : values) {
             final MessageId messageId = producer.send(value);
-            log.info("Sent {} bytes to {}", value.length(), messageId);
+            log.info().attr("sent", value.length()).attr("bytes", messageId).log("Sent bytes to");
         }
 
         final List<String> receivedValues = new ArrayList<>();
@@ -85,7 +85,10 @@ public class MessageChunkingSharedTest extends SharedPulsarBaseTest {
                 break;
             }
             receivedValues.add(message.getValue());
-            log.info("Received {} bytes from {}", message.getValue().length(), message.getMessageId());
+            log.info()
+                    .attr("size", message.getValue().length())
+                    .attr("messageId", message.getMessageId())
+                    .log("Received bytes");
             consumer.acknowledge(message);
         }
         assertEquals(receivedValues, values);
@@ -274,9 +277,9 @@ public class MessageChunkingSharedTest extends SharedPulsarBaseTest {
                     name += "-" + chunkId + "-" + numChunks;
                 }
                 if (e == null) {
-                    log.info("Sent {} to ({}, {})", name, ledgerId, entryId);
+                    log.info().attr("sent", name).attr("ledgerId", ledgerId).attr("entryId", entryId).log("Sent to");
                 } else {
-                    log.error("Failed to send {}: {}", name, e.getMessage());
+                    log.error().attr("topic", name).exceptionMessage(e).log("Failed to send");
                 }
             }
         });

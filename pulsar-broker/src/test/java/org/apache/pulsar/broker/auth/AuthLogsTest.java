@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.auth;
 
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorException;
@@ -30,8 +31,6 @@ import org.apache.pulsar.client.api.PulsarClientException.AuthenticationExceptio
 import org.apache.pulsar.client.api.PulsarClientException.AuthorizationException;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -41,10 +40,9 @@ import org.testng.annotations.Test;
  * However it is useful to see which logs are produced when there's an
  * failure or error in authentication.
  */
+@CustomLog
 @Test(groups = "broker")
 public class AuthLogsTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(AuthLogsTest.class);
-
     public AuthLogsTest() {
         super();
     }

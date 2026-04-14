@@ -38,7 +38,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
@@ -57,7 +57,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Sets;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class ConsumerAckTest extends SharedPulsarBaseTest {
 
@@ -311,7 +311,10 @@ public class ConsumerAckTest extends SharedPulsarBaseTest {
         @Override
         public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable exception) {
             if (exception != null) {
-                log.error("[{}] Failed to acknowledge {}", consumer.getConsumerName(), messageId);
+                log.error()
+                        .attr("consumerName", consumer.getConsumerName())
+                        .attr("acknowledge", messageId)
+                        .log("Failed to acknowledge");
                 return;
             }
             individualAckedMessageIdList.add(messageId);
@@ -320,7 +323,10 @@ public class ConsumerAckTest extends SharedPulsarBaseTest {
         @Override
         public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable exception) {
             if (exception != null) {
-                log.error("[{}] Failed to acknowledge {}", consumer.getConsumerName(), messageId);
+                log.error()
+                        .attr("consumerName", consumer.getConsumerName())
+                        .attr("acknowledge", messageId)
+                        .log("Failed to acknowledge");
                 return;
             }
             cumulativeAckedMessageIdList.add(messageId);

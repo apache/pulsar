@@ -38,6 +38,7 @@ import java.util.Optional;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -46,12 +47,11 @@ import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-naming")
+@CustomLog
 public class NamespaceBundlesTest {
 
     private NamespaceBundleFactory factory;
@@ -321,8 +321,11 @@ public class NamespaceBundlesTest {
         String uRange = String.format("0x%08x_0x%08x", middle, upper);
         assertEquals(lRange, bundles.get(0).getBundleRange());
         assertEquals(uRange, bundles.get(1).getBundleRange());
-        log.info("[{},{}] => [{},{}]", range[0], range[1], lRange, uRange);
+        log.info()
+                .attr("range", range[0])
+                .attr("range2", range[1])
+                .attr("lRange", lRange)
+                .attr("uRange", uRange)
+                .log(">");
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NamespaceBundlesTest.class);
 }

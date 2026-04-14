@@ -48,8 +48,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -92,7 +92,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ConsumerStatsTest extends ProducerConsumerBase {
 
@@ -336,7 +336,6 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 .get(subName).getConsumers().get(0);
         Assert.assertTrue(consumerStats.getLastConsumedFlowTimestamp() > 0);
     }
-
 
     @Test
     public void testPersistentTopicMessageAckRateMetricTopicLevel() throws Exception {
@@ -592,7 +591,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         for (int i = 0; i < 20; i++) {
             String key = String.valueOf(i % numberOfKeys);
             int stickyKeyHash = selector.makeStickyKeyHash(key.getBytes(StandardCharsets.UTF_8));
-            log.info("Sending message with value {} key {} hash {}", key, i, stickyKeyHash);
+            log.info().attr("withValue", key).attr("key", i).attr("hash", stickyKeyHash)
+                    .log("Sending message with value key hash");
             producer.newMessage()
                     .key(key)
                     .value(i)
@@ -683,7 +683,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         // Acknowledge messages that were sent before c2 joined, to clear all draining hashes
         for (int i = 0; i < 20; i++) {
             Message<Integer> message = c1.receive(1, TimeUnit.SECONDS);
-            log.info("Acking message with value {} key {}", message.getValue(), message.getKey());
+            log.info().attr("withValue", message.getValue()).attr("key", message.getKey())
+                    .log("Acking message with value key");
             c1.acknowledge(message);
 
             if (i == 18) {

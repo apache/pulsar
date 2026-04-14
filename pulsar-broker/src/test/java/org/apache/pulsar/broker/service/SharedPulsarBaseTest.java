@@ -24,7 +24,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -45,7 +45,7 @@ import org.testng.annotations.BeforeMethod;
  * <p>Subclasses get access to {@link #admin} and {@link #pulsarClient} (initialized once per class)
  * and can use {@link #newTopicName()} to generate unique topic names within the test namespace.
  */
-@Slf4j
+@CustomLog
 public abstract class SharedPulsarBaseTest {
 
     private PulsarService pulsar;
@@ -146,9 +146,9 @@ public abstract class SharedPulsarBaseTest {
         for (String ns : namespaces) {
             try {
                 admin.namespaces().deleteNamespace(ns, true);
-                log.info("Deleted test namespace: {}", ns);
+                log.info().attr("testNamespace", ns).log("Deleted test namespace");
             } catch (Exception e) {
-                log.warn("Failed to delete namespace {}: {}", ns, e.getMessage());
+                log.warn().attr("deleteNamespace", ns).exceptionMessage(e).log("Failed to delete namespace");
             }
         }
         namespaces.clear();
@@ -162,7 +162,7 @@ public abstract class SharedPulsarBaseTest {
         String ns = SharedPulsarCluster.TENANT_NAME + "/" + nsName;
         admin.namespaces().createNamespace(ns, Set.of(SharedPulsarCluster.CLUSTER_NAME));
         namespaces.add(ns);
-        log.info("Created test namespace: {}", ns);
+        log.info().attr("testNamespace", ns).log("Created test namespace");
         return ns;
     }
 

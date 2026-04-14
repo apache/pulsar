@@ -41,7 +41,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
@@ -83,7 +83,7 @@ import org.testng.annotations.Test;
 /**
  * Test Pulsar function state.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "functions-worker")
 public class PulsarFunctionPublishTest {
     LocalBookkeeperEnsemble bkEnsemble;
@@ -121,7 +121,7 @@ public class PulsarFunctionPublishTest {
 
     @BeforeMethod
     void setup(Method method) throws Exception {
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
@@ -556,7 +556,7 @@ public class PulsarFunctionPublishTest {
         // check if all function files are deleted from BK
         String url = String.format("distributedlog://%s/pulsar/functions", "127.0.0.1" + ":"
                 + bkEnsemble.getZookeeperPort());
-        log.info("dlog url: {}", url);
+        log.info().attr("url", url).log("dlog url");
         URI dlogUri = URI.create(url);
 
         @Cleanup

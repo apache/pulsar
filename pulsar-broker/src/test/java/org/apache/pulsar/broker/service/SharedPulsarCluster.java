@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
 import java.util.Set;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.pulsar.broker.PulsarService;
@@ -45,7 +45,7 @@ import org.apache.pulsar.tests.ThreadLeakDetectorListener;
  *
  * @see SharedPulsarBaseTest
  */
-@Slf4j
+@CustomLog
 public class SharedPulsarCluster {
 
     private static final String METADATA_STORE_URL = "memory:shared-test-cluster";
@@ -77,7 +77,7 @@ public class SharedPulsarCluster {
                         try {
                             instance.close();
                         } catch (Exception e) {
-                            log.error("Failed to close SharedPulsarCluster", e);
+                            log.error().exception(e).log("Failed to close SharedPulsarCluster");
                         }
                     }));
                 }
@@ -186,8 +186,8 @@ public class SharedPulsarCluster {
                         .allowedClusters(Set.of(CLUSTER_NAME))
                         .build());
 
-        log.info("SharedPulsarCluster started. broker={} web={}",
-                pulsarService.getBrokerServiceUrl(), pulsarService.getWebServiceAddress());
+        log.info().attr("startedBroker", pulsarService.getBrokerServiceUrl())
+                .attr("web", pulsarService.getWebServiceAddress()).log("SharedPulsarCluster started. broker= web");
 
         // Reset the thread leak detector baseline so that threads created by
         // this shared cluster are not reported as leaks of the first test class

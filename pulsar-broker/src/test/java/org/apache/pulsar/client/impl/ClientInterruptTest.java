@@ -28,7 +28,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -47,7 +47,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class ClientInterruptTest extends ProducerConsumerBase {
 
@@ -90,7 +90,7 @@ public class ClientInterruptTest extends ProducerConsumerBase {
         mockZooKeeper.delay(1000L, (op, path) -> {
             final var result = path.equals(mlPath);
             if (result) {
-                log.info("Injected delay for {} {}", op, path);
+                log.info().attr("delay", op).attr("path", path).log("Injected delay for");
                 delayTriggered.complete(null);
             }
             return result;

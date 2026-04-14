@@ -34,6 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -52,14 +53,12 @@ import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.protocol.Commands;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker")
 public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerInterceptorImplTest.class);
 
     public static class TestPayloadProcessor implements ManagedLedgerPayloadProcessor {
         @Override
@@ -442,7 +441,7 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
                         entry.getDataBuffer());
                 return brokerEntryMetadata.getIndex() < indexToSearch;
             } catch (Exception e) {
-                log.error("Error deserialize message for message position find", e);
+                log.error().exception(e).log("Error deserialize message for message position find");
             } finally {
                 entry.release();
             }

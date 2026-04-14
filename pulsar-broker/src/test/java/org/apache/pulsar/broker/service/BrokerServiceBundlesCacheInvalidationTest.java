@@ -19,13 +19,13 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class BrokerServiceBundlesCacheInvalidationTest extends SharedPulsarBaseTest {
 
     @Test
@@ -47,7 +47,7 @@ public class BrokerServiceBundlesCacheInvalidationTest extends SharedPulsarBaseT
         admin.namespaces().createNamespace(namespace, 32);
 
         BundlesData bundlesData = admin.namespaces().getBundles(namespace);
-        log.info("BUNDLES: {}", admin.namespaces().getBundles(namespace));
+        log.info().attr("bundles", admin.namespaces().getBundles(namespace)).log("Bundles");
         assertEquals(bundlesData.getNumBundles(), 32);
     }
 }

@@ -44,7 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.StringUtils;
@@ -90,7 +90,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase {
 
@@ -223,11 +223,12 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         int messageCount = 15;
         for (int i = 0; i < messageCount; i++) {
             producer.send(i);
-            log.info("Sent message: {}", i);
+            log.info().attr("sentMessage", i).log("Sent message");
             // The replicated marker will be sent internally per seconds. We wait 1.2s here, a replicated marker will
             // be sent.
             Thread.sleep(1200);
-            log.info("latest replication snapshot: {}", replicatedSubscriptionsController.getLastCompletedSnapshotId());
+            log.info().attr("replicationSnapshot", replicatedSubscriptionsController.getLastCompletedSnapshotId())
+                    .log("latest replication snapshot");
         }
         producer.close();
 
@@ -235,7 +236,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         GeoPersistentReplicator replicator = (GeoPersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
         long backlog = replicator.getCursor().getNumberOfEntriesInBacklog(true);
         Awaitility.await().untilAsserted(() -> {
-            log.info("replication backlog: {}", backlog);
+            log.info().attr("replicationBacklog", backlog).log("replication backlog");
             assertTrue(backlog >= messageCount * 2);
         });
 
@@ -257,7 +258,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
         for (int i = 0; i < messageCount; i++) {
             Message<Integer> msg = consumer2.receive(2, TimeUnit.SECONDS);
             assertNotNull(msg);
-            log.info("Received message: {}", msg.getValue());
+            log.info().attr("receivedMessage", msg.getValue()).log("Received message");
             assertEquals(msg.getValue(), i);
         }
 
@@ -484,7 +485,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
-                    log.info("repl backlog: {}", replBacklog);
+                    log.info().attr("replBacklog", replBacklog).log("repl backlog");
                     assertEquals(replBacklog, 0);
                 }
             }
@@ -500,19 +501,20 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 break;
             }
             MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
+                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
+                    .log("received msg. source, target");
             msgReceived.add(String.valueOf(msg.getValue()));
             consumer.acknowledgeAsync(msg);
         }
-        log.info("c1 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin2.topics().getInternalStats(topicName)));
-        log.info("c1 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin1.topics().getStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin2.topics().getStats(topicName)));
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)))
+                .log("c1 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin2.topics().getInternalStats(topicName)))
+                .log("c2 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getStats(topicName)))
+                .log("c1 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin2.topics().getStats(topicName)))
+                .log("c2 topic stats-internal");
         assertEquals(msgReceived, msgSent);
         consumer.close();
 
@@ -577,20 +579,21 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 break;
             }
             MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
+                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
+                    .log("received msg. source, target");
             msgReceived2.add(String.valueOf(msg.getValue()));
             consumer2.acknowledgeAsync(msg);
         }
         // Verify: all messages were copied correctly.
-        log.info("c1 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin2.topics().getInternalStats(topicName)));
-        log.info("c1 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin1.topics().getStats(topicName)));
-        log.info("c2 topic stats-internal: "
-                + JACKSON.writeValueAsString(admin2.topics().getStats(topicName)));
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getInternalStats(topicName)))
+                .log("c1 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin2.topics().getInternalStats(topicName)))
+                .log("c2 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin1.topics().getStats(topicName)))
+                .log("c1 topic stats-internal");
+        log.info().attr("writeValueAsString", JACKSON.writeValueAsString(admin2.topics().getStats(topicName)))
+                .log("c2 topic stats-internal");
         assertEquals(msgReceived2, msgSent);
         consumer2.close();
 
@@ -777,7 +780,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                     if (cursor.getName().equals("pulsar.repl.r2")) {
                         long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
-                        log.info("repl backlog: {}", replBacklog);
+                        log.info().attr("replBacklog", replBacklog).log("repl backlog");
                         assertEquals(replBacklog, 0);
                     }
                 }
@@ -805,7 +808,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             for (ManagedCursor cursor : tp12.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
-                    log.info("repl backlog: {}", replBacklog);
+                    log.info().attr("replBacklog", replBacklog).log("repl backlog");
                     assertEquals(replBacklog, 0);
                 }
             }
@@ -823,13 +826,14 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 break;
             }
             MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
+                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
+                    .log("received msg. source, target");
             msgReceived.add(new String(msg.getData(), StandardCharsets.UTF_8));
             consumer.acknowledgeAsync(msg);
         }
 
-        log.info("received msgs: {}", msgReceived);
+        log.info().attr("receivedMsgs", msgReceived).log("received msgs");
         assertTrue(msgReceived.contains("1"));
         assertTrue(msgReceived.contains("2"));
         assertTrue(msgReceived.contains("3"));
@@ -899,7 +903,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                             (CompletableFuture<CommandGetSchemaResponse>) pendingRequests.remove(requestId);
                     if (future == null) {
                         duplicatedResponseCounter.incrementAndGet();
-                        log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
+                        log.warn().attr("channel", ctx.channel()).attr("fromServer", requestId)
+                                .log("Received unknown request id from server");
                         return;
                     }
                     future.completeExceptionally(new PulsarClientException.TimeoutException("Mocked timeout"));
@@ -924,7 +929,8 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                             (CompletableFuture<CommandGetOrCreateSchemaResponse>) pendingRequests.remove(requestId);
                     if (future == null) {
                         duplicatedResponseCounter.incrementAndGet();
-                        log.warn("{} Received unknown request id from server: {}", ctx.channel(), requestId);
+                        log.warn().attr("channel", ctx.channel()).attr("fromServer", requestId)
+                                .log("Received unknown request id from server");
                         return;
                     }
                     future.completeExceptionally(new PulsarClientException.TimeoutException("Mocked timeout"));
@@ -989,7 +995,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             for (ManagedCursor cursor : tp1.getManagedLedger().getCursors()) {
                 if (cursor.getName().equals("pulsar.repl.r2")) {
                     long replBacklog = cursor.getNumberOfEntriesInBacklog(true);
-                    log.info("repl backlog: {}", replBacklog);
+                    log.info().attr("replBacklog", replBacklog).log("repl backlog");
                     assertEquals(replBacklog, 0);
                 }
             }
@@ -1005,12 +1011,13 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 break;
             }
             MessageIdAdv messageIdAdv = (MessageIdAdv) msg.getMessageId();
-            log.info("received msg. source {}, target {}:{}", StringUtils.join(msg.getProperties().values(), ":"),
-                    messageIdAdv.getLedgerId(), messageIdAdv.getEntryId());
+            log.info().attr("msgSource", StringUtils.join(msg.getProperties().values(), ":"))
+                    .attr("target", messageIdAdv.getLedgerId()).attr("entryId", messageIdAdv.getEntryId())
+                    .log("received msg. source, target");
             msgReceived.add(new String(msg.getData(), StandardCharsets.UTF_8));
             consumer.acknowledgeAsync(msg);
         }
-        log.info("received msgs: {}", msgReceived);
+        log.info().attr("receivedMsgs", msgReceived).log("received msgs");
         assertTrue(msgReceived.contains("1"));
         assertTrue(msgReceived.contains("2"));
         assertTrue(msgReceived.contains("2-1"));

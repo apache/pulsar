@@ -29,6 +29,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -42,14 +43,12 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class ResendRequestTest extends SharedPulsarBaseTest {
     private static final long testTimeout = 60000; // 1 min
-    private static final Logger log = LoggerFactory.getLogger(ResendRequestTest.class);
 
     @Test(timeOut = testTimeout)
     public void testExclusiveSingleAckedNormalTopic() throws Exception {
@@ -83,18 +82,18 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
 
         // 4. Receive messages
         Message<byte[]> message = consumer.receive();
-        log.info("Message received " + new String(message.getData()));
+        log.info().attr("data", new String(message.getData())).log("Message received");
 
         for (int i = 1; i < totalMessages; i++) {
             Message<byte[]> msg = consumer.receive();
-            log.info("Message received " + new String(msg.getData()));
+            log.info().attr("data", new String(msg.getData())).log("Message received");
             messageDataHashSet.add(new String(msg.getData()));
         }
         printIncomingMessageQueue(consumer);
 
         // 5. Ack 1st message and ask for resend
         consumer.acknowledge(message);
-        log.info("Message acked " + new String(message.getData()));
+        log.info().attr("data", new String(message.getData())).log("Message acked");
         messageIdHashSet.add(message.getMessageId());
         messageDataHashSet.add(new String(message.getData()));
 
@@ -104,12 +103,12 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         // 6. Check if messages resent in correct order
         for (int i = 0; i < totalMessages - 1; i++) {
             message = consumer.receive();
-            log.info("Message received " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Message received");
             if (i < 2) {
                 messageIdHashSet.add(message.getMessageId());
                 consumer.acknowledge(message);
             }
-            log.info("Message acked " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Message acked");
             assertTrue(messageDataHashSet.contains(new String(message.getData())));
         }
         assertEquals(messageIdHashSet.size(), 3);
@@ -121,9 +120,9 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         log.info("Resend Messages Request sent");
         message = consumer.receive(2000, TimeUnit.MILLISECONDS);
         while (message != null) {
-            log.info("Message received " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Message received");
             consumer.acknowledge(message);
-            log.info("Message acked " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Message acked");
             messageIdHashSet.add(message.getMessageId());
             messageDataHashSet.add(new String(message.getData()));
             message = consumer.receive(5000, TimeUnit.MILLISECONDS);
@@ -173,7 +172,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
             producer.send(message.getBytes());
-            log.info("Producer produced " + message);
+            log.info().attr("message", message).log("Producer produced");
         }
 
         // 4. Receive messages
@@ -182,21 +181,21 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         Message<byte[]> message2 = consumer2.receive();
         do {
             if (message1 != null) {
-                log.info("Consumer 1 Received: " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
                 receivedConsumer1 += 1;
             }
 
             if (message2 != null) {
-                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
                 receivedConsumer2 += 1;
             }
             message1 = consumer1.receive(100, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(100, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
 
-        log.info("Consumer 1 receives = " + receivedConsumer1);
-        log.info("Consumer 2 receives = " + receivedConsumer2);
-        log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
+        log.info().attr("receivedConsumer1", receivedConsumer1).log("Consumer 1 receives");
+        log.info().attr("receivedConsumer2", receivedConsumer2).log("Consumer 2 receives");
+        log.info().attr("value", (receivedConsumer2 + receivedConsumer1)).log("Total receives");
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
 
         // 5. Send a resend request from Consumer 1
@@ -210,20 +209,20 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         message2 = consumer2.receive(100, TimeUnit.MILLISECONDS);
         do {
             if (message1 != null) {
-                log.info("Consumer 1 Received: " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
                 receivedConsumer1 += 1;
                 ++receivedMessagesAfterRedelivery;
             }
 
             if (message2 != null) {
-                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
                 receivedConsumer2 += 1;
                 ++receivedMessagesAfterRedelivery;
             }
             message1 = consumer1.receive(200, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(200, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
-        log.info("Additional received = " + receivedMessagesAfterRedelivery);
+        log.info().attr("receivedMessagesAfterRedelivery", receivedMessagesAfterRedelivery).log("Additional received");
         assertTrue(receivedMessagesAfterRedelivery > 0);
 
         assertEquals(receivedConsumer1 + receivedConsumer2, totalMessages);
@@ -283,7 +282,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
             producer.send(message.getBytes());
-            log.info("Producer produced " + message);
+            log.info().attr("message", message).log("Producer produced");
         }
 
         // 4. Receive messages
@@ -294,19 +293,19 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
             message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
             if (message1 != null) {
-                log.info("Consumer 1 Received: " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
                 receivedConsumer1 += 1;
             }
             if (message2 != null) {
-                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
                 receivedConsumer2 += 1;
             }
 
         } while (message1 != null || message2 != null);
 
-        log.info("Consumer 1 receives = " + receivedConsumer1);
-        log.info("Consumer 2 receives = " + receivedConsumer2);
-        log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
+        log.info().attr("receivedConsumer1", receivedConsumer1).log("Consumer 1 receives");
+        log.info().attr("receivedConsumer2", receivedConsumer2).log("Consumer 2 receives");
+        log.info().attr("value", (receivedConsumer2 + receivedConsumer1)).log("Total receives");
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
         // Consumer 2 is on Stand By
         assertEquals(receivedConsumer2, 0);
@@ -321,14 +320,14 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
             message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
             if (message1 != null) {
-                log.info("Consumer 1 Received: " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
                 receivedConsumer1 += 1;
-                log.info("Consumer 1 Acknowledged: " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Acknowledged");
                 consumer1.acknowledge(message1);
             }
 
             if (message2 != null) {
-                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
                 receivedConsumer2 += 1;
             }
         }
@@ -349,16 +348,16 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
             if (flag) {
                 consumer2.acknowledge(message2);
                 acknowledgedMessages += 1;
-                log.info("Consumer 2 Acknowledged: " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Acknowledged");
             } else {
                 unAcknowledgedMessages += 1;
             }
             flag = !flag;
-            log.info("Consumer 2 Received: " + new String(message2.getData()));
+            log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         } while (message2 != null);
-        log.info("Consumer 2 receives = " + (unAcknowledgedMessages + acknowledgedMessages));
-        log.info("Consumer 2 acknowledges = " + acknowledgedMessages);
+        log.info().attr("value", (unAcknowledgedMessages + acknowledgedMessages)).log("Consumer 2 receives");
+        log.info().attr("acknowledgedMessages", acknowledgedMessages).log("Consumer 2 acknowledges");
         assertEquals(unAcknowledgedMessages + acknowledgedMessages, totalMessages - receivedConsumer1);
 
         // 9 .Consumer 2 asks for a resend
@@ -370,7 +369,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
             receivedConsumer2 += 1;
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         } while (message2 != null);
-        log.info("Consumer 2 receives = " + receivedConsumer2);
+        log.info().attr("receivedConsumer2", receivedConsumer2).log("Consumer 2 receives");
         assertEquals(unAcknowledgedMessages, receivedConsumer2);
     }
 
@@ -403,11 +402,11 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
 
         // 4. Receive messages
         Message<byte[]> message = consumer.receive();
-        log.info("Message received " + new String(message.getData()));
+        log.info().attr("data", new String(message.getData())).log("Message received");
         for (int i = 0; i < 7; i++) {
             printIncomingMessageQueue(consumer);
             message = consumer.receive();
-            log.info("Message received " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Message received");
         }
 
         consumer.redeliverUnacknowledgedMessages();
@@ -424,7 +423,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         message = consumer.receive();
         do {
             numOfReceives += 1;
-            log.info("Message received " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Message received");
             message = consumer.receive(1000, TimeUnit.MILLISECONDS);
         } while (message != null);
         assertEquals(numOfReceives, 2);
@@ -452,17 +451,17 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
-            log.info("Message produced: " + message);
+            log.info().attr("message", message).log("Message produced");
             producer.send(message.getBytes());
         }
 
         // 4. Receive messages
         Message<byte[]> message = consumer.receive();
         int messageCount = 0;
-        log.info("Message received " + new String(message.getData()));
+        log.info().attr("data", new String(message.getData())).log("Message received");
         do {
             messageCount += 1;
-            log.info("Message received " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Message received");
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         } while (message != null);
         assertEquals(messageCount, totalMessages);
@@ -473,10 +472,10 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         // 6. Check if Messages redelivered again
         message = consumer.receive();
         messageCount = 0;
-        log.info("Message received " + new String(message.getData()));
+        log.info().attr("data", new String(message.getData())).log("Message received");
         do {
             messageCount += 1;
-            log.info("Message received " + new String(message.getData()));
+            log.info().attr("data", new String(message.getData())).log("Message received");
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         } while (message != null);
         assertEquals(messageCount, totalMessages);
@@ -509,7 +508,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
-            log.info("Message produced: " + message);
+            log.info().attr("message", message).log("Message produced");
             producer.send(message.getBytes());
         }
 
@@ -522,30 +521,30 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         int ackCount2 = 0;
         do {
             if (message1 != null) {
-                log.info("Consumer1 received " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer1 received");
                 messageCount1 += 1;
                 if (rn.nextInt() % 3 == 0) {
                     consumer1.acknowledge(message1);
-                    log.info("Consumer1 acked " + new String(message1.getData()));
+                    log.info().attr("data", new String(message1.getData())).log("Consumer1 acked");
                     ackCount1 += 1;
                 }
             }
             if (message2 != null) {
-                log.info("Consumer2 received " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer2 received");
                 messageCount2 += 1;
                 if (rn.nextInt() % 3 == 0) {
                     consumer2.acknowledge(message2);
-                    log.info("Consumer2 acked " + new String(message2.getData()));
+                    log.info().attr("data", new String(message2.getData())).log("Consumer2 acked");
                     ackCount2 += 1;
                 }
             }
             message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
-        log.info("messageCount1 = " + messageCount1);
-        log.info("messageCount2 = " + messageCount2);
-        log.info("ackCount1 = " + ackCount1);
-        log.info("ackCount2 = " + ackCount2);
+        log.info().attr("messageCount1", messageCount1).log("messageCount1");
+        log.info().attr("messageCount2", messageCount2).log("messageCount2");
+        log.info().attr("ackCount1", ackCount1).log("ackCount1");
+        log.info().attr("ackCount2", ackCount2).log("ackCount2");
         assertEquals(messageCount1 + messageCount2, totalMessages);
 
         // 5. Ask for redeliver
@@ -561,21 +560,21 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         messageCount1 = 0;
         do {
             if (message1 != null) {
-                log.info("Consumer1 received " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer1 received");
                 messageCount1 += 1;
             }
             if (message2 != null) {
-                log.info("Consumer2 received " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer2 received");
                 messageCount2 += 1;
             }
             message1 = consumer1.receive(1000, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(1000, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
 
-        log.info("messageCount1 = " + messageCount1);
-        log.info("messageCount2 = " + messageCount2);
-        log.info("ackCount1 = " + ackCount1);
-        log.info("ackCount2 = " + ackCount2);
+        log.info().attr("messageCount1", messageCount1).log("messageCount1");
+        log.info().attr("messageCount2", messageCount2).log("messageCount2");
+        log.info().attr("ackCount1", ackCount1).log("ackCount1");
+        log.info().attr("ackCount2", ackCount2).log("ackCount2");
         assertEquals(messageCount1 + messageCount2 + ackCount1, totalMessages);
     }
 
@@ -605,7 +604,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
-            log.info("Message produced: " + message);
+            log.info().attr("message", message).log("Message produced");
             producer.send(message.getBytes());
         }
 
@@ -618,7 +617,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         int ackCount2 = 0;
         do {
             if (message1 != null) {
-                log.info("Consumer1 received " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer1 received");
                 messageCount1 += 1;
                 if (rn.nextInt() % 3 == 0) {
                     consumer1.acknowledge(message1);
@@ -626,7 +625,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
                 }
             }
             if (message2 != null) {
-                log.info("Consumer2 received " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer2 received");
                 messageCount2 += 1;
                 if (rn.nextInt() % 3 == 0) {
                     consumer2.acknowledge(message2);
@@ -636,10 +635,10 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
             message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         } while (message1 != null || message2 != null);
-        log.info("messageCount1 = " + messageCount1);
-        log.info("messageCount2 = " + messageCount2);
-        log.info("ackCount1 = " + ackCount1);
-        log.info("ackCount2 = " + ackCount2);
+        log.info().attr("messageCount1", messageCount1).log("messageCount1");
+        log.info().attr("messageCount2", messageCount2).log("messageCount2");
+        log.info().attr("ackCount1", ackCount1).log("ackCount1");
+        log.info().attr("ackCount2", ackCount2).log("ackCount2");
         assertEquals(messageCount1 + messageCount2, totalMessages);
         if ((ackCount1 + ackCount2) == totalMessages) {
             return;
@@ -654,15 +653,15 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         messageCount1 = 0;
         do {
             if (message2 != null) {
-                log.info("Consumer2 received " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer2 received");
                 messageCount2 += 1;
             }
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         } while (message2 != null);
-        log.info("messageCount1 = " + messageCount1);
-        log.info("messageCount2 = " + messageCount2);
-        log.info("ackCount1 = " + ackCount1);
-        log.info("ackCount2 = " + ackCount2);
+        log.info().attr("messageCount1", messageCount1).log("messageCount1");
+        log.info().attr("messageCount2", messageCount2).log("messageCount2");
+        log.info().attr("ackCount1", ackCount1).log("ackCount1");
+        log.info().attr("ackCount2", ackCount2).log("ackCount2");
         assertEquals(messageCount2 + ackCount1, totalMessages);
     }
 
@@ -691,7 +690,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         for (int i = 0; i < totalMessages; i++) {
             String message = messagePredicate + i;
             producer.send(message.getBytes());
-            log.info("Producer produced " + message);
+            log.info().attr("message", message).log("Producer produced");
         }
 
         // 4. Receive messages - determine which consumer is active (depends on topic name hash)
@@ -701,20 +700,20 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         do {
             message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
             if (message1 != null) {
-                log.info("Consumer 1 Received: " + new String(message1.getData()));
+                log.info().attr("data", new String(message1.getData())).log("Consumer 1 Received");
                 receivedConsumer1 += 1;
             }
         } while (message1 != null);
         do {
             message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
             if (message2 != null) {
-                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                log.info().attr("data", new String(message2.getData())).log("Consumer 2 Received");
                 receivedConsumer2 += 1;
             }
         } while (message2 != null);
-        log.info("Consumer 1 receives = " + receivedConsumer1);
-        log.info("Consumer 2 receives = " + receivedConsumer2);
-        log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
+        log.info().attr("receivedConsumer1", receivedConsumer1).log("Consumer 1 receives");
+        log.info().attr("receivedConsumer2", receivedConsumer2).log("Consumer 2 receives");
+        log.info().attr("value", (receivedConsumer2 + receivedConsumer1)).log("Total receives");
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
         // One consumer is active, the other is on standby
         Consumer<byte[]> activeConsumer;
@@ -747,7 +746,7 @@ public class ResendRequestTest extends SharedPulsarBaseTest {
         Field field = ConsumerBase.class.getDeclaredField("incomingMessages");
         field.setAccessible(true);
         imq = (GrowableArrayBlockingQueue<Message<byte[]>>) field.get(c);
-        log.info("Incoming Message Queue: {}", imq.toList());
+        log.info().attr("messageQueue", imq.toList()).log("Incoming Message Queue");
         return imq;
     }
 

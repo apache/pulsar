@@ -31,7 +31,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -52,7 +52,7 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.reflect.WhiteboxImpl;
 
-@Slf4j
+@CustomLog
 public abstract class NetworkErrorTestBase extends TestRetrySupport {
 
     protected static final String CA_CERT_FILE_PATH =
@@ -109,7 +109,8 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
         url2 = new URL(pulsar2.getWebServiceAddress());
         urlTls2 = new URL(pulsar2.getWebServiceAddressTls());
 
-        log.info("broker-1: {}, broker-2: {}", broker1.getListenPort(), broker2.getListenPort());
+        log.info().attr("broker1", broker1.getListenPort()).attr("broker2", broker2.getListenPort())
+                .log("broker-1, broker-2");
     }
 
     public static int getOneFreePort() throws IOException {

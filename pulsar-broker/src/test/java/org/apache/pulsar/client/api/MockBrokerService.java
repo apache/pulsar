@@ -35,6 +35,7 @@ import java.util.regex.Pattern;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandAckHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseConsumerHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseProducerHook;
@@ -74,12 +75,11 @@ import org.eclipse.jetty.ee8.nested.AbstractHandler;
 import org.eclipse.jetty.ee8.nested.ContextHandler;
 import org.eclipse.jetty.ee8.nested.Request;
 import org.eclipse.jetty.server.Server;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  */
+@CustomLog
 public class MockBrokerService {
     private LookupData lookupData;
 
@@ -98,7 +98,7 @@ public class MockBrokerService {
         public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
                 throws IOException, ServletException {
             String responseString;
-            log.info("Received HTTP request {}", baseRequest.getRequestURI());
+            log.info().attr("httpRequest", baseRequest.getRequestURI()).log("Received HTTP request");
             if (baseRequest.getRequestURI().startsWith(lookupURI)) {
                 response.setContentType("application/json;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
@@ -120,7 +120,7 @@ public class MockBrokerService {
             }
             baseRequest.setHandled(true);
             response.getWriter().println(responseString);
-            log.info("Sent response: {}", responseString);
+            log.info().attr("sentResponse", responseString).log("Sent response");
         }
     }
 
@@ -262,7 +262,7 @@ public class MockBrokerService {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-            log.warn("Got exception", cause);
+            log.warn().exception(cause).log("Got exception");
             ctx.close();
         }
 
@@ -302,15 +302,15 @@ public class MockBrokerService {
     public void start() {
         try {
             server.start();
-            log.info("Started web service on {}", getHttpAddress());
+            log.info().attr("serviceOn", getHttpAddress()).log("Started web service on");
 
             startMockBrokerService();
-            log.info("Started mock Pulsar service on {}", getBrokerAddress());
+            log.info().attr("serviceOn", getBrokerAddress()).log("Started mock Pulsar service on");
 
             lookupData = new LookupData(getBrokerAddress(), null,
                     getHttpAddress(), null);
         } catch (Exception e) {
-            log.error("Error starting mock service", e);
+            log.error().exception(e).log("Error starting mock service");
         }
     }
 
@@ -319,7 +319,7 @@ public class MockBrokerService {
             server.stop();
             workerGroup.shutdownGracefully();
         } catch (Exception e) {
-            log.error("Error stopping mock service", e);
+            log.error().exception(e).log("Error stopping mock service");
         }
     }
 
@@ -449,5 +449,4 @@ public class MockBrokerService {
         return String.format("pulsar://localhost:%d", ((InetSocketAddress) listenChannel.localAddress()).getPort());
     }
 
-    private static final Logger log = LoggerFactory.getLogger(MockBrokerService.class);
 }

@@ -22,7 +22,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -35,7 +35,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BrokerRegistryIntegrationTest {
 
@@ -100,12 +100,14 @@ public class BrokerRegistryIntegrationTest {
                 brokerRegistry.getAvailableBrokersAsync().join(), List.of(pulsar.getBrokerId())));
         final var metadataStore = pulsar.getLocalMetadataStore();
         final var oldResult = metadataStore.get(brokerMetadataPath).get().orElseThrow();
-        log.info("Old result: {} {}", new String(oldResult.getValue()), oldResult.getStat().getVersion());
+        log.info().attr("value", new String(oldResult.getValue()))
+                .attr("version", oldResult.getStat().getVersion()).log("Old result");
         brokerRegistry.registerAsync().get();
 
         Awaitility.await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
             final var newResult = metadataStore.get(brokerMetadataPath).get().orElseThrow();
-            log.info("New result: {} {}", new String(newResult.getValue()), newResult.getStat().getVersion());
+            log.info().attr("value", new String(newResult.getValue()))
+                    .attr("version", newResult.getStat().getVersion()).log("New result");
             Assert.assertTrue(newResult.getStat().getVersion() > oldResult.getStat().getVersion());
             Assert.assertEquals(newResult.getValue(), oldResult.getValue());
         });

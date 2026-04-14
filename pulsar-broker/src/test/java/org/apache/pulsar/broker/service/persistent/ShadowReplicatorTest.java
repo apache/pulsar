@@ -26,7 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -48,7 +48,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class ShadowReplicatorTest extends BrokerTestBase {
 
@@ -195,6 +195,5 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         waitReplicateFinish(sourceTopicName, admin);
         ensureNoBacklogByInflightTask(replicator);
     }
-
 
 }

@@ -68,7 +68,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -141,7 +141,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BrokerServiceTest extends BrokerTestBase {
 
@@ -1598,7 +1598,8 @@ public class BrokerServiceTest extends BrokerTestBase {
                 } catch (PulsarAdminException.NotFoundException e) {
                     // expected exception
                 } catch (PulsarAdminException | InterruptedException e) {
-                    log.error("Exception in {}", Thread.currentThread().getName(), e);
+                    log.error().attr("thread", Thread.currentThread().getName())
+                            .exception(e).log("Exception in thread");
                 }
             }, "getStatsThread#" + i);
             getStatsThread.start();

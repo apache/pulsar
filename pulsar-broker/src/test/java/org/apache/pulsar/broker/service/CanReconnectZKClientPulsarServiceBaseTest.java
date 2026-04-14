@@ -27,7 +27,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -47,7 +47,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 
-@Slf4j
+@CustomLog
 public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetrySupport {
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
@@ -97,7 +97,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
             localZkOfBroker = zkStore.getZkClient();
         }
         store.registerSessionListener(n -> {
-            log.info("Received session event: {}", n);
+            log.info().attr("event", n).log("Received session event");
             sessionEvent = n;
         });
         ClientCnxn cnxn = WhiteboxImpl.getInternalState(localZkOfBroker, "cnxn");
@@ -137,7 +137,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
                     // Prevents high cpu usage.
                     Thread.sleep(5);
                 } catch (Exception e) {
-                    log.error("Try close the ZK connection of local metadata store failed: {}", e.toString());
+                    log.error().exceptionMessage(e).log("Try close the ZK connection of local metadata store failed");
                 }
             }
         });
@@ -156,7 +156,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
                     // Prevents high cpu usage.
                     Thread.sleep(5);
                 } catch (Exception e) {
-                    log.error("Try close the ZK connection of local metadata store failed: {}", e.toString());
+                    log.error().exceptionMessage(e).log("Try close the ZK connection of local metadata store failed");
                 }
             }
         });

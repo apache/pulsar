@@ -28,7 +28,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -43,7 +43,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class NegativeAcksTest extends SharedPulsarBaseTest {
 
@@ -93,8 +93,12 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
     public void testNegativeAcks(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
             int negAcksDelayMillis, int ackTimeout)
             throws Exception {
-        log.info("Test negative acks batching={} partitions={} subType={} negAckDelayMs={}", batching, usePartitions,
-                subscriptionType, negAcksDelayMillis);
+        log.info()
+                .attr("batching", batching)
+                .attr("partitions", usePartitions)
+                .attr("subType", subscriptionType)
+                .attr("negAckDelayMs", negAcksDelayMillis)
+                .log("Test negative acks batching= partitions= subType= negAckDelayMs");
         String topic = newTopicName();
         if (usePartitions) {
             admin.topics().createPartitionedTopic(topic, 2);
@@ -202,8 +206,13 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
     public void testNegativeAcksWithBackoff(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
             int minNackTimeMs, int maxNackTimeMs)
             throws Exception {
-        log.info("Test negative acks with back off batching={} partitions={} subType={} minNackTimeMs={}, "
-                        + "maxNackTimeMs={}", batching, usePartitions, subscriptionType, minNackTimeMs, maxNackTimeMs);
+        log.info()
+                .attr("batching", batching)
+                .attr("partitions", usePartitions)
+                .attr("subType", subscriptionType)
+                .attr("minNackTimeMs", minNackTimeMs)
+                .attr("maxNackTimeMs", maxNackTimeMs)
+                .log("Test negative acks with back off batching= partitions= subType= minNackTimeMs=, maxNackTimeMs=");
         String topic = newTopicName();
 
         MultiplierRedeliveryBackoff backoff = MultiplierRedeliveryBackoff.builder()
@@ -243,7 +252,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
             Message<String> msg = null;
             for (int j = 0; j < num; j++) {
                 msg = consumer.receive();
-                log.info("Received message {}", msg.getValue());
+                log.info().attr("message", msg.getValue()).log("Received message");
                 if (!batching) {
                     consumer.negativeAcknowledge(msg);
                 }
@@ -264,11 +273,11 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
             consumer.acknowledge(msg);
         }
         long receivedAfterRedeliveryAt = System.currentTimeMillis();
-        log.info("Total redelivery delay: {} ms", receivedAfterRedeliveryAt - firstReceivedAt);
+        log.info().attr("delay", receivedAfterRedeliveryAt - firstReceivedAt).log("Total redelivery delay: ms");
         assertEquals(receivedMessages, sentMessages);
 
         if (SubscriptionType.Shared == subscriptionType) {
-            log.info("Total expected redelivery delay {} ms", expectedTotalRedeliveryDelay);
+            log.info().attr("delay", expectedTotalRedeliveryDelay).log("Total expected redelivery delay ms");
             assertTrue(receivedAfterRedeliveryAt - firstReceivedAt >= expectedTotalRedeliveryDelay);
         }
 
@@ -444,7 +453,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
             public void run() {
                 consumer.receiveAsync()
                         .thenCompose(m -> {
-                            log.info("received one msg : {}", m.getMessageId());
+                            log.info().attr("msg", m.getMessageId()).log("received one msg");
                             datas.remove(m.getValue());
                             return consumer.acknowledgeCumulativeAsync(m);
                         })
@@ -472,7 +481,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
             consumer.acknowledgeCumulative(msg);
             Thread.sleep(200);
             datas.remove(msg.getValue());
-            log.info("received msg : {}", msg.getMessageId());
+            log.info().attr("msg", msg.getMessageId()).log("received msg");
             count++;
         }
         Assert.assertEquals(count, 9);

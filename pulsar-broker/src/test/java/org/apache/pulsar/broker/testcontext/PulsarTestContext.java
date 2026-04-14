@@ -33,11 +33,11 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Singular;
 import lombok.SneakyThrows;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -132,7 +132,7 @@ import org.mockito.internal.util.MockUtil;
  * }
  * }</pre>
  */
-@Slf4j
+@CustomLog
 @ToString
 @Getter
 @Builder(builderClassName = "Builder")
@@ -227,7 +227,7 @@ public class PulsarTestContext implements AutoCloseable {
             try {
                 closeables.get(i).close();
             } catch (Exception e) {
-                log.error("Failure in calling cleanup function", e);
+                log.error().exception(e).log("Failure in calling cleanup function");
             }
         }
     }
@@ -509,7 +509,6 @@ public class PulsarTestContext implements AutoCloseable {
             }
             return this;
         }
-
 
         /**
          * Configure this PulsarTestContext to use a test ZooKeeper instance which is

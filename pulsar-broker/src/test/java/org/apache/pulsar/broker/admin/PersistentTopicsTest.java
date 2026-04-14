@@ -55,7 +55,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -116,7 +116,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
@@ -322,7 +322,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // 1) produce numberOfMessages message to pulsar
         for (int i = 0; i < numberOfMessages; i++) {
-            log.info("Produce messages: " + producer.send(new byte[10]).toString());
+            log.info().attr("messageId", producer.send(new byte[10])).log("Produce messages");
         }
 
         // 2) Create a subscription from earliest position
@@ -341,7 +341,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         TopicStats topicStats = statCaptor.getValue();
         long msgBacklog = topicStats.getSubscriptions().get(subEarliest).getMsgBacklog();
-        log.info("Message back log for " + subEarliest + " is :" + msgBacklog);
+        log.info().attr("subscription", subEarliest).attr("msgBacklog", msgBacklog)
+                .log("Message back log");
         Assert.assertEquals(msgBacklog, numberOfMessages);
 
         // 3) Create a subscription with form latest position
@@ -360,7 +361,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         topicStats = statCaptor.getValue();
         msgBacklog = topicStats.getSubscriptions().get(subLatest).getMsgBacklog();
-        log.info("Message back log for " + subLatest + " is :" + msgBacklog);
+        log.info().attr("subscription", subLatest).attr("msgBacklog", msgBacklog)
+                .log("Message back log");
         Assert.assertEquals(msgBacklog, 0);
 
         // 4) Create a subscription without position
@@ -380,7 +382,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
         topicStats = statCaptor.getValue();
         msgBacklog = topicStats.getSubscriptions().get(subNoneMessageId).getMsgBacklog();
-        log.info("Message back log for " + subNoneMessageId + " is :" + msgBacklog);
+        log.info().attr("subscription", subNoneMessageId).attr("msgBacklog", msgBacklog)
+                .log("Message back log");
         Assert.assertEquals(msgBacklog, 0);
 
         // 5) Create replicated subscription
@@ -1622,8 +1625,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                     @Override
                     public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
                                                       Throwable exception) {
-                        log.info("onSendAcknowledgement, message={}, msgId={},publish_time={},exception={}",
-                                message, msgId, message.getPublishTime(), exception);
+                        log.info().attr("message", message).attr("msgId", msgId)
+                                .attr("publishTime", message.getPublishTime())
+                                .attr("exception", exception)
+                                .log("onSendAcknowledgement");
                         publishTimeMap.put(msgId, message.getPublishTime());
 
                     }
@@ -1644,7 +1649,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         for (MessageIdImpl messageId : ids) {
             Assert.assertTrue(publishTimeMap.containsKey(messageId));
-            log.info("MessageId={},PublishTime={}", messageId, publishTimeMap.get(messageId));
+            log.info().attr("messageId", messageId).attr("publishTime", publishTimeMap.get(messageId))
+                    .log("Message publish time");
         }
 
         //message 0, 1 are in the same batch, as batchingMaxMessages is set to 2.

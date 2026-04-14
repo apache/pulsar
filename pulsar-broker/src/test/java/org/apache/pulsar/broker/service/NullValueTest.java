@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 /**
  * Null value message produce and consume test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class NullValueTest extends SharedPulsarBaseTest {
 

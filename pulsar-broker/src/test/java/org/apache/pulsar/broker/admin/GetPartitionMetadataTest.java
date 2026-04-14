@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -57,7 +57,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-@Slf4j
+@CustomLog
 public class GetPartitionMetadataTest extends TestRetrySupport {
 
     protected static final String DEFAULT_NS = "public/default";
@@ -627,7 +627,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
                 PartitionedTopicMetadata topicMetadata = client
                         .getPartitionedTopicMetadata(topicNameStr, paramMetadataAutoCreationEnabled, false)
                         .join();
-                log.info("Get topic metadata: {}", topicMetadata.partitions);
+                log.info().attr("partitions", topicMetadata.partitions).log("Get topic metadata");
                 fail("Expected a not found ex");
             } catch (Exception ex) {
                 Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
@@ -662,7 +662,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
                 PartitionedTopicMetadata topicMetadata = client
                         .getPartitionedTopicMetadata(topicNameStr, true, true)
                         .join();
-                log.info("Get topic metadata: {}", topicMetadata.partitions);
+                log.info().attr("partitions", topicMetadata.partitions).log("Get topic metadata");
                 fail("Expected a not found ex");
             } catch (Exception ex) {
                 Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);
@@ -688,7 +688,7 @@ public class GetPartitionMetadataTest extends TestRetrySupport {
                 PartitionedTopicMetadata topicMetadata = client
                         .getPartitionedTopicMetadata(topicNameStr, true, true)
                         .join();
-                log.info("Get topic metadata: {}", topicMetadata.partitions);
+                log.info().attr("partitions", topicMetadata.partitions).log("Get topic metadata");
                 fail("Expected a not found ex");
             } catch (Exception ex) {
                 Throwable unwrapEx = FutureUtil.unwrapCompletionException(ex);

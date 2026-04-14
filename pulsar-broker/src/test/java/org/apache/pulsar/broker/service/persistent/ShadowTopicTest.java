@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-
 import com.google.common.collect.Lists;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
@@ -26,9 +25,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -43,7 +42,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ShadowTopicTest extends SharedPulsarBaseTest {
 
     @Test
@@ -161,12 +160,11 @@ public class ShadowTopicTest extends SharedPulsarBaseTest {
                 pulsarClient.newConsumer().topic(shadowTopic).subscriptionName("sub").subscribe();
         byte[] content = "Hello Shadow Topic".getBytes(StandardCharsets.UTF_8);
         MessageId id = producer.send(content);
-        log.info("msg send to source topic, id={}", id);
+        log.info().attr("id", id).log("msg send to source topic, id");
         Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertEquals(msg.getMessageId(), id);
         Assert.assertEquals(msg.getValue(), content);
     }
-
 
     @Test
     public void testShadowTopicConsumingWithStringSchema() throws Exception {
@@ -211,7 +209,6 @@ public class ShadowTopicTest extends SharedPulsarBaseTest {
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
         admin.topics().setShadowTopics(sourceTopic, Lists.newArrayList(shadowTopic));
         awaitUntilShadowReplicatorReady(sourceTopic, shadowTopic);
-
 
         @Cleanup Producer<Point> producer =
                 pulsarClient.newProducer(Schema.JSON(Point.class)).topic(sourceTopic).create();

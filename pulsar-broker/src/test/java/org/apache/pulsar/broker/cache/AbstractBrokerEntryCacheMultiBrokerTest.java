@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.mledger.Entry;
@@ -50,7 +50,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
 public abstract class AbstractBrokerEntryCacheMultiBrokerTest extends MultiBrokerTestZKBaseTest {
     public enum BrokerEntryCacheType {
         PIP430("PIP430", AbstractBrokerEntryCacheMultiBrokerTest::configurePIP430),
@@ -165,8 +165,9 @@ public abstract class AbstractBrokerEntryCacheMultiBrokerTest extends MultiBroke
     }
 
     protected void logBKRead(long ledgerId, long firstEntry, long lastEntry, int numberOfEntries) {
-        log.info("BK read for ledgerId {}, firstEntry {}, lastEntry {}, numberOfEntries {}",
-                ledgerId, firstEntry, lastEntry, numberOfEntries);
+        log.info().attr("ledgerId", ledgerId).attr("firstEntry", firstEntry)
+                .attr("lastEntry", lastEntry).attr("numberOfEntries", numberOfEntries)
+                .log("BK read");
     }
 
     @Override

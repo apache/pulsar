@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -70,8 +71,6 @@ import org.apache.zookeeper.ZooDefs;
 import org.awaitility.Awaitility;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -82,6 +81,7 @@ import org.testng.annotations.Test;
  * will do the leader election and one of the brokers will become the leader. Then kill that broker and check if the
  * second one becomes the leader.
  */
+@CustomLog
 @Test(groups = "broker")
 public class LoadBalancerTest {
 
@@ -93,8 +93,6 @@ public class LoadBalancerTest {
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
     LocalBookkeeperEnsemble bkEnsemble;
-
-    private static final Logger log = LoggerFactory.getLogger(LoadBalancerTest.class);
 
     private static final int MAX_RETRIES = 15;
 
@@ -207,7 +205,8 @@ public class LoadBalancerTest {
                     lookupAddresses[i]);
             byte[] loadReportData = pulsarServices[i].getLocalMetadataStore().get(path).join().get().getValue();
             assertTrue(loadReportData.length > 0);
-            log.info("LoadReport {}, {}", lookupAddresses[i], new String(loadReportData));
+            log.info().attr("address", lookupAddresses[i]).attr("loadReport", new String(loadReportData))
+                    .log("LoadReport");
 
             LoadReport loadReport = ObjectMapperFactory.getMapper().reader().readValue(loadReportData,
                     LoadReport.class);
@@ -280,8 +279,9 @@ public class LoadBalancerTest {
 
         // assert each broker received ownership of fair amount of namespaces 90%+
         for (Map.Entry<String, Integer> broker : namespaceOwner.entrySet()) {
-            log.info("Count of bundles assigned: {}, {} -- lower-bound: {} - upper-bound: {} ",
-                    broker.getKey(), broker.getValue(), lowerBound, upperBound);
+            log.info().attr("broker", broker.getKey()).attr("count", broker.getValue())
+                    .attr("lowerBound", lowerBound).attr("upperBound", upperBound)
+                    .log("Count of bundles assigned");
             assertTrue(broker.getValue() >= lowerBound && broker.getValue() <= upperBound);
         }
     }
@@ -309,7 +309,8 @@ public class LoadBalancerTest {
         log.info("Sorted Ranking Result:");
         sortedRanking.get().forEach((score, rus) -> {
             for (ResourceUnit ru : rus) {
-                log.info("  - {}, {}", ru.getResourceId(), score);
+                log.info().attr("resourceId", ru.getResourceId()).attr("score", score)
+                        .log("  Ranking entry");
             }
         });
     }
@@ -432,8 +433,10 @@ public class LoadBalancerTest {
 
             long expectedValue = expectedAssignments[i];
             double variation = Math.abs(actualValue - expectedValue) * 100.0 / expectedValue;
-            log.info("Topic assignment - {}, actual: {}, expected baseline: {}, variation: {}/%",
-                    lookupAddresses[i], actualValue, expectedValue, String.format("%.2f", variation));
+            log.info().attr("address", lookupAddresses[i]).attr("actual", actualValue)
+                    .attr("expectedBaseline", expectedValue)
+                    .attr("variation", String.format("%.2f", variation))
+                    .log("Topic assignment");
             assertTrue(variation < expectedMaxVariation);
         }
     }
@@ -453,7 +456,7 @@ public class LoadBalancerTest {
         log.info("Realtime Resource Quota:");
         for (Map.Entry<String, ResourceQuota> entry : resourceQuotas.entrySet()) {
             String quotaStr = ObjectMapperFactory.getMapper().writer().writeValueAsString(entry.getValue());
-            log.info(" {}, {}", entry.getKey(), quotaStr);
+            log.info().attr("key", entry.getKey()).attr("quota", quotaStr).log("Resource quota");
         }
     }
 
@@ -708,10 +711,11 @@ public class LoadBalancerTest {
                 }
             }
             // Make sure all brokers see the same leader
-            log.info("Old leader is : {}", oldLeader.getBrokerId());
+            log.info().attr("brokerId", oldLeader.getBrokerId()).log("Old leader");
             for (PulsarService pulsar : activePulsar) {
-                log.info("Current leader for {} is : {}", pulsar.getWebServiceAddress(),
-                        pulsar.getLeaderElectionService().getCurrentLeader());
+                log.info().attr("broker", pulsar.getWebServiceAddress())
+                        .attr("leader", pulsar.getLeaderElectionService().getCurrentLeader())
+                        .log("Current leader");
                 assertEquals(pulsar.getLeaderElectionService().readCurrentLeader().join(), Optional.of(oldLeader));
             }
 
@@ -719,7 +723,7 @@ public class LoadBalancerTest {
             leaderPulsar.close();
             loopUntilLeaderChangesForAllBroker(followerPulsar, oldLeader);
             LeaderBroker newLeader = followerPulsar.get(0).getLeaderElectionService().readCurrentLeader().join().get();
-            log.info("New leader is : {}", newLeader.getBrokerId());
+            log.info().attr("brokerId", newLeader.getBrokerId()).log("New leader");
             Assert.assertNotEquals(newLeader, oldLeader);
         }
     }
