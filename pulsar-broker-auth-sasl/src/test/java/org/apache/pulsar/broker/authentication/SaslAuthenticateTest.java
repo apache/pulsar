@@ -168,7 +168,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        log.info().attr("value", methodName).exception(localHostname).log("-- {} --, start at host:");
+        log.info().attr("method", methodName).attr("host", localHostname).log("start at host");
         // use http lookup to verify HttpClient works well.
         isTcpLookup = false;
 

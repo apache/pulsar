@@ -175,7 +175,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        log.info().attr("value", methodName).exception(localHostname).log("-- {} --, start at host:");
+        log.info().attr("method", methodName).attr("host", localHostname).log("start at host");
         isTcpLookup = true;
         conf.setAdvertisedAddress(localHostname);
         conf.setAuthenticationEnabled(true);
@@ -269,7 +269,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
         // Step 3: Pass correct client params
         @Cleanup
         PulsarClient proxyClient = createProxyClient(proxyServiceUrl, 1);
-        log.info().attr("value", proxyServiceUrl).exception(proxyClient).log("2 create proxy client {},");
+        log.info().attr("url", proxyServiceUrl).attr("client", proxyClient).log("2 create proxy client");
 
         Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES).topic(topicName).create();
         log.info("3 created producer.");

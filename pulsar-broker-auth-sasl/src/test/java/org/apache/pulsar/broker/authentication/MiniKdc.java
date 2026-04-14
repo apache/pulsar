@@ -158,7 +158,7 @@ public class MiniKdc {
         log.info("Configuration:");
         log.info("---------------------------------------------------------------");
         for (Map.Entry<?, ?> entry : conf.entrySet()) {
-            log.info("  {}: {}", entry.getKey(), entry.getValue());
+            log.info().attr("key", entry.getKey()).attr("value", entry.getValue()).log("config");
         }
         log.info("---------------------------------------------------------------");
         this.conf = conf;
