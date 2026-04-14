@@ -956,7 +956,7 @@ public class PulsarClientException extends IOException {
          * Constructs an {@code TransactionHasOperationFailedException}.
          */
         public TransactionHasOperationFailedException() {
-            super("Now allowed to commit the transaction due to failed operations of producing or acknowledgment");
+            super("Not allowed to commit the transaction due to failed operations of producing or acknowledgment");
         }
 
         /**
