@@ -870,11 +870,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             if (finalConfig == null) {
                 finalConfig = BatchingConfig.builder().build();
             }
-            assertTrue(functionLogs.contains("enabled=" + finalConfig.isEnabled()),
-                    "Expected batching config enabled status in logs");
-
             // THREAD runtime doesn't include producer&consumer related logs in the function logs
             if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
+                assertTrue(functionLogs.contains("enabled=" + finalConfig.isEnabled()),
+                        "Expected batching config enabled status in logs");
                 if (finalConfig.getBatchingMaxMessages() == null) {
                     finalConfig.setBatchingMaxMessages(1000);
                 }
