@@ -331,6 +331,15 @@ fi
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
 PULSAR_LOG_CONSOLE_JSON_TEMPLATE=${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
+
+# PULSAR_LOG_FORMAT=json switches to JSON (ECS) output for both console and file appenders
+if [ "$PULSAR_LOG_FORMAT" = "json" ]; then
+  PULSAR_ROUTING_APPENDER_DEFAULT="ConsoleJson"
+  if [ "$PULSAR_LOG_APPENDER" = "RollingFile" ]; then
+    PULSAR_LOG_APPENDER="RollingFileJson"
+  fi
+fi
+
 if [ ! -d "$PULSAR_LOG_DIR" ]; then
   mkdir -p "$PULSAR_LOG_DIR"
 fi

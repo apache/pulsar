@@ -66,27 +66,48 @@ Configuration:
 
     # Rolling file appender configuration
     RollingFile:
-      name: RollingFile
-      fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
-      filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
-      immediateFlush: ${sys:pulsar.log.immediateFlush}
-      PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
-      Policies:
-        TimeBasedTriggeringPolicy:
-          interval: 1
-          modulate: true
-        SizeBasedTriggeringPolicy:
-          size: 1 GB
-      # Delete file older than 30days
-      DefaultRolloverStrategy:
-          Delete:
-            basePath: ${sys:pulsar.log.dir}
-            maxDepth: 2
-            IfFileName:
-              glob: "${sys:pulsar.log.file}*log.gz"
-            IfLastModified:
-              age: 30d
+      - name: RollingFile
+        fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
+        filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
+        immediateFlush: ${sys:pulsar.log.immediateFlush}
+        PatternLayout:
+          Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg %X%n"
+        Policies:
+          TimeBasedTriggeringPolicy:
+            interval: 1
+            modulate: true
+          SizeBasedTriggeringPolicy:
+            size: 1 GB
+        # Delete file older than 30days
+        DefaultRolloverStrategy:
+            Delete:
+              basePath: ${sys:pulsar.log.dir}
+              maxDepth: 2
+              IfFileName:
+                glob: "${sys:pulsar.log.file}*log.gz"
+              IfLastModified:
+                age: 30d
+      - name: RollingFileJson
+        fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
+        filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
+        immediateFlush: ${sys:pulsar.log.immediateFlush}
+        JsonTemplateLayout:
+          eventTemplateUri: ${sys:pulsar.log.console.json.template}
+        Policies:
+          TimeBasedTriggeringPolicy:
+            interval: 1
+            modulate: true
+          SizeBasedTriggeringPolicy:
+            size: 1 GB
+        # Delete file older than 30days
+        DefaultRolloverStrategy:
+            Delete:
+              basePath: ${sys:pulsar.log.dir}
+              maxDepth: 2
+              IfFileName:
+                glob: "${sys:pulsar.log.file}*log.gz"
+              IfLastModified:
+                age: 30d
 
     Prometheus:
       name: Prometheus
