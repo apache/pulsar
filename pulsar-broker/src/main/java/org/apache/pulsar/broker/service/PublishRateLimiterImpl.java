@@ -169,7 +169,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         update(maxPublishRate);
     }
 
-    private void unthrottleImmediately() {
+    private void scheduleImmediateUnthrottling() {
         ScheduledExecutorService executor = lastUnthrottleExecutor;
         if (executor != null) {
             // Wake the existing unthrottle path without waiting on an old delay.
@@ -182,9 +182,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         if (maxPublishRate != null) {
             updateTokenBuckets(maxPublishRate.publishThrottlingRateInMsg, maxPublishRate.publishThrottlingRateInByte);
         } else {
-            tokenBucketOnMessage = null;
-            tokenBucketOnByte = null;
-            unthrottleImmediately();
+            updateTokenBuckets(0L, 0L);
         }
     }
 
@@ -201,9 +199,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         } else {
             tokenBucketOnByte = null;
         }
-        if (tokenBucketOnByte == null && tokenBucketOnMessage == null) {
-            unthrottleImmediately();
-        }
+        scheduleImmediateUnthrottling();
     }
 
     @VisibleForTesting
