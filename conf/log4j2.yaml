@@ -42,7 +42,7 @@ Configuration:
         value: "Console"
       - name: "pulsar.log.format"
         value: "text"
-      - name: "pulsar.log.console.json.template"
+      - name: "pulsar.log.json.template"
         value: "classpath:EcsLayout.json"
 
   # Example: logger-filter script
@@ -63,7 +63,7 @@ Configuration:
         - propertyName: pulsar.log.format
           propertyValue: json
           JsonTemplateLayout:
-            eventTemplateUri: ${sys:pulsar.log.console.json.template}
+            eventTemplateUri: ${sys:pulsar.log.json.template}
         - propertyName: pulsar.log.format
           propertyValue: text
           PatternLayout:
@@ -79,7 +79,7 @@ Configuration:
         - propertyName: pulsar.log.format
           propertyValue: json
           JsonTemplateLayout:
-            eventTemplateUri: ${sys:pulsar.log.console.json.template}
+            eventTemplateUri: ${sys:pulsar.log.json.template}
         - propertyName: pulsar.log.format
           propertyValue: text
           PatternLayout:
@@ -124,7 +124,7 @@ Configuration:
                         - propertyName: pulsar.log.format
                           propertyValue: json
                           JsonTemplateLayout:
-                            eventTemplateUri: ${sys:pulsar.log.console.json.template}
+                            eventTemplateUri: ${sys:pulsar.log.json.template}
                         - propertyName: pulsar.log.format
                           propertyValue: text
                           PatternLayout:
