@@ -37,8 +37,6 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class is for preventing docs conflict before we find a good way to fix
@@ -86,10 +84,11 @@ public class ExtNonPersistentTopics extends PersistentTopicsBase {
             internalCreatePartitionedTopic(asyncResponse, metadata.partitions, createLocalTopicOnly,
                     metadata.properties);
         } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Failed to create partitioned topic");
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentTopics.class);
 }

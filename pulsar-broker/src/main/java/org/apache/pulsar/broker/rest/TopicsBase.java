@@ -47,7 +47,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
@@ -106,7 +105,6 @@ import org.apache.pulsar.websocket.data.ProducerMessages;
 /**
  * Contains methods used by REST api to producer/consumer/read messages to/from pulsar topics.
  */
-@Slf4j
 public class TopicsBase extends PersistentTopicsBase {
 
     private static String defaultProducerName = "RestProducer";
@@ -134,10 +132,9 @@ public class TopicsBase extends PersistentTopicsBase {
                                         "Fail to add or retrieve schema."));
                             }
                         }).exceptionally(e -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Fail to publish message: " + e.getMessage());
-                    }
-                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to publish message:"
+                        log.debug().exceptionMessage(e).log("Fail to publish message");
+                                        asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR,
+                                                "Fail to publish message:"
                             + e.getMessage()));
                     return null;
                 });
@@ -175,10 +172,11 @@ public class TopicsBase extends PersistentTopicsBase {
                                         "Fail to add or retrieve schema."));
                             }
                         }).exceptionally(e -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Fail to publish message to single partition: " + e.getLocalizedMessage());
-                    }
-                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Fail to publish message"
+                        log.debug()
+                                .attr("localizedMessage", e.getLocalizedMessage())
+                                .log("Fail to publish message to single partition");
+                                        asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR,
+                                                "Fail to publish message"
                             + "to single partition: "
                             + e.getMessage()));
                     return null;
@@ -218,11 +216,11 @@ public class TopicsBase extends PersistentTopicsBase {
                 return null;
             });
         } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Fail publish messages to single partition with rest produce message "
-                                + "request for topic  {}: {} ", topicName, e.getCause());
-            }
-            asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage()));
+                log.debug()
+                        .attr("topic", topicName)
+                        .exception(e.getCause())
+                        .log("Fail publish messages to single partition with rest produce message request for topic");
+                        asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
@@ -261,11 +259,11 @@ public class TopicsBase extends PersistentTopicsBase {
                 return null;
             });
         } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Fail to publish messages with rest produce message request for topic  {}: {} ",
-                        topicName, e.getCause());
-            }
-            asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage()));
+                log.debug()
+                        .attr("topic", topicName)
+                        .exceptionMessage(e)
+                        .log("Fail to publish messages with rest produce message request");
+                        asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage()));
         }
     }
 
@@ -292,11 +290,11 @@ public class TopicsBase extends PersistentTopicsBase {
                         headersAndPayload.release();
                     }
                 } catch (Exception e) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Fail to publish single messages to topic  {}: {} ",
-                                topicName, e.getCause());
-                    }
-                    publishResult.completeExceptionally(e);
+                        log.debug()
+                                .attr("topic", topicName)
+                                .exceptionMessage(e)
+                                .log("Fail to publish single messages to topic");
+                                        publishResult.completeExceptionally(e);
                 }
             }
         });
@@ -315,11 +313,11 @@ public class TopicsBase extends PersistentTopicsBase {
                         Integer.parseInt(produceMessageResults.get(index).getMessageId()));
                 produceMessageResults.get(index).setMessageId(messageId.toString());
             } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail publish [{}] message with rest produce message request for topic  {}",
-                            index, topicName);
-                }
-                if (e instanceof BrokerServiceException.TopicNotFoundException) {
+                    log.debug()
+                            .attr("publish", index)
+                            .attr("topic", topicName)
+                            .log("Fail publish message with rest produce message request for topic");
+                                if (e instanceof BrokerServiceException.TopicNotFoundException) {
                     // Topic ownership might changed, force to look up again.
                     pulsar().getBrokerService().getOwningTopics().remove(topicName.getPartitionedTopicName());
                 }
@@ -366,10 +364,10 @@ public class TopicsBase extends PersistentTopicsBase {
         try {
             return future.get();
         } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Fail to lookup topic for rest produce message request for topic {}.", topicName.toString());
-            }
-            if (!asyncResponse.isDone()) {
+                log.debug()
+                        .attr("topic", topicName.toString())
+                        .log("Fail to lookup topic for rest produce message request for topic .");
+                        if (!asyncResponse.isDone()) {
                 asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, "Internal error: "
                         + e.getMessage()));
             }
@@ -390,11 +388,12 @@ public class TopicsBase extends PersistentTopicsBase {
             } else {
                 // Redirect client to other broker owns the topic or know which broker own the topic.
                 try {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Redirect rest produce request for topic {} from {} to {}.",
-                                topicName, pulsar().getWebServiceAddress(), redirectAddresses.get(0));
-                    }
-                    URL redirectAddress = new URL(redirectAddresses.get(0));
+                        log.debug()
+                                .attr("topic", topicName)
+                                .attr("from", pulsar().getWebServiceAddress())
+                                .attr("to", redirectAddresses.get(0))
+                                .log("Redirect rest produce request");
+                                        URL redirectAddress = new URL(redirectAddresses.get(0));
                     URI redirectURI = UriBuilder.fromUri(uri.getRequestUri())
                             .host(redirectAddress.getHost())
                             .port(redirectAddress.getPort())
@@ -402,11 +401,12 @@ public class TopicsBase extends PersistentTopicsBase {
                     asyncResponse.resume(Response.temporaryRedirect(redirectURI).build());
                     future.complete(true);
                 } catch (Exception e) {
-                    if (log.isDebugEnabled()) {
-                        log.error("Error in preparing redirect url with rest produce message request for topic  {}: {}",
-                                topicName, e.getMessage(), e);
-                    }
-                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR,
+                        log.error()
+                                .attr("topic", topicName)
+
+                                .exception(e)
+                                .log("Error in preparing redirect url with rest produce message request for topic");
+                                        asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR,
                             "Fail to redirect client request."));
                     future.complete(true);
                 }
@@ -421,10 +421,8 @@ public class TopicsBase extends PersistentTopicsBase {
                                                          boolean authoritative, List<String> redirectAddresses) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
-            if (log.isDebugEnabled()) {
                 log.debug("Too many concurrent lookup request.");
-            }
-            future.completeExceptionally(new BrokerServiceException.TooManyRequestsException("Too many "
+                        future.completeExceptionally(new BrokerServiceException.TooManyRequestsException("Too many "
                     + "concurrent lookup request"));
             return future;
         }
@@ -434,11 +432,10 @@ public class TopicsBase extends PersistentTopicsBase {
 
         lookupFuture.thenAccept(optionalResult -> {
             if (optionalResult == null || !optionalResult.isPresent()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail to lookup topic for rest produce message request for topic {}.",
-                            partitionedTopicName);
-                }
-                completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
+                    log.debug()
+                            .attr("topic", partitionedTopicName)
+                            .log("Fail to lookup topic for rest produce message request for topic .");
+                                completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
                 return;
             }
 
@@ -448,24 +445,24 @@ public class TopicsBase extends PersistentTopicsBase {
             if ((StringUtils.isNotBlank(httpUrl) && httpUrl.equals(pulsar().getWebServiceAddress()))
                     || (StringUtils.isNotBlank(httpUrlTls) && httpUrlTls.equals(pulsar().getWebServiceAddressTls()))) {
                 // Current broker owns the topic, add to owning topic.
-                if (log.isDebugEnabled()) {
-                    log.debug("Complete topic look up for rest produce message request for topic {}, "
-                                    + "current broker is owner broker: {}",
-                            partitionedTopicName, result.getLookupData());
-                }
-                pulsar().getBrokerService().getOwningTopics().computeIfAbsent(partitionedTopicName
+                    log.debug()
+                            .attr("topic", partitionedTopicName)
+                            .attr("broker", result.getLookupData())
+                            .log("Complete topic look up for rest produce message request for topic , current broker"
+                                    + " is owner broker");
+                                pulsar().getBrokerService().getOwningTopics().computeIfAbsent(partitionedTopicName
                                 .getPartitionedTopicName(),
                         __ -> ConcurrentHashMap.newKeySet())
                         .add(partitionedTopicName.getPartitionIndex());
                 completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
             } else {
                 // Current broker doesn't own the topic or doesn't know who own the topic.
-                if (log.isDebugEnabled()) {
-                    log.debug("Complete topic look up for rest produce message request for topic {}, "
-                                    + "current broker is not owner broker: {}",
-                            partitionedTopicName, result.getLookupData());
-                }
-                if (result.isRedirect()) {
+                    log.debug()
+                            .attr("topic", partitionedTopicName)
+                            .attr("broker", result.getLookupData())
+                            .log("Complete topic look up for rest produce message request for topic , current broker"
+                                    + " is not owner broker");
+                                if (result.isRedirect()) {
                     // Redirect lookup.
                     completeLookup(Pair.of(Arrays.asList(httpUrl, httpUrlTls), false), redirectAddresses, future);
                 } else {
@@ -474,11 +471,11 @@ public class TopicsBase extends PersistentTopicsBase {
                 }
             }
         }).exceptionally(exception -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Fail to lookup broker with rest produce message request for topic {}: {}",
-                        partitionedTopicName, exception.getMessage());
-            }
-            completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
+                log.debug()
+                        .attr("topic", partitionedTopicName)
+                        .exceptionMessage(exception)
+                        .log("Fail to lookup broker with rest produce message request for topic");
+                        completeLookup(Pair.of(Collections.emptyList(), false), redirectAddresses, future);
             return null;
         });
         return future;
@@ -495,11 +492,12 @@ public class TopicsBase extends PersistentTopicsBase {
                 schemaAndMetadata = pulsar().getSchemaRegistryService().getSchema(id, schemaVersion).get();
                 future.complete(Pair.of(schemaAndMetadata.schema, schemaAndMetadata.version));
             } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail to retrieve schema of version {} for topic {}: {}",
-                            schemaVersion.getVersion(), topicName, e.getMessage());
-                }
-                future.completeExceptionally(e);
+                    log.debug()
+                            .attr("version", schemaVersion.getVersion())
+                            .attr("topic", topicName)
+                            .exceptionMessage(e)
+                            .log("Fail to retrieve schema of version for topic");
+                                future.completeExceptionally(e);
             }
         } else if (null != schemaData) {
             // Else try to add schema to topic.
@@ -508,11 +506,12 @@ public class TopicsBase extends PersistentTopicsBase {
                 sv = addSchema(schemaData).get();
                 future.complete(Pair.of(schemaData, sv));
             } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail to add schema {} for topic {}: {}",
-                            new String(schemaData.toSchemaInfo().getSchema()), topicName, e.getMessage());
-                }
-                future.completeExceptionally(e);
+                    log.debug()
+                            .attr("schema", new String(schemaData.toSchemaInfo().getSchema()))
+                            .attr("topic", topicName)
+                            .exceptionMessage(e)
+                            .log("Fail to add schema for topic");
+                                future.completeExceptionally(e);
             }
         } else {
             // Indicating exception.
@@ -548,11 +547,11 @@ public class TopicsBase extends PersistentTopicsBase {
                 result.complete(future.get());
                 break;
             } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail to add schema to topic " + topicName.getPartitionedTopicName()
-                            + " for partition " + partitions.get(index) + " for REST produce request.");
-                }
-            }
+                    log.debug()
+                            .attr("partitionedTopicName", topicName.getPartitionedTopicName())
+                            .attr("value", partitions.get(index))
+                            .log("Fail to add schema to topic for partition for REST produce request.");
+                            }
         }
         // Not able to add schema to any partition
         if (!result.isDone()) {
@@ -604,10 +603,11 @@ public class TopicsBase extends PersistentTopicsBase {
                         .build();
             }
         } catch (IOException e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Fail to parse schema info for rest produce request with key schema {} and value schema {}"
-                        , keySchema, valueSchema);
-            }
+            log.debug()
+                    .attr("keySchema", keySchema)
+                    .attr("valueSchema", valueSchema)
+                    .exception(e)
+                    .log("Failed to parse schema info for rest produce request");
             return null;
         }
     }
@@ -747,11 +747,11 @@ public class TopicsBase extends PersistentTopicsBase {
                     throw new PulsarClientException.InvalidMessageException("");
             }
         } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Fail to encode value {} with schema {} for rest produce request", input,
-                        new String(schema.getSchemaInfo().getSchema()));
-            }
-            return new byte[0];
+                log.debug()
+                        .attr("value", input)
+                        .attr("schema", new String(schema.getSchemaInfo().getSchema()))
+                        .log("Fail to encode value with schema for rest produce request");
+                        return new byte[0];
         }
     }
 
@@ -787,12 +787,18 @@ public class TopicsBase extends PersistentTopicsBase {
                         .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, authParams)
                         .get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
             } catch (TimeoutException e) {
-                log.warn("Time-out {} sec while checking authorization on {} ",
-                        config().getMetadataStoreOperationTimeoutSeconds(), topicName);
+                log.warn()
+                        .attr("timeoutSec", config().getMetadataStoreOperationTimeoutSeconds())
+                        .attr("topic", topicName)
+                        .log("Timeout while checking authorization");
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, "Time-out while checking authorization");
             } catch (Exception e) {
-                log.warn("Producer-client  with Role - {} {} failed to get permissions for topic - {}. {}",
-                        authParams.getClientRole(), authParams.getOriginalPrincipal(), topicName, e.getMessage());
+                log.warn()
+                        .attr("role", authParams.getClientRole())
+                        .attr("originalPrincipal", authParams.getOriginalPrincipal())
+                        .attr("topic", topicName)
+                        .exceptionMessage(e)
+                        .log("Producer-client with Role - failed to get permissions for topic - .");
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get permissions");
             }
 

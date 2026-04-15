@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -39,7 +39,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 /**
  * Transaction buffer disable.
  */
-@Slf4j
+@CustomLog
 public class TransactionBufferDisable implements TransactionBuffer {
 
     private final Topic topic;

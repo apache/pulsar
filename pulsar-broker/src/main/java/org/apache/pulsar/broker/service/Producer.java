@@ -27,6 +27,7 @@ import static org.apache.pulsar.common.protocol.Commands.readChecksum;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.MoreObjects;
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -64,13 +65,15 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Represents a currently connected producer.
  */
 public class Producer {
+
+    private static final Logger LOG = Logger.get(Producer.class);
+    private final Logger log;
+
     private final Topic topic;
     private final TransportCnx cnx;
     private final String producerName;
@@ -124,6 +127,12 @@ public class Producer {
         this.epoch = epoch;
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
+        this.log = LOG.with()
+                .attr("topic", topic.getName())
+                .attr("producerName", producerName)
+                .attr("producerId", producerId)
+                .attr("cnx", cnx)
+                .build();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.isShadowTopic =
                 topic instanceof PersistentTopic && ((PersistentTopic) topic).getShadowSourceTopic().isPresent();
@@ -264,7 +273,7 @@ public class Producer {
             int encryptionKeysCount = msgMetadata.getEncryptionKeysCount();
             // Check whether the message is encrypted or not
             if (encryptionKeysCount < 1) {
-                log.warn("[{}] Messages must be encrypted", getTopic().getName());
+                log.warn("Messages must be encrypted");
                 cnx.execute(() -> {
                     cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.MetadataError,
                             "Messages must be encrypted");
@@ -317,7 +326,7 @@ public class Producer {
                 if (checksum == computedChecksum) {
                     return true;
                 } else {
-                    log.error("[{}] [{}] Failed to verify checksum", topic, producerName);
+                    log.error("Failed to verify checksum");
                     return false;
                 }
             } finally {
@@ -325,9 +334,7 @@ public class Producer {
             }
         } else {
             // ignore if checksum is not available
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Payload does not have checksum to verify", topic, producerName);
-            }
+            log.debug("Payload does not have checksum to verify");
             return true;
         }
     }
@@ -506,10 +513,9 @@ public class Producer {
                 producer.cnx.execute(() -> {
                     // if the topic is transferring, we don't send error code to the clients.
                     if (producer.getTopic().isTransferring()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Received producer exception: {} while transferring.",
-                                    producer.getTopic().getName(), exception.getMessage(), exception);
-                        }
+                        producer.log.debug()
+                                .exception(exception)
+                                .log("Received producer exception while transferring");
                     } else if (!(exception instanceof TopicClosedException)) {
                         // For TopicClosed exception there's no need to send explicit error, since the client was
                         // already notified
@@ -523,10 +529,9 @@ public class Producer {
                     recycle();
                 });
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] [{}] [{}] triggered send callback. cnx {}, sequenceId {}", producer.topic,
-                            producer.producerName, producer.producerId, producer.cnx.clientAddress(), sequenceId);
-                }
+                producer.log.debug()
+                        .attr("sequenceId", sequenceId)
+                        .log("Triggered send callback");
 
                 this.ledgerId = ledgerId;
                 this.entryId = entryId;
@@ -551,10 +556,9 @@ public class Producer {
          */
         @Override
         public void run() {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] [{}] Persisted message. cnx {}, sequenceId {}", producer.topic,
-                        producer.producerName, producer.producerId, producer.cnx, sequenceId);
-            }
+            producer.log.debug()
+                    .attr("sequenceId", sequenceId)
+                    .log("Persisted message");
 
             // stats
             producer.stats.recordMsgIn(batchSize, msgSize);
@@ -590,12 +594,12 @@ public class Producer {
             Object positionPairObj = getProperty(MSG_PROP_REPL_SOURCE_POSITION);
             if (positionPairObj == null || !(positionPairObj instanceof long[])
                     || ((long[]) positionPairObj).length < 2) {
-                log.error("[{}] Message can not determine whether the message is duplicated due to the acquired"
-                                + " messages props were are invalid. producer={}. supportsReplDedupByLidAndEid: {},"
-                                + " sequence-id {}, prop-{}: not in expected format",
-                        producer.topic.getName(), producer.producerName,
-                        supportsReplDedupByLidAndEid(), getSequenceId(),
-                        MSG_PROP_REPL_SOURCE_POSITION);
+                producer.log.error()
+                        .attr("supportsReplDedupByLidAndEid", supportsReplDedupByLidAndEid())
+                        .attr("sequenceId", getSequenceId())
+                        .attr("propKey", MSG_PROP_REPL_SOURCE_POSITION)
+                        .log("Message cannot determine whether the message is duplicated due to the acquired "
+                                + "message props being invalid, prop not in expected format");
                 producer.cnx.getCommandSender().sendSendError(producer.producerId,
                         Math.max(highestSequenceId, sequenceId),
                         ServerError.PersistenceError, "Message can not determine whether the message is"
@@ -735,16 +739,14 @@ public class Producer {
      * @return completable future indicate completion of close
      */
     public synchronized CompletableFuture<Void> close(boolean removeFromTopic) {
-        if (log.isDebugEnabled()) {
-            log.debug("Closing producer {} -- isClosed={}", this, isClosed);
-        }
+        log.debug().attr("isClosed", isClosed).log("Closing producer");
 
         if (!isClosed) {
             isClosed = true;
-            if (log.isDebugEnabled()) {
-                log.debug("Trying to close producer {} -- cnxIsActive: {} -- pendingPublishAcks: {}", this,
-                        cnx.isActive(), pendingPublishAcks);
-            }
+            log.debug()
+                    .attr("isActive", cnx.isActive())
+                    .attr("pendingPublishAcks", pendingPublishAcks)
+                    .log("Trying to close producer");
             if (!cnx.isActive() || pendingPublishAcks == 0) {
                 closeNow(removeFromTopic);
             }
@@ -758,9 +760,7 @@ public class Producer {
         }
         cnx.removedProducer(this);
 
-        if (log.isDebugEnabled()) {
-            log.debug("Removed producer: {}", this);
-        }
+        log.debug("Removed producer");
         closeFuture.complete(null);
         isDisconnecting.set(false);
     }
@@ -777,7 +777,9 @@ public class Producer {
      */
     public CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
         if (!closeFuture.isDone() && isDisconnecting.compareAndSet(false, true)) {
-            log.info("Disconnecting producer: {}, assignedBrokerLookupData: {}", this, assignedBrokerLookupData);
+            log.info()
+                    .attr("assignedBrokerLookupData", assignedBrokerLookupData)
+                    .log("Disconnecting producer");
             cnx.execute(() -> {
                 cnx.closeProducer(this, assignedBrokerLookupData);
                 closeNow(true);
@@ -838,12 +840,16 @@ public class Producer {
                     .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, appId, cnx.getAuthenticationData())
                     .handle((ok, ex) -> {
                         if (ex != null) {
-                            log.warn("[{}] Get unexpected error while authorizing [{}]  {}", appId, topic.getName(),
-                                    ex.getMessage(), ex);
+                            log.warn()
+                                    .attr("appId", appId)
+                                    .exception(ex)
+                                    .log("Got unexpected error while authorizing");
                         }
 
                         if (ok == null || !ok) {
-                            log.info("[{}] is not allowed to produce on topic [{}] anymore", appId, topic.getName());
+                            log.info()
+                                    .attr("appId", appId)
+                                    .log("Not allowed to produce on topic anymore");
                             disconnect();
                         }
 
@@ -855,8 +861,7 @@ public class Producer {
 
     public void checkEncryption() {
         if (topic.isEncryptionRequired() && !isEncrypted) {
-            log.info("[{}] [{}] Unencrypted producer is not allowed to produce on topic [{}] anymore",
-                    producerId, producerName, topic.getName());
+            log.info("Unencrypted producer is not allowed to produce on topic anymore");
             disconnect();
         }
     }
@@ -896,9 +901,6 @@ public class Producer {
     public boolean isDisconnecting() {
         return isDisconnecting.get();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(Producer.class);
-
     public Attributes getOpenTelemetryAttributes() {
         if (attributes != null) {
             return attributes;

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
 import org.apache.bookkeeper.common.net.ServiceURI;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -55,8 +56,6 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -65,6 +64,7 @@ import picocli.CommandLine.ScopeType;
 /**
  * Setup the metadata for a new Pulsar cluster.
  */
+@CustomLog
 public class PulsarClusterMetadataSetup {
 
     private static final int DEFAULT_BUNDLE_NUMBER = 16;
@@ -287,14 +287,17 @@ public class PulsarClusterMetadataSetup {
         try {
             initializeCluster(arguments, bundleNumberForDefaultNamespace);
         } catch (Exception e) {
-            log.error("Unexpected error during cluster metadata initialization", e);
+            log.error().exception(e).log("Unexpected error during cluster metadata initialization");
             throw e;
         }
     }
 
     private static void initializeCluster(Arguments arguments, int bundleNumberForDefaultNamespace) throws Exception {
-        log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
-                arguments.metadataStoreUrl, arguments.configurationMetadataStore);
+        log.info()
+                .attr("cluster", arguments.cluster)
+                .attr("metadataStoreUrl", arguments.metadataStoreUrl)
+                .attr("configurationMetadataStore", arguments.configurationMetadataStore)
+                .log("Setting up cluster");
 
         MetadataStoreExtended localStore = initLocalMetadataStore(arguments.metadataStoreUrl,
                 arguments.metadataStoreConfigPath,
@@ -397,17 +400,17 @@ public class PulsarClusterMetadataSetup {
         createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                 arguments.numTransactionCoordinators);
 
-        log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
+        log.info().attr("cluster", arguments.cluster).log("Cluster metadata setup correctly");
         } finally {
             try {
                 localStore.close();
             } catch (Exception e) {
-                log.warn("Failed to close local metadata store", e);
+                log.warn().exception(e).log("Failed to close local metadata store");
             }
             try {
                 configStore.close();
             } catch (Exception e) {
-                log.warn("Failed to close config metadata store", e);
+                log.warn().exception(e).log("Failed to close config metadata store");
             }
         }
     }
@@ -440,7 +443,7 @@ public class PulsarClusterMetadataSetup {
 
             namespaceResources.createPolicies(namespaceName, policies);
         } else {
-            log.info("Namespace {} already exists.", namespaceName);
+            log.info().attr("namespace", namespaceName).log("Namespace already exists.");
             var replicaClusterFound = false;
             var policiesOptional = namespaceResources.getPolicies(namespaceName);
             if (policiesOptional.isPresent() && policiesOptional.get().replication_clusters.contains(cluster)) {
@@ -451,8 +454,10 @@ public class PulsarClusterMetadataSetup {
                     policies.replication_clusters.add(cluster);
                     return policies;
                 });
-                log.info("Updated namespace:{} policies. Added the replication cluster:{}",
-                        namespaceName, cluster);
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("cluster", cluster)
+                        .log("Updated namespace policies. Added the replication cluster");
             }
         }
     }
@@ -522,6 +527,4 @@ public class PulsarClusterMetadataSetup {
         }
         return store;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarClusterMetadataSetup.class);
 }

@@ -38,7 +38,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
@@ -62,7 +61,6 @@ import org.jspecify.annotations.Nullable;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/transactions", description = "Transactions admin apis", tags = "transactions")
-@Slf4j
 @SuppressWarnings("deprecation")
 public class Transactions extends TransactionsBase {
 
@@ -120,8 +118,10 @@ public class Transactions extends TransactionsBase {
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (isNot307And404Exception(ex)) {
-                            log.error("[{}] Failed to get transaction state in transaction buffer {}",
-                                    clientAppId(), topicName, ex);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to get transaction state in transaction buffer");
                         }
                         resumeAsyncResponseExceptionally(asyncResponse, ex);
                         return null;
@@ -158,8 +158,10 @@ public class Transactions extends TransactionsBase {
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (isNot307And404Exception(ex)) {
-                            log.error("[{}] Failed to get transaction state in pending ack {}",
-                                    clientAppId(), topicName, ex);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to get transaction state in pending ack");
                         }
                         resumeAsyncResponseExceptionally(asyncResponse, ex);
                         return null;
@@ -196,8 +198,10 @@ public class Transactions extends TransactionsBase {
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (isNot307And404Exception(ex)) {
-                            log.error("[{}] Failed to get transaction buffer stats in topic {}",
-                                    clientAppId(), topicName, ex);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to get transaction buffer stats in topic");
                         }
                         resumeAsyncResponseExceptionally(asyncResponse, ex);
                         return null;
@@ -232,8 +236,10 @@ public class Transactions extends TransactionsBase {
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (isNot307And404Exception(ex)) {
-                            log.error("[{}] Failed to get transaction pending ack stats in topic {}",
-                                    clientAppId(), topicName, ex);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to get transaction pending ack stats in topic");
                         }
                         resumeAsyncResponseExceptionally(asyncResponse, ex);
                         return null;
@@ -330,8 +336,10 @@ public class Transactions extends TransactionsBase {
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (isNot307And404Exception(ex)) {
-                            log.error("[{}] Failed to get pending ack internal stats {}",
-                                    clientAppId(), topicName, ex);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to get pending ack internal stats");
                         }
                         return resumeAsyncResponseWithBrokerException(asyncResponse, ex);
                     });
@@ -381,8 +389,10 @@ public class Transactions extends TransactionsBase {
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (isNot307And404Exception(ex)) {
-                            log.error("[{}] Failed to get transaction buffer internal stats {}",
-                                    clientAppId(), topicName, ex);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to get transaction buffer internal stats");
                         }
                         return resumeAsyncResponseWithBrokerException(asyncResponse, ex);
                     });
@@ -410,7 +420,7 @@ public class Transactions extends TransactionsBase {
                         return null;
                     });
         } catch (Exception e) {
-            log.warn("{} Failed to update the scale of transaction coordinators", clientAppId());
+            log.warn("Failed to update the scale of transaction coordinators");
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
@@ -444,13 +454,17 @@ public class Transactions extends TransactionsBase {
             internalGetPositionStatsPendingAckStats(authoritative, subName, position, batchIndex)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
-                        log.warn("{} Failed to check position [{}] stats for topic [{}], subscription [{}]",
-                                clientAppId(), position, topicName, subName, ex);
+                        log.warn()
+                                .attr("position", position)
+                                .attr("topic", topicName)
+                                .attr("subscription", subName)
+                                .exception(ex)
+                                .log("Failed to check position stats");
                         resumeAsyncResponseExceptionally(asyncResponse, ex);
                         return null;
                     });
         } catch (Exception ex) {
-            log.warn("Failed to get position stats in pending ack", ex);
+            log.warn().exception(ex).log("Failed to get position stats in pending ack");
             resumeAsyncResponseExceptionally(asyncResponse, ex);
         }
     }

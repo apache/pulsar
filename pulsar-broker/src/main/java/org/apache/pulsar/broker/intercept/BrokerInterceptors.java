@@ -26,7 +26,7 @@ import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -43,7 +43,7 @@ import org.apache.pulsar.common.intercept.InterceptException;
 /**
  * A collection of broker interceptor.
  */
-@Slf4j
+@CustomLog
 public class BrokerInterceptors implements BrokerInterceptor {
 
     private final Map<String, BrokerInterceptorWithClassLoader> interceptors;
@@ -83,9 +83,12 @@ public class BrokerInterceptors implements BrokerInterceptor {
                 if (interceptor != null) {
                     orderedInterceptorMap.put(interceptorName, interceptor);
                 }
-                log.info("Successfully loaded broker interceptor for name `{}`", interceptorName);
+                log.info().attr("interceptorName", interceptorName).log("Successfully loaded broker interceptor");
             } catch (IOException e) {
-                log.error("Failed to load the broker interceptor for name `" + interceptorName + "`", e);
+                log.error()
+                        .attr("interceptorName", interceptorName)
+                        .exception(e)
+                        .log("Failed to load the broker interceptor");
                 throw new RuntimeException("Failed to load the broker interceptor for name `" + interceptorName + "`");
             }
         });
@@ -227,7 +230,6 @@ public class BrokerInterceptors implements BrokerInterceptor {
             }
         }
     }
-
 
     @Override
     public void onConnectionCreated(ServerCnx cnx) {

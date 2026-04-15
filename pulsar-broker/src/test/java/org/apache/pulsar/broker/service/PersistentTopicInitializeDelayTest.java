@@ -127,7 +127,9 @@ public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
         public CompletableFuture<Void> checkReplication() {
             if (TopicName.get(topic).getLocalName().equalsIgnoreCase("testTopicInitializeDelay")) {
                 checkReplicationInvocationCount.incrementAndGet();
-                log.info("checkReplication, count = {}", checkReplicationInvocationCount.get());
+                log.info()
+                        .attr("count", checkReplicationInvocationCount.get())
+                        .log("checkReplication");
                 List<String> configuredClusters = topicPolicies.getReplicationClusters().get();
                 if (!(configuredClusters.size() == 1
                         && configuredClusters.contains(brokerService.pulsar().getConfiguration().getClusterName()))) {

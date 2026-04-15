@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
@@ -34,7 +34,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 /**
  * The top k highest-loaded bundles' load data reporter.
  */
-@Slf4j
+@CustomLog
 public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoadData>, StateChangeListener {
 
     private static final long TOMBSTONE_DELAY_IN_MILLIS = 1000 * 10;
@@ -86,11 +86,11 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
         var topBundlesLoadData = generateLoadData();
         if (topBundlesLoadData != null || force) {
             if (ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log)) {
-                log.info("Reporting TopBundlesLoadData:{}", topKBundles.getLoadData());
+                log.info().attr("bundle", topKBundles.getLoadData()).log("Reporting TopBundlesLoadData");
             }
             return this.bundleLoadDataStore.pushAsync(brokerId, topKBundles.getLoadData())
                     .exceptionally(e -> {
-                        log.error("Failed to report top-bundles load data.", e);
+                        log.error().exception(e).log("Failed to report top-bundles load data");
                         return null;
                     });
         } else {
@@ -109,7 +109,7 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
         bundleLoadDataStore.removeAsync(brokerId)
                 .whenComplete((__, e) -> {
                             if (e != null) {
-                                log.error("Failed to clean broker load data.", e);
+                                log.error().exception(e).log("Failed to clean broker load data");
                                 lastTombstonedAt = lastSuccessfulTombstonedAt;
                             } else {
                                 boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);

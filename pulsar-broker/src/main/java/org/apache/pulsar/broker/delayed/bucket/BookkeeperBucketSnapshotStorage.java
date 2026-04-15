@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -41,7 +41,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.NonNull;
 
-@Slf4j
+@CustomLog
 public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private static final byte[] LedgerPassword = "".getBytes();
@@ -221,7 +221,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         CompletableFuture<Void> future = new CompletableFuture<>();
         ledgerHandle.asyncClose((rc, handle, ctx) -> {
             if (rc != BKException.Code.OK) {
-                log.warn("Failed to close a Ledger Handle: {}", ledgerHandle.getId());
+                log.warn().attr("handle", ledgerHandle.getId()).log("Failed to close a Ledger Handle");
                 future.completeExceptionally(bkException("Close ledger", rc, ledgerHandle.getId()));
             } else {
                 future.complete(null);

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import io.github.merlimat.slog.Logger;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -37,8 +38,6 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * LoadManager runs through set of load reports collected from different brokers and generates a recommendation of
@@ -48,7 +47,7 @@ import org.slf4j.LoggerFactory;
  * Concrete Load Manager is also return the least loaded broker that should own the new namespace.
  */
 public interface LoadManager {
-    Logger LOG = LoggerFactory.getLogger(LoadManager.class);
+    Logger LOG = Logger.get(LoadManager.class);
 
     String LOADBALANCE_BROKERS_ROOT = "/loadbalance/brokers";
 
@@ -176,7 +175,7 @@ public interface LoadManager {
                 return casted;
             }
         } catch (Exception e) {
-            LOG.warn("Error when trying to create load manager: ", e);
+            LOG.warn().exception(e).log("Error when trying to create load manager");
         }
         // If we failed to create a load manager, default to SimpleLoadManagerImpl.
         return new SimpleLoadManagerImpl(pulsar);

@@ -19,10 +19,10 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -37,8 +37,10 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@Slf4j
 public class GeoPersistentReplicator extends PersistentReplicator {
+
+    private static final Logger LOG = Logger.get(GeoPersistentReplicator.class);
+    protected final Logger log;
 
     public GeoPersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster,
                                    String remoteCluster, BrokerService brokerService,
@@ -46,6 +48,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
             throws PulsarServerException {
         super(localCluster, topic, cursor, remoteCluster, topic.getName(), brokerService, replicationClient,
                 replicationAdmin);
+        this.log = LOG.with().ctx(super.log).build();
     }
 
     /**
@@ -97,9 +100,9 @@ public class GeoPersistentReplicator extends PersistentReplicator {
         // Remote topic doesn't exist - create it
         if (remotePartitions == -1) {
             if (!brokerService.getPulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
-                String errorMsg = String.format("[%s] Can not start replicator because there is no topic on"
+                String errorMsg = String.format("Can not start replicator because there is no topic on"
                                 + " the remote cluster. Please create a %s on the remote cluster",
-                        replicatorId, localPartitions == 0 ? "non-partitioned topic"
+                        localPartitions == 0 ? "non-partitioned topic"
                                 : "partitioned topic with " + localPartitions + " partitions");
                 log.error(errorMsg);
                 return CompletableFuture.failedFuture(new PulsarServerException(errorMsg));
@@ -111,8 +114,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
             return createFuture.whenComplete((__, t) -> {
                 if (t != null) {
-                    log.error("[{}] Failed to create topic on remote cluster. Local has {} partitions",
-                            replicatorId, localPartitions, t);
+                    log.error()
+                            .attr("localPartitions", localPartitions)
+                            .exception(t)
+                            .log("Failed to create topic on remote cluster");
                 }
             });
         }
@@ -123,9 +128,9 @@ public class GeoPersistentReplicator extends PersistentReplicator {
         }
 
         // Incompatible partitions
-        String errorMsg = String.format("[%s] Can not start replicator because the partitions between"
+        String errorMsg = String.format("Can not start replicator because the partitions between"
                         + " local and remote cluster are different. local: %s, remote: %s",
-                replicatorId, localPartitions, remotePartitions);
+                localPartitions, remotePartitions);
         log.error(errorMsg);
         return CompletableFuture.failedFuture(new PulsarServerException(errorMsg));
     }
@@ -166,8 +171,11 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 try {
                     msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
                 } catch (Throwable t) {
-                    log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
-                            entry.getPosition(), length, t.getMessage(), t);
+                    log.error()
+                            .attr("position", entry.getPosition())
+                            .attr("length", length)
+                            .exception(t)
+                            .log("Failed to deserialize message");
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     inFlightTask.incCompletedEntries();
                     entry.release();
@@ -207,10 +215,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 }
 
                 if (msg.hasReplicateTo() && !msg.getReplicateTo().contains(remoteCluster)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Skipping message at position {}, replicateTo {}", replicatorId,
-                                entry.getPosition(), msg.getReplicateTo());
-                    }
+                    log.debug()
+                            .attr("position", entry.getPosition())
+                            .attr("replicateTo", msg.getReplicateTo())
+                            .log("Skipping message");
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     inFlightTask.incCompletedEntries();
                     entry.release();
@@ -220,10 +228,10 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
                 if (msg.isExpired(messageTTLInSeconds)) {
                     msgExpired.recordEvent(0 /* no value stat */);
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Discarding expired message at position {}, replicateTo {}",
-                                replicatorId, entry.getPosition(), msg.getReplicateTo());
-                    }
+                    log.debug()
+                            .attr("position", entry.getPosition())
+                            .attr("replicateTo", msg.getReplicateTo())
+                            .log("Discarding expired message");
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     inFlightTask.incCompletedEntries();
                     entry.release();
@@ -234,10 +242,9 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 if (STATE_UPDATER.get(this) != State.Started || isLocalMessageSkippedOnce) {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
                     // recover when the producer is ready
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Dropping read message at {} because producer is not ready",
-                                replicatorId, entry.getPosition());
-                    }
+                    log.debug()
+                            .attr("position", entry.getPosition())
+                            .log("Dropping read message because producer is not ready");
                     isLocalMessageSkippedOnce = true;
                     inFlightTask.incCompletedEntries();
                     entry.release();
@@ -269,13 +276,14 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     // Mark the replicator is fetching the schema for now and rewind the cursor
                     // and trigger the next read after complete the schema fetching.
                     skipRemainingMessages = true;
-                    log.info("[{}] Pause the data replication due to new detected schema", replicatorId);
+                    log.info("Pause the data replication due to new detected schema");
                     schemaFuture.whenComplete((__, e) -> {
                         if (e != null) {
-                            log.warn("[{}] Failed to get schema from local cluster, will try in the next loop",
-                                    replicatorId, e);
+                            log.warn()
+                                    .exception(e)
+                                    .log("Failed to get schema from local cluster, will try in the next loop");
                         }
-                        log.info("[{}] Resume the data replication after the schema fetching done", replicatorId);
+                        log.info("Resume the data replication after the schema fetching done");
                         doRewindCursor(true);
                     });
                 } else {
@@ -289,15 +297,18 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     stats.incrementMsgOutCounter();
                     stats.incrementBytesOutCounter(headersAndPayload.readableBytes());
                     // Increment pending messages for messages produced locally
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Publishing {}:{}", replicatorId, entry.getLedgerId(), entry.getEntryId());
-                    }
+                    log.debug()
+                            .attr("ledgerId", entry.getLedgerId())
+                            .attr("entryId", entry.getEntryId())
+                            .log("Publishing");
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg, inFlightTask));
                     atLeastOneMessageSentForReplication = true;
                 }
             }
         } catch (Exception e) {
-            log.error("[{}] Unexpected exception in replication task: {}", replicatorId, e.getMessage(), e);
+            log.error()
+                    .exception(e)
+                    .log("Unexpected exception in replication task");
         }
         return atLeastOneMessageSentForReplication;
     }

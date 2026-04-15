@@ -33,7 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -41,19 +41,14 @@ import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class provides a cache service for all the service unit ownership among the brokers. It provide a cache service
  * as well as MetadataStore read/write functions for a) lookup of a service unit ownership to a broker; b) take
  * ownership of a service unit by the local broker
  */
-@Slf4j
+@CustomLog
 public class OwnershipCache {
-
-    private static final Logger LOG = LoggerFactory.getLogger(OwnershipCache.class);
-
     /**
      * The local broker URL that this <code>OwnershipCache</code> will set as owner.
      */
@@ -99,7 +94,7 @@ public class OwnershipCache {
                         locallyAcquiredLocks.put(namespaceBundle, rl);
                         rl.getLockExpiredFuture()
                                 .thenRun(() -> {
-                                    log.info("Resource lock for {} has expired", rl.getPath());
+                                    log.info().attr("path", rl.getPath()).log("Resource lock has expired");
                                     namespaceService.unloadNamespaceBundle(namespaceBundle);
                                     invalidateLocalOwnerCache(namespaceBundle);
                                     namespaceService.onNamespaceBundleUnload(namespaceBundle);
@@ -176,14 +171,19 @@ public class OwnershipCache {
         return lockManager.readLock(path).thenCompose(owner -> {
             // If the current broker is the owner, attempt to reacquire ownership to avoid cache loss.
             if (owner.isPresent() && owner.get().equals(selfOwnerInfo)) {
-                log.warn("Detected ownership loss for broker [{}] on namespace bundle [{}]. "
-                                + "Attempting to reacquire ownership to maintain cache consistency.",
-                        selfOwnerInfo, suName);
+                log.warn()
+                        .attr("broker", selfOwnerInfo)
+                        .attr("bundle", suName)
+                        .log("Detected ownership loss for broker on namespace bundle . Attempting to reacquire"
+                                + " ownership to maintain cache consistency.");
                 try {
                     return tryAcquiringOwnership(suName).thenApply(Optional::ofNullable);
                 } catch (Exception e) {
-                    log.error("Failed to reacquire ownership for namespace bundle [{}] on broker [{}]: {}",
-                            suName, selfOwnerInfo, e.getMessage(), e);
+                    log.error()
+                            .attr("bundle", suName)
+                            .attr("broker", selfOwnerInfo)
+                            .exception(e)
+                            .log("Failed to reacquire ownership for namespace bundle on broker");
                     return CompletableFuture.failedFuture(e);
                 }
             }
@@ -206,13 +206,13 @@ public class OwnershipCache {
                     new RuntimeException("Namespace service is not ready for acquiring ownership"));
         }
 
-        LOG.info("Trying to acquire ownership of {}", bundle);
+        log.info().attr("bundle", bundle).log("Trying to acquire ownership");
 
         // Doing a get() on the ownedBundlesCache will trigger an async metadata write to acquire the lock over the
         // service unit
         return ownedBundlesCache.get(bundle)
                 .thenApply(namespaceBundle -> {
-            LOG.info("Successfully acquired ownership of {}", namespaceBundle);
+            log.info().attr("bundle", namespaceBundle).log("Successfully acquired ownership");
             namespaceService.onNamespaceBundleOwned(bundle);
             return selfOwnerInfo;
         });
@@ -249,7 +249,6 @@ public class OwnershipCache {
         }
         return FutureUtil.waitForAll(allFutures);
     }
-
 
     /**
      * Method to access the map of all <code>ServiceUnit</code> objects owned by the local broker.
@@ -348,7 +347,6 @@ public class OwnershipCache {
     public Map<NamespaceBundle, ResourceLock<NamespaceEphemeralData>> getLocallyAcquiredLocks() {
         return locallyAcquiredLocks;
     }
-
 
     public synchronized boolean refreshSelfOwnerInfo() {
         this.selfOwnerInfo = new NamespaceEphemeralData(pulsar.getBrokerServiceUrl(),

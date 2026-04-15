@@ -22,7 +22,7 @@ import java.io.IOException;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -30,7 +30,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 /**
  *  Exception handler for handle exception.
  */
-@Slf4j
+@CustomLog
 public class ExceptionHandler {
 
     public void handle(ServletResponse response, Exception ex) throws IOException {

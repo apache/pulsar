@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import com.google.common.base.MoreObjects;
+import io.github.merlimat.slog.Logger;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +48,12 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class NonPersistentSubscription extends AbstractSubscription {
+
+    private static final Logger LOG = Logger.get(NonPersistentSubscription.class);
+    private final Logger log;
+
     private final NonPersistentTopic topic;
     private volatile NonPersistentDispatcher dispatcher;
     private final String topicName;
@@ -78,6 +81,10 @@ public class NonPersistentSubscription extends AbstractSubscription {
         IS_FENCED_UPDATER.set(this, FALSE);
         this.subscriptionProperties = properties != null
                 ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
+        this.log = LOG.with()
+                .attr("topic", topicName)
+                .attr("subscription", subName)
+                .build();
     }
 
     @Override
@@ -103,7 +110,7 @@ public class NonPersistentSubscription extends AbstractSubscription {
     @Override
     public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
-            log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
+            log.warn().attr("consumer", consumer).log("Attempting to add consumer on a fenced subscription");
             return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
         }
 
@@ -151,9 +158,12 @@ public class NonPersistentSubscription extends AbstractSubscription {
 
             if (previousDispatcher != null) {
                 previousDispatcher.close().thenRun(() -> {
-                    log.info("[{}][{}] Successfully closed previous dispatcher", topicName, subName);
+                    log.info()
+                            .log("Successfully closed previous dispatcher");
                 }).exceptionally(ex -> {
-                    log.error("[{}][{}] Failed to close previous dispatcher", topicName, subName, ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to close previous dispatcher");
                     return null;
                 });
             }
@@ -185,10 +195,10 @@ public class NonPersistentSubscription extends AbstractSubscription {
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
         topic.decrementUsageCount();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] [{}] Removed consumer -- count: {}", topic.getName(), subName, consumer.consumerName(),
-                    topic.currentUsageCount());
-        }
+        log.debug()
+                .attr("consumerName", consumer.consumerName())
+                .attr("currentUsageCount", topic.currentUsageCount())
+                .log("Removed consumer");
     }
 
     @Override
@@ -290,10 +300,13 @@ public class NonPersistentSubscription extends AbstractSubscription {
                 ? dispatcher.disconnectAllConsumers(false, assignedBrokerLookupData)
                 : CompletableFuture.completedFuture(null))
                 .thenRun(() -> {
-                    log.info("[{}][{}] Successfully disconnected subscription consumers", topicName, subName);
+                    log.info()
+                            .log("Successfully disconnected subscription consumers");
                     closeFuture.complete(null);
                 }).exceptionally(exception -> {
-                    log.error("[{}][{}] Error disconnecting subscription consumers", topicName, subName, exception);
+                    log.error()
+                            .exception(exception)
+                            .log("Error disconnecting subscription consumers");
                     closeFuture.completeExceptionally(exception);
                     return null;
                 });
@@ -325,14 +338,17 @@ public class NonPersistentSubscription extends AbstractSubscription {
                 ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
                 : CompletableFuture.completedFuture(null))
                 .thenRun(() -> {
-                    log.info("[{}][{}] Successfully closed subscription", topicName, subName);
+                    log.info()
+                            .log("Successfully closed subscription");
                     closeFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
                     if (dispatcher != null) {
                         dispatcher.reset();
                     }
-                    log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
+                    log.error()
+                            .exception(exception)
+                            .log("Error closing subscription");
                     closeFuture.completeExceptionally(exception);
                     return null;
                 });
@@ -371,7 +387,7 @@ public class NonPersistentSubscription extends AbstractSubscription {
     private CompletableFuture<Void> delete(boolean closeIfConsumersConnected) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
-        log.info("[{}][{}] Unsubscribing", topicName, subName);
+        log.info().attr("topic", topicName).attr("subscription", subName).log("Unsubscribing");
 
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
@@ -379,7 +395,9 @@ public class NonPersistentSubscription extends AbstractSubscription {
             this.close(true, Optional.empty()).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(ex -> {
-                log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);
+                log.error()
+                        .exception(ex)
+                        .log("Error disconnecting and closing subscription");
                 closeSubscriptionFuture.completeExceptionally(ex);
                 return null;
             });
@@ -387,7 +405,9 @@ public class NonPersistentSubscription extends AbstractSubscription {
             this.fence().thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(exception -> {
-                log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
+                log.error()
+                        .exception(exception)
+                        .log("Error closing subscription");
                 closeSubscriptionFuture.completeExceptionally(exception);
                 return null;
             });
@@ -397,21 +417,26 @@ public class NonPersistentSubscription extends AbstractSubscription {
         closeSubscriptionFuture.thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> {
             synchronized (this) {
                 (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenRun(() -> {
-                    log.info("[{}][{}] Successfully deleted subscription", topicName, subName);
+                    log.info()
+                            .log("Successfully deleted subscription");
                     deleteFuture.complete(null);
                 }).exceptionally(ex -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
                     if (dispatcher != null) {
                         dispatcher.reset();
                     }
-                    log.error("[{}][{}] Error deleting subscription", topicName, subName, ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Error deleting subscription");
                     deleteFuture.completeExceptionally(ex);
                     return null;
                 });
             }
         }).exceptionally(exception -> {
             IS_FENCED_UPDATER.set(this, FALSE);
-            log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
+            log.error()
+                    .exception(exception)
+                    .log("Error deleting subscription");
             deleteFuture.completeExceptionally(exception);
             return null;
         });
@@ -450,7 +475,7 @@ public class NonPersistentSubscription extends AbstractSubscription {
             future.completeExceptionally(
                     new ServerMetadataException("Unconnected or shared consumer attempting to unsubscribe"));
         } catch (BrokerServiceException e) {
-            log.warn("Error removing consumer {}", consumer);
+            log.warn().attr("consumer", consumer).log("Error removing consumer");
             future.completeExceptionally(e);
         }
         return future;
@@ -579,9 +604,6 @@ public class NonPersistentSubscription extends AbstractSubscription {
                 new Exception("Unsupported operation analyzeBacklog for NonPersistentSubscription"));
         return completableFuture;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
-
     public Map<String, String> getSubscriptionProperties() {
         return subscriptionProperties;
     }

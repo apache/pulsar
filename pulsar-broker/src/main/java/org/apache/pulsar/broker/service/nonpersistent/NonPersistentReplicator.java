@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -43,8 +43,10 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStats
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@Slf4j
 public class NonPersistentReplicator extends AbstractReplicator implements Replicator {
+
+    private static final Logger LOG = Logger.get(NonPersistentReplicator.class);
+    protected final Logger log;
 
     private final Rate msgOut = new Rate();
     private final Rate msgDrop = new Rate();
@@ -56,6 +58,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                                    PulsarAdmin replicationAdmin) throws PulsarServerException {
         super(localCluster, topic, remoteCluster, topic.getName(), topic.getReplicatorPrefix(), brokerService,
                 replicationClient, replicationAdmin);
+        this.log = LOG.with().ctx(super.log).build();
         // NonPersistentReplicator does not support limitation so far, so reset pending queue size to the default value.
         producerBuilder.maxPendingMessages(1000);
         producerBuilder.blockIfQueueFull(false);
@@ -75,13 +78,10 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
         this.producer = (ProducerImpl) producer;
 
         if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Started)) {
-            log.info("[{}] Created replicator producer", replicatorId);
+            log.info("Created replicator producer");
             backOff.reset();
         } else {
-            log.info(
-                    "[{}] Replicator was stopped while creating the producer."
-                            + " Closing it. Replicator state: {}",
-                    replicatorId, STATE_UPDATER.get(this));
+            log.info("Replicator was stopped while creating the producer, closing it");
             doCloseProducerAsync(producer, () -> {});
             return;
         }
@@ -97,8 +97,11 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             try {
                 msg = MessageImpl.deserializeSkipBrokerEntryMetaData(headersAndPayload);
             } catch (Throwable t) {
-                log.error("[{}] Failed to deserialize message at {} (buffer size: {}): {}", replicatorId,
-                        entry.getPosition(), length, t.getMessage(), t);
+                log.error()
+                        .attr("position", entry.getPosition())
+                        .attr("length", length)
+                        .exception(t)
+                        .log("Failed to deserialize message");
                 entry.release();
                 return;
             }
@@ -111,10 +114,11 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             }
 
             if (msg.hasReplicateTo() && !msg.getReplicateTo().contains(remoteCluster)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Skipping message at {} / msg-id: {}: replicateTo {}", replicatorId,
-                            entry.getPosition(), msg.getMessageId(), msg.getReplicateTo());
-                }
+                log.debug()
+                        .attr("position", entry.getPosition())
+                        .attr("messageId", msg.getMessageId())
+                        .attr("replicateTo", msg.getReplicateTo())
+                        .log("Skipping message");
                 entry.release();
                 msg.recycle();
                 return;
@@ -131,10 +135,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
 
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] dropping message because replicator producer is not started/writable",
-                        replicatorId);
-            }
+            log.debug("Dropping message because replicator producer is not started/writable");
             msgDrop.recordEvent();
             stats.incrementMsgDropCount();
             entry.release();
@@ -182,15 +183,15 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             if (exception != null) {
                 Throwable actEx = FutureUtil.unwrapCompletionException(exception);
                 if (actEx instanceof PulsarClientException.ProducerQueueIsFullError) {
-                    log.warn("[{}] Discard to replicate non-persistent messages to the remote cluster because the"
-                        + " producer pending queue is full", replicator.replicatorId);
+                    replicator.log.warn("Discarding non-persistent message replication because the producer "
+                            + "pending queue is full");
                 } else {
-                    log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
+                    replicator.log.error()
+                            .exception(exception)
+                            .log("Error producing on remote broker");
                 }
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Message persisted on remote broker", replicator.replicatorId);
-                }
+                replicator.log.debug("Message persisted on remote broker");
             }
             entry.release();
 

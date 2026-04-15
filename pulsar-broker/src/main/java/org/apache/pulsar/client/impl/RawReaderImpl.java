@@ -26,6 +26,7 @@ import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -42,9 +43,8 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class RawReaderImpl implements RawReader {
 
     static final int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
@@ -74,7 +74,6 @@ public class RawReaderImpl implements RawReader {
         consumer = new RawConsumerImpl(client, consumerConfiguration, consumerFuture, createTopicIfDoesNotExist,
                 retryOnRecoverableErrors);
     }
-
 
     @Override
     public String getTopic() {
@@ -296,6 +295,4 @@ public class RawReaderImpl implements RawReader {
             this.cnx = cnx;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(RawReaderImpl.class);
 }

@@ -35,8 +35,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.websocket.data.ProducerMessages;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Path("/")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -44,8 +42,6 @@ import org.slf4j.LoggerFactory;
 @Api(value = "/persistent", description = "Apis for produce,consume and ack message on topics.", tags = "topics")
 @SuppressWarnings("deprecation")
 public class Topics extends TopicsBase {
-    private static final Logger log = LoggerFactory.getLogger(Topics.class);
-
     @POST
     @Path("/persistent/{tenant}/{namespace}/{topic}")
     @ApiOperation(value = "Produce message to a persistent topic.", response = String.class, responseContainer = "List")
@@ -68,7 +64,10 @@ public class Topics extends TopicsBase {
             validateProducePermission();
             publishMessages(asyncResponse, producerMessages, authoritative);
         } catch (Exception e) {
-            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Failed to produce on topic");
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
@@ -98,7 +97,10 @@ public class Topics extends TopicsBase {
             validateProducePermission();
             publishMessagesToPartition(asyncResponse, producerMessages, authoritative, partition);
         } catch (Exception e) {
-            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Failed to produce on topic");
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
@@ -127,7 +129,10 @@ public class Topics extends TopicsBase {
             validateProducePermission();
             publishMessages(asyncResponse, producerMessages, authoritative);
         } catch (Exception e) {
-            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Failed to produce on topic");
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
@@ -158,7 +163,10 @@ public class Topics extends TopicsBase {
             validateProducePermission();
             publishMessagesToPartition(asyncResponse, producerMessages, authoritative, partition);
         } catch (Exception e) {
-            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Failed to produce on topic");
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }

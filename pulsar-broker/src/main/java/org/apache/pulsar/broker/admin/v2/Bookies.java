@@ -39,7 +39,6 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.meta.MetadataClientDriver;
@@ -55,7 +54,6 @@ import org.apache.pulsar.common.policies.data.RawBookieInfo;
 @Path("/bookies")
 @Api(value = "/bookies", description = "Configure bookies rack placement", tags = "bookies")
 @Produces(MediaType.APPLICATION_JSON)
-@Slf4j
 @SuppressWarnings("deprecation")
 public class Bookies extends AdminResource {
     private static final String PATH_SEPARATOR = "/";
@@ -146,7 +144,7 @@ public class Bookies extends AdminResource {
 
                     return brc;
                 }).thenAccept(__ -> {
-            log.info("Removed {} from rack mapping info", bookieAddress);
+            log.info().attr("bookieAddress", bookieAddress).log("Removed from rack mapping info");
             asyncResponse.resume(Response.noContent().build());
         }).exceptionally(ex -> {
             asyncResponse.resume(ex);
@@ -198,7 +196,7 @@ public class Bookies extends AdminResource {
 
                     return brc;
                 }).thenAccept(__ -> {
-            log.info("Updated rack mapping info for {}", bookieAddress);
+            log.info().attr("bookieAddress", bookieAddress).log("Updated rack mapping info");
             asyncResponse.resume(Response.noContent().build());
         }).exceptionally(ex -> {
             asyncResponse.resume(ex);

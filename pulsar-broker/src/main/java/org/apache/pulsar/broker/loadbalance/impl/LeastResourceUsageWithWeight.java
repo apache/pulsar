@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
@@ -37,7 +37,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  * This strategy takes into account the historical load percentage and short-term load percentage, and thus will not
  * cause cluster fluctuations due to short-term load jitter.
  */
-@Slf4j
+@CustomLog
 public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy {
     private static final double MAX_RESOURCE_USAGE = 1.0d;
     // Maintain this list to reduce object creation.
@@ -59,24 +59,25 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
 
         if (maxUsageWithWeight > overloadThreshold) {
             final LocalBrokerData localData = brokerData.getLocalData();
-            log.warn(
-                    "Broker {} is overloaded, max resource usage with weight percentage: {}%, "
-                            + "CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
-                            + "BANDWIDTH OUT: {}%, CPU weight: {}, MEMORY weight: {}, DIRECT MEMORY weight: {}, "
-                            + "BANDWIDTH IN weight: {}, BANDWIDTH OUT weight: {}",
-                    broker, maxUsageWithWeight * 100,
-                    localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
-                    localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
-                    localData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwidthInResourceWeight(),
-                    conf.getLoadBalancerBandwidthOutResourceWeight());
+            log.warn()
+                    .attr("broker", broker)
+                    .attr("maxUsageWithWeightPercentage", maxUsageWithWeight * 100)
+                    .attr("cpuPercentage", localData.getCpu().percentUsage())
+                    .attr("memoryPercentage", localData.getMemory().percentUsage())
+                    .attr("directMemoryPercentage", localData.getDirectMemory().percentUsage())
+                    .attr("bandwidthInPercentage", localData.getBandwidthIn().percentUsage())
+                    .attr("bandwidthOutPercentage", localData.getBandwidthOut().percentUsage())
+                    .attr("cpuWeight", conf.getLoadBalancerCPUResourceWeight())
+                    .attr("memoryWeight", conf.getLoadBalancerMemoryResourceWeight())
+                    .attr("directMemoryWeight", conf.getLoadBalancerDirectMemoryResourceWeight())
+                    .attr("bandwidthInWeight", conf.getLoadBalancerBandwidthInResourceWeight())
+                    .attr("bandwidthOutWeight", conf.getLoadBalancerBandwidthOutResourceWeight())
+                    .log("Broker is overloaded");
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Broker {} has max resource usage with weight percentage: {}%",
-                    brokerData.getLocalData().getWebServiceUrl(), maxUsageWithWeight * 100);
-        }
+        log.debug().attr("broker", () -> brokerData.getLocalData().getWebServiceUrl())
+                .attr("percentage", maxUsageWithWeight * 100)
+                .log("Broker has max resource usage with weight percentage");
         return maxUsageWithWeight;
     }
 
@@ -105,16 +106,16 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                 conf.getLoadBalancerBandwidthOutResourceWeight());
         historyUsage = historyUsage == null
                 ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
-        if (log.isDebugEnabled()) {
-            log.debug(
-                    "Broker {} get max resource usage with weight: {}, history resource percentage: {}%, CPU weight: "
-                            + "{}, MEMORY weight: {}, DIRECT MEMORY weight: {}, BANDWIDTH IN weight: {}, BANDWIDTH "
-                            + "OUT weight: {} ",
-                    broker, historyUsage, historyPercentage, conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwidthInResourceWeight(),
-                    conf.getLoadBalancerBandwidthOutResourceWeight());
-        }
+        log.debug()
+                .attr("broker", broker)
+                .attr("historyUsage", historyUsage)
+                .attr("historyPercentage", historyPercentage)
+                .attr("cpuWeight", conf.getLoadBalancerCPUResourceWeight())
+                .attr("memoryWeight", conf.getLoadBalancerMemoryResourceWeight())
+                .attr("directMemoryWeight", conf.getLoadBalancerDirectMemoryResourceWeight())
+                .attr("bandwidthInWeight", conf.getLoadBalancerBandwidthInResourceWeight())
+                .attr("bandwidthOutWeight", conf.getLoadBalancerBandwidthOutResourceWeight())
+                .log("Broker get max resource usage with weight");
         brokerAvgResourceUsageWithWeight.put(broker, historyUsage);
         return historyUsage;
     }
@@ -134,7 +135,8 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                                                       LoadData loadData,
                                                       ServiceConfiguration conf) {
         if (candidates.isEmpty()) {
-            log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
+            log.info().attr("bundle", bundleToAssign)
+                    .log("There are no available brokers as candidates at this point for bundle");
             return Optional.empty();
         }
 
@@ -160,14 +162,13 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
 
         if (bestBrokers.isEmpty()) {
             // Assign randomly as all brokers are overloaded.
-            log.warn("Assign randomly as all {} brokers are overloaded.", candidates.size());
+            log.warn().attr("candidatesSize", candidates.size()).log("Assign randomly as all brokers are overloaded");
             bestBrokers.addAll(candidates);
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Selected {} best brokers: {} from candidate brokers: {}", bestBrokers.size(), bestBrokers,
-                    candidates);
-        }
+        log.debug().attr("bestBrokersSize", bestBrokers.size()).attr("bestBrokers", bestBrokers)
+                .attr("candidates", candidates)
+                .log("Selected best brokers from candidates");
         return Optional.of(bestBrokers.get(ThreadLocalRandom.current().nextInt(bestBrokers.size())));
     }
     @Override

@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
@@ -33,7 +33,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 /**
  * Split manager.
  */
-@Slf4j
+@CustomLog
 public class SplitManager implements StateChangeListener {
 
 
@@ -66,24 +66,27 @@ public class SplitManager implements StateChangeListener {
                                              TimeUnit timeoutUnit) {
         return eventPubFuture
                 .thenCompose(__ -> inFlightSplitRequests.computeIfAbsent(bundle, ignore -> {
-                    log.info("Published the bundle split event for bundle:{}. "
-                                    + "Waiting the split event to complete. Timeout: {} {}",
-                            bundle, timeout, timeoutUnit);
+                    log.info().attr("bundle", bundle).attr("timeout", timeout)
+                            .attr("timeoutUnit", timeoutUnit)
+                            .log("Published the bundle split event for bundle: . "
+                                    + "Waiting the split event to complete. Timeout");
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     future.orTimeout(timeout, timeoutUnit).whenComplete((v, ex) -> {
                         if (ex != null) {
                             inFlightSplitRequests.remove(bundle);
-                            log.warn("Timed out while waiting for the bundle split event: {}", bundle, ex);
+                            log.warn().attr("bundle", bundle).exception(ex)
+                                    .log("Timed out while waiting for the bundle split event");
                         }
                     });
                     return future;
                 }))
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
-                        log.error("Failed the bundle split event for bundle:{}", bundle, ex);
+                        log.error().attr("bundle", bundle).exception(ex)
+                                .log("Failed the bundle split event for bundle");
                         counter.update(Failure, Unknown);
                     } else {
-                        log.info("Completed the bundle split event for bundle:{}", bundle);
+                        log.info().attr("bundle", bundle).log("Completed the bundle split event for bundle");
                         counter.update(decision);
                     }
                 });
@@ -99,9 +102,7 @@ public class SplitManager implements StateChangeListener {
         switch (state) {
             case Init -> this.complete(serviceUnit, t);
             default -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Handling {} for service unit {}", data, serviceUnit);
-                }
+                log.debug().attr("handling", data).attr("unit", serviceUnit).log("Handling for service unit");
             }
         }
     }

@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.collections4.map.LinkedMap;
@@ -39,7 +39,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 
-@Slf4j
+@CustomLog
 public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcessor {
     private final PersistentTopic topic;
     private final ReferenceCountedWriter<TransactionBufferSnapshot> takeSnapshotWriter;
@@ -59,7 +59,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                 .getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService().getReferenceWriter(TopicName.get(topic.getName()).getNamespaceObject());
         this.takeSnapshotWriter.getFuture().exceptionally((ex) -> {
-                    log.error("{} Failed to create snapshot writer", topic.getName());
+                    log.error().attr("topic", topic.getName()).log("Failed to create snapshot writer");
                     topic.close();
                     return null;
                 });
@@ -75,11 +75,12 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     public void trimExpiredAbortedTxns() {
         while (!aborts.isEmpty() && !topic.getManagedLedger().getLedgersInfo()
                 .containsKey(aborts.get(aborts.firstKey()).getLedgerId())) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Topic transaction buffer clear aborted transaction, TxnId : {}, Position : {}",
-                        topic.getName(), aborts.firstKey(), aborts.get(aborts.firstKey()));
-            }
-            aborts.remove(aborts.firstKey());
+                log.debug()
+                        .attr("topic", topic.getName())
+                        .attr("txnId", aborts.firstKey())
+                        .attr("position", aborts.get(aborts.firstKey()))
+                        .log("Topic transaction buffer clear aborted transaction");
+                        aborts.remove(aborts.firstKey());
         }
     }
 
@@ -126,7 +127,9 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                         TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
                         snapshot.setTopicName(topic.getName());
                         return writer.deleteAsync(snapshot.getTopicName(), snapshot);
-                    }).thenRun(() -> log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic));
+                    }).thenRun(() -> log.info()
+                            .attr("topic", this.topic)
+                            .log("Successes to delete the aborted transaction snapshot"));
                 }
                 return CompletableFuture.completedFuture(null);
             });
@@ -151,12 +154,15 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
             snapshot.setAborts(list);
             return writer.writeAsync(snapshot.getTopicName(), snapshot).thenAccept(messageId -> {
                 this.lastSnapshotTimestamps = System.currentTimeMillis();
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}]Transaction buffer take snapshot success! "
-                            + "messageId : {}", topic.getName(), messageId);
-                }
-            }).exceptionally(e -> {
-                log.warn("[{}]Transaction buffer take snapshot fail! ", topic.getName(), e.getCause());
+                    log.debug()
+                            .attr("topic", topic.getName())
+                            .attr("messageId", messageId)
+                            .log("Transaction buffer take snapshot success");
+                            }).exceptionally(e -> {
+                log.warn()
+                        .attr("topic", topic.getName())
+                        .exception(e.getCause())
+                        .log("Transaction buffer take snapshot fail!");
                 return null;
             });
         });

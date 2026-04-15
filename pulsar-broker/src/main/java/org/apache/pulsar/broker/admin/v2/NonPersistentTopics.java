@@ -62,8 +62,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  */
@@ -72,8 +70,6 @@ import org.slf4j.LoggerFactory;
 @Api(value = "/non-persistent", description = "Non-Persistent topic admin apis", tags = "non-persistent topic")
 @SuppressWarnings("deprecation")
 public class NonPersistentTopics extends PersistentTopics {
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentTopics.class);
-
     @GET
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Get partitioned topic metadata.", response = PartitionedTopicMetadata.class)
@@ -103,7 +99,10 @@ public class NonPersistentTopics extends PersistentTopics {
             if (ex != null) {
                 Throwable actEx = FutureUtil.unwrapCompletionException(ex);
                 if (isNot307And404Exception(actEx)) {
-                    log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to get internal stats for topic");
                 }
                 resumeAsyncResponseExceptionally(asyncResponse, actEx);
             } else {
@@ -147,7 +146,10 @@ public class NonPersistentTopics extends PersistentTopics {
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get internal stats for topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -190,11 +192,13 @@ public class NonPersistentTopics extends PersistentTopics {
             validateTopicName(tenant, namespace, encodedTopic);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly);
         } catch (Exception e) {
-            log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Failed to create partitioned topic");
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
-
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/partitioned-stats")
@@ -243,7 +247,10 @@ public class NonPersistentTopics extends PersistentTopics {
             try {
                 validateGlobalNamespaceOwnership(namespaceName);
             } catch (Exception e) {
-                log.error("[{}] Failed to get partitioned stats for {}", clientAppId(), topicName, e);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(e)
+                        .log("Failed to get partitioned stats");
                 resumeAsyncResponseExceptionally(asyncResponse, e);
                 return;
             }
@@ -314,7 +321,10 @@ public class NonPersistentTopics extends PersistentTopics {
                     return null;
                 });
             }).exceptionally(ex -> {
-                log.error("[{}] Failed to get partitioned stats for {}", clientAppId(), topicName, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to get partitioned stats");
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
@@ -324,7 +334,6 @@ public class NonPersistentTopics extends PersistentTopics {
             asyncResponse.resume(new RestException(e));
         }
     }
-
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/unload")
@@ -386,10 +395,10 @@ public class NonPersistentTopics extends PersistentTopics {
         Policies policies = null;
         try {
             validateNamespaceName(tenant, namespace);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] list of topics on namespace {}", clientAppId(), namespaceName);
-            }
-            validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
+                log.debug()
+                        .attr("namespace", namespaceName)
+                        .log("list of topics on namespace");
+                        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_TOPICS);
             policies = getNamespacePolicies(namespaceName);
 
             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -412,8 +421,11 @@ public class NonPersistentTopics extends PersistentTopics {
             try {
                 futures.add(pulsar().getAdminClient().topics().getListInBundleAsync(namespaceName.toString(), bundle));
             } catch (PulsarServerException e) {
-                log.error("[{}] Failed to get list of topics under namespace {}/{}", clientAppId(), namespaceName,
-                        bundle, e);
+                log.error()
+                        .attr("namespace", namespaceName)
+                        .attr("bundle", bundle)
+                        .exception(e)
+                        .log("Failed to get list of topics under namespace");
                 asyncResponse.resume(new RestException(e));
                 return;
             }
@@ -461,11 +473,11 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiParam(value = "Bundle range of a topic", required = true)
             @PathParam("bundle") String bundleRange) {
         validateNamespaceName(tenant, namespace);
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] list of topics on namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
-        }
-
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_BUNDLE);
+            log.debug()
+                    .attr("namespace", namespaceName)
+                    .attr("bundleRange", bundleRange)
+                    .log("list of topics on namespace bundle");
+                validateNamespaceOperation(namespaceName, NamespaceOperation.GET_BUNDLE);
         Policies policies = getNamespacePolicies(namespaceName);
 
         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -473,8 +485,10 @@ public class NonPersistentTopics extends PersistentTopics {
 
         isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange).thenAccept(flag -> {
             if (!flag) {
-                log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
-                        bundleRange);
+                log.info()
+                        .attr("namespace", namespaceName)
+                        .attr("bundleRange", bundleRange)
+                        .log("Namespace bundle is not owned by any broker");
                 asyncResponse.resume(Response.noContent().build());
             } else {
                 validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true, true)
@@ -496,8 +510,11 @@ public class NonPersistentTopics extends PersistentTopics {
                             asyncResponse.resume(topicList);
                         }).exceptionally(ex -> {
                             if (isNot307And404Exception(ex)) {
-                                log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
-                                        namespaceName, bundleRange, ex);
+                                log.error()
+                                        .attr("namespace", namespaceName)
+                                        .attr("bundleRange", bundleRange)
+                                        .exception(ex)
+                                        .log("Failed to list topics on namespace bundle");
                             }
                             resumeAsyncResponseExceptionally(asyncResponse, ex);
                             return null;
@@ -505,8 +522,11 @@ public class NonPersistentTopics extends PersistentTopics {
             }
         }).exceptionally(ex -> {
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to list topics on namespace bundle {}/{}", clientAppId(),
-                        namespaceName, bundleRange, ex);
+                log.error()
+                        .attr("namespace", namespaceName)
+                        .attr("bundleRange", bundleRange)
+                        .exception(ex)
+                        .log("Failed to list topics on namespace bundle");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -619,13 +639,12 @@ public class NonPersistentTopics extends PersistentTopics {
         preValidation(authoritative)
                 .thenCompose(__ -> internalRemoveEntryFilters(isGlobal))
                 .thenRun(() -> {
-                    log.info(
-                            "[{}] Successfully remove entry filters: tenant={}, namespace={}, topic={}, isGlobal={}",
-                            clientAppId(),
-                            tenant,
-                            namespace,
-                            topicName.getLocalName(),
-                            isGlobal);
+                    log.info()
+                            .attr("tenant", tenant)
+                            .attr("namespace", namespace)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("isGlobal", isGlobal)
+                            .log("Successfully remove entry filters");
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {

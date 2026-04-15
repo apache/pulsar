@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -51,7 +51,7 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
  *
  * Migrate from {@link org.apache.pulsar.broker.loadbalance.impl.BundleSplitterTask}
  */
-@Slf4j
+@CustomLog
 public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleSplitStrategy {
     private static final String CANNOT_CONTINUE_SPLIT_MSG = "Can't continue the split cycle.";
     private static final String CANNOT_SPLIT_BUNDLE_MSG = "Can't split broker:%s.";
@@ -83,7 +83,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
         long maxBundleBandwidth = conf.getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * LoadManagerShared.MIBI;
         long maxSplitCount = conf.getLoadBalancerMaxNumberOfBundlesToSplitPerCycle();
         long splitConditionHitCountThreshold = conf.getLoadBalancerNamespaceBundleSplitConditionHitCountThreshold();
-        boolean debug = log.isDebugEnabled() || conf.isLoadBalancerDebugModeEnabled();
+        boolean debug = conf.isLoadBalancerDebugModeEnabled();
         var channel = ServiceUnitStateChannelImpl.get(pulsar);
 
         for (var etr : channel.getOwnershipEntrySet()) {
@@ -190,7 +190,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                 }
             } catch (Exception e) {
                 counter.update(Failure, Unknown);
-                log.warn("Failed to get bundle count in namespace:{}", namespace, e);
+                log.warn().attr("namespace", namespace).exception(e).log("Failed to get bundle count in namespace");
                 continue;
             }
 
@@ -244,7 +244,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
             } catch (Throwable e) {
                 counter.update(Failure, Unknown);
-                log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG + " Failed to get split boundaries.", bundle), e);
+                log.warn().exception(e).logf(CANNOT_SPLIT_BUNDLE_MSG + " Failed to get split boundaries.", bundle);
                 continue;
             }
             if (splitBoundary == null) {
@@ -277,8 +277,8 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
             namespaceBundleFactory.invalidateBundleCache(NamespaceName.get(namespaceName));
             if (decisionCache.size() == maxSplitCount) {
                 if (debug) {
-                    log.info(CANNOT_CONTINUE_SPLIT_MSG
-                                    + "Too many bundles split in this cycle {} / {}.",
+                    log.infof(CANNOT_CONTINUE_SPLIT_MSG
+                                    + "Too many bundles split in this cycle %s / %s.",
                             decisionCache.size(), maxSplitCount);
                 }
                 break;

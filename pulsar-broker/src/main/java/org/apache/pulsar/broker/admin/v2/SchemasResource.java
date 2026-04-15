@@ -40,7 +40,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.SchemasResourceBase;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
@@ -60,7 +59,6 @@ import org.apache.pulsar.common.util.FutureUtil;
     description = "Schemas related admin APIs",
     tags = "schemas"
 )
-@Slf4j
 @SuppressWarnings("deprecation")
 public class SchemasResource extends SchemasResourceBase {
 
@@ -94,7 +92,10 @@ public class SchemasResource extends SchemasResourceBase {
                 .thenApply(response::resume)
                 .exceptionally(ex -> {
                     if (shouldPrintErrorLog(ex)) {
-                        log.error("[{}] Failed to get schema for topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get schema for topic");
                     }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
@@ -127,8 +128,11 @@ public class SchemasResource extends SchemasResourceBase {
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
                     if (shouldPrintErrorLog(ex)) {
-                        log.error("[{}] Failed to get schema for topic {} with version {}",
-                                clientAppId(), topicName, version, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .attr("version", version)
+                                .exception(ex)
+                                .log("Failed to get schema for topic with version");
                     }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
@@ -160,7 +164,10 @@ public class SchemasResource extends SchemasResourceBase {
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
                     if (shouldPrintErrorLog(ex)) {
-                        log.error("[{}] Failed to get all schemas for topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get all schemas for topic");
                     }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
@@ -191,7 +198,10 @@ public class SchemasResource extends SchemasResourceBase {
         getSchemaMetadataAsync(authoritative)
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get schema metadata for topic {}", clientAppId(), topicName, ex);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to get schema metadata for topic");
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
@@ -223,7 +233,10 @@ public class SchemasResource extends SchemasResourceBase {
                 })
                 .exceptionally(ex -> {
                     if (shouldPrintErrorLog(ex)) {
-                        log.error("[{}] Failed to delete schemas for topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to delete schemas for topic");
                     }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
@@ -270,7 +283,10 @@ public class SchemasResource extends SchemasResourceBase {
                                 root.getMessage()).build());
                     } else {
                         if (shouldPrintErrorLog(ex)) {
-                            log.error("[{}] Failed to post schemas for topic {}", clientAppId(), topicName, root);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .attr("root", root)
+                                    .log("Failed to post schemas for topic");
                         }
                         resumeAsyncResponseExceptionally(response, ex);
                     }
@@ -310,7 +326,10 @@ public class SchemasResource extends SchemasResourceBase {
                         .build()))
                 .exceptionally(ex -> {
                     if (shouldPrintErrorLog(ex)) {
-                        log.error("[{}] Failed to test compatibility for topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to test compatibility for topic");
                     }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
@@ -347,7 +366,10 @@ public class SchemasResource extends SchemasResourceBase {
                 .thenAccept(version -> response.resume(LongSchemaVersionResponse.builder().version(version).build()))
                 .exceptionally(ex -> {
                     if (shouldPrintErrorLog(ex)) {
-                        log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get version by schema for topic");
                     }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;

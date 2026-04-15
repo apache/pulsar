@@ -32,7 +32,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -72,7 +71,6 @@ import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 
-@Slf4j
 public abstract class TransactionsBase extends AdminResource {
 
     protected void internalListCoordinators(AsyncResponse asyncResponse) {
@@ -95,8 +93,9 @@ public abstract class TransactionsBase extends AdminResource {
                     asyncResponse.resume(result.values());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to list transaction coordinators: {}",
-                            clientAppId(), ex.getMessage(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to list transaction coordinators");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -154,7 +153,9 @@ public abstract class TransactionsBase extends AdminResource {
                     asyncResponse.resume(stats);
                 });
             }).exceptionally(ex -> {
-                log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
+                log.error()
+                        .exception(ex)
+                        .log("Failed to get transaction coordinator state.");
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
@@ -375,7 +376,9 @@ public abstract class TransactionsBase extends AdminResource {
                         asyncResponse.resume(transactionMetadataMaps);
                     });
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get transaction coordinator state.", clientAppId(), ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Failed to get transaction coordinator state.");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -528,8 +531,13 @@ public abstract class TransactionsBase extends AdminResource {
             this.namespaceName = NamespaceName.get(tenant, namespace);
             this.topicName = TopicName.get(TopicDomain.persistent.toString(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), tenant, namespace,
-                    topic, e);
+            log.warn()
+                    .attr("domain", domain())
+                    .attr("tenant", tenant)
+                    .attr("namespace", namespace)
+                    .attr("topic", topic)
+                    .exception(e)
+                    .log("Failed to validate topic name");
             throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
     }

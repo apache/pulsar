@@ -33,7 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -43,7 +43,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
  * It syncs service unit(bundle) states between metadata store and system topic table views.
  * One could enable this syncer before migration from one to the other and disable it after the migration finishes.
  */
-@Slf4j
+@CustomLog
 public class ServiceUnitStateTableViewSyncer implements Closeable {
     private static final int MAX_CONCURRENT_SYNC_COUNT = 100;
     private static final int SYNC_WAIT_TIME_IN_SECS = 300;
@@ -76,7 +76,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
             isActive = true;
 
         } catch (Throwable e) {
-            log.error("Failed to start ServiceUnitStateTableViewSyncer", e);
+            log.error().exception(e).log("Failed to start ServiceUnitStateTableViewSyncer");
             throw e;
         }
     }
@@ -131,10 +131,10 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
                             + SYNC_WAIT_TIME_IN_SECS + " secs");
         }
 
-        log.info("Synced existing items MetadataStoreTableView.size:{} , "
-                        + "SystemTopicTableView.size: {} in {} secs",
-                metadataStoreTableView.entrySet().size(), systemTopicTableView.entrySet().size(),
-                TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - started));
+        log.info().attr("metadataStoreTableViewSize", metadataStoreTableView.entrySet().size())
+                .attr("systemTopicTableViewSize", systemTopicTableView.entrySet().size())
+                .attr("elapsedSecs", TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - started))
+                .log("Synced existing items");
     }
 
     private void syncTailItems() throws InterruptedException, IOException, TimeoutException {
@@ -178,10 +178,10 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
         }
 
 
-        log.info("Successfully started ServiceUnitStateTableViewSyncer MetadataStoreTableView.size:{} , "
-                        + "SystemTopicTableView.size: {} in {} secs",
-                metadataStoreTableView.entrySet().size(), systemTopicTableView.entrySet().size(),
-                TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - started));
+        log.info().attr("metadataStoreTableViewSize", metadataStoreTableView.entrySet().size())
+                .attr("systemTopicTableViewSize", systemTopicTableView.entrySet().size())
+                .attr("elapsedSecs", TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - started))
+                .log("Successfully started ServiceUnitStateTableViewSyncer");
     }
 
     private void syncExistingItemsToMetadataStore(ServiceUnitStateTableView src)
@@ -260,7 +260,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
                 log.info("Closed SystemTopicTableView");
             }
         } catch (Exception e) {
-            log.error("Failed to close SystemTopicTableView", e);
+            log.error().exception(e).log("Failed to close SystemTopicTableView");
             throw e;
         }
 
@@ -271,7 +271,7 @@ public class ServiceUnitStateTableViewSyncer implements Closeable {
                 log.info("Closed MetadataStoreTableView");
             }
         } catch (Exception e) {
-            log.error("Failed to close MetadataStoreTableView", e);
+            log.error().exception(e).log("Failed to close MetadataStoreTableView");
             throw e;
         }
 

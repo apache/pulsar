@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -38,7 +38,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 
-@Slf4j
+@CustomLog
 public class RedirectManager {
     private final PulsarService pulsar;
 
@@ -66,7 +66,7 @@ public class RedirectManager {
                     if (lookupDataOpt.isPresent()) {
                         map.put(brokerId, lookupDataOpt.get());
                     } else {
-                        log.warn("Got an empty lookup data, brokerId: {}", brokerId);
+                        log.warn().attr("broker", brokerId).log("Got an empty lookup data, brokerId");
                     }
                 }));
             }
@@ -100,8 +100,8 @@ public class RedirectManager {
 
             if (Objects.equals(latestServiceLookupData.get().getLoadManagerClassName(), currentLMClassName)) {
                 if (debug) {
-                    log.info("No need to redirect, current load manager class name: {}",
-                            currentLMClassName);
+                    log.info().attr("name", currentLMClassName)
+                            .log("No need to redirect, current load manager class name");
                 }
                 return Optional.empty();
             }

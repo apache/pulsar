@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.rest;
 import io.netty.util.Recycler;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.Topic;
@@ -29,7 +29,7 @@ import org.apache.pulsar.broker.service.Topic;
 /**
  * PublishContext implementation for REST message publishing.
  */
-@Slf4j
+@CustomLog
 public class RestMessagePublishContext implements Topic.PublishContext {
 
     private Topic topic;
@@ -43,17 +43,11 @@ public class RestMessagePublishContext implements Topic.PublishContext {
     public void completed(Exception exception, long ledgerId, long entryId) {
         if (exception != null) {
             positionFuture.completeExceptionally(exception);
-            if (log.isInfoEnabled()) {
-                log.info("Failed to write entry for rest produce request: ledgerId: {}, entryId: {}. "
-                                + "triggered send callback.",
-                        ledgerId, entryId);
-            }
+            log.info().attr("ledgerId", ledgerId).attr("entryId", entryId)
+                    .log("Failed to write entry for rest produce request. Triggered send callback");
         } else {
-            if (log.isInfoEnabled()) {
-                log.info("Success write topic for rest produce request: {}, ledgerId: {}, entryId: {}. "
-                                + "triggered send callback.",
-                        topic.getName(), ledgerId, entryId);
-            }
+            log.info().attr("topic", topic.getName()).attr("ledgerId", ledgerId).attr("entryId", entryId)
+                    .log("Success write topic for rest produce request. Triggered send callback");
             topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
             positionFuture.complete(PositionFactory.create(ledgerId, entryId));
         }

@@ -36,6 +36,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.component.ComponentStarter;
 import org.apache.bookkeeper.common.component.LifecycleComponent;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
@@ -58,8 +59,6 @@ import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -67,6 +66,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
 
 @Command(description = "broker", showDefaultValues = true, scope = ScopeType.INHERIT)
+@CustomLog
 public class PulsarBrokerStarter {
 
     private static ServiceConfiguration loadConfig(String configFile) throws Exception {
@@ -111,12 +111,12 @@ public class PulsarBrokerStarter {
         try {
             bookieConf.loadConf(new File(bookieConfigFile).toURI().toURL());
             bookieConf.validate();
-            log.info("Using bookie configuration file {}", bookieConfigFile);
+            log.info().attr("file", bookieConfigFile).log("Using bookie configuration file");
         } catch (MalformedURLException e) {
-            log.error("Could not open configuration file: {}", bookieConfigFile, e);
+            log.error().attr("file", bookieConfigFile).exception(e).log("Could not open configuration file");
             throw new IllegalArgumentException("Could not open configuration file");
         } catch (ConfigurationException e) {
-            log.error("Malformed configuration file: {}", bookieConfigFile, e);
+            log.error().attr("file", bookieConfigFile).exception(e).log("Malformed configuration file");
             throw new IllegalArgumentException("Malformed configuration file");
         }
 
@@ -208,8 +208,9 @@ public class PulsarBrokerStarter {
                                               workerConfig,
                                               Optional.ofNullable(functionsWorkerService),
                                               (exitCode) -> {
-                                                  log.info("Halting broker process with code {}",
-                                                           exitCode);
+                                                  log.info()
+                                                          .attr("exitCode", exitCode)
+                                                          .log("Halting broker process");
                                                   ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
                                               });
 
@@ -327,7 +328,6 @@ public class PulsarBrokerStarter {
         }
     }
 
-
     @SuppressWarnings("deprecation")
     public static void main(String[] args) throws Exception {
         DateFormat dateFormat = new SimpleDateFormat(
@@ -345,7 +345,7 @@ public class PulsarBrokerStarter {
                 try {
                     starter.shutdown();
                 } catch (Throwable t) {
-                    log.error("Error while shutting down Pulsar service", t);
+                    log.error().exception(t).log("Error while shutting down Pulsar service");
                 } finally {
                     LogManager.shutdown();
                 }
@@ -354,9 +354,13 @@ public class PulsarBrokerStarter {
 
         PulsarByteBufAllocator.registerOOMListener(oomException -> {
             if (starter.brokerConfig != null && starter.brokerConfig.isSkipBrokerShutdownOnOOM()) {
-                log.error("-- Received OOM exception: {}", oomException.getMessage(), oomException);
+                log.error()
+                        .exception(oomException)
+                        .log("- Received OOM exception");
             } else {
-                log.error("-- Shutting down - Received OOM exception: {}", oomException.getMessage(), oomException);
+                log.error()
+                        .exception(oomException)
+                        .log("- Shutting down - Received OOM exception");
                 if (starter.pulsarService != null) {
                     starter.pulsarService.shutdownNow();
                 }
@@ -369,12 +373,10 @@ public class PulsarBrokerStarter {
                 System.exit(start);
             }
         } catch (Throwable t) {
-            log.error("Failed to start pulsar service.", t);
+            log.error().exception(t).log("Failed to start pulsar service.");
             ShutdownUtil.triggerImmediateForcefulShutdown();
         } finally {
             starter.join();
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarBrokerStarter.class);
 }

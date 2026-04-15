@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.zip.CRC32;
 import java.util.zip.Deflater;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.broker.PulsarService;
@@ -69,7 +69,7 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
  * Format specification can be found at <a
  * href="https://prometheus.io/docs/instrumenting/exposition_formats/">Exposition Formats</a>
  */
-@Slf4j
+@CustomLog
 public class PrometheusMetricsGenerator implements AutoCloseable {
     private static final int DEFAULT_INITIAL_BUFFER_SIZE = 1024 * 1024; // 1MB
     private static final int MINIMUM_FOR_MAX_COMPONENTS = 64;
@@ -456,7 +456,6 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                     }
                 } else {
 
-
                     String name = entry.getKey();
                     if (!names.contains(name)) {
                         stream.write("# TYPE ");
@@ -514,7 +513,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             }), StandardCharsets.UTF_8)) {
                 statsProvider.writeAllMetrics(writer);
             } catch (IOException e) {
-                log.error("Failed to write managed ledger bookie client metrics", e);
+                log.error().exception(e).log("Failed to write managed ledger bookie client metrics");
             }
         }
     }

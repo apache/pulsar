@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -41,12 +42,9 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class PulsarStats implements Closeable {
-    private static final Logger log = LoggerFactory.getLogger(PulsarStats.class);
-
     private volatile ByteBuf topicStatsBuf;
     private volatile ByteBuf tempTopicStatsBuf;
 
@@ -142,8 +140,10 @@ public class PulsarStats implements Closeable {
                                     topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
                                             clusterReplicationMetrics, namespaceName, exposePublisherStats);
                                 } catch (Exception e) {
-                                    log.error("Failed to generate topic stats for topic {}: {}",
-                                            name, e.getMessage(), e);
+                                    log.error()
+                                            .attr("topic", name)
+                                            .exception(e)
+                                            .log("Failed to generate topic stats");
                                 }
                                 // this task: helps to activate inactive-backlog-cursors which have caught up and
                                 // connected, also deactivate active-backlog-cursors which has backlog
@@ -154,7 +154,7 @@ public class PulsarStats implements Closeable {
                             } else if (topic instanceof NonPersistentTopic) {
                                 tempNonPersistentTopics.add((NonPersistentTopic) topic);
                             } else {
-                                log.warn("Unsupported type of topic {}", topic.getClass().getName());
+                                log.warn().attr("type", topic.getClass().getName()).log("Unsupported type of topic");
                             }
                         });
                         // end persistent topics section
@@ -168,8 +168,10 @@ public class PulsarStats implements Closeable {
                                     topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
                                             clusterReplicationMetrics, namespaceName, exposePublisherStats);
                                 } catch (Exception e) {
-                                    log.error("Failed to generate topic stats for topic {}: {}",
-                                            topic.getName(), e.getMessage(), e);
+                                    log.error()
+                                            .attr("topic", topic.getName())
+                                            .exception(e)
+                                            .log("Failed to generate topic stats");
                                 }
                             });
                             // end non-persistent topics section
@@ -196,8 +198,10 @@ public class PulsarStats implements Closeable {
                     // Update metricsCollection with namespace stats
                     tempMetricsCollection.add(nsStats.add(namespaceName));
                 } catch (Exception e) {
-                    log.error("Failed to generate namespace stats for namespace {}: {}", namespaceName, e.getMessage(),
-                            e);
+                    log.error()
+                            .attr("namespace", namespaceName)
+                            .exception(e)
+                            .log("Failed to generate namespace stats");
                 }
             });
             if (clusterReplicationMetrics.isMetricsEnabled()) {
@@ -209,7 +213,7 @@ public class PulsarStats implements Closeable {
             // json end
             topicStatsStream.endObject();
         } catch (Exception e) {
-            log.error("Unable to update topic stats", e);
+            log.error().exception(e).log("Unable to update topic stats");
         }
 
         // swap metricsCollection and tempMetricsCollection
@@ -258,7 +262,10 @@ public class PulsarStats implements Closeable {
         try {
             brokerOperabilityMetrics.recordTopicLoadTimeValue(topicLoadLatencyMs);
         } catch (Exception ex) {
-            log.warn("Exception while recording topic load time for topic {}, {}", topic, ex.getMessage());
+            log.warn()
+                    .attr("topic", topic)
+                    .exceptionMessage(ex)
+                    .log("Exception while recording topic load time");
         }
     }
 

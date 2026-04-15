@@ -26,7 +26,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
@@ -37,7 +37,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
 
-@Slf4j
+@CustomLog
 class MutableBucket extends Bucket implements AutoCloseable {
 
     private final TripleLongPriorityQueue priorityQueue;
@@ -61,12 +61,12 @@ class MutableBucket extends Bucket implements AutoCloseable {
             final long timeStepPerBucketSnapshotSegment, final int maxIndexesPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
             final long endLedgerId) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Creating bucket snapshot, startLedgerId: {}, endLedgerId: {}", dispatcherName,
-                    startLedgerId, endLedgerId);
-        }
-
-        if (delayedIndexQueue.isEmpty()) {
+            log.debug()
+                    .attr("dispatcher", dispatcherName)
+                    .attr("startLedgerId", startLedgerId)
+                    .attr("endLedgerId", endLedgerId)
+                    .log("Creating bucket snapshot");
+                if (delayedIndexQueue.isEmpty()) {
             return null;
         }
         long numMessages = 0;

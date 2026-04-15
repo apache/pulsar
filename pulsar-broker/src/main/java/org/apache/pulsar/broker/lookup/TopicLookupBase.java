@@ -50,17 +50,18 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class TopicLookupBase extends PulsarWebResource {
+
+    private static final io.github.merlimat.slog.Logger LOG =
+            io.github.merlimat.slog.Logger.get(TopicLookupBase.class);
 
     private static final String LOOKUP_PATH = "/lookup/v2/topic/";
 
     protected CompletableFuture<LookupData> internalLookupTopicAsync(final TopicName topicName, boolean authoritative,
                                                                      String listenerName) {
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
-            log.warn("No broker was found available for topic {}", topicName);
+            log.warn().attr("topic", topicName).log("No broker was found available for topic");
             return FutureUtil.failedFuture(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
         }
         return validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject())
@@ -98,7 +99,7 @@ public class TopicLookupBase extends PulsarWebResource {
 
                     return lookupFuture.thenApply(optionalResult -> {
                         if (optionalResult == null || !optionalResult.isPresent()) {
-                            log.warn("No broker was found available for topic {}", topicName);
+                            log.warn().attr("topic", topicName).log("No broker was found available for topic");
                             throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
                         }
 
@@ -122,20 +123,26 @@ public class TopicLookupBase extends PulsarWebResource {
                                 path = listenerName == null ? path : path + "&listenerName=" + listenerName;
                                 redirect = new URI(path);
                             } catch (URISyntaxException e) {
-                                log.error("Error in preparing redirect url for {}: {}", topicName, e.getMessage(), e);
+                                log.error()
+                                        .attr("topic", topicName)
+                                        .exception(e)
+                                        .log("Error in preparing redirect url");
                                 throw new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage());
                             }
-                            if (log.isDebugEnabled()) {
-                                log.debug("Redirect lookup for topic {} to {}", topicName, redirect);
-                            }
-                            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                                log.debug()
+                                        .attr("topic", topicName)
+                                        .attr("redirect", redirect)
+                                        .log("Redirect lookup for topic");
+                                throw new WebApplicationException(
+                                        Response.temporaryRedirect(redirect).build());
                         } else {
                             // Found broker owning the topic
-                            if (log.isDebugEnabled()) {
-                                log.debug("Lookup succeeded for topic {} -- broker: {}", topicName,
-                                        result.getLookupData());
-                            }
-                            pulsar().getBrokerService().getLookupRequestSemaphore().release();
+                                log.debug()
+                                        .attr("topic", topicName)
+                                        .attr("broker", result.getLookupData())
+                                        .log("Lookup succeeded for topic - broker");
+                                                        pulsar().getBrokerService().getLookupRequestSemaphore()
+                                                                .release();
                             return result.getLookupData();
                         }
                     });
@@ -151,7 +158,10 @@ public class TopicLookupBase extends PulsarWebResource {
             NamespaceBundle bundle = pulsar().getNamespaceService().getBundle(topicName);
             return bundle.getBundleRange();
         } catch (Exception e) {
-            log.error("[{}] Failed to get namespace bundle for {}", clientAppId(), topicName, e);
+            log.error()
+                    .attr("topic", topicName)
+                    .exception(e)
+                    .log("Failed to get namespace bundle");
             throw new RestException(e);
         }
     }
@@ -238,11 +248,17 @@ public class TopicLookupBase extends PulsarWebResource {
                 .exceptionally(e -> {
                     Throwable throwable = FutureUtil.unwrapCompletionException(e);
                     if (throwable instanceof RestException) {
-                        log.warn("Failed to authorized {} on topic {}", clientAppId, topicName);
+                        LOG.warn()
+                                .attr("authorized", clientAppId)
+                                .attr("topic", topicName)
+                                .log("Failed to authorized on topic");
                         validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
                                 throwable.getMessage(), requestId));
                     } else {
-                        log.warn("Unknown error while authorizing {} on topic {}", clientAppId, topicName);
+                        LOG.warn()
+                                .attr("authorizing", clientAppId)
+                                .attr("topic", topicName)
+                                .log("Unknown error while authorizing on topic");
                         validationFuture.completeExceptionally(throwable);
                     }
                     return null;
@@ -261,12 +277,11 @@ public class TopicLookupBase extends PulsarWebResource {
                         .build();
                 pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, options)
                         .thenAccept(lookupResult -> {
-
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Lookup result {}", topicName.toString(), lookupResult);
-                            }
-
-                            if (!lookupResult.isPresent()) {
+                                LOG.debug()
+                                        .attr("toString", topicName.toString())
+                                        .attr("result", lookupResult)
+                                        .log("Lookup result");
+                                                        if (!lookupResult.isPresent()) {
                                 lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady,
                                         "No broker was available to own " + topicName, requestId));
                                 return;
@@ -312,11 +327,17 @@ public class TopicLookupBase extends PulsarWebResource {
         }
         boolean tlsEnabled = pulsar.getConfig().isBrokerClientTlsEnabled();
         if (!tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrl())) {
-            log.warn("[{}] Unexpected lookup result: brokerUrl is required when TLS isn't enabled. options: {},"
-                + " result {}", topic, options, lookupData);
+            LOG.warn()
+                    .attr("topic", topic)
+                    .attr("options", options)
+                    .attr("result", lookupData)
+                    .log("Unexpected lookup result: brokerUrl is required when TLS isn't enabled");
         } else if (tlsEnabled && StringUtils.isBlank(lookupData.getBrokerUrlTls())) {
-            log.warn("[{}] Unexpected lookup result: brokerUrlTls is required when TLS is enabled. options: {},"
-                    + " result {}", topic, options, lookupData);
+            LOG.warn()
+                    .attr("topic", topic)
+                    .attr("options", options)
+                    .attr("result", lookupData)
+                    .log("Unexpected lookup result: brokerUrlTls is required when TLS is enabled");
         }
     }
 
@@ -329,15 +350,24 @@ public class TopicLookupBase extends PulsarWebResource {
         }
         if (unwrapEx instanceof IllegalStateException) {
             // Current broker still hold the bundle's lock, but the bundle is being unloading.
-            log.info("Failed to lookup {} for topic {} with error {}", clientAppId, topicName, errorMsg);
+            LOG.info()
+                    .attr("topic", topicName)
+                    .attr("errorMessage", errorMsg)
+                    .log("Failed to lookup topic");
             lookupFuture.complete(newLookupErrorResponse(ServerError.MetadataError, errorMsg, requestId));
         } else if (unwrapEx instanceof MetadataStoreException) {
             // Load bundle ownership or acquire lock failed.
-            // Differ with "IllegalStateException", print warning log.
-            log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, topicName, errorMsg);
+            // Differ with "IllegalStateException", print warning LOG.
+            LOG.warn()
+                    .attr("topic", topicName)
+                    .attr("errorMessage", errorMsg)
+                    .log("Failed to lookup topic");
             lookupFuture.complete(newLookupErrorResponse(ServerError.MetadataError, errorMsg, requestId));
         } else {
-            log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, topicName, errorMsg);
+            LOG.warn()
+                    .attr("topic", topicName)
+                    .attr("errorMessage", errorMsg)
+                    .log("Failed to lookup topic");
             lookupFuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady, errorMsg, requestId));
         }
     }
@@ -359,7 +389,10 @@ public class TopicLookupBase extends PulsarWebResource {
                 URI host = URI.create(lookupData.getBrokerUrl());
                 return InetAddress.getByName(host.getHost()).isLoopbackAddress();
             } catch (Exception e) {
-                log.info("Failed to resolve advertised address {}: {}", lookupData.getBrokerUrl(), e.getMessage());
+                LOG.info()
+                        .attr("address", lookupData.getBrokerUrl())
+                        .exceptionMessage(e)
+                        .log("Failed to resolve advertised address");
                 return false;
             }
         }
@@ -368,12 +401,13 @@ public class TopicLookupBase extends PulsarWebResource {
                 URI host = URI.create(lookupData.getBrokerUrlTls());
                 return InetAddress.getByName(host.getHost()).isLoopbackAddress();
             } catch (Exception e) {
-                log.info("Failed to resolve advertised address {}: {}", lookupData.getBrokerUrlTls(), e.getMessage());
+                LOG.info()
+                        .attr("address", lookupData.getBrokerUrlTls())
+                        .exceptionMessage(e)
+                        .log("Failed to resolve advertised address");
                 return false;
             }
         }
         return false;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(TopicLookupBase.class);
 }

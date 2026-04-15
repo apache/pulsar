@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.tuple.Pair;
@@ -46,7 +46,7 @@ import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 
-@Slf4j
+@CustomLog
 public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrategy {
     // map bundle to broker.
     private final Map<BundleData, String> bundleBrokerMap = new HashMap<>();
@@ -70,23 +70,22 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         final double highThreshold = conf.getLoadBalancerAvgShedderHighThreshold();
         final int hitCountHighThreshold = conf.getLoadBalancerAvgShedderHitCountHighThreshold();
         final int hitCountLowThreshold = conf.getLoadBalancerAvgShedderHitCountLowThreshold();
-        if (log.isDebugEnabled()) {
-            log.debug("highThreshold:{}, lowThreshold:{}, hitCountHighThreshold:{}, hitCountLowThreshold:{}, "
-                            + "minMsgThreshold:{}, minThroughputThreshold:{}",
-                    highThreshold, lowThreshold, hitCountHighThreshold, hitCountLowThreshold,
-                    minMsgThreshold, minThroughputThreshold);
-        }
+        log.debug().attr("highThreshold", highThreshold).attr("lowThreshold", lowThreshold)
+                .attr("hitCountHighThreshold", hitCountHighThreshold)
+                .attr("hitCountLowThreshold", hitCountLowThreshold).attr("minMsgThreshold", minMsgThreshold)
+                .attr("minThroughputThreshold", minThroughputThreshold)
+                .log("Shedding configuration");
 
         List<String> brokers = calculateScoresAndSort(loadData, conf);
-        log.info("sorted broker list:{}", brokers);
+        log.info().attr("brokers", brokers).log("sorted broker list");
 
         // find broker pairs for shedding.
         List<Pair<String, String>> pairs = findBrokerPairs(brokers, lowThreshold, highThreshold);
-        log.info("brokerHitCountForHigh:{}, brokerHitCountForLow:{}", brokerHitCountForHigh, brokerHitCountForLow);
+        log.info().attr("brokerHitCountForHigh", brokerHitCountForHigh)
+                .attr("brokerHitCountForLow", brokerHitCountForLow)
+                .log("Broker hit counts");
         if (pairs.isEmpty()) {
-            if (log.isDebugEnabled()) {
-                log.debug("there is no any overload broker, no need to shedding bundles.");
-            }
+            log.debug("there is no any overload broker, no need to shedding bundles.");
             brokerHitCountForHigh.clear();
             brokerHitCountForLow.clear();
             return selectedBundlesCache;
@@ -148,29 +147,30 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             isMsgRateToOffload = false;
             trafficMarkedToOffload.setValue(throughputRequiredFromUnloadedBundles);
         } else {
-            log.info(
-                    "broker:[{}] is planning to shed bundles to broker:[{}],but the throughput {} MByte/s is "
-                            + "less than minimumThroughputThreshold {} MByte/s, and the msgRate {} rate/s"
-                            + " is also less than minimumMsgRateThreshold {} rate/s, skipping bundle unload.",
+            log.infof(
+                    "broker:[%s] is planning to shed bundles to broker:[%s],but the throughput %s MByte/s is "
+                            + "less than minimumThroughputThreshold %s MByte/s, and the msgRate %s rate/s"
+                            + " is also less than minimumMsgRateThreshold %s rate/s, skipping bundle unload.",
                     overloadedBroker, underloadedBroker, throughputRequiredFromUnloadedBundles / MB,
                     minThroughputThreshold / MB, msgRequiredFromUnloadedBundles, minMsgThreshold);
             return;
         }
 
         if (maxLocalBrokerData.getBundles().size() == 1) {
-            log.warn("HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
-                            + "No Load Shedding will be done on this broker",
-                    maxLocalBrokerData.getBundles().iterator().next(), overloadedBroker);
+            log.warn().attr("bundle", maxLocalBrokerData.getBundles().iterator().next())
+                    .attr("broker", overloadedBroker)
+                    .log("HIGH USAGE WARNING: Sole namespace bundle is overloading broker. "
+                            + "No Load Shedding will be done on this broker");
         } else if (maxLocalBrokerData.getBundles().isEmpty()) {
-            log.warn("Broker {} is overloaded despite having no bundles", overloadedBroker);
+            log.warn().attr("broker", overloadedBroker).log("Broker is overloaded despite having no bundles");
         }
 
         // do shedding
-        log.info(
-                "broker:[{}] is planning to shed bundles to broker:[{}]. "
-                        + "maxBroker stat:scores:{}, throughput:{}, msgRate:{}. "
-                        + "minBroker stat:scores:{}, throughput:{}, msgRate:{}. "
-                        + "isMsgRateToOffload:{},  trafficMarkedToOffload:{}",
+        log.infof(
+                "broker:[%s] is planning to shed bundles to broker:[%s]. "
+                        + "maxBroker stat:scores:%s, throughput:%s, msgRate:%s. "
+                        + "minBroker stat:scores:%s, throughput:%s, msgRate:%s. "
+                        + "isMsgRateToOffload:%s,  trafficMarkedToOffload:%s",
                 overloadedBroker, underloadedBroker, brokerScoreMap.get(overloadedBroker), maxThroughput,
                 maxMsgRate, brokerScoreMap.get(underloadedBroker), minThroughput, minMsgRate,
                 isMsgRateToOffload, trafficMarkedToOffload);
@@ -195,10 +195,9 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
                 selectedBundlesCache.put(overloadedBroker, bundle.getKey());
                 bundleBrokerMap.put(bundle.getValue(), underloadedBroker);
                 trafficMarkedToOffload.add(-traffic);
-                if (log.isDebugEnabled()) {
-                    log.debug("Found bundle to unload:{}, isMsgRateToOffload:{}, traffic:{}",
-                            bundle, isMsgRateToOffload, traffic);
-                }
+                log.debug().attr("bundle", bundle).attr("isMsgRateToOffload", isMsgRateToOffload)
+                        .attr("traffic", traffic)
+                        .log("Found bundle to unload");
             }
         });
     }
@@ -217,11 +216,10 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             String broker = entry.getKey();
             Double score = calculateScores(localBrokerData, conf);
             brokerScoreMap.put(broker, score);
-            if (log.isDebugEnabled()) {
-                log.info("broker:{}, scores:{}, throughput:{}, messageRate:{}", broker, score,
-                        localBrokerData.getMsgThroughputIn() + localBrokerData.getMsgThroughputOut(),
-                        localBrokerData.getMsgRateIn() + localBrokerData.getMsgRateOut());
-            }
+            log.info().attr("broker", broker).attr("score", score)
+                    .attr("throughput", localBrokerData.getMsgThroughputIn() + localBrokerData.getMsgThroughputOut())
+                    .attr("messageRate", localBrokerData.getMsgRateIn() + localBrokerData.getMsgRateOut())
+                    .log("Broker score");
         }
 
         // sort brokers by scores.
@@ -278,13 +276,11 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
         final var brokerToUnload = bundleBrokerMap.getOrDefault(bundleToAssign, null);
         if (brokerToUnload == null || !candidates.contains(bundleBrokerMap.get(bundleToAssign))) {
             // cluster initializing or broker is shutdown
-            if (log.isDebugEnabled()) {
-                if (!bundleBrokerMap.containsKey(bundleToAssign)) {
-                    log.debug("cluster is initializing");
-                } else {
-                    log.debug("expected broker:{} is shutdown, candidates:{}", bundleBrokerMap.get(bundleToAssign),
-                            candidates);
-                }
+            if (!bundleBrokerMap.containsKey(bundleToAssign)) {
+                log.debug("cluster is initializing");
+            } else {
+                log.debug().attr("broker", bundleBrokerMap.get(bundleToAssign)).attr("candidates", candidates)
+                        .log("expected broker is shutdown");
             }
             String broker = getExpectedBroker(candidates, bundleToAssign);
             bundleBrokerMap.put(bundleToAssign, broker);
@@ -305,14 +301,13 @@ public class AvgShedder implements LoadSheddingStrategy, ModularLoadManagerStrat
             final long hashcode = Hashing.crc32().hashString(String.valueOf(new Random().nextInt()),
                     StandardCharsets.UTF_8).padToLong();
             final int index = (int) (Math.abs(hashcode) % sortedBrokers.size());
-            if (log.isDebugEnabled()) {
-                log.debug("Assignment details: brokers={}, bundle={}, hashcode={}, index={}",
-                        sortedBrokers, bundle, hashcode, index);
-            }
+            log.debug().attr("brokers", sortedBrokers).attr("bundle", bundle).attr("hashCode", hashcode)
+                    .attr("index", index)
+                    .log("Assignment details");
             return sortedBrokers.get(index);
         } catch (Throwable e) {
             // theoretically this logic branch should not be executed
-            log.error("Bundle format of {} is invalid", bundle, e);
+            log.error().attr("bundle", bundle).exception(e).log("Bundle format is invalid");
             return sortedBrokers.get(Math.abs(bundle.hashCode()) % sortedBrokers.size());
         }
     }
