@@ -64,7 +64,7 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void initialize(PulsarService pulsarService) {
-        log.info().attr("status", pulsarService != null ? "OK" : "NULL").log("initialize");
+        log.infof("initialize: %s", pulsarService != null ? "OK" : "NULL");
     }
 
     @Override
@@ -76,8 +76,7 @@ public class LoggingBrokerInterceptor implements BrokerInterceptor {
     @Override
     @SuppressWarnings("deprecation")
     public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
-        log.info().attr("status", "producer".equals(msgMetadata.getProducerName()) ? "OK" : "WRONG")
-                .log("beforeSendMessage");
+        log.infof("beforeSendMessage: %s", "producer".equals(msgMetadata.getProducerName()) ? "OK" : "WRONG");
     }
 
     @Override

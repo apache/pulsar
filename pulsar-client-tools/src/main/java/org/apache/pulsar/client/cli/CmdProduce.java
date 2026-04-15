@@ -387,8 +387,7 @@ public class CmdProduce extends AbstractCmd {
             log.error().exception(e).log("Error while producing messages");
             returnCode = -1;
         } finally {
-            log.info().attr("numMessages", numMessagesSent)
-                    .log("Messages successfully produced");
+            log.infof("%d messages successfully produced", numMessagesSent);
         }
 
         return returnCode;
@@ -519,8 +518,7 @@ public class CmdProduce extends AbstractCmd {
             log.error().exception(e).log("Error while producing messages");
             returnCode = -1;
         } finally {
-            log.info().attr("numMessages", numMessagesSent)
-                    .log("Messages successfully produced");
+            log.infof("%d messages successfully produced", numMessagesSent);
         }
 
         try {
