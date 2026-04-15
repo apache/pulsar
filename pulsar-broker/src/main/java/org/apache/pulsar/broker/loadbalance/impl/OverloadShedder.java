@@ -88,7 +88,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
             double minimumThroughputToOffload = brokerCurrentThroughput * percentOfTrafficToOffload;
 
             log.infof(
-                    "Attempting to shed load on %s, which has resource usage %s% above threshold %s%"
+                    "Attempting to shed load on %s, which has resource usage %s%% above threshold %s%%"
                             + " -- Offloading at least %s MByte/s of traffic (%s)",
                     broker, 100 * currentUsage, 100 * overloadThreshold, minimumThroughputToOffload / 1024 / 1024,
                     localData.printResourceUsage());

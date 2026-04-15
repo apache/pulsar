@@ -56,7 +56,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
 
         if (maxUsageWithWeight > overloadThreshold) {
             log.warnf(
-                    "Broker %s is overloaded, brokerLoad(%s%) > overloadThreshold(%s%). load data:{%s}",
+                    "Broker %s is overloaded, brokerLoad(%s%%) > overloadThreshold(%s%%). load data:{%s}",
                     broker,
                     maxUsageWithWeight * 100,
                     overloadThreshold * 100,

@@ -98,8 +98,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             }
 
             log.infof(
-                    "Attempting to shed load on %s, which has max resource usage above avgUsage and threshold %s%"
-                            + " > %s% + %s% -- Offloading at least %s MByte/s of traffic,"
+                    "Attempting to shed load on %s, which has max resource usage above avgUsage and threshold %s%%"
+                            + " > %s%% + %s%% -- Offloading at least %s MByte/s of traffic,"
                                     + " left throughput %s MByte/s (%s)",
                     broker, 100 * currentUsage, 100 * avgUsage, 100 * threshold, minimumThroughputToOffload / MB,
                     (brokerCurrentThroughput - minimumThroughputToOffload) / MB, localData.printResourceUsage());
