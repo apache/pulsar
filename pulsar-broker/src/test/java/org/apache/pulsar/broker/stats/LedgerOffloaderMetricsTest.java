@@ -72,6 +72,8 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
             offloaderStats.recordReadOffloadError(topicName);
             offloaderStats.recordReadOffloadError(topicName);
             offloaderStats.recordReadOffloadIndexLatency(topicName, 1000000L, TimeUnit.NANOSECONDS);
+            offloaderStats.recordOffloadExecutorQueueLatency(topicName, 1000L, TimeUnit.NANOSECONDS);
+            offloaderStats.recordReadOffloadExecutorQueueLatency(topicName, 2000L, TimeUnit.NANOSECONDS);
             offloaderStats.recordReadOffloadBytes(topicName, 100000);
             offloaderStats.recordWriteToStorageError(topicName);
             offloaderStats.recordWriteToStorageError(topicName);
@@ -83,6 +85,8 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
             assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 1);
             assertEquals(offloaderStats.getReadOffloadError(topicName), 2);
             assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 1000);
+            assertEquals((long) offloaderStats.getOffloadExecutorQueueLatency(topicName).sum, 1);
+            assertEquals((long) offloaderStats.getReadOffloadExecutorQueueLatency(topicName).sum, 2);
             assertEquals(offloaderStats.getReadOffloadBytes(topicName), 100000);
             assertEquals(offloaderStats.getWriteStorageError(topicName), 2);
         }
@@ -116,6 +120,8 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
                 offloaderStats.recordReadLedgerLatency(topicName, 1000, TimeUnit.NANOSECONDS);
                 offloaderStats.recordReadOffloadError(topicName);
                 offloaderStats.recordReadOffloadIndexLatency(topicName, 1000000L, TimeUnit.NANOSECONDS);
+                offloaderStats.recordOffloadExecutorQueueLatency(topicName, 1000L, TimeUnit.NANOSECONDS);
+                offloaderStats.recordReadOffloadExecutorQueueLatency(topicName, 2000L, TimeUnit.NANOSECONDS);
                 offloaderStats.recordReadOffloadBytes(topicName, 100000);
                 offloaderStats.recordWriteToStorageError(topicName);
             }
@@ -130,6 +136,8 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
             assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 6);
             assertEquals(offloaderStats.getReadOffloadError(topicName), 6);
             assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 6000);
+            assertEquals((long) offloaderStats.getOffloadExecutorQueueLatency(topicName).sum, 6);
+            assertEquals((long) offloaderStats.getReadOffloadExecutorQueueLatency(topicName).sum, 12);
             assertEquals(offloaderStats.getReadOffloadBytes(topicName), 600000);
             assertEquals(offloaderStats.getWriteStorageError(topicName), 6);
         }

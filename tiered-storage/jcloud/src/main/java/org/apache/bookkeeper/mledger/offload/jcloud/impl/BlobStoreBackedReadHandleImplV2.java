@@ -62,6 +62,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     private final List<BackedInputStream> inputStreams;
     private final List<DataInputStream> dataStreams;
     private final ExecutorService executor;
+    private final LedgerOffloaderStats offloaderStats;
+    private final String topicName;
     private volatile State state = null;
     private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
@@ -101,7 +103,9 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
 
     private BlobStoreBackedReadHandleImplV2(long ledgerId, List<OffloadIndexBlockV2> indices,
                                             List<BackedInputStream> inputStreams,
-                                            ExecutorService executor) {
+                                            ExecutorService executor,
+                                            LedgerOffloaderStats offloaderStats,
+                                            String topicName) {
         this.ledgerId = ledgerId;
         this.indices = indices;
         this.inputStreams = inputStreams;
@@ -110,6 +114,8 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             dataStreams.add(new DataInputStream(inputStream));
         }
         this.executor = executor;
+        this.offloaderStats = offloaderStats;
+        this.topicName = topicName;
         this.state = State.Opened;
     }
 
@@ -131,7 +137,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
         }
 
         CompletableFuture<Void> promise = closeFuture.get();
-        executor.execute(() -> {
+        executor.execute(ExecutorLatencyUtils.trackReadOffloadExecutorQueueLatency(offloaderStats, topicName, () -> {
             try {
                 IOException first = null;
                 for (OffloadIndexBlockV2 indexBlock : indices) {
@@ -166,7 +172,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                 state = State.Closed;
                 promise.completeExceptionally(t);
             }
-        });
+        }));
         return promise;
     }
 
@@ -176,7 +182,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
-        executor.execute(() -> {
+        executor.execute(ExecutorLatencyUtils.trackReadOffloadExecutorQueueLatency(offloaderStats, topicName, () -> {
             if (state == State.Closed) {
                 log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
                         ledgerId, firstEntry, lastEntry);
@@ -257,7 +263,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
 
             }
             promise.complete(LedgerEntriesImpl.create(entries));
-        });
+        }));
         return promise;
     }
 
@@ -359,6 +365,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             inputStreams.add(inputStream);
             indice.add(index);
         }
-        return new BlobStoreBackedReadHandleImplV2(ledgerId, indice, inputStreams, executor);
+        return new BlobStoreBackedReadHandleImplV2(ledgerId, indice, inputStreams, executor, offloaderStats,
+                topicName);
     }
 }

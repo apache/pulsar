@@ -69,6 +69,16 @@ public class LedgerOffloaderStatsDisable implements LedgerOffloaderStats {
     }
 
     @Override
+    public void recordOffloadExecutorQueueLatency(String topic, long latency, TimeUnit unit) {
+
+    }
+
+    @Override
+    public void recordReadOffloadExecutorQueueLatency(String topic, long latency, TimeUnit unit) {
+
+    }
+
+    @Override
     public void recordDeleteOffloadOps(String topic, boolean succeed) {
 
     }

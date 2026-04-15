@@ -58,6 +58,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private final Gauge readOffloadRate;
     private final Summary readOffloadIndexLatency;
     private final Summary readOffloadDataLatency;
+    private final Summary offloadExecutorQueueLatency;
+    private final Summary readOffloadExecutorQueueLatency;
 
     private final Map<String, Long> topicAccess;
     private final Map<String, Pair<LongAdder, LongAdder>> offloadAndReadOffloadBytesMap;
@@ -105,6 +107,21 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 .quantile(0.99, 0.01)
                 .quantile(1, 0.01)
                 .create().register();
+        this.offloadExecutorQueueLatency = Summary.build("brk_ledgeroffloader_offload_executor_queue_latency", "-")
+                .labelNames(labels)
+                .quantile(0.50, 0.01)
+                .quantile(0.95, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
+                .create().register();
+        this.readOffloadExecutorQueueLatency =
+                Summary.build("brk_ledgeroffloader_read_offload_executor_queue_latency", "-")
+                        .labelNames(labels)
+                        .quantile(0.50, 0.01)
+                        .quantile(0.95, 0.01)
+                        .quantile(0.99, 0.01)
+                        .quantile(1, 0.01)
+                        .create().register();
         this.readLedgerLatency = Summary.build("brk_ledgeroffloader_read_ledger_latency", "-")
                 .labelNames(labels).quantile(0.50, 0.01)
                 .quantile(0.95, 0.01)
@@ -192,6 +209,20 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     }
 
     @Override
+    public void recordOffloadExecutorQueueLatency(String topic, long latency, TimeUnit unit) {
+        String[] labelValues = this.labelValues(topic);
+        this.offloadExecutorQueueLatency.labels(labelValues).observe(unit.toMicros(latency));
+        this.addOrUpdateTopicAccess(topic);
+    }
+
+    @Override
+    public void recordReadOffloadExecutorQueueLatency(String topic, long latency, TimeUnit unit) {
+        String[] labelValues = this.labelValues(topic);
+        this.readOffloadExecutorQueueLatency.labels(labelValues).observe(unit.toMicros(latency));
+        this.addOrUpdateTopicAccess(topic);
+    }
+
+    @Override
     public void recordDeleteOffloadOps(String topic, boolean succeed) {
         String status = succeed ? SUCCEED : FAILED;
         String[] labelValues = this.labelValues(topic, status);
@@ -247,6 +278,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 this.readOffloadRate.remove(labelValues);
                 this.readOffloadIndexLatency.remove(labelValues);
                 this.readOffloadDataLatency.remove(labelValues);
+                this.offloadExecutorQueueLatency.remove(labelValues);
+                this.readOffloadExecutorQueueLatency.remove(labelValues);
 
                 labelValues = this.labelValues(topic, SUCCEED);
                 this.deleteOffloadOps.remove(labelValues);
@@ -287,6 +320,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadRate);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.offloadExecutorQueueLatency);
+            CollectorRegistry.defaultRegistry.unregister(this.readOffloadExecutorQueueLatency);
             CollectorRegistry.defaultRegistry.unregister(this.deleteOffloadOps);
             instance = null;
         }
@@ -362,5 +397,17 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     public Summary.Child.Value getReadOffloadDataLatency(String topic) {
         String[] labels = this.labelValues(topic);
         return this.readOffloadDataLatency.labels(labels).get();
+    }
+
+    @VisibleForTesting
+    public Summary.Child.Value getOffloadExecutorQueueLatency(String topic) {
+        String[] labels = this.labelValues(topic);
+        return this.offloadExecutorQueueLatency.labels(labels).get();
+    }
+
+    @VisibleForTesting
+    public Summary.Child.Value getReadOffloadExecutorQueueLatency(String topic) {
+        String[] labels = this.labelValues(topic);
+        return this.readOffloadExecutorQueueLatency.labels(labels).get();
     }
 }

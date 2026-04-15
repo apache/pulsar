@@ -67,6 +67,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
     private final DataInputStream dataStream;
     private final ExecutorService executor;
     private final OffsetsCache entryOffsetsCache;
+    private final LedgerOffloaderStats offloaderStats;
+    private final String topicName;
     private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
     enum State {
@@ -83,13 +85,17 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
     @VisibleForTesting
     BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream, ExecutorService executor,
-                                          OffsetsCache entryOffsetsCache) {
+                                          OffsetsCache entryOffsetsCache,
+                                          LedgerOffloaderStats offloaderStats,
+                                          String topicName) {
         this.ledgerId = ledgerId;
         this.index = index;
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
         this.entryOffsetsCache = entryOffsetsCache;
+        this.offloaderStats = offloaderStats;
+        this.topicName = topicName;
         state = State.Opened;
     }
 
@@ -110,7 +116,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         }
 
         CompletableFuture<Void> promise = closeFuture.get();
-        executor.execute(() -> {
+        executor.execute(ExecutorLatencyUtils.trackReadOffloadExecutorQueueLatency(offloaderStats, topicName, () -> {
             try {
                 index.close();
                 inputStream.close();
@@ -119,7 +125,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             } catch (IOException t) {
                 promise.completeExceptionally(t);
             }
-        });
+        }));
         return promise;
     }
 
@@ -328,7 +334,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             lastAccessTimestamp = System.currentTimeMillis();
             PENDING_READ_UPDATER.decrementAndGet(BlobStoreBackedReadHandleImpl.this);
         });
-        executor.execute(new ReadTask(firstEntry, lastEntry, promise));
+        executor.execute(ExecutorLatencyUtils.trackReadOffloadExecutorQueueLatency(offloaderStats, topicName,
+                new ReadTask(firstEntry, lastEntry, promise)));
         return promise;
     }
 
@@ -434,7 +441,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
                 versionCheck, index.getDataObjectLength(), readBufferSize, offloaderStats, managedLedgerName);
 
-        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor, entryOffsetsCache);
+        return new BlobStoreBackedReadHandleImpl(ledgerId, index, inputStream, executor, entryOffsetsCache,
+                offloaderStats, topicName);
     }
 
     // for testing
