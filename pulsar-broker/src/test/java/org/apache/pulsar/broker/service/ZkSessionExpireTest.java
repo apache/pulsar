@@ -256,7 +256,7 @@ public class ZkSessionExpireTest extends NetworkErrorTestBase {
             // Regarding the system topic based load balancer, which does not rely on ZK, the topic may be owned by any
             // broker.
             if (TableViewType.SystemTopic.equals(tableViewType)) {
-                // This implementation will be finished by a seperated PR.
+                // This implementation will be finished by a separate PR.
             }
         });
         Topic broker2Topic3 = pulsar2.getBrokerService().getTopic(topicName, false).join().get();
