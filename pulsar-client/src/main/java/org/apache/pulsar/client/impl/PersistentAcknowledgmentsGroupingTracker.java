@@ -444,12 +444,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (lastCumulativeAckToFlush != null) {
             shouldFlush = true;
             final MessageIdAdv messageId = lastCumulativeAckToFlush.getMessageId();
-            MessageIdImpl[] chunkMsgIds = this.consumer.unAckedChunkedMessageIdSequenceMap.remove(messageId);
             newMessageAckCommandAndWrite(cnx, consumer.consumerId, messageId.getLedgerId(), messageId.getEntryId(),
                     lastCumulativeAckToFlush.getBitSetRecyclable(), AckType.Cumulative,
                     Collections.emptyMap(), false,
-                    (TimedCompletableFuture<Void>) this.currentCumulativeAckFuture, null,
-                    () -> restoreCumulativeAck(lastCumulativeAckToFlush, chunkMsgIds));
+                    (TimedCompletableFuture<Void>) this.currentCumulativeAckFuture, null, null);
+            this.consumer.unAckedChunkedMessageIdSequenceMap.remove(messageId);
         }
 
         // Flush all individual acks
@@ -652,11 +651,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
-    private void restoreCumulativeAck(LastCumulativeAck ackToRestore, @Nullable MessageIdImpl[] chunkMsgIds) {
-        lastCumulativeAck.update(ackToRestore.getMessageId(), cloneBitSet(ackToRestore.getBitSetRecyclable()));
-        restoreChunkedMessageIds(ackToRestore.getMessageId(), chunkMsgIds);
-    }
-
     private void restoreIndividualAck(MessageIdAdv messageId, @Nullable MessageIdImpl[] chunkMsgIds) {
         pendingIndividualAcks.add(messageId);
         restoreChunkedMessageIds(messageId, chunkMsgIds);
@@ -678,10 +672,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         if (chunkMsgIds != null) {
             consumer.unAckedChunkedMessageIdSequenceMap.putIfAbsent(messageId, chunkMsgIds);
         }
-    }
-
-    private BitSetRecyclable cloneBitSet(@Nullable BitSetRecyclable bitSet) {
-        return bitSet != null ? BitSetRecyclable.valueOf(bitSet.toLongArray()) : null;
     }
 
     public Optional<Lock> acquireReadLock() {
