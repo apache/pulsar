@@ -142,27 +142,42 @@ evaluationDependsOn(":pulsar-io")
 evaluationDependsOn(":pulsar-functions")
 
 // NAR/JAR files needed by broker tests (mirrors Maven's maven-dependency-plugin config).
+// Resolve through dependency configurations instead of cross-project task references.
+val testNars by configurations.creating {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+    attributes {
+        attribute(org.gradle.api.artifacts.type.ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "nar")
+    }
+}
+val testExamplesJar by configurations.creating {
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
+dependencies {
+    testNars(project(":pulsar-functions:pulsar-functions-api-examples-builtin"))
+    testNars(project(":pulsar-io:pulsar-io-data-generator"))
+    testNars(project(":pulsar-io:pulsar-io-batch-data-generator"))
+    testExamplesJar(project(":pulsar-functions:pulsar-functions-api-examples"))
+}
+
 tasks.withType<Test> {
-    dependsOn(
-        ":pulsar-functions:pulsar-functions-api-examples:jar",
-        ":pulsar-functions:pulsar-functions-api-examples-builtin:nar",
-        ":pulsar-io:pulsar-io-data-generator:nar",
-        ":pulsar-io:pulsar-io-batch-data-generator:nar",
-    )
+    val narFiles = testNars.incoming.artifacts.resolvedArtifacts
+    val jarFiles = testExamplesJar.incoming.artifacts.resolvedArtifacts
     doFirst {
-        fun narPath(projectPath: String): String {
-            val p = rootProject.project(projectPath)
-            return p.tasks.named("nar").get().outputs.files.singleFile.absolutePath
+        val narMap = narFiles.get().associate {
+            val id = it.id.componentIdentifier as org.gradle.api.artifacts.component.ProjectComponentIdentifier
+            id.projectPath to it.file.absolutePath
         }
-        fun jarPath(projectPath: String): String {
-            val p = rootProject.project(projectPath)
-            return p.tasks.named<Jar>("jar").get().archiveFile.get().asFile.absolutePath
-        }
-        val examplesJarPath = jarPath(":pulsar-functions:pulsar-functions-api-examples")
+        val examplesJarPath = jarFiles.get().first().file.absolutePath
         systemProperty("pulsar-functions-api-examples.jar.path", examplesJarPath)
-        systemProperty("pulsar-functions-api-examples.nar.path", narPath(":pulsar-functions:pulsar-functions-api-examples-builtin"))
-        systemProperty("pulsar-io-data-generator.nar.path", narPath(":pulsar-io:pulsar-io-data-generator"))
-        systemProperty("pulsar-io-batch-data-generator.nar.path", narPath(":pulsar-io:pulsar-io-batch-data-generator"))
+        systemProperty("pulsar-functions-api-examples.nar.path",
+            narMap[":pulsar-functions:pulsar-functions-api-examples-builtin"]!!)
+        systemProperty("pulsar-io-data-generator.nar.path",
+            narMap[":pulsar-io:pulsar-io-data-generator"]!!)
+        systemProperty("pulsar-io-batch-data-generator.nar.path",
+            narMap[":pulsar-io:pulsar-io-batch-data-generator"]!!)
         // A valid jar that is not a valid nar — used for invalid-nar tests
         systemProperty("pulsar-io-invalid.nar.path", examplesJarPath)
     }
