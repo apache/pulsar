@@ -29,7 +29,7 @@ import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherM
 @Slf4j
 public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryTracker, TimerTask {
 
-    protected final DelayedDeliveryContext context;
+    protected final AbstractPersistentDispatcherMultipleConsumers dispatcher;
 
     // Reference to the shared (per-broker) timer for delayed delivery
     protected final Timer timer;
@@ -48,38 +48,23 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
     protected final Clock clock;
 
     private final boolean isDelayedDeliveryDeliverAtTimeStrict;
-    private final Object triggerLock;
 
     public AbstractDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                           long tickTimeMillis,
                                           boolean isDelayedDeliveryDeliverAtTimeStrict) {
-        this(new DispatcherDelayedDeliveryContext(dispatcher), timer, tickTimeMillis,
-                Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict);
+        this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict);
     }
 
     public AbstractDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                           long tickTimeMillis, Clock clock,
                                           boolean isDelayedDeliveryDeliverAtTimeStrict) {
-        this(new DispatcherDelayedDeliveryContext(dispatcher), timer, tickTimeMillis,
-                clock, isDelayedDeliveryDeliverAtTimeStrict);
-    }
-
-    public AbstractDelayedDeliveryTracker(DelayedDeliveryContext context, Timer timer,
-                                          long tickTimeMillis,
-                                          boolean isDelayedDeliveryDeliverAtTimeStrict) {
-        this(context, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict);
-    }
-
-    public AbstractDelayedDeliveryTracker(DelayedDeliveryContext context, Timer timer,
-                                          long tickTimeMillis, Clock clock,
-                                          boolean isDelayedDeliveryDeliverAtTimeStrict) {
-        this.context = context;
-        this.triggerLock = context.getTriggerLock();
+        this.dispatcher = dispatcher;
         this.timer = timer;
         this.tickTimeMillis = tickTimeMillis;
         this.clock = clock;
         this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
     }
+
 
     /**
      * When {@link #isDelayedDeliveryDeliverAtTimeStrict} is false, we allow for early delivery by as much as the
@@ -139,7 +124,7 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
         long calculatedDelayMillis = Math.max(delayMillis, remainingTickDelayMillis);
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Start timer in {} millis", context.getName(), calculatedDelayMillis);
+            log.debug("[{}] Start timer in {} millis", dispatcher.getName(), calculatedDelayMillis);
         }
 
         // Even though we may delay longer than this timestamp because of the tick delay, we still track the
@@ -151,17 +136,17 @@ public abstract class AbstractDelayedDeliveryTracker implements DelayedDeliveryT
     @Override
     public void run(Timeout timeout) throws Exception {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Timer triggered", context.getName());
+            log.debug("[{}] Timer triggered", dispatcher.getName());
         }
         if (timeout == null || timeout.isCancelled()) {
             return;
         }
 
-        synchronized (triggerLock) {
+        synchronized (dispatcher) {
             lastTickRun = clock.millis();
             currentTimeoutTarget = -1;
             this.timeout = null;
-            context.triggerReadMoreEntries();
+            dispatcher.readMoreEntriesAsync();
         }
     }
 
