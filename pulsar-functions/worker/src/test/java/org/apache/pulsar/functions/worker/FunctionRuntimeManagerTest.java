@@ -47,7 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -86,7 +86,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class FunctionRuntimeManagerTest {
     private static final String PULSAR_SERVICE_URL = "pulsar://localhost:6650";
 
@@ -901,7 +901,7 @@ public class FunctionRuntimeManagerTest {
                 assertEquals(functionRuntimeManager.getRuntimeFactory().getClass(), ThreadRuntimeFactory.class);
             }
         } catch (Exception e) {
-            log.error("Failed to initialize the runtime manager : ", e);
+            log.error().exception(e).log("Failed to initialize the runtime manager");
             fail();
         }
     }

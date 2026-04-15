@@ -24,8 +24,8 @@ import java.security.Security;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -45,7 +45,7 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
  * match the ProducerConfig provided. Producers are created in 2 locations in Pulsar Functions and Connectors
  * and this class is used to unify the configuration of the producers without duplicating code.
  */
-@Slf4j
+@CustomLog
 public class ProducerBuilderFactory {
 
     private final PulsarClient client;

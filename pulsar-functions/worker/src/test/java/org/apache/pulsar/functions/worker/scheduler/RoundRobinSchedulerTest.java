@@ -24,13 +24,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.proto.Assignment;
 import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class RoundRobinSchedulerTest {
 
     @Test

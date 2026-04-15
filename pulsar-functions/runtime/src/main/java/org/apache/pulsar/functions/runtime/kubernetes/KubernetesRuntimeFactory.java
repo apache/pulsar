@@ -34,10 +34,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
@@ -56,7 +56,7 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 /**
  * Kubernetes based function container factory implementation.
  */
-@Slf4j
+@CustomLog
 @Data
 public class KubernetesRuntimeFactory implements RuntimeFactory {
 
@@ -222,7 +222,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
         try {
             setupClient();
         } catch (Exception e) {
-            log.error("Failed to setup client", e);
+            log.error().exception(e).log("Failed to setup client");
             throw new RuntimeException(e);
         }
         // make sure the provided class is a kubernetes auth provider, this needs to run before the authProvider!
@@ -385,7 +385,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 appsClient = new AppsV1Api();
                 coreClient = new CoreV1Api();
             } else {
-                log.info("Setting up k8Client using uri " + k8Uri);
+                log.info().attr("k8Uri", k8Uri).log("Setting up k8Client");
                 final ApiClient apiClient = new ApiClient().setBasePath(k8Uri);
                 appsClient = new AppsV1Api(apiClient);
                 coreClient = new CoreV1Api(apiClient);
@@ -416,8 +416,9 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 overRideKubernetesConfig(data, kubernetesRuntimeFactory);
             }
         } catch (Exception e) {
-            log.error("Error while trying to fetch configmap {} at namespace {}", changeConfigMap,
-                    changeConfigMapNamespace, e);
+            log.error().attr("configMap", changeConfigMap)
+                    .attr("namespace", changeConfigMapNamespace)
+                    .exception(e).log("Error while trying to fetch configmap");
         }
     }
 
@@ -427,8 +428,10 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             field.setAccessible(true);
             if (data.containsKey(field.getName()) && !data.get(field.getName())
                     .equals(field.get(kubernetesRuntimeFactory))) {
-                log.info("Kubernetes Config {} changed from {} to {}", field.getName(),
-                        field.get(kubernetesRuntimeFactory), data.get(field.getName()));
+                log.info().attr("field", field.getName())
+                        .attr("oldValue", field.get(kubernetesRuntimeFactory))
+                        .attr("newValue", data.get(field.getName()))
+                        .log("Kubernetes Config changed");
                 field.set(kubernetesRuntimeFactory, data.get(field.getName()));
             }
         }

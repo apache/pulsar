@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-functions:pulsar-functions-utils"))
     implementation(project(":pulsar-functions:pulsar-functions-api"))
     implementation(project(":pulsar-functions:pulsar-functions-secrets"))

@@ -36,6 +36,7 @@ tasks.named<ProcessResources>("processTestResources") {
 }
 
 dependencies {
+    implementation(libs.slog)
     api(project(":pulsar-functions:pulsar-functions-instance"))
     implementation(project(":pulsar-functions:pulsar-functions-secrets"))
     implementation(project(":pulsar-broker-common"))

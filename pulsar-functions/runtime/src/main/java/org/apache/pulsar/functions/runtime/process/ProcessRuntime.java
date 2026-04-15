@@ -31,8 +31,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
@@ -51,7 +51,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 /**
  * A function container implemented using java thread.
  */
-@Slf4j
+@CustomLog
 class ProcessRuntime implements Runtime {
 
     // The thread that invokes the function
@@ -104,9 +104,8 @@ class ProcessRuntime implements Runtime {
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
             case JAVA:
                 String logConfigPath = System.getProperty("pulsar.functions.log.conf");
-                if (log.isDebugEnabled()) {
-                    log.debug("The loaded value of pulsar.functions.log.conf is {}", logConfigPath);
-                }
+                log.debug().attr("logConfigPath", logConfigPath)
+                        .log("The loaded value of pulsar.functions.log.conf");
                 // Added null check to prevent test failures
                 if (logConfigPath != null && Files.exists(Paths.get(logConfigPath))) {
                     logConfigFile = logConfigPath;
@@ -160,16 +159,17 @@ class ProcessRuntime implements Runtime {
         // Note: we create the expected log folder before the function process logger attempts to create it
         // This is because if multiple instances are launched they can encounter a race condition creation of the dir.
 
-        log.info("Creating function log directory {}", funcLogDir);
+        log.info().attr("logDir", funcLogDir).log("Creating function log directory");
 
         try {
             Files.createDirectories(Paths.get(funcLogDir));
         } catch (IOException e) {
-            log.info("Exception when creating log folder : {}", funcLogDir, e);
+            log.info().attr("logDir", funcLogDir).exception(e)
+                    .log("Exception when creating log folder");
             throw new RuntimeException("Log folder creation error");
         }
 
-        log.info("Created or found function log directory {}", funcLogDir);
+        log.info().attr("logDir", funcLogDir).log("Created or found function log directory");
 
         startProcess();
         if (channel == null && stub == null) {
@@ -184,9 +184,9 @@ class ProcessRuntime implements Runtime {
                         try {
                             result.get();
                         } catch (Exception e) {
-                            log.error("Health check failed for {}-{}",
-                                    instanceConfig.getFunctionDetails().getName(),
-                                    instanceConfig.getInstanceId(), e);
+                            log.error().attr("name", instanceConfig.getFunctionDetails().getName())
+                                    .attr("instanceId", instanceConfig.getInstanceId())
+                                    .exception(e).log("Health check failed");
                         }
                     }), expectedHealthCheckInterval, expectedHealthCheckInterval, TimeUnit.SECONDS);
         }
@@ -223,11 +223,12 @@ class ProcessRuntime implements Runtime {
 
             // forcibly kill after timeout
             if (process.isAlive()) {
-                log.warn("Process for instance {} did not exit within timeout. Forcibly killing process...",
-                        FunctionCommon.getFullyQualifiedInstanceId(
+                log.warn().attr("instance", FunctionCommon.getFullyQualifiedInstanceId(
                                 instanceConfig.getFunctionDetails().getTenant(),
                                 instanceConfig.getFunctionDetails().getNamespace(),
-                                instanceConfig.getFunctionDetails().getName(), instanceConfig.getInstanceId()));
+                                instanceConfig.getFunctionDetails().getName(),
+                                instanceConfig.getInstanceId()))
+                        .log("Process did not exit within timeout. Forcibly killing");
                 process.destroyForcibly();
             }
         }
@@ -380,16 +381,18 @@ class ProcessRuntime implements Runtime {
             }
             secretsProviderConfigurator
                     .configureProcessRuntimeSecretsProvider(processBuilder, instanceConfig.getFunctionDetails());
-            log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
+            log.info().attr("args", String.join(" ", processBuilder.command()))
+                    .log("ProcessBuilder starting the process");
             process = processBuilder.start();
         } catch (Exception ex) {
-            log.error("Starting process failed", ex);
+            log.error().exception(ex).log("Starting process failed");
             deathException = ex;
             return;
         }
         try {
             int exitValue = process.exitValue();
-            log.error("Instance Process quit unexpectedly with return value " + exitValue);
+            log.error().attr("exitValue", exitValue)
+                    .log("Instance Process quit unexpectedly");
             tryExtractingDeathException();
         } catch (IllegalThreadStateException ex) {
             log.info("Started process successfully");
@@ -417,10 +420,10 @@ class ProcessRuntime implements Runtime {
             errorStream.read(errorBytes);
             String errorMessage = new String(errorBytes);
             deathException = new RuntimeException(errorMessage);
-            log.error("Extracted Process death exception", deathException);
+            log.error().exception(deathException).log("Extracted Process death exception");
         } catch (Exception ex) {
             deathException = ex;
-            log.error("Error extracting Process death exception", deathException);
+            log.error().exception(deathException).log("Error extracting Process death exception");
         }
     }
 }

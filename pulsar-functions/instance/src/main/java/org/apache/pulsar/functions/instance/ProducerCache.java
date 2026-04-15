@@ -34,13 +34,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@Slf4j
+@CustomLog
 public class ProducerCache implements Closeable {
     // allow tuning the cache timeout with PRODUCER_CACHE_TIMEOUT_SECONDS env variable
     private static final int PRODUCER_CACHE_TIMEOUT_SECONDS =
@@ -75,20 +75,25 @@ public class ProducerCache implements Closeable {
                 .scheduler(Scheduler.systemScheduler())
                 .executor(cacheExecutor)
                 .<ProducerCacheKey, Producer<?>>removalListener((key, producer, cause) -> {
-                    log.info("Closing producer for topic {}, cause {}", key.topic(), cause);
+                    log.info()
+                            .attr("topic", key.topic())
+                            .attr("cause", cause)
+                            .log("Closing producer");
                     CompletableFuture<Void> closeFuture =
                             producer.flushAsync()
                                     .orTimeout(FLUSH_OR_CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                                     .exceptionally(ex -> {
                                         Throwable unwrappedCause = FutureUtil.unwrapCompletionException(ex);
                                         if (unwrappedCause instanceof PulsarClientException.AlreadyClosedException) {
-                                            log.error(
-                                                    "Error flushing producer for topic {} due to "
-                                                            + "AlreadyClosedException",
-                                                    key.topic());
+                                            log.error()
+                                                    .attr("topic", key.topic())
+                                                    .log("Error flushing producer due to"
+                                                            + " AlreadyClosedException");
                                         } else {
-                                            log.error("Error flushing producer for topic {}", key.topic(),
-                                                    unwrappedCause);
+                                            log.error()
+                                                    .attr("topic", key.topic())
+                                                    .exception(unwrappedCause)
+                                                    .log("Error flushing producer");
                                         }
                                         return null;
                                     }).thenCompose(__ ->
@@ -97,13 +102,15 @@ public class ProducerCache implements Closeable {
                                     ).exceptionally(ex -> {
                                         Throwable unwrappedCause = FutureUtil.unwrapCompletionException(ex);
                                         if (unwrappedCause instanceof PulsarClientException.AlreadyClosedException) {
-                                            log.error(
-                                                    "Error closing producer for topic {} due to "
-                                                            + "AlreadyClosedException",
-                                                    key.topic());
+                                            log.error()
+                                                    .attr("topic", key.topic())
+                                                    .log("Error closing producer due to"
+                                                            + " AlreadyClosedException");
                                         } else {
-                                            log.error("Error closing producer for topic {}", key.topic(),
-                                                    unwrappedCause);
+                                            log.error()
+                                                    .attr("topic", key.topic())
+                                                    .exception(unwrappedCause)
+                                                    .log("Error closing producer");
                                         }
                                         return null;
                                     });
@@ -147,7 +154,7 @@ public class ProducerCache implements Closeable {
                 try {
                     FutureUtil.waitForAll(closeFutures).get();
                 } catch (InterruptedException | ExecutionException e) {
-                    log.warn("Failed to close producers", e);
+                    log.warn().exception(e).log("Failed to close producers");
                 }
             });
             // Wait for the cache executor to terminate.

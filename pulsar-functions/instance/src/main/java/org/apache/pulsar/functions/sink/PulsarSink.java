@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -51,7 +51,7 @@ import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
-@Slf4j
+@CustomLog
 public class PulsarSink<T> implements Sink<T> {
 
     private final PulsarClient client;
@@ -86,10 +86,13 @@ public class PulsarSink<T> implements Sink<T> {
             return producerCache.getOrCreateProducer(ProducerCache.CacheArea.SINK_RECORD_CACHE, topicName, partitionId,
                     () -> {
                         Producer<T> producer = createProducer(topicName, schema, producerName);
-                        log.info(
-                                "Initialized producer with name '{}' on topic '{}' with schema {} partitionId {} "
-                                        + "-> {}",
-                                producerName, topicName, schema, partitionId, producer);
+                        log.info()
+                                .attr("producerName", producerName)
+                                .attr("topic", topicName)
+                                .attr("schema", schema)
+                                .attr("partitionId", partitionId)
+                                .attr("producer", producer)
+                                .log("Initialized producer");
                         return producer;
                     });
         }
@@ -121,7 +124,7 @@ public class PulsarSink<T> implements Sink<T> {
                                 record.getRecordSequence().get());
                     }
                 }
-                log.error(errorMsg);
+                log.error().attr("errorMsg", errorMsg).log("Failed to publish to topic");
                 stats.incrSinkExceptions(new Exception(errorMsg));
                 return null;
             };
@@ -135,10 +138,8 @@ public class PulsarSink<T> implements Sink<T> {
                 // initialize default topic
                 getProducer(pulsarSinkConfig.getTopic(), schema);
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("The Pulsar producer is not initialized until the first record is"
+                log.debug("The Pulsar producer is not initialized until the first record is"
                         + " published for `AUTO_CONSUME` schema.");
-                }
             }
         }
 
@@ -246,7 +247,7 @@ public class PulsarSink<T> implements Sink<T> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        log.info("Opening pulsar sink with config: {}", pulsarSinkConfig);
+        log.info().attr("config", pulsarSinkConfig).log("Opening pulsar sink");
 
         schema = initializeSchema();
         if (schema == null) {
@@ -317,7 +318,11 @@ public class PulsarSink<T> implements Sink<T> {
     Producer<T> createProducer(String topicName, Schema<T> schema, String producerName) {
         Schema<T> schemaToUse = schema != null ? schema : this.schema;
         try {
-            log.info("Initializing producer {} on topic {} with schema {}", producerName, topicName, schemaToUse);
+            log.info()
+                    .attr("producerName", producerName)
+                    .attr("topic", topicName)
+                    .attr("schema", schemaToUse)
+                    .log("Initializing producer");
             return producerBuilderFactory.createProducerBuilder(topicName, schemaToUse, producerName)
                     .properties(properties)
                     .create();
@@ -346,8 +351,11 @@ public class PulsarSink<T> implements Sink<T> {
                 consumerConfig.setSchemaType(SchemaType.AUTO_CONSUME.toString());
                 SchemaType configuredSchemaType = SchemaType.valueOf(pulsarSinkConfig.getSchemaType());
                 if (SchemaType.AUTO_CONSUME != configuredSchemaType) {
-                    log.info("The configured schema type {} is not able to write GenericRecords."
-                        + " So overwrite the schema type to be {}", configuredSchemaType, SchemaType.AUTO_CONSUME);
+                    log.info()
+                            .attr("configuredSchemaType", configuredSchemaType)
+                            .attr("overwrittenSchemaType", SchemaType.AUTO_CONSUME)
+                            .log("The configured schema type is not able to write GenericRecords,"
+                                    + " overwriting the schema type");
                 }
             } else {
                 consumerConfig.setSchemaType(pulsarSinkConfig.getSchemaType());

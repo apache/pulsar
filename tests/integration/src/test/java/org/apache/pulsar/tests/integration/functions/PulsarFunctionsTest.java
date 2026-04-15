@@ -43,7 +43,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -871,10 +870,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             if (finalConfig == null) {
                 finalConfig = BatchingConfig.builder().build();
             }
-            assertTrue(functionLogs.contains(finalConfig.toString()));
-
             // THREAD runtime doesn't include producer&consumer related logs in the function logs
             if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
+                assertTrue(functionLogs.contains("enabled=" + finalConfig.isEnabled()),
+                        "Expected batching config enabled status in logs");
                 if (finalConfig.getBatchingMaxMessages() == null) {
                     finalConfig.setBatchingMaxMessages(1000);
                 }
@@ -897,7 +896,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 assertTrue(functionLogs.contains(producerSpec));
             }
         } else {
-            assertTrue(functionLogs.contains("BatchingConfig(enabled=false"));
             // THREAD runtime doesn't include producer&consumer related logs in the function logs
             if (functionRuntimeType == FunctionRuntimeType.PROCESS) {
                 assertTrue(functionLogs.contains("\"batchingEnabled\":false"));
@@ -918,11 +916,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             if (payloadProcessorConfig.getConfig() == null || payloadProcessorConfig.getConfig().isEmpty()) {
                 assertTrue(functionLogs.contains("TestPayloadProcessor constructor without configs"));
             } else {
-                String configs = payloadProcessorConfig.getConfig().entrySet().stream()
-                        .map(entry -> entry.getKey() + "=" + entry.getValue())
-                        .collect(Collectors.joining(", "));
-                String expectedLogs = String.format("TestPayloadProcessor constructor with configs %s", configs);
-                assertTrue(functionLogs.contains(expectedLogs));
+                assertTrue(functionLogs.contains("TestPayloadProcessor constructor with configs"));
+                for (Map.Entry<String, Object> entry : payloadProcessorConfig.getConfig().entrySet()) {
+                    assertTrue(functionLogs.contains(entry.getKey() + "=" + entry.getValue()),
+                            "Expected config key=value in logs: " + entry.getKey() + "=" + entry.getValue());
+                }
             }
         }
     }

@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
@@ -67,7 +67,7 @@ import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
 
-@Slf4j
+@CustomLog
 public final class WorkerUtils {
 
     private WorkerUtils() {
@@ -88,11 +88,12 @@ public final class WorkerUtils {
         // if the dest directory does not exist, create it.
         if (dlogNamespace.logExists(destPkgPath)) {
             // if the destination file exists, write a log message
-            log.info("Target function file already exists at '{}'. Overwriting it now", destPkgPath);
+            log.info().attr("path", destPkgPath)
+                .log("Target function file already exists. Overwriting it now");
             dlogNamespace.deleteLog(destPkgPath);
         }
         // copy the topology package to target working directory
-        log.info("Uploading function package to '{}'", destPkgPath);
+        log.info().attr("path", destPkgPath).log("Uploading function package");
 
         try (DistributedLogManager dlm = dlogNamespace.openLog(destPkgPath)) {
             try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()) {
@@ -118,7 +119,7 @@ public final class WorkerUtils {
     public static void downloadFromBookkeeper(Namespace namespace,
                                               OutputStream outputStream,
                                               String packagePath) throws IOException {
-        log.info("Downloading {} from BK...", packagePath);
+        log.info().attr("packagePath", packagePath).log("Downloading from BK");
         DistributedLogManager dlm = namespace.openLog(packagePath);
         try (InputStream in = new DLInputStream(dlm)) {
             int read = 0;
@@ -131,7 +132,7 @@ public final class WorkerUtils {
     }
 
     public static void deleteFromBookkeeper(Namespace namespace, String packagePath) throws IOException {
-        log.info("Deleting {} from BK", packagePath);
+        log.info().attr("packagePath", packagePath).log("Deleting from BK");
         namespace.deleteLog(packagePath);
     }
 
@@ -165,7 +166,8 @@ public final class WorkerUtils {
         // bookie client.
         PropertiesUtils.filterAndMapProperties(workerConfig.getProperties(), "bookkeeper_", "bkc.")
                 .forEach((key, value) -> {
-                    log.info("Applying DLog BookKeeper client configuration setting {}={}", key, value);
+                    log.info().attr("key", key).attr("value", value)
+                            .log("Applying DLog BookKeeper client configuration setting");
                     conf.setProperty(key, value);
                 });
         return conf;
@@ -215,8 +217,10 @@ public final class WorkerUtils {
 
         final URI dlogUri = newDlogNamespaceURI(ledgersStoreServers + chrootPath);
 
-        log.info("initialize DistributedLog Namespace with ledgersStoreServers: {} "
-                + "ledgersRootPath: {} uri: {}", ledgersStoreServers, ledgersRootPath, dlogUri);
+        log.info().attr("ledgersStoreServers", ledgersStoreServers)
+                .attr("ledgersRootPath", ledgersRootPath)
+                .attr("uri", dlogUri)
+                .log("Initialize DistributedLog Namespace");
         try {
             dlMetadata.create(dlogUri);
         } catch (ZKException e) {
@@ -232,11 +236,14 @@ public final class WorkerUtils {
                                                    String tlsTrustCertsFilePath, Boolean allowTlsInsecureConnection,
                                                    Boolean enableTlsHostnameVerification,
                                                    WorkerConfig workerConfig) {
-        log.info("Create Pulsar Admin to service url {}: "
-                        + "authPlugin = {}, authParams = {}, "
-                        + "tlsTrustCerts = {}, allowTlsInsecureConnection = {}, enableTlsHostnameVerification = {}",
-                pulsarWebServiceUrl, authPlugin, authParams,
-                tlsTrustCertsFilePath, allowTlsInsecureConnection, enableTlsHostnameVerification);
+        log.info().attr("serviceUrl", pulsarWebServiceUrl)
+                .attr("authPlugin", authPlugin)
+                .attr("authParams", authParams)
+                .attr("tlsTrustCerts", tlsTrustCertsFilePath)
+                .attr("allowTlsInsecure", allowTlsInsecureConnection)
+                .attr("enableTlsHostnameVerification",
+                        enableTlsHostnameVerification)
+                .log("Create Pulsar Admin");
         try {
             PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (workerConfig != null) {
@@ -261,7 +268,7 @@ public final class WorkerUtils {
 
             return adminBuilder.build();
         } catch (PulsarClientException e) {
-            log.error("Error creating pulsar admin client", e);
+            log.error().exception(e).log("Error creating pulsar admin client");
             throw new RuntimeException(e);
         }
     }
@@ -311,7 +318,7 @@ public final class WorkerUtils {
             }
             return clientBuilder.build();
         } catch (PulsarClientException e) {
-            log.error("Error creating pulsar client", e);
+            log.error().exception(e).log("Error creating pulsar client");
             throw new RuntimeException(e);
         }
     }
@@ -364,7 +371,9 @@ public final class WorkerUtils {
 
                     functionInstanceStats.setMetrics(functionInstanceStatsData);
                 } catch (InterruptedException | ExecutionException e) {
-                    log.warn("Failed to collect metrics for function instance {}", fullyQualifiedInstanceName, e);
+                    log.warn().attr("instance", fullyQualifiedInstanceName)
+                        .exception(e)
+                        .log("Failed to collect metrics for function instance");
                 }
             }
         }
@@ -412,15 +421,15 @@ public final class WorkerUtils {
                             .producerName(producerName)
                             .createAsync().get(10, TimeUnit.SECONDS);
                 } catch (Exception e) {
-                    log.info("Encountered exception while at creating exclusive producer to topic {}", topic, e);
+                    log.info().attr("topic", topic).exception(e)
+                            .log("Encountered exception while creating exclusive producer");
                 }
                 tries++;
                 if (tries % 6 == 0) {
-                    if (log.isDebugEnabled()) {
-                        log.debug(
-                                "Failed to acquire exclusive producer to topic {} after {} attempts. "
-                                        + "Will retry if we are still the leader.", topic, tries);
-                    }
+                    log.debug().attr("topic", topic)
+                            .attr("attempts", tries)
+                            .log("Failed to acquire exclusive producer."
+                                    + " Will retry if we are still the leader.");
                 }
                 Thread.sleep(sleepInBetweenMs);
             } while (isLeader.get());

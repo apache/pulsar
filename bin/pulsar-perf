@@ -145,13 +145,16 @@ OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
 # log directory & file
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"Console"}
-PULSAR_LOG_CONSOLE_JSON_TEMPLATE=${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}
+# PULSAR_LOG_CONSOLE_JSON_TEMPLATE is deprecated — use PULSAR_LOG_JSON_TEMPLATE
+PULSAR_LOG_JSON_TEMPLATE=${PULSAR_LOG_JSON_TEMPLATE:-${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}}
+PULSAR_LOG_FORMAT=${PULSAR_LOG_FORMAT:-"text"}
 PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-perftest.log"}
 PULSAR_LOG_IMMEDIATE_FLUSH="${PULSAR_LOG_IMMEDIATE_FLUSH:-"false"}"
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
-OPTS="$OPTS -Dpulsar.log.console.json.template=$PULSAR_LOG_CONSOLE_JSON_TEMPLATE"
+OPTS="$OPTS -Dpulsar.log.json.template=$PULSAR_LOG_JSON_TEMPLATE"
+OPTS="$OPTS -Dpulsar.log.format=$PULSAR_LOG_FORMAT"
 if [ -n "$PULSAR_LOG_LEVEL" ]; then
   OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
 fi

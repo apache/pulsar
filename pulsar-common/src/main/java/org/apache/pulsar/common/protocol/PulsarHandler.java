@@ -53,7 +53,8 @@ public abstract class PulsarHandler extends PulsarDecoder {
         return remoteEndpointProtocolVersion;
     }
 
-    protected void setRemoteEndpointProtocolVersion(int remoteEndpointProtocolVersion) {
+    @VisibleForTesting
+    public void setRemoteEndpointProtocolVersion(int remoteEndpointProtocolVersion) {
         this.remoteEndpointProtocolVersion = remoteEndpointProtocolVersion;
     }
 

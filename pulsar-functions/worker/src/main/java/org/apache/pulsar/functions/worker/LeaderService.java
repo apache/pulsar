@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Producer;
@@ -28,7 +28,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 
-@Slf4j
+@CustomLog
 public class LeaderService implements AutoCloseable, ConsumerEventListener {
     private static final long serialVersionUID = 1L;
 
@@ -94,7 +94,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
             if (isLeader) {
                 return;
             }
-            log.info("Worker {} became the leader.", consumerName);
+            log.info().attr("worker", consumerName).log("Worker became the leader.");
             try {
 
                 // Wait for worker to be initialized.
@@ -114,7 +114,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                     functionMetaDataManagerExclusiveProducer = functionMetaDataManager
                             .acquireExclusiveWrite(checkIsStillLeader);
                 } catch (WorkerUtils.NotLeaderAnymore e) {
-                    log.info("Worker {} is not leader anymore. Exiting becoming leader routine.", consumer);
+                    log.info().attr("worker", consumer)
+                            .log("Worker is not leader anymore. Exiting becoming leader routine.");
                     if (scheduleManagerExclusiveProducer != null) {
                         scheduleManagerExclusiveProducer.close();
                     }
@@ -139,7 +140,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
                 isLeader = true;
             } catch (Throwable th) {
-                log.error("Encountered error when initializing to become leader", th);
+                log.error().exception(th)
+                        .log("Encountered error when initializing to become leader");
                 errorNotifier.triggerError(th);
             }
         }
@@ -151,7 +153,7 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     @Override
     public synchronized void becameInactive(Consumer<?> consumer, int partitionId) {
         if (isLeader) {
-            log.info("Worker {} lost the leadership.", consumerName);
+            log.info().attr("worker", consumerName).log("Worker lost the leadership.");
             isLeader = false;
             // when a worker has lost leadership it needs to start reading from the assignment topic again
             try {
@@ -167,7 +169,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 }
                 functionMetaDataManager.giveupLeadership();
             } catch (Throwable th) {
-                log.error("Encountered error in routine when worker lost leadership", th);
+                log.error().exception(th)
+                        .log("Encountered error in routine when worker lost leadership");
                 errorNotifier.triggerError(th);
             }
         }

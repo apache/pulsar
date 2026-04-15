@@ -66,8 +66,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -94,7 +94,7 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
  * to a regular deployment is that functions require a unique instance_id for each instance.
  * The service abstraction is used for getting functionstatus.
  */
-@Slf4j
+@CustomLog
 @VisibleForTesting
 public class KubernetesRuntime implements Runtime {
 
@@ -296,10 +296,10 @@ public class KubernetesRuntime implements Runtime {
             submitStatefulSet();
 
         } catch (Exception e) {
-            log.error("Failed start function {}/{}/{} in Kubernetes",
-                    instanceConfig.getFunctionDetails().getTenant(),
-                    instanceConfig.getFunctionDetails().getNamespace(),
-                    instanceConfig.getFunctionDetails().getName(), e);
+            log.error().attr("tenant", instanceConfig.getFunctionDetails().getTenant())
+                    .attr("namespace", instanceConfig.getFunctionDetails().getNamespace())
+                    .attr("name", instanceConfig.getFunctionDetails().getName())
+                    .exception(e).log("Failed start function in Kubernetes");
             stop();
             throw e;
         }
@@ -461,7 +461,8 @@ public class KubernetesRuntime implements Runtime {
 
     private void submitService() throws Exception {
         final V1Service service = createService();
-        log.info("Submitting the following service to k8 {}", JSON.serialize(service));
+        log.info().attr("service", JSON.serialize(service))
+                .log("Submitting the following service to k8");
 
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
 
@@ -475,7 +476,8 @@ public class KubernetesRuntime implements Runtime {
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
-                            log.warn("Service already present for function {}", fqfn);
+                            log.warn().attr("function", fqfn)
+                                    .log("Service already present for function");
                             return Actions.ActionResult.builder().success(true).build();
                         }
 
@@ -549,7 +551,8 @@ public class KubernetesRuntime implements Runtime {
                                     Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
         }
 
-        log.info("Submitting the following spec to k8 {}", JSON.serialize(statefulSet));
+        log.info().attr("statefulSet", JSON.serialize(statefulSet))
+                .log("Submitting the following spec to k8");
 
         String fqfn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
 
@@ -563,7 +566,8 @@ public class KubernetesRuntime implements Runtime {
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
-                            log.warn("Statefulset already present for function {}", fqfn);
+                            log.warn().attr("function", fqfn)
+                                    .log("Statefulset already present for function");
                             return Actions.ActionResult.builder().success(true).build();
                         }
 
@@ -611,7 +615,8 @@ public class KubernetesRuntime implements Runtime {
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            log.warn("Statefulset for function {} does not exist", fqfn);
+                            log.warn().attr("function", fqfn)
+                                    .log("Statefulset for function does not exist");
                             return Actions.ActionResult.builder().success(true).build();
                         }
                         String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
@@ -736,7 +741,8 @@ public class KubernetesRuntime implements Runtime {
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            log.warn("Service for function {} does not exist", fqfn);
+                            log.warn().attr("function", fqfn)
+                                    .log("Service for function does not exist");
                             return Actions.ActionResult.builder().success(true).build();
                         }
 

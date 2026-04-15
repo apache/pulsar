@@ -45,10 +45,14 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultChannelId;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import io.vertx.core.impl.ConcurrentHashSet;
 import java.io.Closeable;
 import java.io.IOException;
@@ -2486,6 +2490,35 @@ public class ServerCnxTest {
         assertTrue(channel.isActive());
 
         channel.finish();
+    }
+
+    @Test
+    public void testCloseConsumerClosesConnectionWhenWriteFails() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        var ctx = mock(ChannelHandlerContext.class);
+        var writeFuture = mock(ChannelFuture.class);
+        var writeFailure = new RuntimeException("close consumer write failed");
+        when(ctx.writeAndFlush(any())).thenReturn(writeFuture);
+        when(writeFuture.isSuccess()).thenReturn(false);
+        when(writeFuture.cause()).thenReturn(writeFailure);
+        when(writeFuture.addListener(any())).thenAnswer(invocation -> {
+            GenericFutureListener<Future<? super Void>>  listener = invocation.getArgument(0);
+            listener.operationComplete(writeFuture);
+            return writeFuture;
+        });
+        serverCnx.setCtx(ctx);
+
+        var consumer = mock(Consumer.class);
+        when(consumer.consumerId()).thenReturn(1L);
+
+        serverCnx.setRemoteEndpointProtocolVersion(ProtocolVersion.v12.getValue());
+
+        serverCnx.closeConsumer(consumer, Optional.empty());
+
+        verify(ctx).writeAndFlush(any());
+        verify(ctx).close();
     }
 
     @Test(timeOut = 30000)

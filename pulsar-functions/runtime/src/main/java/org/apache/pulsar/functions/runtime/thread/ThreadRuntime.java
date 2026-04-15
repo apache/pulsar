@@ -25,8 +25,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -49,7 +49,7 @@ import org.apache.pulsar.functions.worker.FunctionsManager;
 /**
  * A function container implemented using java thread.
  */
-@Slf4j
+@CustomLog
 public class ThreadRuntime implements Runtime {
 
     // The thread that invokes the function
@@ -154,7 +154,7 @@ public class ThreadRuntime implements Runtime {
         boolean loadedAsNar = false;
         if (FileUtils.mayBeANarArchive(new File(jarFile))) {
             try {
-                log.info("Trying Loading file as NAR file: {}", jarFile);
+                log.info().attr("jarFile", jarFile).log("Trying Loading file as NAR file");
                 // Let's first try to treat it as a nar archive
                 fnCache.registerFunctionInstanceWithArchive(
                         functionId,
@@ -164,11 +164,12 @@ public class ThreadRuntime implements Runtime {
             } catch (FileNotFoundException e) {
                 // this is usually like
                 // java.io.FileNotFoundException: /tmp/pulsar-nar/xxx.jar-unpacked/xxxxx/META-INF/MANIFEST.MF'
-                log.error("The file {} does not look like a .nar file {}", jarFile, e.toString());
+                log.error().attr("jarFile", jarFile).attr("error", e.toString())
+                        .log("The file does not look like a .nar file");
             }
         }
         if (!loadedAsNar) {
-            log.info("Load file as simple JAR file: {}", jarFile);
+            log.info().attr("jarFile", jarFile).log("Load file as simple JAR file");
             // create the function class loader
             fnCache.registerFunctionInstance(
                     functionId,
@@ -177,9 +178,9 @@ public class ThreadRuntime implements Runtime {
                     Collections.emptyList());
         }
 
-        log.info(
-                "Initialize function class loader for function {} at function cache manager, functionClassLoader: {}",
-                functionName, fnCache.getClassLoader(functionId));
+        log.info().attr("functionName", functionName)
+                .attr("functionClassLoader", fnCache.getClassLoader(functionId))
+                .log("Initialize function class loader at function cache manager");
 
         fnClassLoader = fnCache.getClassLoader(functionId);
         if (null == fnClassLoader) {
@@ -218,10 +219,10 @@ public class ThreadRuntime implements Runtime {
                 functionClassLoader,
                 transformFunctionClassLoader);
 
-        log.info("ThreadContainer starting function with instanceId {} functionId {} namespace {}",
-                instanceConfig.getInstanceId(),
-                instanceConfig.getFunctionId(),
-                instanceConfig.getFunctionDetails().getNamespace());
+        log.info().attr("instanceId", instanceConfig.getInstanceId())
+                .attr("functionId", instanceConfig.getFunctionId())
+                .attr("namespace", instanceConfig.getFunctionDetails().getNamespace())
+                .log("ThreadContainer starting function");
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 String.format("%s-%s",
                         FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
@@ -229,7 +230,8 @@ public class ThreadRuntime implements Runtime {
         this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
-                log.error("Uncaught exception in thread {}", t, e);
+                log.error().attr("thread", t).exception(e)
+                        .log("Uncaught exception in thread");
             }
         });
         this.fnThread.start();
@@ -252,9 +254,9 @@ public class ThreadRuntime implements Runtime {
                 // kill the thread
                 fnThread.join(THREAD_SHUTDOWN_TIMEOUT_MILLIS, 0);
                 if (fnThread.isAlive()) {
-                    log.warn("The function instance thread is still alive after {} milliseconds. "
-                            + "Giving up waiting and moving forward to close function.",
-                            THREAD_SHUTDOWN_TIMEOUT_MILLIS);
+                    log.warn().attr("timeoutMs", THREAD_SHUTDOWN_TIMEOUT_MILLIS)
+                            .log("The function instance thread is still alive after timeout."
+                                    + " Giving up waiting and moving forward to close function");
                 }
             } catch (InterruptedException e) {
                 // ignore this
@@ -262,10 +264,10 @@ public class ThreadRuntime implements Runtime {
             // make sure JavaInstanceRunnable is closed
             this.javaInstanceRunnable.close();
 
-            log.info("Unloading JAR files for instanceId {} functionId {} namespace {}",
-                    instanceConfig.getInstanceId(),
-                    instanceConfig.getFunctionId(),
-                    instanceConfig.getFunctionDetails().getNamespace());
+            log.info().attr("instanceId", instanceConfig.getInstanceId())
+                    .attr("functionId", instanceConfig.getFunctionId())
+                    .attr("namespace", instanceConfig.getFunctionDetails().getNamespace())
+                    .log("Unloading JAR files");
             // once the thread quits, clean up the instance
             fnCache.unregisterFunctionInstance(
                     instanceConfig.getFunctionId(),

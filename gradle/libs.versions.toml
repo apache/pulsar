@@ -34,7 +34,7 @@ jackson-annotations = "2.21"
 protobuf = "3.25.5"
 grpc = "1.75.0"
 slf4j = "2.0.17"
-slog = "0.9.5"
+slog = "0.9.7"
 log4j2 = "2.25.4"
 lombok = "1.18.42"
 # OpenTelemetry

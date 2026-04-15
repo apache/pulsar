@@ -39,9 +39,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
@@ -75,7 +75,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarSinkTest {
 
     private static final String TOPIC = "test_result";
@@ -220,11 +220,11 @@ public class PulsarSinkTest {
             pulsarSink.initializeSchema();
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
-            log.error("RuntimeException: {}", ex, ex);
+            log.error().exception(ex).log("RuntimeException");
             assertTrue(
                     ex.getMessage().startsWith("Inconsistent types found between function input type and serde type:"));
         } catch (Exception ex) {
-            log.error("Exception: {}", ex, ex);
+            log.error().exception(ex).log("Exception");
             fail();
         }
     }

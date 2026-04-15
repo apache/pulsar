@@ -34,7 +34,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.proto.FunctionMetaData;
@@ -45,7 +45,7 @@ import org.apache.pulsar.functions.worker.service.api.FunctionsV2;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
-@Slf4j
+@CustomLog
 @Path("/functions")
 public class FunctionsApiV2Resource extends FunctionApiResource {
 

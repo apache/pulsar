@@ -37,9 +37,9 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -73,7 +73,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class JavaInstanceRunnableTest {
     private final List<AutoCloseable> closeables = new ArrayList<>();
 
@@ -559,7 +559,7 @@ public class JavaInstanceRunnableTest {
             try {
                 closeables.get(i).close();
             } catch (Exception e) {
-                log.error("Failure in calling close method", e);
+                log.error().exception(e).log("Failure in calling close method");
             }
         }
     }
