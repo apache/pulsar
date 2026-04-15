@@ -91,6 +91,24 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private Map<String, String> subscriptionProperties;
 
+    @ApiModelProperty(
+        name = "enableReadingMarkerMessages",
+        value = "Whether to allow the subscription reading the pulsar marker message. If it is true, the broker won't "
+                + "filter the marker messages, it will deliver all the data to the client. It is recommended to used "
+                + "on the RawReader api when you want to debug with the whole data."
+    )
+    private boolean enableReadingMarkerMessages;
+
+    public Map<String, String> getSubscriptionProperties() {
+        if (this.subscriptionProperties == null) {
+            this.subscriptionProperties = new TreeMap<>();
+        }
+        if (this.enableReadingMarkerMessages) {
+            subscriptionProperties.put("enableReadingMarkerMessages", String.valueOf(enableReadingMarkerMessages));
+        }
+        return subscriptionProperties;
+    }
+
     private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
 
     @JsonIgnore
