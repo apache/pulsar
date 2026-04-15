@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
-import lombok.Getter;
 import lombok.CustomLog;
+import lombok.Getter;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
 import org.testcontainers.containers.Network;
 

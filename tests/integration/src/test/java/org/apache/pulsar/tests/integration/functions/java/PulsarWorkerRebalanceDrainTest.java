@@ -271,7 +271,8 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
                 .attr("context", callerContext)
                 .attr("about", winfos.size())
                 .log("get-cluster retrieved info about workers");
-        winfos.forEach(w -> log.info().attr("context", callerContext).attr("workerinfo", w).log("get-cluster worker-info"));
+        winfos.forEach(w -> log.info().attr("context", callerContext).attr("workerinfo", w)
+                .log("get-cluster worker-info"));
 
         val leaderInfo = getClusterLeader();
         log.info().attr("context", callerContext).attr("info", leaderInfo).log("get-cluster-leader info");
@@ -282,7 +283,8 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
                 .attr("about", finfos.size())
                 .attr("with", getFuncAssignmentsCount(finfos))
                 .log("get-function-assignments retrieved info about workers with functions");
-        finfos.forEach(f -> log.info().attr("context", callerContext).attr("info", f).log("get-function-assignments info"));
+        finfos.forEach(f -> log.info().attr("context", callerContext).attr("info", f)
+                .log("get-function-assignments info"));
     }
 
     private void allocateFunctions(String callingTest, String topicPrefix) throws  Exception {

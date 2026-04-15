@@ -20,8 +20,8 @@ package org.apache.pulsar.proxy.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
-import lombok.CustomLog;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;

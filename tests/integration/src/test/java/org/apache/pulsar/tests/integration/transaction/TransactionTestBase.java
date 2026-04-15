@@ -19,8 +19,8 @@
 package org.apache.pulsar.tests.integration.transaction;
 
 import java.util.concurrent.CompletableFuture;
-import lombok.Data;
 import lombok.CustomLog;
+import lombok.Data;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
