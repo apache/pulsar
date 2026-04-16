@@ -24,7 +24,6 @@ plugins {
 dependencies {
     implementation(libs.slog)
     compileOnly(project(":pulsar-common"))
-    compileOnly(libs.slf4j.api)
     implementation(project(":pulsar-client-api"))
     implementation(project(":bouncy-castle:bouncy-castle-bc"))
     implementation(libs.bcpkix.jdk18on)

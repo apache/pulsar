@@ -25,7 +25,6 @@ dependencies {
     implementation(libs.slog)
     api(project(":pulsar-package-management:pulsar-package-core"))
     implementation(libs.guava)
-    implementation(libs.slf4j.api)
 
     testImplementation(project(":testmocks"))
     testImplementation(libs.commons.lang3)

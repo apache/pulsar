@@ -25,5 +25,4 @@ dependencies {
     implementation(libs.slog)
     api(project(":pulsar-client-api"))
     implementation(libs.jackson.annotations)
-    implementation(libs.slf4j.api)
 }

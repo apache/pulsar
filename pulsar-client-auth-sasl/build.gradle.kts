@@ -25,7 +25,6 @@ dependencies {
     implementation(libs.slog)
     compileOnly(project(":pulsar-client-original"))
     implementation(project(":pulsar-common"))
-    implementation(libs.slf4j.api)
     implementation(libs.guava)
     implementation(libs.commons.lang3)
     implementation(libs.jakarta.ws.rs.api)

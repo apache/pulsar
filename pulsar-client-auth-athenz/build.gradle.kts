@@ -28,7 +28,6 @@ dependencies {
     implementation(libs.athenz.cert.refresher)
     implementation(libs.athenz.auth.core)
     implementation(libs.guava)
-    implementation(libs.slf4j.api)
     implementation(libs.jackson.databind)
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.commons.lang3)
