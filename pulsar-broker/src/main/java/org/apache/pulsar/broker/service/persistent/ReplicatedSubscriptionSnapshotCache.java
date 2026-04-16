@@ -237,7 +237,7 @@ public class ReplicatedSubscriptionSnapshotCache {
 
         log.debug()
                 .attr("position", position)
-                .attr("snapshotId", snapshot.getSnapshotId())
+                .attr("snapshotId", snapshot::getSnapshotId)
                 .log("Added new replicated-subscription snapshot");
 
         // append to the double-linked list
