@@ -53,11 +53,11 @@ public class PreInterceptFilter implements Filter {
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
                          FilterChain filterChain) throws IOException, ServletException {
-            log.debug()
-                    .attr("path", servletRequest.getServletContext().getContextPath())
-                    .attr("type", servletRequest.getContentType())
-                    .log("PreInterceptFilter: path , type");
-                String contentType = servletRequest.getContentType();
+        log.debug()
+                .attr("path", () -> servletRequest.getServletContext().getContextPath())
+                .attr("type", servletRequest::getContentType)
+                .log("PreInterceptFilter");
+        String contentType = servletRequest.getContentType();
         if (contentType != null && (contentType.toLowerCase(Locale.ROOT).contains(
                 MediaType.MULTIPART_FORM_DATA.toLowerCase(Locale.ROOT))
                 || contentType.toLowerCase(Locale.ROOT).contains(
