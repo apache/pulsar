@@ -945,24 +945,21 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     private void cancelPendingReadTasks(boolean canceledPendingRead) {
-        InFlightTask readingTask = null;
+        int pendingReadCount = 0;
         synchronized (inFlightTasks) {
             for (InFlightTask task : inFlightTasks) {
                 task.setSkipReadResultDueToCursorRewind(true);
                 if (task.entries == null) {
-                    if (readingTask != null) {
-                        log.error("Unexpected state because there are more than one tasks' state is pending read. {}",
-                            inFlightTasks);
+                    if (canceledPendingRead) {
+                        task.setEntries(Collections.emptyList());
                     }
-                    readingTask = task;
+                    pendingReadCount++;
                 }
             }
-            // Correct state to avoid a replicate stuck because a pending reading task occupies permits.
-            // There is at most one reading task.
-            // The task will never receive a read completed callback if cancel pending reading successfully.
-            if (canceledPendingRead && readingTask != null) {
-                readingTask.setEntries(Collections.emptyList());
-            }
+        }
+        if (pendingReadCount > 1) {
+            log.error("Found Geo ({}) unexpected state {} tasks are pending read. {}",
+                    replicatorId, pendingReadCount, inFlightTasks);
         }
     }
 
