@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import io.github.merlimat.slog.Logger;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -26,11 +27,9 @@ import org.apache.pulsar.broker.service.schema.validator.SchemaRegistryServiceWi
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Reflections;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public interface SchemaRegistryService extends SchemaRegistry {
-    Logger LOG = LoggerFactory.getLogger(SchemaRegistryService.class);
+    Logger LOG = Logger.get(SchemaRegistryService.class);
     long NO_SCHEMA_VERSION = -1L;
 
     static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
@@ -63,7 +62,7 @@ public interface SchemaRegistryService extends SchemaRegistry {
                         new SchemaRegistryServiceImpl(schemaStorage, checkers, pulsarService),
                         allowLegacyJacksonFormat);
             } catch (Exception e) {
-                LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
+                LOG.warn().exception(e).log("Unable to create schema registry storage, defaulting to empty storage");
             }
         }
         return new DefaultSchemaRegistryService();

@@ -98,7 +98,7 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
                 default: {
                     // INT, LONG, FLOAT, DOUBLE, BOOLEAN, STRING, BYTES.
                     // ARRAY, MAP, FIXED, NULL.
-                    LOGGER.info("Registering a special avro schema typed [{}]", schema.getType());
+                    LOGGER.info().attr("type", schema.getType()).log("Registering a special avro schema");
                 }
             }
     }

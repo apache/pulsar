@@ -32,7 +32,6 @@ import org.apache.logging.log4j.core.appender.AbstractAppender;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.layout.PatternLayout;
-import org.slf4j.Logger;
 
 /**
  * Log4J appender that captures all log events for a specified logger.
@@ -58,16 +57,6 @@ public class TestLogAppender extends AbstractAppender implements AutoCloseable {
         context.updateLoggers();
         return testAppender;
     }
-    /**
-     * Create a new TestLogAppender for a given logger. Use the {@link #close()} method to stop it and unregister it
-     * from Log4J.
-     * @param log The name of the logger instance will be used as the logger name to register the appender to.
-     * @return return the new TestLogAppender instance.
-     */
-    public static TestLogAppender create(Logger log) {
-        return create(Optional.of(log.getName()));
-    }
-
     /**
      * Create a new TestLogAppender for a given slog logger. Use the {@link #close()} method to stop it and unregister
      * it from Log4J.

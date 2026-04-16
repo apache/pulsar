@@ -46,7 +46,6 @@ dependencies {
     implementation(libs.commons.codec)
     implementation(libs.commons.collections4)
     implementation(libs.commons.lang3)
-    implementation(libs.slf4j.api)
     implementation(libs.netty.transport)
     implementation(libs.protobuf.java)
     implementation(libs.curator.recipes)
