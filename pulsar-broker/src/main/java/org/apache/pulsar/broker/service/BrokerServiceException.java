@@ -224,11 +224,11 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class TopicBacklogQuotaExceededException extends BrokerServiceException {
+    public static class TopicBlockedQuotaExceededException extends BrokerServiceException {
         @Getter
         private final BacklogQuota.RetentionPolicy retentionPolicy;
 
-        public TopicBacklogQuotaExceededException(BacklogQuota.RetentionPolicy retentionPolicy) {
+        public TopicBlockedQuotaExceededException(BacklogQuota.RetentionPolicy retentionPolicy) {
             super("Cannot create producer on topic with backlog quota exceeded");
             this.retentionPolicy = retentionPolicy;
         }
