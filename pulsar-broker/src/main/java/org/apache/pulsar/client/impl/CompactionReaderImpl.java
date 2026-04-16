@@ -22,7 +22,7 @@ import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
@@ -40,7 +40,7 @@ import org.apache.pulsar.common.api.proto.CommandAck;
  *  The compaction consumer subscription is durable and consumes compacted messages from the earliest position.
  *  It does not acknowledge the message after each read. (needs to call acknowledgeCumulativeAsync to ack messages.)
  */
-@Slf4j
+@CustomLog
 public class CompactionReaderImpl<T> extends ReaderImpl<T> {
 
     ConsumerBase<T> consumer;
@@ -68,7 +68,6 @@ public class CompactionReaderImpl<T> extends ReaderImpl<T> {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return new CompactionReaderImpl<>(client, conf, client.externalExecutorProvider(), consumerFuture, schema);
     }
-
 
     @Override
     public Message<T> readNext() throws PulsarClientException {

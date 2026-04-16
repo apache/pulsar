@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.client.api.CompressionType;
@@ -39,7 +39,7 @@ import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 
-@Slf4j
+@CustomLog
 public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase {
 
     public static final String TOPIC = TopicName.get(
@@ -149,11 +149,13 @@ public class ServiceUnitStateTableViewImpl extends ServiceUnitStateTableViewBase
                 .whenComplete((messageId, e) -> {
                     if (e != null) {
                         if (e instanceof PulsarClientException.AlreadyClosedException) {
-                            log.info("Skip publishing the message since the producer is closed, serviceUnit: {}, data: "
-                                    + "{}", key, value);
+                            log.info()
+                                    .attr("serviceUnit", key)
+                                    .attr("value", value)
+                                    .log("Skip publishing: producer closed");
                         } else {
-                            log.error("Failed to publish the message: serviceUnit:{}, data:{}",
-                                    key, value, e);
+                            log.error().attr("serviceUnit", key).attr("data", value).exception(e)
+                                    .log("Failed to publish the message");
                         }
                         future.completeExceptionally(e);
                     } else {

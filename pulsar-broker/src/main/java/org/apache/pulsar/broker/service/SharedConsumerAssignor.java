@@ -25,15 +25,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 /**
  * The assigner to assign entries to the proper {@link Consumer} in the shared subscription.
  */
-@Slf4j
+@CustomLog
 @RequiredArgsConstructor
 public class SharedConsumerAssignor {
 
@@ -63,8 +63,11 @@ public class SharedConsumerAssignor {
         Consumer consumer = getConsumer(numConsumers);
         if (consumer == null) {
             if (subscription != null) {
-                log.info("No consumer found to assign in topic:{}, subscription:{}, redelivering {} messages.",
-                        subscription.getTopic().getName(), subscription.getName(), entryAndMetadataList.size());
+                log.info()
+                        .attr("topic", subscription.getTopic().getName())
+                        .attr("subscription", subscription.getName())
+                        .attr("size", entryAndMetadataList.size())
+                        .log("No consumer found to assign, redelivering messages");
             }
             entryAndMetadataList.forEach(unassignedMessageProcessor);
             return consumerToEntries;

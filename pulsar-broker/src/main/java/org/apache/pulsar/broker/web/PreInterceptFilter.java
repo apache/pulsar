@@ -29,11 +29,11 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.MediaType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.common.intercept.InterceptException;
 
-@Slf4j
+@CustomLog
 public class PreInterceptFilter implements Filter {
 
     private final BrokerInterceptor interceptor;
@@ -53,11 +53,10 @@ public class PreInterceptFilter implements Filter {
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
                          FilterChain filterChain) throws IOException, ServletException {
-        if (log.isDebugEnabled()) {
-            log.debug("PreInterceptFilter: path {}, type {}",
-                    servletRequest.getServletContext().getContextPath(),
-                    servletRequest.getContentType());
-        }
+        log.debug()
+                .attr("path", () -> servletRequest.getServletContext().getContextPath())
+                .attr("type", servletRequest::getContentType)
+                .log("PreInterceptFilter");
         String contentType = servletRequest.getContentType();
         if (contentType != null && (contentType.toLowerCase(Locale.ROOT).contains(
                 MediaType.MULTIPART_FORM_DATA.toLowerCase(Locale.ROOT))

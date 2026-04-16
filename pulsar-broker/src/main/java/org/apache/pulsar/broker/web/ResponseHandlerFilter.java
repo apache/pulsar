@@ -33,16 +33,15 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Servlet filter that hooks up to handle outgoing response.
  */
+@CustomLog
 public class ResponseHandlerFilter implements Filter {
-    private static final Logger LOG = LoggerFactory.getLogger(ResponseHandlerFilter.class);
     private static final String BROKER_ADDRESS_HEADER_NAME = "broker-address";
 
     private final String brokerAddress;
@@ -60,8 +59,10 @@ public class ResponseHandlerFilter implements Filter {
         if (!response.isCommitted()) {
             ((HttpServletResponse) response).addHeader(BROKER_ADDRESS_HEADER_NAME, brokerAddress);
         } else {
-            LOG.warn("Cannot add header {} to request {} since it's already committed.", BROKER_ADDRESS_HEADER_NAME,
-                    request);
+            log.warn()
+                    .attr("header", BROKER_ADDRESS_HEADER_NAME)
+                    .attr("request", request)
+                    .log("Cannot add header to request since it's already committed.");
         }
         chain.doFilter(request, response);
         if (((HttpServletResponse) response).getStatus() == Status.INTERNAL_SERVER_ERROR.getStatusCode()) {
@@ -82,13 +83,16 @@ public class ResponseHandlerFilter implements Filter {
 
                 @Override
                 public void onTimeout(AsyncEvent asyncEvent) {
-                    LOG.warn("Http request {} async context timeout.", request);
+                    log.warn().attr("request", request).log("Http request async context timeout.");
                     handleInterceptor(request, response);
                 }
 
                 @Override
                 public void onError(AsyncEvent asyncEvent) {
-                    LOG.warn("Http request {} async context error.", request, asyncEvent.getThrowable());
+                    log.warn()
+                            .attr("request", request)
+                            .exceptionMessage(asyncEvent.getThrowable())
+                            .log("Http request async context error.");
                     handleInterceptor(request, response);
                 }
 
@@ -112,7 +116,7 @@ public class ResponseHandlerFilter implements Filter {
             try {
                 interceptor.onWebserviceResponse(request, response);
             } catch (Exception e) {
-                LOG.error("Failed to handle interceptor on web service response.", e);
+                log.error().exception(e).log("Failed to handle interceptor on web service response.");
             }
         }
     }

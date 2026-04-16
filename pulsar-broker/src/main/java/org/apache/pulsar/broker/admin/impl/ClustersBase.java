@@ -76,8 +76,6 @@ import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ClustersBase extends AdminResource {
 
@@ -95,7 +93,7 @@ public class ClustersBase extends AdminResource {
                 .thenApply(HashSet::new)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get clusters {}", clientAppId(), ex);
+                    log.error().exception(ex).log("Failed to get clusters");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -123,7 +121,10 @@ public class ClustersBase extends AdminResource {
                     asyncResponse.resume(clusterData
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist")));
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to get cluster");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -181,10 +182,13 @@ public class ClustersBase extends AdminResource {
                     }
                     return clusterResources().createClusterAsync(cluster, clusterData);
                 }).thenAccept(__ -> {
-                    log.info("[{}] Created cluster {}", clientAppId(), cluster);
+                    log.info().attr("cluster", cluster).log("Created cluster");
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to create cluster {}", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to create cluster");
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof IllegalArgumentException) {
                         asyncResponse.resume(new RestException(PRECONDITION_FAILED,
@@ -237,10 +241,13 @@ public class ClustersBase extends AdminResource {
                     }
                     return clusterResources().updateClusterAsync(cluster, old -> clusterData);
                 }).thenAccept(__ -> {
-                    log.info("[{}] Updated cluster {}", clientAppId(), cluster);
+                    log.info().attr("cluster", cluster).log("Updated cluster");
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to update cluster");
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof MetadataStoreException.NotFoundException) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
@@ -278,7 +285,10 @@ public class ClustersBase extends AdminResource {
                             policies.orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist")));
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get cluster {} migration", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to get cluster migration");
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof MetadataStoreException.NotFoundException) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
@@ -336,10 +346,13 @@ public class ClustersBase extends AdminResource {
                     return data;
                 }))
                 .thenAccept(__ -> {
-                    log.info("[{}] Updated cluster {}", clientAppId(), cluster);
+                    log.info().attr("cluster", cluster).log("Updated cluster");
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to update cluster");
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof MetadataStoreException.NotFoundException) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
@@ -380,12 +393,17 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> innerSetPeerClusterNamesAsync(cluster, peerClusterNames))
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully added peer-cluster {} for {}",
-                            clientAppId(), peerClusterNames, cluster);
+                    log.info()
+                            .attr("peerClusters", peerClusterNames)
+                            .attr("cluster", cluster)
+                            .log("Successfully added peer-cluster");
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Failed to validate peer-cluster list {}, {}", clientAppId(), peerClusterNames, ex);
+                    log.error()
+                            .attr("peerClusters", peerClusterNames)
+                            .exceptionMessage(ex)
+                            .log("Failed to validate peer-cluster list");
                     if (realCause instanceof NotFoundException) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
                         return null;
@@ -444,7 +462,10 @@ public class ClustersBase extends AdminResource {
                             clusterOpt.orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
                     asyncResponse.resume(clusterData.getPeerClusterNames());
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to get cluster");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -470,16 +491,21 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> internalDeleteClusterAsync(cluster))
                 .thenAccept(__ -> {
-                    log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
+                    log.info().attr("cluster", cluster).log("Deleted cluster");
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof NotFoundException) {
-                        log.warn("[{}] Failed to delete cluster {} - Does not exist", clientAppId(), cluster);
+                        log.warn()
+                                .attr("cluster", cluster)
+                                .log("Failed to delete cluster - Does not exist");
                         asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
                         return null;
                     }
-                    log.error("[{}] Failed to delete cluster {}", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to delete cluster");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -530,7 +556,10 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> internalGetNamespaceIsolationPolicies(cluster))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to get namespace isolation policies");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -563,7 +592,6 @@ public class ClustersBase extends AdminResource {
                     });
     }
 
-
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
     @ApiOperation(
@@ -594,8 +622,10 @@ public class ClustersBase extends AdminResource {
                     }
                     asyncResponse.resume(policies.get(policyName));
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies/{}",
-                            clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to get namespace isolation policies");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -628,12 +658,14 @@ public class ClustersBase extends AdminResource {
                                 .collect(Collectors.toList())))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to get namespace isolation policies");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
-
 
     private BrokerNamespaceIsolationData internalGetBrokerNsIsolationData(
             String broker,
@@ -682,7 +714,11 @@ public class ClustersBase extends AdminResource {
                 .thenApply(policies -> internalGetBrokerNsIsolationData(broker, policies))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .attr("broker", broker)
+                            .exception(ex)
+                            .log("Failed to get namespace isolation policies");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -732,8 +768,10 @@ public class ClustersBase extends AdminResource {
                             .thenApply(__ -> oldPolicy);
                 }).thenCompose(oldPolicy -> filterAndUnloadMatchedNamespaceAsync(cluster, policyData, oldPolicy))
                 .thenAccept(__ -> {
-                    log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
-                            clientAppId(), cluster, policyName);
+                    log.info()
+                            .attr("cluster", cluster)
+                            .attr("policy", policyName)
+                            .log("Successfully updated namespace isolation policies");
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
@@ -748,14 +786,18 @@ public class ClustersBase extends AdminResource {
                                 "Invalid format of input policy data. policy: " + policyName + "; data: " + jsonData));
                         return null;
                     } else if (realCause instanceof NotFoundException) {
-                        log.warn("[{}] Failed to update clusters/{}/namespaceIsolationPolicies: Does not exist",
-                                clientAppId(), cluster);
+                        log.warn()
+                                .attr("cluster", cluster)
+                                .log("Failed to update namespace isolation policies: Does not exist");
                         asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                 "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
                         return null;
                     }
-                    log.info("[{}] Failed to update clusters/{}/namespaceIsolationPolicies/{}. Input data is invalid",
-                            clientAppId(), cluster, policyName, realCause);
+                    log.info()
+                            .attr("cluster", cluster)
+                            .attr("policy", policyName)
+                            .exception(realCause)
+                            .log("Failed to update namespace isolation policies: input data is invalid");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -812,7 +854,7 @@ public class ClustersBase extends AdminResource {
             // If unload type is 'changed', we need to figure out a further subset of namespaces whose placement might
             // actually have been changed.
 
-            log.debug("Old policy: {} ; new policy: {}", oldPolicy, policyData);
+            log.debug().attr("oldPolicy", oldPolicy).attr("newPolicy", policyData).log("Old and new policy");
 
             boolean unloadAllNamespaces = false;
             // We also compare that the previous primary broker list is same as current, in case all namespaces need
@@ -828,12 +870,15 @@ public class ClustersBase extends AdminResource {
             Set<String> commonNamespaces = new HashSet<>(policyData.getNamespaces());
             commonNamespaces.retainAll(oldNamespaces);
 
-            log.debug("combined regexes: {}; common regexes:{}", combinedNamespaces, commonNamespaces);
+            log.debug()
+                    .attr("combinedNamespaces", combinedNamespaces)
+                    .attr("commonNamespaces", commonNamespaces)
+                    .log("combined and common regexes");
 
             if (!unloadAllNamespaces) {
                 // Find the changed regexes ((new U old) - (new ∩ old)).
                 combinedNamespaces.removeAll(commonNamespaces);
-                log.debug("changed regexes: {}", commonNamespaces);
+                log.debug().attr("commonNamespaces", commonNamespaces).log("Changed regexes");
             }
 
             // Now we further filter the filtered namespaces based on this combinedNamespaces set
@@ -850,7 +895,9 @@ public class ClustersBase extends AdminResource {
                     // write load info to load manager to make the load happens fast
                     pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
                 } catch (Exception e) {
-                    log.warn("[{}] Failed to writeLoadReportOnZookeeper.", clientAppId(), e);
+                    log.warn()
+                            .exception(e)
+                            .log("Failed to writeLoadReportOnZookeeper.");
                 }
             });
         });
@@ -891,14 +938,18 @@ public class ClustersBase extends AdminResource {
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof NotFoundException) {
-                        log.warn("[{}] Failed to update brokers/{}/namespaceIsolationPolicies: Does not exist",
-                                clientAppId(), cluster);
+                        log.warn()
+                                .attr("cluster", cluster)
+                                .log("Failed to delete namespace isolation policies: Does not exist");
                         asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                 "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
                         return null;
                     }
-                    log.error("[{}] Failed to update brokers/{}/namespaceIsolationPolicies/{}", clientAppId(), cluster,
-                            policyName, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .attr("policy", policyName)
+                            .exception(ex)
+                            .log("Failed to delete namespace isolation policy");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -932,21 +983,28 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> clusterResources().getFailureDomainResources()
                         .setFailureDomainWithCreateAsync(cluster, domainName, old -> domain))
                 .thenAccept(__ -> {
-                    log.info("[{}] Successful set failure domain {} for cluster {}",
-                            clientAppId(), domainName, cluster);
+                    log.info()
+                            .attr("domain", domainName)
+                            .attr("cluster", cluster)
+                            .log("Successful set failure domain for cluster");
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof NotFoundException) {
-                        log.warn("[{}] Failed to update domain {}. clusters {}  Does not exist", clientAppId(), cluster,
-                                domainName);
+                        log.warn()
+                                .attr("cluster", cluster)
+                                .attr("domain", domainName)
+                                .log("Failed to update failure domain: Does not exist");
                         asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                 "Domain " + domainName + " for cluster " + cluster + " does not exist"));
                         return null;
                     }
-                    log.error("[{}] Failed to update clusters/{}/domainName/{}",
-                            clientAppId(), cluster, domainName, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .attr("domain", domainName)
+                            .exception(ex)
+                            .log("Failed to update failure domain");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -979,7 +1037,10 @@ public class ClustersBase extends AdminResource {
                                             .getFailureDomainAsync(cluster, domainName)
                                             .thenApply(failureDomainImpl -> Pair.of(domainName, failureDomainImpl))
                                             .exceptionally(ex -> {
-                                                log.warn("Failed to get domain {}", domainName, ex);
+                                                log.warn()
+                                                        .attr("domain", domainName)
+                                                        .exception(ex)
+                                                        .log("Failed to get domain");
                                                 return null;
                                             })).collect(Collectors.toList());
                             return FutureUtil.waitForAll(futures)
@@ -991,15 +1052,20 @@ public class ClustersBase extends AdminResource {
                         }).exceptionally(ex -> {
                             Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                             if (realCause instanceof NotFoundException) {
-                                log.warn("[{}] Failure-domain is not configured for cluster {}",
-                                        clientAppId(), cluster, ex);
+                                log.warn()
+                                        .attr("cluster", cluster)
+                                        .exception(ex)
+                                        .log("Failure-domain is not configured for cluster");
                                 return Collections.emptyMap();
                             }
                             throw FutureUtil.wrapToCompletionException(ex);
                         })
                 ).thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get failure-domains for cluster {}", clientAppId(), cluster, ex);
+                    log.error()
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to get failure-domains for cluster");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -1034,7 +1100,11 @@ public class ClustersBase extends AdminResource {
                             "Domain " + domainName + " for cluster " + cluster + " does not exist"));
                     asyncResponse.resume(failureDomain);
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get domain {} for cluster {}", clientAppId(), domainName, cluster, ex);
+                    log.error()
+                            .attr("domain", domainName)
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to get domain for cluster");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -1065,17 +1135,27 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> clusterResources()
                         .getFailureDomainResources().deleteFailureDomainAsync(cluster, domainName))
                 .thenAccept(__ -> {
-                    log.info("[{}] Successful delete domain {} in cluster {}", clientAppId(), domainName, cluster);
+                    log.info()
+                            .attr("domain", domainName)
+                            .attr("cluster", cluster)
+                            .log("Successful delete domain in cluster");
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(ex);
                     if (cause instanceof NotFoundException) {
-                        log.warn("[{}] Domain {} does not exist in {}", clientAppId(), domainName, cluster);
+                        log.warn()
+                                .attr("domain", domainName)
+                                .attr("cluster", cluster)
+                                .log("Domain does not exist");
                         asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                 "Domain-name " + domainName + " or cluster " + cluster + " does not exist"));
                         return null;
                     }
-                    log.error("[{}] Failed to delete domain {} in cluster {}", clientAppId(), domainName, cluster, ex);
+                    log.error()
+                            .attr("domain", domainName)
+                            .attr("cluster", cluster)
+                            .exception(ex)
+                            .log("Failed to delete domain in cluster");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -1112,21 +1192,18 @@ public class ClustersBase extends AdminResource {
                                             throw FutureUtil.wrapToCompletionException(ex);
                                         }
                                         if (realCause instanceof NotFoundException) {
-                                            if (log.isDebugEnabled()) {
-                                                log.debug("[{}] Domain is not configured for cluster",
-                                                        clientAppId(), ex);
-                                            }
-                                            return null;
+                                                log.debug()
+                                                        .exception(ex)
+                                                        .log("Domain is not configured for cluster");
+                                                                                        return null;
                                         }
-                                        log.warn("Failed to get domain {}", domainName, ex);
+                                        log.warn().attr("domain", domainName).exception(ex).log("Failed to get domain");
                                         return null;
                                     })
                             ).collect(Collectors.toList());
                     return FutureUtil.waitForAll(futures);
                 });
     }
-
-
 
     private CompletableFuture<Void> validateBothSuperuserAndClusterOperation(String clusterName,
                                                                              ClusterOperation operation) {
@@ -1138,25 +1215,24 @@ public class ClustersBase extends AdminResource {
                         || !clusterOperationValidation.isCompletedExceptionally()) {
                         return null;
                     }
-                    if (log.isDebugEnabled()) {
-                        Throwable superUserValidationException = null;
-                        try {
-                            superUserAccessValidation.join();
-                        } catch (Throwable ex) {
-                            superUserValidationException = FutureUtil.unwrapCompletionException(ex);
-                        }
-                        Throwable clusterOperationValidationException = null;
-                        try {
-                            clusterOperationValidation.join();
-                        } catch (Throwable ex) {
-                            clusterOperationValidationException = FutureUtil.unwrapCompletionException(ex);
-                        }
-                        log.debug("validateBothSuperuserAndClusterOperation failed."
-                                  + " originalPrincipal={} clientAppId={} operation={} cluster={} "
-                                  + "superuserValidationError={} clusterOperationValidationError={}",
-                                originalPrincipal(), clientAppId(), operation.toString(), clusterName,
-                                superUserValidationException, clusterOperationValidationException);
+                    Throwable superUserValidationException = null;
+                    try {
+                        superUserAccessValidation.join();
+                    } catch (Throwable ex) {
+                        superUserValidationException = FutureUtil.unwrapCompletionException(ex);
                     }
+                    Throwable clusterOperationValidationException = null;
+                    try {
+                        clusterOperationValidation.join();
+                    } catch (Throwable ex) {
+                        clusterOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                    }
+                    log.debug().attr("originalPrincipal", originalPrincipal())
+                            .attr("operation", operation.toString())
+                            .attr("cluster", clusterName)
+                            .attr("superuserValidationError", superUserValidationException)
+                            .attr("clusterOperationValidationError", clusterOperationValidationException)
+                            .log("validateBothSuperuserAndClusterOperation failed");
                     throw new RestException(Status.UNAUTHORIZED,
                             String.format("Unauthorized to validateBothSuperuserAndClusterOperation for"
                                           + " originalPrincipal [%s] and clientAppId [%s] "
@@ -1164,7 +1240,6 @@ public class ClustersBase extends AdminResource {
                                     originalPrincipal(), clientAppId(), operation.toString(), clusterName));
                 });
     }
-
 
     private CompletableFuture<Void> validateBothSuperuserAndClusterPolicyOperation(String clusterName, PolicyName name,
                                                                                    PolicyOperation operation) {
@@ -1176,25 +1251,24 @@ public class ClustersBase extends AdminResource {
                         || !clusterOperationValidation.isCompletedExceptionally()) {
                         return null;
                     }
-                    if (log.isDebugEnabled()) {
-                        Throwable superUserValidationException = null;
-                        try {
-                            superUserAccessValidation.join();
-                        } catch (Throwable ex) {
-                            superUserValidationException = FutureUtil.unwrapCompletionException(ex);
-                        }
-                        Throwable clusterOperationValidationException = null;
-                        try {
-                            clusterOperationValidation.join();
-                        } catch (Throwable ex) {
-                            clusterOperationValidationException = FutureUtil.unwrapCompletionException(ex);
-                        }
-                        log.debug("validateBothSuperuserAndClusterPolicyOperation failed."
-                                  + " originalPrincipal={} clientAppId={} operation={} cluster={} "
-                                  + "superuserValidationError={} clusterOperationValidationError={}",
-                                originalPrincipal(), clientAppId(), operation.toString(), clusterName,
-                                superUserValidationException, clusterOperationValidationException);
+                    Throwable superUserValidationException = null;
+                    try {
+                        superUserAccessValidation.join();
+                    } catch (Throwable ex) {
+                        superUserValidationException = FutureUtil.unwrapCompletionException(ex);
                     }
+                    Throwable clusterOperationValidationException = null;
+                    try {
+                        clusterOperationValidation.join();
+                    } catch (Throwable ex) {
+                        clusterOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                    }
+                    log.debug().attr("originalPrincipal", originalPrincipal())
+                            .attr("operation", operation.toString())
+                            .attr("cluster", clusterName)
+                            .attr("superuserValidationError", superUserValidationException)
+                            .attr("clusterOperationValidationError", clusterOperationValidationException)
+                            .log("validateBothSuperuserAndClusterPolicyOperation failed");
                     throw new RestException(Status.UNAUTHORIZED,
                             String.format("Unauthorized to validateBothSuperuserAndClusterPolicyOperation for"
                                           + " originalPrincipal [%s] and clientAppId [%s] "
@@ -1202,9 +1276,6 @@ public class ClustersBase extends AdminResource {
                                     originalPrincipal(), clientAppId(), operation.toString(), clusterName));
                 });
     }
-
-
-
 
     private CompletableFuture<Void> validateClusterOperationAsync(String cluster, ClusterOperation operation) {
         final var pulsar = pulsar();
@@ -1246,6 +1317,4 @@ public class ClustersBase extends AdminResource {
         }
         return CompletableFuture.completedFuture(null);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ClustersBase.class);
 }

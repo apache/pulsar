@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
@@ -49,7 +49,7 @@ import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.CompactorMXBean;
 
-@Slf4j
+@CustomLog
 public class NamespaceStatsAggregator {
 
     private static final FastThreadLocal<AggregatedBrokerStats> localBrokerStats =
@@ -592,14 +592,11 @@ public class NamespaceStatsAggregator {
         stream.writeSample(metricName, value, labels);
     }
 
-
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                     String namespace) {
         String[] labels = new String[]{"cluster", cluster, "namespace", namespace};
         stream.writeSample(metricName, value, labels);
     }
-
-
 
     private static void writeReplicationStat(PrometheusMetricStreams stream, String metricName,
                                              AggregatedNamespaceStats namespaceStats,
@@ -614,6 +611,5 @@ public class NamespaceStatsAggregator {
             );
         }
     }
-
 
 }

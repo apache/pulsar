@@ -26,8 +26,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class ResourceGroupsBase extends AdminResource {
     protected List<String> internalGetResourceGroups() {
@@ -35,7 +33,7 @@ public abstract class ResourceGroupsBase extends AdminResource {
             validateSuperUserAccess();
             return resourceGroupResources().listResourceGroups();
         } catch (Exception e) {
-            log.error("[{}] Failed to get ResourceGroups list: {}", clientAppId(), e);
+            log.error().exception(e).log("Failed to get ResourceGroups list");
             throw new RestException(e);
         }
     }
@@ -49,7 +47,10 @@ public abstract class ResourceGroupsBase extends AdminResource {
         } catch (RestException re) {
             throw re;
         } catch (Exception e) {
-            log.error("[{}] Failed to get ResourceGroup  {}", clientAppId(), rgName, e);
+            log.error()
+                    .attr("resourceGroup", rgName)
+                    .exception(e)
+                    .log("Failed to get ResourceGroup");
             throw new RestException(e);
         }
     }
@@ -78,11 +79,16 @@ public abstract class ResourceGroupsBase extends AdminResource {
 
             // write back the new ResourceGroup config.
             resourceGroupResources().updateResourceGroup(rgName, r -> resourceGroup);
-            log.info("[{}] Successfully updated the ResourceGroup {}", clientAppId(), rgName);
+            log.info()
+                    .attr("resourceGroup", rgName)
+                    .log("Successfully updated the ResourceGroup");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update configuration for ResourceGroup {}", clientAppId(), rgName, e);
+            log.error()
+                    .attr("resourceGroup", rgName)
+                    .exception(e)
+                    .log("Failed to update configuration for ResourceGroup");
             throw new RestException(e);
         }
     }
@@ -98,12 +104,17 @@ public abstract class ResourceGroupsBase extends AdminResource {
                 ? -1 : rgConfig.getDispatchRateInBytes());
         try {
             resourceGroupResources().createResourceGroup(rgName, rgConfig);
-            log.info("[{}] Created ResourceGroup {}", clientAppId(), rgName);
+            log.info().attr("resourceGroup", rgName).log("Created ResourceGroup");
         } catch (MetadataStoreException.AlreadyExistsException e) {
-            log.warn("[{}] Failed to create ResourceGroup {} - already exists", clientAppId(), rgName);
+            log.warn()
+                    .attr("resourceGroup", rgName)
+                    .log("Failed to create ResourceGroup - already exists");
             throw new RestException(Response.Status.CONFLICT, "ResourceGroup already exists");
         } catch (Exception e) {
-            log.error("[{}] Failed to create ResourceGroup {}", clientAppId(), rgName, e);
+            log.error()
+                    .attr("resourceGroup", rgName)
+                    .exception(e)
+                    .log("Failed to create ResourceGroup");
             throw new RestException(e);
         }
 
@@ -119,7 +130,10 @@ public abstract class ResourceGroupsBase extends AdminResource {
             try {
                 rgExists = resourceGroupResources().resourceGroupExists(rgName);
             } catch (Exception e) {
-                log.error("[{}] Failed to create/update ResourceGroup {}: {}", clientAppId(), rgName, e);
+                log.error()
+                        .attr("resourceGroup", rgName)
+                        .exceptionMessage(e)
+                        .log("Failed to create/update ResourceGroup");
             }
 
             try {
@@ -129,11 +143,17 @@ public abstract class ResourceGroupsBase extends AdminResource {
                     internalCreateResourceGroup(rgName, rgConfig);
                 }
             } catch (Exception e) {
-                log.error("[{}] Failed to create/update ResourceGroup {}: {}", clientAppId(), rgName, e);
+                log.error()
+                        .attr("resourceGroup", rgName)
+                        .exceptionMessage(e)
+                        .log("Failed to create/update ResourceGroup");
                 throw new RestException(e);
             }
         } catch (Exception e) {
-            log.error("[{}] Failed to create/update ResourceGroup {}: {}", clientAppId(), rgName, e);
+            log.error()
+                    .attr("resourceGroup", rgName)
+                    .exceptionMessage(e)
+                    .log("Failed to create/update ResourceGroup");
             throw new RestException(e);
         }
     }
@@ -150,7 +170,10 @@ public abstract class ResourceGroupsBase extends AdminResource {
                 }
             }
         } catch (Exception e) {
-            log.error("[{}] Failed to get tenant/namespace list {}: {}", clientAppId(), rgName, e);
+            log.error()
+                    .attr("resourceGroup", rgName)
+                    .exceptionMessage(e)
+                    .log("Failed to get tenant/namespace list");
             throw new RestException(e);
         }
         return false;
@@ -169,12 +192,13 @@ public abstract class ResourceGroupsBase extends AdminResource {
                 throw new RestException(Response.Status.PRECONDITION_FAILED, "ResourceGroup is in use");
             }
             resourceGroupResources().deleteResourceGroup(rgName);
-            log.info("[{}] Deleted ResourceGroup {}", clientAppId(), rgName);
+            log.info().attr("resourceGroup", rgName).log("Deleted ResourceGroup");
         } catch (Exception e) {
-            log.error("[{}] Failed to delete ResourceGroup {}.", clientAppId(), rgName, e);
+            log.error()
+                    .attr("resourceGroup", rgName)
+                    .exception(e)
+                    .log("Failed to delete ResourceGroup .");
             throw new RestException(e);
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ResourceGroupsBase.class);
 }

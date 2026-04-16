@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import io.github.merlimat.slog.Logger;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -39,13 +40,14 @@ import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  */
 public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers
         implements NonPersistentDispatcher {
+
+    private static final Logger LOG = Logger.get(NonPersistentDispatcherMultipleConsumers.class);
+    private final Logger log;
 
     private final NonPersistentTopic topic;
     protected final Subscription subscription;
@@ -69,18 +71,24 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
         this.name = topic.getName() + " / " + subscription.getName();
         this.msgDrop = new Rate();
         this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
+        this.log = LOG.with()
+                .attr("topic", topic.getName())
+                .attr("subscription", subscription.getName())
+                .build();
     }
 
     @Override
     public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
-            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
+            log.warn()
+                    .attr("consumer", consumer)
+                    .log("Dispatcher is already closed, closing consumer");
             consumer.disconnect();
             return CompletableFuture.completedFuture(null);
         }
 
         if (isConsumersExceededOnSubscription()) {
-            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
+            log.warn("Attempting to add consumer to subscription which reached max consumers limit");
             return FutureUtil.failedFuture(new ConsumerBusyException("Subscription reached max consumers limit"));
         }
 
@@ -98,10 +106,10 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         if (consumerSet.removeAll(consumer) == 1) {
             consumerList.remove(consumer);
-            log.info("Removed consumer {}", consumer);
+            log.info().attr("consumer", consumer).log("Removed consumer");
             if (consumerList.isEmpty()) {
                 if (closeFuture != null) {
-                    log.info("[{}] All consumers removed. Subscription is disconnected", name);
+                    log.info("All consumers removed, subscription is disconnected");
                     closeFuture.complete(null);
                 }
                 TOTAL_AVAILABLE_PERMITS_UPDATER.set(this, 0);
@@ -109,9 +117,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.getAvailablePermits());
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Trying to remove a non-connected consumer: {}", name, consumer);
-            }
+            log.debug().attr("consumer", consumer).log("Trying to remove a non-connected consumer");
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.getAvailablePermits());
         }
     }
@@ -143,16 +149,14 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     @Override
     public synchronized void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         if (!consumerSet.contains(consumer)) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Ignoring flow control from disconnected consumer {}", name, consumer);
-            }
+            log.debug()
+                    .attr("consumer", consumer)
+                    .log("Ignoring flow control from disconnected consumer");
             return;
         }
 
         TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, additionalNumberOfMessages);
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Trigger new read after receiving flow control message", consumer);
-        }
+        log.debug().attr("consumer", consumer).log("Trigger new read after receiving flow control message");
     }
 
     @Override
@@ -234,7 +238,4 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     protected void reScheduleRead() {
         // No-op
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentDispatcherMultipleConsumers.class);
-
 }

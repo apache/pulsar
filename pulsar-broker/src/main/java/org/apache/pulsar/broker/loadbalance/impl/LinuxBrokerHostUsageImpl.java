@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BitRateUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
@@ -46,7 +46,7 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 /**
  * Class that will return the broker host usage.
  */
-@Slf4j
+@CustomLog
 public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private long lastCollection;
     private double lastTotalNicUsageTx;
@@ -100,7 +100,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
         if (elapsedSeconds <= 0) {
-            log.warn("elapsedSeconds {} is not expected, skip this round of calculateBrokerHostUsage", elapsedSeconds);
+            log.warn().attr("elapsedSeconds", elapsedSeconds)
+                    .log("elapsedSeconds is not expected, skip this round of calculateBrokerHostUsage");
             return;
         }
         SystemResourceUsage usage = new SystemResourceUsage();

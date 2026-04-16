@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -31,13 +32,15 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.util.Codec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * given a timestamp find the first message (position) (published) at or before the timestamp.
  */
 public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback {
+
+    private static final Logger LOG = Logger.get(PersistentMessageFinder.class);
+    protected final Logger log;
+
     protected final ManagedCursor cursor;
     protected final String subName;
     protected final int ledgerCloseTimestampMaxClockSkewMillis;
@@ -57,14 +60,18 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         this.cursor = cursor;
         this.subName = Codec.decode(cursor.getName());
         this.ledgerCloseTimestampMaxClockSkewMillis = ledgerCloseTimestampMaxClockSkewMillis;
+        this.log = LOG.with()
+                .attr("topic", topicName)
+                .attr("subscription", subName)
+                .build();
     }
 
     public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback) {
         if (MESSAGE_FIND_IN_PROGRESS.compareAndSet(this, FALSE, TRUE)) {
             this.timestamp = timestamp;
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Starting message position find at timestamp {}", subName, timestamp);
-            }
+            log.debug()
+                    .attr("timestamp", timestamp)
+                    .log("Starting message position find at timestamp");
             Pair<Position, Position> range =
                     getFindPositionRange(cursor.getManagedLedger().getLedgersInfo().values(),
                             cursor.getManagedLedger().getLastConfirmedEntry(), timestamp,
@@ -75,17 +82,16 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     long entryTimestamp = entry.getEntryTimestamp();
                     return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
                 } catch (Exception e) {
-                    log.error("[{}][{}] Error deserializing message for message position find", topicName, subName, e);
+                    log.error()
+                            .exception(e)
+                            .log("Error deserializing message for message position find");
                 } finally {
                     entry.release();
                 }
                 return false;
             }, range.getLeft(), range.getRight(), this, callback, true);
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignore message position find scheduled task, last find is still running", topicName,
-                        subName);
-            }
+            log.debug("Ignore message position find scheduled task, last find is still running");
             callback.findEntryFailed(
                     new ManagedLedgerException.ConcurrentFindCursorPositionException("last find is still running"),
                     Optional.empty(), null);
@@ -140,20 +146,19 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
         }
         return Pair.of(start, end);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentMessageFinder.class);
-
     @Override
     public void findEntryComplete(Position position, Object ctx) {
         checkArgument(ctx instanceof AsyncCallbacks.FindEntryCallback);
         AsyncCallbacks.FindEntryCallback callback = (AsyncCallbacks.FindEntryCallback) ctx;
         if (position != null) {
-            log.info("[{}][{}] Found position {} closest to provided timestamp {}", topicName, subName, position,
-                    timestamp);
+            log.info()
+                    .attr("position", position)
+                    .attr("timestamp", timestamp)
+                    .log("Found position closest to provided timestamp");
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] No position found closest to provided timestamp {}", topicName, subName, timestamp);
-            }
+            log.debug()
+                    .attr("timestamp", timestamp)
+                    .log("No position found closest to provided timestamp");
         }
         messageFindInProgress = FALSE;
         callback.findEntryComplete(position, null);
@@ -163,10 +168,10 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
         checkArgument(ctx instanceof AsyncCallbacks.FindEntryCallback);
         AsyncCallbacks.FindEntryCallback callback = (AsyncCallbacks.FindEntryCallback) ctx;
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] message position find operation failed for provided timestamp {}", topicName, subName,
-                    timestamp, exception);
-        }
+        log.debug()
+                .attr("timestamp", timestamp)
+                .exception(exception)
+                .log("Message position find operation failed for provided timestamp");
         messageFindInProgress = FALSE;
         callback.findEntryFailed(exception, failedReadPosition, null);
     }

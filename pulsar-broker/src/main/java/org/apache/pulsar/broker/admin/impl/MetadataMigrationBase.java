@@ -27,7 +27,6 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.migration.MigrationState;
@@ -38,7 +37,6 @@ import org.apache.pulsar.metadata.impl.DualMetadataStore;
 /**
  * Admin resource for metadata store migration operations.
  */
-@Slf4j
 public class MetadataMigrationBase extends AdminResource {
 
     @GET
@@ -59,7 +57,7 @@ public class MetadataMigrationBase extends AdminResource {
                 return MigrationState.NOT_STARTED;
             }
         } catch (Exception e) {
-            log.error("Failed to get migration status", e);
+            log.error().exception(e).log("Failed to get migration status");
             throw new RestException(e);
         }
     }
@@ -96,20 +94,20 @@ public class MetadataMigrationBase extends AdminResource {
             // Start migration in background thread
             pulsar().getExecutor().submit(() -> {
                 try {
-                    log.info("Starting metadata migration to: {}", targetUrl);
+                    log.info().attr("targetUrl", targetUrl).log("Starting metadata migration");
                     coordinator.startMigration();
                     log.info("Metadata migration completed successfully");
                 } catch (Exception e) {
-                    log.error("Metadata migration failed", e);
+                    log.error().exception(e).log("Metadata migration failed");
                 }
             });
 
-            log.info("Migration initiated to target: {}", targetUrl);
+            log.info().attr("targetUrl", targetUrl).log("Migration initiated");
 
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to start migration", e);
+            log.error().exception(e).log("Failed to start migration");
             throw new RestException(e);
         }
     }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.systopic;
 
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -27,9 +28,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class NamespaceEventsSystemTopicFactory {
 
     private final PulsarClient client;
@@ -40,7 +40,7 @@ public class NamespaceEventsSystemTopicFactory {
 
     public TopicPoliciesSystemTopicClient createTopicPoliciesSystemTopicClient(NamespaceName namespaceName) {
         TopicName topicName = getEventsTopicName(namespaceName);
-        log.info("Create topic policies system topic client {}", topicName.toString());
+        log.info().attr("client", topicName.toString()).log("Create topic policies system topic client");
         return new TopicPoliciesSystemTopicClient(client, topicName);
     }
 
@@ -72,7 +72,9 @@ public class NamespaceEventsSystemTopicFactory {
     public <T> TransactionBufferSnapshotBaseSystemTopicClient<T> createTransactionBufferSystemTopicClient(
             TopicName systemTopicName, SystemTopicTxnBufferSnapshotService<T>
             systemTopicTxnBufferSnapshotService, Class<T> schemaType) {
-        log.info("Create transaction buffer snapshot client, topicName : {}", systemTopicName.toString());
+        log.info()
+                .attr("topic", systemTopicName.toString())
+                .log("Create transaction buffer snapshot client");
         return new TransactionBufferSnapshotBaseSystemTopicClient(client, systemTopicName,
                 systemTopicTxnBufferSnapshotService, schemaType);
     }
@@ -89,6 +91,4 @@ public class NamespaceEventsSystemTopicFactory {
                     SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
         };
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicFactory.class);
 }

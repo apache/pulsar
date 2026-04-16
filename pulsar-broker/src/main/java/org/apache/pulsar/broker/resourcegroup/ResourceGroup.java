@@ -25,14 +25,13 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.val;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupOpStatus;
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The resource group (RG) data structure. One of these is created internally for every resource group configured.
@@ -44,6 +43,7 @@ import org.slf4j.LoggerFactory;
  * same RG across all of the monitoring classes it uses (Publish/Dispatch/...), instead of referencing one RG for
  * publish, another one for dispatch, etc.
  */
+@CustomLog
 public class ResourceGroup {
 
     /**
@@ -84,8 +84,11 @@ public class ResourceGroup {
         this.setDefaultResourceUsageTransportHandlers();
         this.resourceGroupPublishLimiter = new ResourceGroupPublishLimiter(rgConfig, rgs.getPulsar()
                 .getMonotonicClock());
-        log.info("attaching publish rate limiter {} to {} get {}", this.resourceGroupPublishLimiter, name,
-          this.getResourceGroupPublishLimiter());
+        log.info()
+                .attr("limiter", this.resourceGroupPublishLimiter)
+                .attr("resourceGroup", name)
+                .attr("publishLimiter", this.getResourceGroupPublishLimiter())
+                .log("attaching publish rate limiter");
     }
 
     // ctor for overriding the transport-manager fill/set buffer.
@@ -182,10 +185,10 @@ public class ResourceGroup {
 
             // If this is the first ref, register with the transport manager.
             if (this.resourceGroupTenantRefs.size() + this.resourceGroupNamespaceRefs.size() == 1) {
-                if (log.isDebugEnabled()) {
-                    log.debug("registerUsage for RG={}: registering with transport-mgr", this.resourceGroupName);
-                }
-                transportManager.registerResourceUsagePublisher(this.ruPublisher);
+                    log.debug()
+                            .attr("resourceGroup", this.resourceGroupName)
+                            .log("registerUsage for RG=: registering with transport-mgr");
+                                transportManager.registerResourceUsagePublisher(this.ruPublisher);
                 transportManager.registerResourceUsageConsumer(this.ruConsumer);
             }
         } else {
@@ -197,10 +200,10 @@ public class ResourceGroup {
 
             // If this was the last ref, unregister from the transport manager.
             if (this.resourceGroupTenantRefs.size() + this.resourceGroupNamespaceRefs.size() == 0) {
-                if (log.isDebugEnabled()) {
-                    log.debug("unRegisterUsage for RG={}: un-registering from transport-mgr", this.resourceGroupName);
-                }
-                transportManager.unregisterResourceUsageConsumer(this.ruConsumer);
+                    log.debug()
+                            .attr("resourceGroup", this.resourceGroupName)
+                            .log("unRegisterUsage for RG=: un-registering from transport-mgr");
+                                transportManager.unregisterResourceUsageConsumer(this.ruConsumer);
                 transportManager.unregisterResourceUsagePublisher(this.ruPublisher);
             }
         }
@@ -330,11 +333,11 @@ public class ResourceGroup {
             retval.bytes = pbus.usedValues.bytes;
             retval.messages = pbus.usedValues.messages;
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("getLocalUsageStatsFromBrokerReports: no usage report found for broker={} and monClass={}",
-                        myBrokerId, monClass);
-            }
-        }
+                log.debug()
+                        .attr("broker", myBrokerId)
+                        .attr("monClass", monClass)
+                        .log("getLocalUsageStatsFromBrokerReports: no usage report found");
+                    }
 
         return retval;
     }
@@ -362,10 +365,8 @@ public class ResourceGroup {
                                                      BytesAndMessagesCount newQuota) throws PulsarAdminException {
         // Only the Publish side is functional now; add the Dispatch side code when the consume side is ready.
         if (!ResourceGroupMonitoringClass.Publish.equals(monClass)) {
-            if (log.isDebugEnabled()) {
-                log.debug("Doing nothing for monClass={}; only Publish is functional", monClass);
-            }
-            return null;
+                log.debug().attr("monClass", monClass).log("Doing nothing; only Publish is functional");
+                        return null;
         }
 
         this.checkMonitoringClass(monClass);
@@ -380,12 +381,13 @@ public class ResourceGroup {
         } finally {
             monEntity.localUsageStatsLock.unlock();
         }
-        if (log.isDebugEnabled()) {
-            log.debug("updateLocalQuota for RG={}: set local {} quota to bytes={}, messages={}",
-                    this.resourceGroupName, monClass, newQuota.bytes, newQuota.messages);
-        }
-
-        return oldBMCount;
+            log.debug()
+                    .attr("resourceGroup", this.resourceGroupName)
+                    .attr("monClass", monClass)
+                    .attr("bytes", newQuota.bytes)
+                    .attr("messages", newQuota.messages)
+                    .log("updateLocalQuota for RG: set local quota");
+                return oldBMCount;
     }
 
     protected BytesAndMessagesCount getRgPublishRateLimiterValues() {
@@ -480,17 +482,19 @@ public class ResourceGroup {
         double sentCount = sendReport ? 1 : 0;
         rgLocalUsageReportCount.labels(rgName, monClass.name()).inc(sentCount);
         if (sendReport) {
-            if (log.isDebugEnabled()) {
-                log.debug("fillResourceUsage for RG={}: filled a {} update; bytes={}, messages={}",
-                        rgName, monClass, bytesUsed, messagesUsed);
-            }
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("fillResourceUsage for RG={}: report for {} suppressed "
-                    + "(suppressions={} since last sent report)",
-                        rgName, monClass, numSuppressions);
-            }
-        }
+                log.debug()
+                        .attr("resourceGroup", rgName)
+                        .attr("monClass", monClass)
+                        .attr("bytes", bytesUsed)
+                        .attr("messages", messagesUsed)
+                        .log("fillResourceUsage for RG: filled an update");
+                    } else {
+                log.debug()
+                        .attr("resourceGroup", rgName)
+                        .attr("monClass", monClass)
+                        .attr("suppressions", numSuppressions)
+                        .log("fillResourceUsage for RG: report suppressed since last sent report");
+                    }
 
         return sendReport;
     }
@@ -529,15 +533,16 @@ public class ResourceGroup {
             oldByteCount = oldUsageStats.usedValues.bytes;
             oldMessageCount = oldUsageStats.usedValues.messages;
         }
-
-        if (log.isDebugEnabled()) {
-            log.debug("resourceUsageListener for RG={}: updated {} stats for broker={} "
-                            + "with bytes={} (old ={}), messages={} (old={})",
-                    this.resourceGroupName, monClass, broker,
-                    newByteCount, oldByteCount,
-                    newMessageCount, oldMessageCount);
-        }
-    }
+            log.debug()
+                    .attr("resourceGroup", this.resourceGroupName)
+                    .attr("monClass", monClass)
+                    .attr("broker", broker)
+                    .attr("newBytes", newByteCount)
+                    .attr("oldBytes", oldByteCount)
+                    .attr("newMessages", newMessageCount)
+                    .attr("oldMessages", oldMessageCount)
+                    .log("resourceUsageListener: updated stats for broker");
+            }
 
     private void setResourceGroupMonitoringClassFields() {
         PerMonitoringClassFields monClassFields;
@@ -609,9 +614,6 @@ public class ResourceGroup {
 
     public PerMonitoringClassFields[] monitoringClassFields =
             new PerMonitoringClassFields[ResourceGroupMonitoringClass.values().length];
-
-    private static final Logger log = LoggerFactory.getLogger(ResourceGroupService.class);
-
     // Tenants and namespaces that are directly referencing this resource-group.
     // These are not kept on a per-monitoring class basis, since a given NS (for example) references the same RG
     // across all of its usage classes (publish/dispatch/...).

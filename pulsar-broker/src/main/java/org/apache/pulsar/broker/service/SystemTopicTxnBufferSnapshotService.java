@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 
-@Slf4j
+@CustomLog
 public class SystemTopicTxnBufferSnapshotService<T> {
 
     protected final ConcurrentHashMap<NamespaceName, SystemTopicClient<T>> clients;
@@ -72,7 +72,10 @@ public class SystemTopicTxnBufferSnapshotService<T> {
             this.snapshotService = snapshotService;
             this.future = future;
             this.future.exceptionally(t -> {
-                        log.error("[{}] Failed to create TB snapshot writer.", namespaceName, t);
+                        log.error()
+                                .attr("namespace", namespaceName)
+                                .exception(t)
+                                .log("Failed to create TB snapshot writer.");
                 snapshotService.refCountedWriterMap.remove(namespaceName, this);
                 return null;
             });
@@ -93,11 +96,12 @@ public class SystemTopicTxnBufferSnapshotService<T> {
                     final String topicName = writer.getSystemTopicClient().getTopicName().toString();
                     writer.closeAsync().exceptionally(t -> {
                         if (t != null) {
-                            log.error("[{}] Failed to close TB snapshot writer.", topicName, t);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(t)
+                                    .log("Failed to close TB snapshot writer.");
                         } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Success to close TB snapshot writer.", topicName);
-                            }
+                            log.debug().attr("topic", topicName).log("Success to close TB snapshot writer.");
                         }
                         return null;
                     });
@@ -158,7 +162,10 @@ public class SystemTopicTxnBufferSnapshotService<T> {
             try {
                 entry.getValue().close();
             } catch (Exception e) {
-                log.error("Failed to close system topic client for namespace {}", entry.getKey(), e);
+                log.error()
+                        .attr("key", entry.getKey())
+                        .exception(e)
+                        .log("Failed to close system topic client for namespace");
             }
         }
         clients.clear();
@@ -169,7 +176,10 @@ public class SystemTopicTxnBufferSnapshotService<T> {
                     try {
                         writer.close();
                     } catch (Exception e) {
-                        log.error("Failed to close writer for namespace {}", entry.getKey(), e);
+                        log.error()
+                                .attr("key", entry.getKey())
+                                .exception(e)
+                                .log("Failed to close writer for namespace");
                     }
                 });
             }

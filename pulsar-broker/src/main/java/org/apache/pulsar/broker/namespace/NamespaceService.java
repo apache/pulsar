@@ -52,7 +52,7 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -114,8 +114,6 @@ import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The <code>NamespaceService</code> provides resource ownership lookup as well as resource ownership claiming services
@@ -128,10 +126,8 @@ import org.slf4j.LoggerFactory;
  *
  * @see org.apache.pulsar.broker.PulsarService
  */
-@Slf4j
+@CustomLog
 public class NamespaceService implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(NamespaceService.class);
-
     private final ServiceConfiguration config;
     private final AtomicReference<LoadManager> loadManager;
     private final PulsarService pulsar;
@@ -152,7 +148,6 @@ public class NamespaceService implements AutoCloseable {
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
 
     private final List<NamespaceBundleSplitListener> bundleSplitListeners;
-
 
     private final RedirectManager redirectManager;
 
@@ -227,8 +222,11 @@ public class NamespaceService implements AutoCloseable {
                     // Do redirection if the cluster is in rollback or deploying.
                     return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
                         if (optResult.isPresent()) {
-                            LOG.info("[{}] Redirect lookup request to {} for topic {}",
-                                    pulsar.getBrokerId(), optResult.get(), topic);
+                            log.info()
+                                    .attr("brokerId", pulsar.getBrokerId())
+                                    .attr("redirect", optResult.get())
+                                    .attr("topic", topic)
+                                    .log("Redirect lookup request");
                             return CompletableFuture.completedFuture(optResult);
                         }
                         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
@@ -307,10 +305,11 @@ public class NamespaceService implements AutoCloseable {
      */
     public CompletableFuture<Optional<URL>> getWebServiceUrlAsync(ServiceUnitId suName, LookupOptions options) {
         if (suName instanceof TopicName name) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Getting web service URL of topic: {} - options: {}", name, options);
-            }
-            return getBundleAsync(name)
+                log.debug()
+                        .attr("topic", name)
+                        .attr("options", options)
+                        .log("Getting web service URL of topic: - options");
+                        return getBundleAsync(name)
                     .thenCompose(namespaceBundle ->
                             internalGetWebServiceUrl(name, namespaceBundle, options));
         }
@@ -343,8 +342,11 @@ public class NamespaceService implements AutoCloseable {
                                                                       LookupOptions options) {
         return findRedirectLookupResultAsync(bundle).thenCompose(optResult -> {
             if (optResult.isPresent()) {
-                LOG.info("[{}] Redirect lookup request to {} for topic {}",
-                        pulsar.getBrokerId(), optResult.get(), topic);
+                log.info()
+                        .attr("brokerId", pulsar.getBrokerId())
+                        .attr("redirect", optResult.get())
+                        .attr("topic", topic)
+                        .log("Redirect lookup request");
                 try {
                     LookupData lookupData = optResult.get().getLookupData();
                     final String redirectUrl = options.isRequestHttps()
@@ -352,7 +354,9 @@ public class NamespaceService implements AutoCloseable {
                     return CompletableFuture.completedFuture(Optional.of(new URL(redirectUrl)));
                 } catch (Exception e) {
                     // just log the exception, nothing else to do
-                    LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
+                    log.warn()
+                            .exception(e)
+                            .log("internalGetWebServiceUrl");
                 }
                 return CompletableFuture.completedFuture(Optional.empty());
             }
@@ -370,7 +374,9 @@ public class NamespaceService implements AutoCloseable {
                         return Optional.of(new URL(redirectUrl));
                     } catch (Exception e) {
                         // just log the exception, nothing else to do
-                        LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
+                        log.warn()
+                                .exception(e)
+                                .log("internalGetWebServiceUrl");
                     }
                 }
                 return Optional.empty();
@@ -387,14 +393,15 @@ public class NamespaceService implements AutoCloseable {
         String brokerId = pulsar.getBrokerId();
         // ensure that we own the heartbeat namespace
         if (registerNamespace(getHeartbeatNamespace(brokerId, config), true)) {
-            LOG.info("added heartbeat namespace name in local cache: ns={}",
-                    getHeartbeatNamespace(brokerId, config));
+            log.info()
+                    .attr("namespace", getHeartbeatNamespace(brokerId, config))
+                    .log("added heartbeat namespace name in local cache");
         }
 
         // we may not need strict ownership checking for bootstrap names for now
         for (String namespace : config.getBootstrapNamespaces()) {
             if (registerNamespace(NamespaceName.get(namespace), false)) {
-                LOG.info("added bootstrap namespace name in local cache: ns={}", namespace);
+                log.info().attr("namespace", namespace).log("added bootstrap namespace name in local cache");
             }
         }
     }
@@ -439,14 +446,14 @@ public class NamespaceService implements AutoCloseable {
 
             // ignore if not be owned for now
             if (!ensureOwned) {
-                LOG.info(msg);
+                log.info(msg);
                 return false;
             }
 
             // should not happen
             throw new IllegalStateException(msg);
         } catch (Exception e) {
-            LOG.error(e.getMessage(), e);
+            log.error().exception(e).log("Failed to register namespace bundle ownership");
             throw new PulsarServerException(e);
         }
     }
@@ -465,11 +472,11 @@ public class NamespaceService implements AutoCloseable {
      */
     private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             NamespaceBundle bundle, LookupOptions options) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("findBrokerServiceUrl: {} - options: {}", bundle, options);
-        }
-
-        Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
+            log.debug()
+                    .attr("bundle", bundle)
+                    .attr("options", options)
+                    .log("findBrokerServiceUrl");
+                Map<NamespaceBundle, CompletableFuture<Optional<LookupResult>>> targetMap;
         if (options.isAuthoritative()) {
             targetMap = findingBundlesAuthoritative;
         } else {
@@ -495,10 +502,9 @@ public class NamespaceService implements AutoCloseable {
                     future.completeExceptionally(
                             new IllegalStateException(String.format("Namespace bundle %s is being unloaded", bundle)));
                 } else {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
-                    }
-                    // find the target
+                        log.debug().attr("bundle", bundle).attr("owner", nsData)
+                                .log("Namespace bundle already owned");
+                                        // find the target
                     if (options.hasAdvertisedListenerName()) {
                         AdvertisedListener listener =
                                 nsData.get().getAdvertisedListeners().get(options.getAdvertisedListenerName());
@@ -518,7 +524,11 @@ public class NamespaceService implements AutoCloseable {
                     }
                 }
             }).exceptionally(exception -> {
-                LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
+                log.warn()
+                        .attr("bundle", bundle)
+
+                        .exception(exception)
+                        .log("Failed to check owner for bundle");
                 future.completeExceptionally(exception);
                 return null;
             });
@@ -565,7 +575,9 @@ public class NamespaceService implements AutoCloseable {
         String candidateBroker;
         LeaderElectionService les = pulsar.getLeaderElectionService();
         if (les == null) {
-            LOG.warn("The leader election has not yet been completed! NamespaceBundle[{}]", bundle);
+            log.warn()
+                    .attr("namespaceBundle", bundle)
+                    .log("The leader election has not yet been completed! NamespaceBundle");
             lookupFuture.completeExceptionally(
                     new IllegalStateException("The leader election has not yet been completed!"));
             return;
@@ -595,26 +607,27 @@ public class NamespaceService implements AutoCloseable {
                         if (!leaderBrokerActive) {
                             makeLoadManagerDecisionOnThisBroker = true;
                             if (currentLeader.isEmpty()) {
-                                LOG.warn(
-                                        "The information about the current leader broker wasn't available. "
-                                                + "Handling load manager decisions in a decentralized way. "
-                                                + "NamespaceBundle[{}]",
-                                        bundle);
+                                log.warn()
+                                        .attr("namespaceBundle", bundle)
+                                        .log("Leader broker info unavailable."
+                                                + " Using decentralized load"
+                                                + " manager decisions");
                             } else {
-                                LOG.warn(
-                                        "The current leader broker {} isn't active. "
-                                                + "Handling load manager decisions in a decentralized way. "
-                                                + "NamespaceBundle[{}]",
-                                        currentLeader.get(), bundle);
+                                log.warn()
+                                        .attr("broker", currentLeader.get())
+                                        .attr("namespaceBundle", bundle)
+                                        .log("The current leader broker isn't active. Handling load manager"
+                                                + " decisions in a decentralized way. NamespaceBundle");
                             }
                         }
                     }
                     if (makeLoadManagerDecisionOnThisBroker) {
                         Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
                         if (availableBroker.isEmpty()) {
-                            LOG.warn("Load manager didn't return any available broker. "
-                                            + "Returning empty result to lookup. NamespaceBundle[{}]",
-                                    bundle);
+                            log.warn()
+                                    .attr("namespaceBundle", bundle)
+                                    .log("Load manager didn't return any available broker. Returning empty result to"
+                                            + " lookup. NamespaceBundle");
                             lookupFuture.complete(Optional.empty());
                             return;
                         }
@@ -627,7 +640,11 @@ public class NamespaceService implements AutoCloseable {
                 }
             }
         } catch (Exception e) {
-            LOG.warn("Error when searching for candidate broker to acquire {}: {}", bundle, e.getMessage(), e);
+            log.warn()
+                    .attr("acquire", bundle)
+
+                    .exception(e)
+                    .log("Error when searching for candidate broker to acquire");
             lookupFuture.completeExceptionally(e);
             return;
         }
@@ -639,10 +656,8 @@ public class NamespaceService implements AutoCloseable {
                 // Load manager decided that the local broker should try to become the owner
                 ownershipCache.tryAcquiringOwnership(bundle).thenAccept(ownerInfo -> {
                     if (ownerInfo.isDisabled()) {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Namespace bundle {} is currently being unloaded", bundle);
-                        }
-                        lookupFuture.completeExceptionally(new IllegalStateException(
+                            log.debug().attr("bundle", bundle).log("Namespace bundle is currently being unloaded");
+                                                lookupFuture.completeExceptionally(new IllegalStateException(
                                 String.format("Namespace bundle %s is currently being unloaded", bundle)));
                     } else {
                         // Found owner for the namespace bundle
@@ -672,7 +687,10 @@ public class NamespaceService implements AutoCloseable {
                         }
                     }
                 }).exceptionally(exception -> {
-                    LOG.warn("Failed to acquire ownership for namespace bundle {}: {}", bundle, exception);
+                    log.warn()
+                            .attr("bundle", bundle)
+                            .exceptionMessage(exception)
+                            .log("Failed to acquire ownership for namespace bundle");
                     lookupFuture.completeExceptionally(new PulsarServerException(
                             "Failed to acquire ownership for namespace bundle " + bundle, exception));
                     return null;
@@ -680,12 +698,11 @@ public class NamespaceService implements AutoCloseable {
 
             } else {
                 // Load managed decider some other broker should try to acquire ownership
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Redirecting to broker {} to acquire ownership of bundle {}", candidateBroker, bundle);
-                }
-
-                // Now setting the redirect url
+                    log.debug()
+                            .attr("broker", candidateBroker)
+                            .attr("bundle", bundle)
+                            .log("Redirecting to broker to acquire ownership of bundle");
+                                // Now setting the redirect url
                 createLookupResult(candidateBroker, authoritativeRedirect, options.getAdvertisedListenerName())
                         .thenAccept(lookupResult -> lookupFuture.complete(Optional.of(lookupResult)))
                         .exceptionally(ex -> {
@@ -695,7 +712,10 @@ public class NamespaceService implements AutoCloseable {
 
             }
         } catch (Exception e) {
-            LOG.warn("Error in trying to acquire namespace bundle ownership for {}: {}", bundle, e.getMessage(), e);
+            log.warn()
+                    .attr("bundle", bundle)
+                    .exception(e)
+                    .log("Error in trying to acquire namespace bundle ownership");
             lookupFuture.completeExceptionally(e);
         }
     }
@@ -745,13 +765,13 @@ public class NamespaceService implements AutoCloseable {
     public boolean isBrokerActive(String candidateBroker) {
         Set<String> availableBrokers = getAvailableBrokers();
         if (availableBrokers.contains(candidateBroker)) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Broker {} is available for.", candidateBroker);
-            }
+            log.debug().attr("broker", candidateBroker).log("Broker is available");
             return true;
         } else {
-            LOG.warn("Broker {} couldn't be found in available brokers {}",
-                    candidateBroker, String.join(",", availableBrokers));
+            log.warn()
+                    .attr("broker", candidateBroker)
+                    .attr("availableBrokers", String.join(",", availableBrokers))
+                    .log("Broker couldn't be found in available brokers");
             return false;
         }
     }
@@ -774,18 +794,16 @@ public class NamespaceService implements AutoCloseable {
     private Optional<String> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
         Optional<ResourceUnit> leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
         if (leastLoadedBroker.isEmpty()) {
-            LOG.warn("No broker is available for {}", serviceUnit);
+            log.warn().attr("serviceUnit", serviceUnit).log("No broker is available");
             return Optional.empty();
         }
 
         String lookupAddress = leastLoadedBroker.get().getResourceId();
-
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("{} : redirecting to the least loaded broker, lookup address={}",
-                    pulsar.getBrokerId(),
-                    lookupAddress);
-        }
-        return Optional.of(lookupAddress);
+            log.debug()
+                    .attr("brokerId", pulsar.getBrokerId())
+                    .attr("address", lookupAddress)
+                    .log("redirecting to the least loaded broker, lookup address");
+                return Optional.of(lookupAddress);
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
@@ -912,7 +930,11 @@ public class NamespaceService implements AutoCloseable {
                 return false;
             }
         } catch (Exception e) {
-            LOG.warn("Exception in getting ownership info for service unit {}: {}", bundle, e.getMessage(), e);
+            log.warn()
+                    .attr("unit", bundle)
+
+                    .exception(e)
+                    .log("Exception in getting ownership info for service unit");
         }
 
         return false;
@@ -956,8 +978,11 @@ public class NamespaceService implements AutoCloseable {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
             if (ex == null) {
                 if (splitBoundaries == null || splitBoundaries.size() == 0) {
-                    LOG.info("[{}] No valid boundary found in {} to split bundle {}",
-                            bundle.getNamespaceObject().toString(), boundaries, bundle.getBundleRange());
+                    log.info()
+                            .attr("namespaceObject", bundle.getNamespaceObject().toString())
+                            .attr("boundaries", boundaries)
+                            .attr("bundle", bundle.getBundleRange())
+                            .log("No valid boundary found to split bundle");
                     completionFuture.complete(null);
                     return;
                 }
@@ -968,7 +993,7 @@ public class NamespaceService implements AutoCloseable {
                                 // Zookeeper.
                                 if (splitBundles == null) {
                                     String msg = format("bundle %s not found under namespace", bundle.toString());
-                                    LOG.warn(msg);
+                                    log.warn(msg);
                                     updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
                                     return;
                                 }
@@ -978,12 +1003,13 @@ public class NamespaceService implements AutoCloseable {
                                 checkArgument(splitBundles.getRight().size() == splitBoundaries.size() + 1,
                                         "bundle has to be split in " + (splitBoundaries.size() + 1) + " bundles");
                                 NamespaceName nsname = bundle.getNamespaceObject();
-                                if (LOG.isDebugEnabled()) {
-                                    LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {}, bundles: {}",
-                                            nsname.toString(), bundle.getBundleRange(), counter.get(),
-                                            splitBundles.getRight());
-                                }
-                                try {
+                                    log.debug()
+                                            .attr("namespace", nsname.toString())
+                                            .attr("bundleRange", bundle.getBundleRange())
+                                            .attr("counter", counter.get())
+                                            .attr("bundles", splitBundles.getRight())
+                                            .log("splitAndOwnBundleOnce");
+                                                                try {
                                     // take ownership of newly split bundles
                                     for (NamespaceBundle sBundle : splitBundles.getRight()) {
                                         Objects.requireNonNull(ownershipCache.tryAcquiringOwnership(sBundle));
@@ -997,7 +1023,7 @@ public class NamespaceService implements AutoCloseable {
                                         String msg = format("failed to update namespace policies [%s], "
                                                         + "NamespaceBundle: %s due to %s",
                                                 nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
-                                        LOG.warn(msg);
+                                        log.warn(msg);
                                         updateFuture.completeExceptionally(
                                                 new ServiceUnitNotReadyException(msg, ex1.getCause()));
                                         return null;
@@ -1006,7 +1032,7 @@ public class NamespaceService implements AutoCloseable {
                                     String msg = format(
                                             "failed to acquire ownership of split bundle for namespace [%s], %s",
                                             nsname.toString(), e.getMessage());
-                                    LOG.warn(msg, e);
+                                    log.warn().exception(e).log(msg);
                                     updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, e));
                                 }
                             });
@@ -1034,7 +1060,7 @@ public class NamespaceService implements AutoCloseable {
                         // Retry enough, or meet other exception
                         String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",
                             bundle.toString(), counter.get(), t.getMessage());
-                        LOG.warn(msg2);
+                        log.warn(msg2);
                         completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
                     }
                     return;
@@ -1061,7 +1087,7 @@ public class NamespaceService implements AutoCloseable {
                             String msg1 = format(
                                     "failed to disable bundle %s under namespace [%s] with error %s",
                                     bundle.getNamespaceObject().toString(), bundle, ex.getMessage());
-                            LOG.warn(msg1, e);
+                            log.warn().exception(e).log(msg1);
                             completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
                             return null;
                         });
@@ -1082,8 +1108,11 @@ public class NamespaceService implements AutoCloseable {
         CompletableFuture<List<Long>> splitBoundary = getSplitBoundary(bundle, boundaries, nsBundleSplitAlgorithm);
         return splitBoundary.thenCompose(splitBoundaries -> {
                     if (splitBoundaries == null || splitBoundaries.size() == 0) {
-                        LOG.info("[{}] No valid boundary found in {} to split bundle {}",
-                                bundle.getNamespaceObject().toString(), boundaries, bundle.getBundleRange());
+                        log.info()
+                                .attr("namespaceObject", bundle.getNamespaceObject().toString())
+                                .attr("boundaries", boundaries)
+                                .attr("bundle", bundle.getBundleRange())
+                                .log("No valid boundary found to split bundle");
                         return CompletableFuture.completedFuture(null);
                     }
                     return pulsar.getNamespaceService().getNamespaceBundleFactory()
@@ -1149,14 +1178,13 @@ public class NamespaceService implements AutoCloseable {
                     return oldPolicies;
                 });
             } else {
-                LOG.error("Policies of namespace {} is not exist!", nsname);
+                log.error().attr("namespace", nsname).log("Policies of namespace is not exist!");
                 Policies newPolicies = new Policies();
                 newPolicies.bundles = nsBundles.getBundlesData();
                 return pulsar.getPulsarResources().getNamespaceResources().createPoliciesAsync(nsname, newPolicies);
             }
         });
     }
-
 
     /**
      * Update new bundle-range to LocalZk (create a new node if not present).
@@ -1282,7 +1310,7 @@ public class NamespaceService implements AutoCloseable {
                     bundleOwnedListener.unLoad(bundle);
                 }
             } catch (Throwable t) {
-                LOG.error("Call bundle {} ownership listener error", bundle, t);
+                log.error().attr("bundle", bundle).exception(t).log("Call bundle ownership listener error");
             }
         }
     }
@@ -1294,7 +1322,11 @@ public class NamespaceService implements AutoCloseable {
                     bundleSplitListener.onSplit(bundle);
                 }
             } catch (Throwable t) {
-                LOG.error("Call bundle {} split listener {} error", bundle, bundleSplitListener, t);
+                log.error()
+                        .attr("bundle", bundle)
+                        .attr("listener", bundleSplitListener)
+                        .exception(t)
+                        .log("Call bundle split listener error");
             }
         }
     }
@@ -1310,7 +1342,7 @@ public class NamespaceService implements AutoCloseable {
             try {
                 getOwnedServiceUnits().forEach(bundle -> notifyNamespaceBundleOwnershipListener(bundle, listeners));
             } catch (Exception e) {
-                LOG.error("Failed to notify namespace bundle ownership listener", e);
+                log.error().exception(e).log("Failed to notify namespace bundle ownership listener");
             }
         });
     }
@@ -1333,7 +1365,7 @@ public class NamespaceService implements AutoCloseable {
                         listener.onLoad(bundle);
                     }
                 } catch (Throwable t) {
-                    LOG.error("Call bundle {} ownership listener error", bundle, t);
+                    log.error().attr("bundle", bundle).exception(t).log("Call bundle ownership listener error");
                 }
             }
         }
@@ -1484,14 +1516,19 @@ public class NamespaceService implements AutoCloseable {
                 pulsarClient = (PulsarClientImpl) pulsar.getClient();
             } catch (Exception ex) {
                 // This error will never occur.
-                log.error("{} Failed to get partition metadata due to create internal admin client fails", topic, ex);
+                log.error()
+                        .attr("topic", topic)
+                        .exception(ex)
+                        .log("Failed to get partition metadata due to create internal admin client fails");
                 return FutureUtil.failedFuture(ex);
             }
             LookupOptions lookupOptions = LookupOptions.builder().readOnly(false).authoritative(true).build();
             return getBrokerServiceUrlAsync(TopicName.get(topic), lookupOptions)
                 .thenCompose(lookupResult -> {
                     if (!lookupResult.isPresent()) {
-                        log.error("{} Failed to get partition metadata due can not find the owner broker", topic);
+                        log.error()
+                                .attr("topic", topic)
+                                .log("Failed to get partition metadata due can not find the owner broker");
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(
                                 "No broker was available to own " + topicName));
                     }
@@ -1516,18 +1553,23 @@ public class NamespaceService implements AutoCloseable {
                                 if (fe.getFailedFeatureCheck() == SupportsGetPartitionedMetadataWithoutAutoCreation) {
                                     // Since the feature PIP-344 isn't supported, restore the behavior to previous
                                     // behavior before https://github.com/apache/pulsar/pull/22838 changes.
-                                    log.info("{} Checking the existence of a non-persistent non-partitioned topic "
-                                                    + "was performed using the behavior prior to PIP-344 changes, "
-                                                    + "because the broker does not support the PIP-344 feature "
-                                                    + "'supports_get_partitioned_metadata_without_auto_creation'.",
-                                            topic);
+                                    log.info()
+                                            .attr("topic", topic)
+                                            .log("Topic existence check used"
+                                                    + " pre-PIP-344 behavior:"
+                                                    + " broker lacks support for"
+                                                    + " get_partitioned_metadata"
+                                                    + "_without_auto_creation");
                                     return CompletableFuture.completedFuture(false);
                                 } else {
-                                    log.error("{} Failed to get partition metadata", topic, ex);
+                                    log.error()
+                                            .attr("topic", topic)
+                                            .exception(ex)
+                                            .log("Failed to get partition metadata");
                                     return CompletableFuture.failedFuture(ex);
                                 }
                             } else {
-                                log.error("{} Failed to get partition metadata", topic, ex);
+                                log.error().attr("topic", topic).exception(ex).log("Failed to get partition metadata");
                                 return CompletableFuture.failedFuture(ex);
                             }
                         });
@@ -1598,13 +1640,12 @@ public class NamespaceService implements AutoCloseable {
                         ListUtils::union);
     }
 
-
     public CompletableFuture<List<String>> getPartitions(NamespaceName namespaceName, TopicDomain topicDomain) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Getting children from partitioned-topics now: {} - {}", namespaceName, topicDomain);
-        }
-
-        return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+            log.debug()
+                    .attr("now", namespaceName)
+                    .attr("topicDomain", topicDomain)
+                    .log("Getting children from partitioned-topics now: -");
+                return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .listPartitionedTopicsAsync(namespaceName, topicDomain)
                 .thenCompose(topics -> {
             CompletableFuture<List<String>> result = new CompletableFuture<>();
@@ -1765,7 +1806,7 @@ public class NamespaceService implements AutoCloseable {
     public void unloadSLANamespace() throws Exception {
         NamespaceName namespaceName = getSLAMonitorNamespace(pulsar.getBrokerId(), config);
 
-        LOG.info("Checking owner for SLA namespace {}", namespaceName);
+        log.info().attr("namespace", namespaceName).log("Checking owner for SLA namespace");
 
         NamespaceBundle nsFullBundle = getFullBundle(namespaceName);
         if (!checkOwnershipPresent(nsFullBundle)) {
@@ -1774,10 +1815,10 @@ public class NamespaceService implements AutoCloseable {
             return;
         }
 
-        LOG.info("Trying to unload SLA namespace {}", namespaceName);
+        log.info().attr("namespace", namespaceName).log("Trying to unload SLA namespace");
         PulsarAdmin adminClient = pulsar.getAdminClient();
         adminClient.namespaces().unload(namespaceName.toString());
-        LOG.info("Namespace {} unloaded successfully", namespaceName);
+        log.info().attr("namespace", namespaceName).log("Namespace unloaded successfully");
     }
 
     public static NamespaceName getHeartbeatNamespace(String lookupBroker, ServiceConfiguration config) {
@@ -1791,7 +1832,9 @@ public class NamespaceService implements AutoCloseable {
     public static String checkHeartbeatNamespace(ServiceUnitId ns) {
         Matcher m = HEARTBEAT_NAMESPACE_PATTERN.matcher(ns.getNamespaceObject().toString());
         if (m.matches()) {
-            LOG.debug("Heartbeat namespace matched the lookup namespace {}", ns.getNamespaceObject().toString());
+            log.debug()
+                    .attr("namespace", ns.getNamespaceObject().toString())
+                    .log("Heartbeat namespace matched the lookup namespace");
             return m.group(1);
         } else {
             return null;
@@ -1832,13 +1875,13 @@ public class NamespaceService implements AutoCloseable {
         String brokerId = pulsar.getBrokerId();
         boolean isNameSpaceRegistered = registerNamespace(getSLAMonitorNamespace(brokerId, config), false);
         if (isNameSpaceRegistered) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Added SLA Monitoring namespace name in local cache: ns={}",
-                        getSLAMonitorNamespace(brokerId, config));
-            }
-        } else if (LOG.isDebugEnabled()) {
-            LOG.debug("SLA Monitoring not owned by the broker: ns={}",
-                    getSLAMonitorNamespace(brokerId, config));
+            log.debug()
+                    .attr("namespace", getSLAMonitorNamespace(brokerId, config))
+                    .log("Added SLA Monitoring namespace name in local cache");
+        } else {
+            log.debug()
+                    .attr("namespace", getSLAMonitorNamespace(brokerId, config))
+                    .log("SLA Monitoring not owned by the broker");
         }
         return isNameSpaceRegistered;
     }
@@ -1849,7 +1892,10 @@ public class NamespaceService implements AutoCloseable {
             try {
                 client.shutdown();
             } catch (PulsarClientException e) {
-                LOG.warn("Error shutting down namespace client for cluster {}", cluster, e);
+                log.warn()
+                        .attr("cluster", cluster)
+                        .exception(e)
+                        .log("Error shutting down namespace client for cluster");
             }
         });
     }

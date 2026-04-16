@@ -30,7 +30,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -57,7 +57,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.ScopeType;
 
-@Slf4j
+@CustomLog
 @Command(name = "standalone", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class PulsarStandalone implements AutoCloseable {
 
@@ -399,7 +399,12 @@ public class PulsarStandalone implements AutoCloseable {
                 admin.namespaces().createNamespace(ns.toString(), config.getDefaultNumberOfNamespaceBundles());
             }
         } catch (PulsarAdminException e) {
-            log.error("Failed to create namespace {} on cluster {} and tenant {}", ns, cluster, publicTenant, e);
+            log.error()
+                    .attr("namespace", ns)
+                    .attr("cluster", cluster)
+                    .attr("tenant", publicTenant)
+                    .exception(e)
+                    .log("Failed to create namespace on cluster and tenant");
         }
     }
 
@@ -441,7 +446,7 @@ public class PulsarStandalone implements AutoCloseable {
                 bkEnsemble = null;
             }
         } catch (Exception e) {
-            log.error("Shutdown failed: {}", e.getMessage(), e);
+            log.error().exception(e).log("Shutdown failed");
         }
     }
 
@@ -452,11 +457,11 @@ public class PulsarStandalone implements AutoCloseable {
             Path metadataDirPath = Paths.get(metadataDir);
             metadataStoreUrl = "rocksdb://" + metadataDirPath.toAbsolutePath();
             if (wipeData && Files.exists(metadataDirPath)) {
-                log.info("Wiping RocksDb metadata store at {}", metadataStoreUrl);
+                log.info().attr("metadataStoreUrl", metadataStoreUrl).log("Wiping RocksDb metadata store");
                 cleanDirectory(metadataDirPath.toFile());
             }
         } else {
-            log.info("Starting BK with metadata store: {}", metadataStoreUrl);
+            log.info().attr("metadataStoreUrl", metadataStoreUrl).log("Starting BK with metadata store");
         }
 
         ServerConfiguration bkServerConf = new ServerConfiguration();
@@ -504,7 +509,7 @@ public class PulsarStandalone implements AutoCloseable {
     }
 
     protected void processTerminator(int exitCode) {
-        log.info("Halting standalone process with code {}", exitCode);
+        log.info().attr("exitCode", exitCode).log("Halting standalone process");
         ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
     }
 

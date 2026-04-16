@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,11 +59,12 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.IntOpenHashSet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers implements
         StickyKeyDispatcher {
+
+    private static final Logger LOG = Logger.get(PersistentStickyKeyDispatcherMultipleConsumers.class);
+    protected final Logger log;
 
     private final boolean allowOutOfOrderDelivery;
     private final StickyKeyConsumerSelector selector;
@@ -78,6 +80,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         super(topic, cursor, subscription, ksm.isAllowOutOfOrderDelivery());
+        this.log = LOG.with().ctx(super.log).build();
 
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         this.keySharedMode = ksm.getKeySharedMode();
@@ -107,12 +110,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private void stickyKeyHashUnblocked(int stickyKeyHash) {
-        if (log.isDebugEnabled()) {
-            if (stickyKeyHash > -1) {
-                log.debug("[{}] Sticky key hash {} is unblocked", getName(), stickyKeyHash);
-            } else {
-                log.debug("[{}] Some sticky key hashes are unblocked", getName());
-            }
+        if (stickyKeyHash > -1) {
+            log.debug()
+                    .attr("stickyKeyHash", stickyKeyHash)
+                    .log("Sticky key hash is unblocked");
+        } else {
+            log.debug("Some sticky key hashes are unblocked");
         }
         reScheduleReadWithKeySharedUnblockingInterval();
     }
@@ -129,7 +132,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @Override
     public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
-            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
+            log.warn()
+                    .attr("consumer", consumer)
+                    .log("Dispatcher is already closed. Closing consumer");
             consumer.disconnect();
             return CompletableFuture.completedFuture(null);
         }
@@ -172,7 +177,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (c != skipConsumer) {
                 c.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
-                        log.warn("[{}] Sticky key hash was missing for {}:{}", getName(), ledgerId, entryId);
+                        log.warn()
+                                .attr("ledgerId", ledgerId)
+                                .attr("entryId", entryId)
+                                .log("Sticky key hash was missing for");
                         return;
                     }
                     if (updatedHashRanges.containsStickyKey(stickyKeyHash)) {
@@ -247,11 +255,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     // order to preserver order delivery, we need to discard this read result, and try to trigger a
                     // replay read, that containing "relayPosition", by calling readMoreEntries.
                     if (replayPosition.compareTo(minReplayedPosition) < 0) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Position {} (<{}) is inserted for relay during current {} read, "
-                                            + "discard this read and retry with readMoreEntries.",
-                                    name, replayPosition, minReplayedPosition, readType);
-                        }
+                        log.debug()
+                                .attr("replayPosition", replayPosition)
+                                .attr("minReplayedPosition", minReplayedPosition)
+                                .attr("readType", readType)
+                                .log("Position (<) is inserted for relay during current read, "
+                                        + "discard this read and retry with readMoreEntries.");
                         if (readType == ReadType.Normal) {
                             entries.forEach(this::addEntryToReplay);
                         } else if (readType == ReadType.Replay) {
@@ -275,10 +284,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         for (Map.Entry<Consumer, List<Entry>> current : entriesByConsumerForDispatching.entrySet()) {
             Consumer consumer = current.getKey();
             List<Entry> entriesForConsumer = current.getValue();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] select consumer {} with messages num {}, read type is {}",
-                        name, consumer.consumerName(), entriesForConsumer.size(), readType);
-            }
+            log.debug()
+                    .attr("consumerName", consumer.consumerName())
+                    .attr("size", entriesForConsumer.size())
+                    .attr("readType", readType)
+                    .log("select consumer with messages num, read type is");
             // remove positions first from replay list first : sendMessages recycles entries
             if (readType == ReadType.Replay) {
                 for (Entry entry : entriesForConsumer) {
@@ -347,22 +357,33 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     private boolean handleAddingPendingAck(Consumer consumer, long ledgerId, long entryId, int stickyKeyHash) {
         if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
-            log.warn("[{}] Sticky key hash is missing for {}:{}", getName(), ledgerId, entryId);
+            log.warn()
+                    .attr("ledgerId", ledgerId)
+                    .attr("entryId", entryId)
+                    .log("Sticky key hash is missing");
             throw new IllegalArgumentException("Sticky key hash is missing for " + ledgerId + ":" + entryId);
         }
         DrainingHashesTracker.DrainingHashEntry drainingHashEntry = drainingHashesTracker.getEntry(stickyKeyHash);
         if (drainingHashEntry != null && drainingHashEntry.getConsumer() != consumer) {
-            log.warn("[{}] Another consumer id {} is already draining hash {}. Skipping adding {}:{} to pending acks "
-                            + "for consumer {}. Adding the message to replay.",
-                    getName(), drainingHashEntry.getConsumer(), stickyKeyHash, ledgerId, entryId, consumer);
+            log.warn()
+                    .attr("drainingConsumer", drainingHashEntry.getConsumer())
+                    .attr("stickyKeyHash", stickyKeyHash)
+                    .attr("ledgerId", ledgerId)
+                    .attr("entryId", entryId)
+                    .attr("consumer", consumer)
+                    .log("Another consumer id is already draining hash. Skipping adding to pending acks "
+                            + "for consumer. Adding the message to replay.");
             addMessageToReplay(ledgerId, entryId, stickyKeyHash);
             // block message from sending
             return false;
         }
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Adding {}:{} to pending acks for consumer id:{} name:{} with sticky key hash {}",
-                    getName(), ledgerId, entryId, consumer.consumerId(), consumer.consumerName(), stickyKeyHash);
-        }
+        log.debug()
+                .attr("ledgerId", ledgerId)
+                .attr("entryId", entryId)
+                .attr("consumerId", consumer.consumerId())
+                .attr("consumerName", consumer.consumerName())
+                .attr("stickyKeyHash", stickyKeyHash)
+                .log("Adding: to pending acks for consumer id: name: with sticky key hash");
         // allow adding the message to pending acks and sending the message to the consumer
         return true;
     }
@@ -569,9 +590,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (stickyKeyHash == null) {
                 // the sticky key hash is missing for delayed messages, the filtering will happen at the time of
                 // dispatch after reading the entry from the ledger
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] replay of entry at position {} doesn't contain sticky key hash.", name, position);
-                }
+                log.debug()
+                        .attr("position", position)
+                        .log("replay of entry at position doesn't contain sticky key hash.");
                 return true;
             }
             // check if the hash is already blocked, if so, then replaying of the position should be skipped
@@ -717,10 +738,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
      */
     @Override
     protected void handleNormalReadNotAllowed() {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] Skipping read for the topic since normal read isn't allowed. "
-                    + "Rescheduling a read with a backoff.", topic.getName(), getSubscriptionName());
-        }
+        log.debug()
+                .attr("topic", topic.getName())
+                .log("Skipping read for the topic since normal read isn't allowed. "
+                        + "Rescheduling a read with a backoff.");
         reScheduleReadWithBackoff();
     }
 
@@ -750,6 +771,4 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     public Map<Consumer, List<Range>> getConsumerKeyHashRanges() {
         return selector.getConsumerKeyHashRanges();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
 }

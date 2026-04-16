@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.qos.MonotonicClock;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -33,7 +33,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
-@Slf4j
+@CustomLog
 public class PublishRateLimiterImpl implements PublishRateLimiter {
     private volatile AsyncTokenBucket tokenBucketOnMessage;
     private volatile AsyncTokenBucket tokenBucketOnByte;
@@ -152,7 +152,7 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
                     final Producer producerFinal = producer;
                     producer.getCnx().execute(() -> unthrottleAction.accept(producerFinal));
                 } catch (Exception e) {
-                    log.error("Failed to unthrottle producer {}", producer, e);
+                    log.error().attr("producer", producer).exception(e).log("Failed to unthrottle producer");
                 }
                 throttledProducersCount.decrementAndGet();
             }

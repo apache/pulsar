@@ -43,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -58,12 +59,9 @@ import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class NamespaceBundleFactory {
-    private static final Logger LOG = LoggerFactory.getLogger(NamespaceBundleFactory.class);
-
     private final HashFunction hashFunc;
 
     private final AsyncLoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
@@ -92,11 +90,8 @@ public class NamespaceBundleFactory {
     }
 
     private CompletableFuture<NamespaceBundles> loadBundles(NamespaceName namespace, Executor executor) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Loading cache with bundles for {}", namespace);
-        }
-
-        if (pulsar == null) {
+            log.debug().attr("namespace", namespace).log("Loading cache with bundles");
+                if (pulsar == null) {
             return CompletableFuture.completedFuture(getBundles(namespace, Optional.empty()));
         }
 
@@ -137,7 +132,7 @@ public class NamespaceBundleFactory {
         if (e instanceof Error || System.nanoTime() > retryDeadline) {
             future.completeExceptionally(e);
         } else {
-            LOG.warn("Error loading bundle for {}. Retrying exception", namespace, e);
+            log.warn().attr("namespace", namespace).exception(e).log("Error loading bundle. Retrying");
             long retryDelay = backoff.next().toMillis();
             pulsar.getExecutor().schedule(() ->
                     doLoadBundles(namespace, future, backoff, retryDeadline), retryDelay, TimeUnit.MILLISECONDS);
@@ -154,13 +149,12 @@ public class NamespaceBundleFactory {
             throws IOException {
         NamespaceBundles namespaceBundles = getBundles(namespace,
                 Optional.of(Pair.of(localPolicies, version)));
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("[{}] Get bundles from getLocalZkCacheService: bundles: {}, version: {}",
-                    namespace,
-                    (localPolicies.bundles.getBoundaries() != null) ? localPolicies.bundles : "null",
-                    namespaceBundles.getVersion());
-        }
-        return namespaceBundles;
+            log.debug()
+                    .attr("namespace", namespace)
+                    .attr("bundles", (localPolicies.bundles.getBoundaries() != null) ? localPolicies.bundles : "null")
+                    .attr("version", namespaceBundles.getVersion())
+                    .log("Get bundles from getLocalZkCacheService");
+                return namespaceBundles;
     }
 
     private CompletableFuture<NamespaceBundles> copyToLocalPolicies(NamespaceName namespace) {
@@ -189,12 +183,14 @@ public class NamespaceBundleFactory {
                 final Optional<NamespaceName> namespace = NamespaceName.getIfValid(
                         getNamespaceFromPoliciesPath(n.getPath()));
                 if (namespace.isPresent()) {
-                    LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
+                    log.info()
+                            .attr("namespace", namespace)
+                            .log("Policy updated for namespace , refreshing the bundle cache.");
                     // Trigger a background refresh to fetch new bundle data from the policies
                     bundlesCache.synchronous().invalidate(namespace.get());
                 }
             } catch (Exception e) {
-                LOG.error("Failed to update the policy change for path {}", n.getPath(), e);
+                log.error().attr("path", n.getPath()).exception(e).log("Failed to update the policy change for path");
             }
         }
     }
@@ -212,7 +208,7 @@ public class NamespaceBundleFactory {
             return getBundleWithHighestTopicsAsync(nsname).get(PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC,
                     TimeUnit.SECONDS);
         } catch (Exception e) {
-            LOG.info("failed to derive bundle for {}", nsname, e);
+            log.info().attr("namespace", nsname).exception(e).log("failed to derive bundle");
             throw new IllegalStateException(e instanceof ExecutionException ? e.getCause() : e);
         }
     }

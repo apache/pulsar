@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -59,8 +60,6 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This is the "classic" dispatcher implementation for the Key_Shared subscription that was used before
@@ -70,6 +69,9 @@ import org.slf4j.LoggerFactory;
  */
 public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         extends PersistentDispatcherMultipleConsumersClassic implements StickyKeyDispatcher {
+
+    private static final Logger LOG = Logger.get(PersistentStickyKeyDispatcherMultipleConsumersClassic.class);
+    protected final Logger log;
 
     private final boolean allowOutOfOrderDelivery;
     private final StickyKeyConsumerSelector selector;
@@ -108,6 +110,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                                                   KeySharedMeta ksm,
                                                   @Nullable LinkedHashMap<Consumer, Position> recentlyJoinedConsumers) {
         super(topic, cursor, subscription, ksm.isAllowOutOfOrderDelivery());
+        this.log = LOG.with().ctx(super.log).build();
 
         this.allowOutOfOrderDelivery = ksm.isAllowOutOfOrderDelivery();
         if (recentlyJoinedConsumers == null) {
@@ -146,7 +149,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
     @Override
     public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
-            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
+            log.warn()
+                    .attr("consumer", consumer)
+                    .log("Dispatcher is already closed. Closing consumer");
             consumer.disconnect();
             return CompletableFuture.completedFuture(null);
         }
@@ -213,10 +218,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         }
         // Something went wrongly, sort the collection.
         if (sortNeeded) {
-            log.error("[{}] [{}] The items in recentlyJoinedConsumers are out-of-order. {}",
-                    topic.getName(), name, recentlyJoinedConsumers.entrySet().stream().map(entry ->
+            log.error()
+                    .attr("recentlyJoinedConsumers", recentlyJoinedConsumers.entrySet().stream().map(entry ->
                             String.format("%s-%s:%s", entry.getKey().consumerName(), entry.getValue().getLedgerId(),
-                                    entry.getValue().getEntryId())).collect(Collectors.toList()));
+                                    entry.getValue().getEntryId())).collect(Collectors.toList()))
+                    .log("The items in recentlyJoinedConsumers are out-of-order");
             List<Map.Entry<Consumer, Position>> sortedList = new ArrayList<>(recentlyJoinedConsumers.entrySet());
             Collections.sort(sortedList, Map.Entry.comparingByValue());
             recentlyJoinedConsumers.clear();
@@ -299,11 +305,12 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                     // order to preserver order delivery, we need to discard this read result, and try to trigger a
                     // replay read, that containing "relayPosition", by calling readMoreEntries.
                     if (replayPosition.compareTo(minReplayedPosition) < 0) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Position {} (<{}) is inserted for relay during current {} read, "
-                                            + "discard this read and retry with readMoreEntries.",
-                                    name, replayPosition, minReplayedPosition, readType);
-                        }
+                        log.debug()
+                                .attr("replayPosition", replayPosition)
+                                .attr("minReplayedPosition", minReplayedPosition)
+                                .attr("readType", readType)
+                                .log("Position (<) is inserted for relay during current read, "
+                                        + "discard this read and retry with readMoreEntries.");
                         if (readType == ReadType.Normal) {
                             entries.forEach(entry -> {
                                 long stickyKeyHash = getStickyKeyHash(entry);
@@ -350,10 +357,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
             int messagesForC = getRestrictedMaxEntriesForConsumer(consumer,
                     entriesWithSameKey.stream().map(Entry::getPosition).collect(Collectors.toList()), availablePermits,
                     readType, consumerStickyKeyHashesMap.get(consumer));
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] select consumer {} with messages num {}, read type is {}",
-                        name, consumer.consumerName(), messagesForC, readType);
-            }
+            log.debug()
+                    .attr("consumerName", consumer.consumerName())
+                    .attr("messagesForC", messagesForC)
+                    .attr("readType", readType)
+                    .log("select consumer with messages num, read type is");
 
             if (messagesForC < entriesWithSameKeyCount) {
                 // We are not able to push all the messages with given key to its consumer,
@@ -654,8 +662,4 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
         }
         return selector.makeStickyKeyHash(peekStickyKey(entry));
     }
-
-    private static final Logger log =
-            LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumersClassic.class);
-
 }

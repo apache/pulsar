@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.mutable.MutableLong;
@@ -39,7 +39,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.roaringbitmap.InvalidRoaringFormat;
 import org.roaringbitmap.RoaringBitmap;
 
-@Slf4j
+@CustomLog
 class ImmutableBucket extends Bucket {
 
     @Setter
@@ -78,9 +78,12 @@ class ImmutableBucket extends Bucket {
             loadMetaDataFuture = executeWithRetry(() -> bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId)
                     .whenComplete((___, ex) -> {
                         if (ex != null) {
-                            log.warn("[{}] Failed to get bucket snapshot metadata,"
-                                            + " bucketKey: {}, bucketId: {}",
-                                    dispatcherName, bucketKey, bucketId, ex);
+                            log.warn()
+                                    .attr("dispatcher", dispatcherName)
+                                    .attr("bucketKey", bucketKey)
+                                    .attr("bucketId", bucketId)
+                                    .exception(ex)
+                                    .log("Failed to get bucket snapshot metadata");
                         }
                     }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
                     .thenApply(snapshotMetadata -> {
@@ -118,9 +121,13 @@ class ImmutableBucket extends Bucket {
                     () -> bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, nextSegmentEntryId,
                             nextSegmentEntryId).whenComplete((___, ex) -> {
                         if (ex != null) {
-                            log.warn("[{}] Failed to get bucket snapshot segment. bucketKey: {},"
-                                            + " bucketId: {}, segmentEntryId: {}", dispatcherName, bucketKey(),
-                                    bucketId, nextSegmentEntryId, ex);
+                            log.warn()
+                                    .attr("dispatcher", dispatcherName)
+                                    .attr("bucketKey", bucketKey())
+                                    .attr("bucketId", bucketId)
+                                    .attr("segmentEntryId", nextSegmentEntryId)
+                                    .exception(ex)
+                                    .log("Failed to get bucket snapshot segment");
                         }
                     }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
                     .thenApply(bucketSnapshotSegments -> {
@@ -180,10 +187,13 @@ class ImmutableBucket extends Bucket {
             return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), nextSegmentEntryId,
                     lastSegmentEntryId).whenComplete((__, ex) -> {
                 if (ex != null) {
-                    log.warn(
-                            "[{}] Failed to get remain bucket snapshot segment, bucketKey: {},"
-                                    + " nextSegmentEntryId: {}, lastSegmentEntryId: {}",
-                            dispatcherName, bucketKey(), nextSegmentEntryId, lastSegmentEntryId, ex);
+                    log.warn()
+                            .attr("dispatcher", dispatcherName)
+                            .attr("bucketKey", bucketKey())
+                            .attr("nextSegmentEntryId", nextSegmentEntryId)
+                            .attr("lastSegmentEntryId", lastSegmentEntryId)
+                            .exception(ex)
+                            .log("Failed to get remain bucket snapshot segment");
                 }
             });
         }, BucketSnapshotPersistenceException.class, MaxRetryTimes);
@@ -199,13 +209,20 @@ class ImmutableBucket extends Bucket {
                 BucketSnapshotPersistenceException.class, MaxRetryTimes)
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
-                        log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
-                                dispatcherName, bucketId, bucketKey, ex);
+                        log.error()
+                                .attr("dispatcher", dispatcherName)
+                                .attr("bucketId", bucketId)
+                                .attr("bucketKey", bucketKey)
+                                .exception(ex)
+                                .log("Failed to delete bucket snapshot");
 
                         stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
                     } else {
-                        log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
-                                dispatcherName, bucketId, bucketKey);
+                        log.info()
+                                .attr("dispatcher", dispatcherName)
+                                .attr("bucketId", bucketId)
+                                .attr("bucketKey", bucketKey)
+                                .log("Delete bucket snapshot finish");
 
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
                                 System.currentTimeMillis() - deleteStartTime);
@@ -224,8 +241,12 @@ class ImmutableBucket extends Bucket {
         long bucketId = getAndUpdateBucketId();
         return bucketSnapshotStorage.getBucketSnapshotLength(bucketId).whenComplete((length, ex) -> {
             if (ex != null) {
-                log.error("[{}] Failed to get snapshot length, bucketId: {}, bucketKey: {}",
-                        dispatcherName, bucketId, bucketKey(), ex);
+                log.error()
+                        .attr("dispatcher", dispatcherName)
+                        .attr("bucketId", bucketId)
+                        .attr("bucketKey", bucketKey())
+                        .exception(ex)
+                        .log("Failed to get snapshot length");
             } else {
                 setSnapshotLength(length);
             }

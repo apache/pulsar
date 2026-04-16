@@ -20,12 +20,12 @@ package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
+import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.ToLongFunction;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
@@ -35,8 +35,11 @@ import org.apache.pulsar.common.util.StringInterner;
 /**
  * Store the last N snapshots that were scanned by a particular subscription.
  */
-@Slf4j
 public class ReplicatedSubscriptionSnapshotCache {
+
+    private static final Logger LOG = Logger.get(ReplicatedSubscriptionSnapshotCache.class);
+    private final Logger log;
+
     private final String subscription;
     private final ToLongFunction<Range<Position>> distanceFunction;
     private final int maxSnapshotToCache;
@@ -55,6 +58,7 @@ public class ReplicatedSubscriptionSnapshotCache {
         }
         this.maxSnapshotToCache = maxSnapshotToCache;
         this.sortedSnapshots = new TreeSet<>();
+        this.log = LOG.with().attr("subscription", subscription).build();
     }
 
     /**
@@ -231,10 +235,10 @@ public class ReplicatedSubscriptionSnapshotCache {
 
         SnapshotEntry entry = new SnapshotEntry(position, clusterEntryList);
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Added new replicated-subscription snapshot at {} -- {}", subscription, position,
-                    snapshot.getSnapshotId());
-        }
+        log.debug()
+                .attr("position", position)
+                .attr("snapshotId", snapshot::getSnapshotId)
+                .log("Added new replicated-subscription snapshot");
 
         // append to the double-linked list
         if (head == null) {
@@ -337,10 +341,12 @@ public class ReplicatedSubscriptionSnapshotCache {
         while (current != null) {
             if (current.position.compareTo(pos) > 0) {
                 // Snapshot is associated with a higher position, so it cannot be used now
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Snapshot {} is associated with a higher position {} so it cannot be used for mark "
-                            + "delete position {}", subscription, current, current.position, pos);
-                }
+                log.debug()
+                        .attr("current", current)
+                        .attr("position", current.position)
+                        .attr("pos", pos)
+                        .log("Snapshot is associated with a higher position so it cannot be used for "
+                                + "mark-delete position");
                 break;
             }
             // This snapshot is potentially good. Continue the search to see if there is a higher snapshot we
@@ -364,13 +370,15 @@ public class ReplicatedSubscriptionSnapshotCache {
             head.setDistanceToPrevious(0L);
         }
 
-        if (log.isDebugEnabled()) {
-            if (snapshot != null) {
-                log.debug("[{}] Advanced mark-delete position to {} -- found snapshot at {}", subscription, pos,
-                        snapshot.position());
-            } else {
-                log.debug("[{}] Advanced mark-delete position to {} -- snapshot not found", subscription, pos);
-            }
+        if (snapshot != null) {
+            log.debug()
+                    .attr("pos", pos)
+                    .attr("position", snapshot.position())
+                    .log("Advanced mark-delete position -- found snapshot");
+        } else {
+            log.debug()
+                    .attr("pos", pos)
+                    .log("Advanced mark-delete position -- snapshot not found");
         }
 
         return snapshot != null ? new SnapshotResult(snapshot.position(), snapshot.clusters()) : null;

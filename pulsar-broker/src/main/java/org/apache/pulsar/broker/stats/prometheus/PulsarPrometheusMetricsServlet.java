@@ -33,11 +33,11 @@ import javax.servlet.AsyncListener;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.eclipse.jetty.ee8.nested.HttpOutput;
 
-@Slf4j
+@CustomLog
 public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
     private static final long serialVersionUID = 1L;
     private static final int EXECUTOR_MAX_THREADS = 4;
@@ -57,7 +57,6 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
         gzipCompressionEnabledForMetrics = isGzipCompressionEnabledForEndpoint(
                 pulsar.getConfiguration().getHttpServerGzipCompressionExcludedPaths(), DEFAULT_METRICS_PATH);
     }
-
 
     @Override
     public void destroy() {
@@ -120,8 +119,9 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
                 // so that response writing can continue to up to 2 * timeout
                 if (metricsServletTimeoutMs > 0 && elapsedNanos > TimeUnit.MILLISECONDS.toNanos(
                         metricsServletTimeoutMs)) {
-                    log.warn("Prometheus metrics request was too long in queue ({}ms). Skipping sending metrics.",
-                            TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
+                    log.warn()
+                            .attr("queue", TimeUnit.NANOSECONDS.toMillis(elapsedNanos))
+                            .log("Prometheus metrics request was too long in queue (ms). Skipping sending metrics.");
                     if (!response.isCommitted() && !skipWritingResponse.get()) {
                         response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
                     }
@@ -136,7 +136,7 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
                     return;
                 }
                 if (ex != null) {
-                    log.error("Failed to generate metrics", ex);
+                    log.error().exception(ex).log("Failed to generate metrics");
                     response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
                     return;
                 }
@@ -165,7 +165,7 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
             } catch (EOFException e) {
                 log.error("Failed to write metrics to response due to EOFException");
             } catch (IOException e) {
-                log.error("Failed to write metrics to response", e);
+                log.error().exception(e).log("Failed to write metrics to response");
             } finally {
                 metricsBuffer.release();
                 context.complete();

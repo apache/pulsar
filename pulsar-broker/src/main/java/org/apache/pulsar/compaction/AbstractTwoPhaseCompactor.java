@@ -30,6 +30,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiPredicate;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -46,8 +47,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Compaction will go through the topic in two passes. The first pass
@@ -58,11 +57,11 @@ import org.slf4j.LoggerFactory;
  * the latest values in memory, as the payload can be many orders of
  * magnitude larger than a message id.
  */
+@CustomLog
 public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
 
   @VisibleForTesting
   static Runnable injectionAfterSeekInPhaseTwo = () -> {};
-  private static final Logger log = LoggerFactory.getLogger(AbstractTwoPhaseCompactor.class);
   protected static final int MAX_OUTSTANDING = 500;
   protected final Duration phaseOneLoopReadTimeout;
   protected final boolean topicCompactionRetainNullKey;
@@ -82,7 +81,6 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
   protected abstract boolean compactMessage(String topic, Map<String, T> latestForKey,
       RawMessage m, MessageMetadata metadata, MessageId id);
 
-
   protected abstract boolean compactBatchMessage(String topic, Map<String, T> latestForKey,
       RawMessage m,
       MessageMetadata metadata, MessageId id);
@@ -96,7 +94,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
             return phaseOne(reader).thenCompose(
                 (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, toLatestMessageIdForKey(r.latestForKey), bk));
           } else {
-            log.info("Skip compaction of the empty topic {}", reader.getTopic());
+            log.info().attr("topic", reader.getTopic()).log("Skip compaction of the empty topic");
             return CompletableFuture.completedFuture(-1L);
           }
         });
@@ -109,8 +107,10 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
 
     reader.getLastMessageIdAsync()
         .thenAccept(lastMessageId -> {
-          log.info("Commencing phase one of compaction for {}, reading to {}",
-              reader.getTopic(), lastMessageId);
+          log.info()
+                  .attr("topic", reader.getTopic())
+                  .attr("lastMessageId", lastMessageId)
+                  .log("Commencing phase one of compaction");
           // Each entry is processed as a whole, discard the batchIndex part deliberately.
           MessageIdImpl lastImpl = (MessageIdImpl) lastMessageId;
           MessageIdImpl lastEntryMessageId = new MessageIdImpl(lastImpl.getLedgerId(),
@@ -180,9 +180,13 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     Map<String, byte[]> metadata =
         LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
     return createLedger(bk, metadata).thenCompose((ledger) -> {
-      log.info(
-          "Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
-          reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
+      log.info()
+              .attr("topic", reader.getTopic())
+              .attr("from", from)
+              .attr("to", to)
+              .attr("compactingCount", latestForKey.size())
+              .attr("ledgerId", ledger.getId())
+              .log("Commencing phase two of compaction");
       return phaseTwoSeekThenLoop(reader, from, to, lastReadId, latestForKey, bk, ledger);
     });
   }
@@ -206,7 +210,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
           if (exception != null) {
             deleteLedger(bk, ledger).whenComplete((res2, exception2) -> {
               if (exception2 != null) {
-                log.warn("Cleanup of ledger {} for failed", ledger, exception2);
+                log.warn().attr("ledger", ledger).exceptionMessage(exception2).log("Cleanup of ledger failed");
               }
               // complete with original exception
               promise.completeExceptionally(exception);
@@ -249,8 +253,10 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
                 m, metadata, (key, subid) -> subid.equals(latestForKey.get(key)),
                 topicCompactionRetainNullKey);
           } catch (IOException ioe) {
-            log.info("Error decoding batch for message {}. Whole batch will be included in output",
-                id, ioe);
+            log.info()
+                    .attr("message", id)
+                    .exception(ioe)
+                    .log("Error decoding batch for message . Whole batch will be included in output");
             messageToAdd = Optional.of(m);
           }
         } else {
@@ -338,7 +344,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
             }
           }, null, metadata);
     } catch (Throwable t) {
-      log.error("Encountered unexpected error when creating compaction ledger", t);
+      log.error().exception(t).log("Encountered unexpected error when creating compaction ledger");
       return FutureUtil.failedFuture(t);
     }
     return bkf;
@@ -412,16 +418,13 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     }
   }
 
-
   protected Optional<RawMessage> rebatchMessage(String topic, RawMessage msg,
       MessageMetadata metadata,
       BiPredicate<String, MessageId> filter,
       boolean retainNullKey)
       throws IOException {
-    if (log.isDebugEnabled()) {
-      log.debug("Rebatching message {} for topic {}", msg.getMessageId(), topic);
-    }
-    return RawBatchConverter.rebatchMessage(msg, metadata, filter, retainNullKey);
+      log.debug().attr("message", msg.getMessageId()).attr("topic", topic).log("Rebatching message for topic");
+        return RawBatchConverter.rebatchMessage(msg, metadata, filter, retainNullKey);
   }
 
   protected static class PhaseOneResult<T> {

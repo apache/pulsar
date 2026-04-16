@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.commons.lang3.concurrent.ConcurrentInitializer;
 import org.apache.commons.lang3.concurrent.LazyInitializer;
 import org.apache.commons.lang3.mutable.Mutable;
@@ -68,14 +69,13 @@ import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Cached topic policies service will cache the system topic reader and the topic policies
  *
  * While reader cache for the namespace was removed, the topic policies will remove automatically.
  */
+@CustomLog
 public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesService {
 
     private final PulsarService pulsarService;
@@ -90,7 +90,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             try {
                 return new NamespaceEventsSystemTopicFactory(pulsarService.getClient());
             } catch (PulsarServerException e) {
-                log.error("Create namespace event system topic factory error.", e);
+                log.error().exception(e).log("Create namespace event system topic factory error.");
                 throw new RuntimeException(e);
             }
         }
@@ -131,7 +131,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     try {
                         ((SystemTopicClient.Writer) writer).close();
                     } catch (Exception e) {
-                        log.error("[{}] Close writer error.", namespaceName, e);
+                        log.error().attr("namespace", namespaceName).exception(e).log("Close writer error.");
                     }
                 })
                 .recordStats()
@@ -187,7 +187,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             // If the system topic named "__change_events" has been deleted, it means all the data in the topic have
             // been deleted, so we do not need to delete the message that we want to delete again.
             if (!exists) {
-                log.info("Skip delete topic-level policies because {} has been removed before", changeEvents);
+                log.info()
+                        .attr("changeEvents", changeEvents)
+                        .log("Skip delete topic-level policies because has been removed before");
                 return CompletableFuture.completedFuture(null);
             }
             // delete local policy
@@ -239,16 +241,19 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             .getPoliciesAsync(topicName.getNamespaceObject())
                             .thenCompose(namespacePolicies -> {
                                 if (namespacePolicies.isPresent() && namespacePolicies.get().deleted) {
-                                    log.debug("[{}] skip sending topic policy event since the namespace is deleted",
-                                            topicName);
+                                    log.debug()
+                                            .attr("topic", topicName)
+                                            .log("skip sending topic policy event since the namespace is deleted");
                                     return CompletableFuture.completedFuture(null);
                                 }
                                 return getTopicPoliciesAsync(partitionedTopicName,
                                         isGlobalPolicy ? GetType.GLOBAL_ONLY : GetType.LOCAL_ONLY)
                                         .thenCompose(currentPolicies -> {
                                             if (currentPolicies.isEmpty() && skipUpdateWhenTopicPolicyDoesntExist) {
-                                                log.debug("[{}] No existing policies, skipping sending event as "
-                                                        + "requested", topicName);
+                                                log.debug()
+                                                        .attr("topic", topicName)
+                                                        .log("No existing policies, skipping sending event as "
+                                                                + "requested");
                                                 return CompletableFuture.completedFuture(null);
                                             }
                                             TopicPolicies policiesToUpdate;
@@ -405,7 +410,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             try {
                 future.complete(null);
             } catch (Exception ex) {
-                log.error("Failed to complete pending future for message id {}.", messageId, ex);
+                log.error()
+                        .attr("messageId", messageId)
+                        .exception(ex)
+                        .log("Failed to complete pending future for message id.");
             }
         }
     }
@@ -428,8 +436,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     if (actionType == ActionType.DELETE) {
                         var future = writer.deleteAsync(eventKey, event);
                         future.exceptionally(ex -> {
-                            log.error("Failed to delete {} topic policy [{}] error.",
-                                    isGlobalPolicy ? "global" : "local", topicName, ex);
+                            log.error()
+                                    .attr("policyType", isGlobalPolicy ? "global" : "local")
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to delete topic policy");
                             return null;
                         });
                         return future;
@@ -477,7 +488,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     try {
                         listener.onUpdate(null);
                     } catch (Throwable error) {
-                        log.error("[{}] call listener error.", topicName, error);
+                        log.error().attr("topic", topicName).exception(error).log("call listener error.");
                     }
                 }
             }
@@ -497,7 +508,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 try {
                     listener.onUpdate(policies);
                 } catch (Throwable error) {
-                    log.error("[{}] call listener error.", topicName, error);
+                    log.error().attr("topic", topicName).exception(error).log("call listener error.");
                 }
             }
         }
@@ -538,7 +549,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             });
             final var p = policiesFutureHolder.get();
             if (!p.getLeft()) {
-                log.info("The future of {} has been removed from cache, retry getTopicPolicies again", namespace);
+                log.info()
+                        .attr("namespace", namespace)
+                        .log("The future of has been removed from cache, retry getTopicPolicies again");
                 return getTopicPoliciesAsync(topicName, type);
             }
             return CompletableFuture.completedFuture(p.getRight());
@@ -556,8 +569,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (previousCount == 0) {
             // initialize policies cache asynchronously on the first bundle load
             prepareInitPoliciesCacheAsync(namespace).exceptionally(t -> {
-                log.warn("Failed to prepare policies cache for namespace {} due to previously logged error ({}).",
-                        namespace, t.getMessage());
+                log.warn()
+                        .attr("namespace", namespace)
+                        .exceptionMessage(t)
+                        .log("Failed to prepare policies cache for namespace due to previously logged error");
                 return null;
             });
         }
@@ -574,8 +589,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         return pulsarService.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
                 .thenCompose(namespacePolicies -> {
                     if (namespacePolicies.isEmpty() || namespacePolicies.get().deleted) {
-                        log.info("[{}] skip prepare init policies cache since the namespace is deleted",
-                                namespace);
+                        log.info()
+                                .attr("namespace", namespace)
+                                .log("skip prepare init policies cache since the namespace is deleted");
                         return CompletableFuture.completedFuture(false);
                     }
 
@@ -598,8 +614,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                 }).exceptionally(ex -> {
                                     try {
                                         if (readerCompletableFuture.isCompletedExceptionally()) {
-                                            log.error("[{}] Failed to create reader on __change_events topic",
-                                                    namespace, ex);
+                                            log.error()
+                                                    .attr("namespace", namespace)
+                                                    .exception(ex)
+                                                    .log("Failed to create reader on __change_events topic");
                                             initNamespacePolicyFuture.completeExceptionally(ex);
                                             cleanPoliciesCacheInitMap(namespace, true);
                                         } else {
@@ -608,8 +626,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                         }
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
-                                        log.error("[{}] Failed to cleanup reader on __change_events topic",
-                                                namespace, cleanupEx);
+                                        log.error()
+                                                .attr("namespace", namespace)
+                                                .exception(cleanupEx)
+                                                .log("Failed to cleanup reader on __change_events topic");
                                     }
                                     return null;
                                 });
@@ -693,8 +713,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
             if (ex != null) {
-                log.error("[{}] Failed to check the move events for the system topic",
-                        reader.getSystemTopic().getTopicName(), ex);
+                log.error()
+                        .attr("topic", reader.getSystemTopic().getTopicName())
+                        .exception(ex)
+                        .log("Failed to check the move events for the system topic");
                 future.completeExceptionally(ex);
                 return;
             }
@@ -705,21 +727,22 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     } finally {
                         msg.release();
                     }
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Loop next event reading for system topic.",
-                                reader.getSystemTopic().getTopicName().getNamespaceObject());
-                    }
+                    log.debug()
+                            .attr("namespaceObject", reader.getSystemTopic().getTopicName().getNamespaceObject())
+                            .log("Loop next event reading for system topic.");
                     initPolicesCache(reader, future);
                 }).exceptionally(e -> {
-                    log.error("[{}] Failed to read event from the system topic.",
-                            reader.getSystemTopic().getTopicName(), e);
+                    log.error()
+                            .attr("topic", reader.getSystemTopic().getTopicName())
+                            .exception(e)
+                            .log("Failed to read event from the system topic.");
                     future.completeExceptionally(e);
                     return null;
                 });
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Reach the end of the system topic.", reader.getSystemTopic().getTopicName());
-                }
+                log.debug()
+                        .attr("topic", reader.getSystemTopic().getTopicName())
+                        .log("Reach the end of the system topic.");
 
                 // replay policy message
                 policiesCache.forEach(((topicName, topicPolicies) -> {
@@ -728,7 +751,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             try {
                                 listener.onUpdate(topicPolicies);
                             } catch (Throwable error) {
-                                log.error("[{}] call listener error.", topicName, error);
+                                log.error().attr("topic", topicName).exception(error).log("call listener error.");
                             }
                         }
                     }
@@ -763,7 +786,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             readerFuture
                     .thenCompose(SystemTopicClient.Reader::closeAsync)
                     .exceptionally(ex -> {
-                        log.warn("[{}] Close change_event reader fail.", namespace, ex);
+                        log.warn().attr("namespace", namespace).exception(ex).log("Close change_event reader fail.");
                         return null;
                     });
         }
@@ -797,7 +820,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
             readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
                     .exceptionally(ex -> {
-                        log.warn("[{}] Close change_event reader fail.", namespace, ex);
+                        log.warn().attr("namespace", namespace).exception(ex).log("Close change_event reader fail.");
                         return null;
                     });
         }
@@ -844,11 +867,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         readMorePoliciesAsync(reader);
                     } else {
                         if (isAlreadyClosedException(ex)) {
-                            log.info("Closing the topic policies reader for {}",
-                                    reader.getSystemTopic().getTopicName());
+                            log.info()
+                                    .attr("topic", reader.getSystemTopic().getTopicName())
+                                    .log("Closing the topic policies reader for");
                             cleanPoliciesCacheInitMap(namespaceObject, true);
                         } else {
-                            log.warn("Read more topic polices exception, read again.", ex);
+                            log.warn().exception(ex).log("Read more topic polices exception, read again.");
                             readMorePoliciesAsync(reader);
                         }
                     }
@@ -883,7 +907,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             ? globalPoliciesCache.putIfAbsent(topicName, event.getPolicies())
                             : policiesCache.putIfAbsent(topicName, event.getPolicies());
                     if (old != null) {
-                        log.warn("Policy insert failed, the topic: {} policy already exist", topicName);
+                        log.warn()
+                                .attr("topic", topicName)
+                                .log("Policy insert failed, the topic: policy already exist");
                     }
                     break;
                 case UPDATE:
@@ -902,14 +928,17 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             event.getPolicies().isGlobalPolicies())
                             .whenComplete((__, ex) -> {
                                 if (ex != null) {
-                                    log.error("Failed to send delete topic policy event for {}", topicName, ex);
+                                    log.error()
+                                            .attr("topic", topicName)
+                                            .exception(ex)
+                                            .log("Failed to send delete topic policy event for");
                                 }
                             });
                     break;
                 case NONE:
                     break;
                 default:
-                    log.warn("Unknown event action type: {}", msg.getValue().getActionType());
+                    log.warn().attr("actionType", msg.getValue().getActionType()).log("Unknown event action type");
                     break;
             }
         }
@@ -941,7 +970,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         try {
             return namespaceEventsSystemTopicFactoryLazyInitializer.get();
         } catch (Exception e) {
-            log.error("Create namespace event system topic factory error.", e);
+            log.error().exception(e).log("Create namespace event system topic factory error.");
             throw new RuntimeException(e);
         }
     }
@@ -1006,9 +1035,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     protected AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> getWriterCaches() {
         return writerCaches;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SystemTopicBasedTopicPoliciesService.class);
-
     @Override
     public void close() throws Exception {
         if (closed.compareAndSet(false, true)) {
@@ -1025,7 +1051,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             if (e == null) {
                                 log.info("Closed the reader for topic policies");
                             } else {
-                                log.error("Failed to close the reader for topic policies", e);
+                                log.error().exception(e).log("Failed to close the reader for topic policies");
                             }
                         });
                     }

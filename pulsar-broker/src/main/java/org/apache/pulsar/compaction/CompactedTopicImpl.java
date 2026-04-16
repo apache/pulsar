@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -44,13 +45,12 @@ import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Note: If you want to guarantee that strong consistency between `compactionHorizon` and `compactedTopicContext`,
  * you need to call getting them method in "synchronized(CompactedTopicImpl){ ... }" lock block.
  */
+@CustomLog
 public class CompactedTopicImpl implements CompactedTopic {
     static final long NEWER_THAN_COMPACTED = -0xfeed0fbaL;
     static final long COMPACT_LEDGER_EMPTY = -0xfeed0fbbL;
@@ -80,9 +80,11 @@ public class CompactedTopicImpl implements CompactedTopic {
                         // Print an error log here, which is not expected.
                         if (previousCtx != null && previousCtx.getLedger() != null
                                 && previousCtx.getLedger().getId() == compactedLedgerId) {
-                            log.error("[__compaction] Using the same compacted ledger to override the old one, which is"
-                                + " not expected and it may cause a ledger lost error. {} -> {}", compactedLedgerId,
-                                ctx.getLedger().getId());
+                            log.error()
+                                    .attr("compactedLedgerId", compactedLedgerId)
+                                    .attr("newLedgerId", ctx.getLedger().getId())
+                                    .log("[__compaction] Using the same compacted ledger to override the old one,"
+                                            + " which is not expected and it may cause a ledger lost error");
                         }
                     });
                     return previousContext;
@@ -145,7 +147,6 @@ public class CompactedTopicImpl implements CompactedTopic {
                 .buildAsync((entryId, executor) -> readOneMessageId(lh, entryId));
     }
 
-
     private static CompletableFuture<MessageIdData> readOneMessageId(LedgerHandle lh, long entryId) {
         CompletableFuture<MessageIdData> promise = new CompletableFuture<>();
 
@@ -194,8 +195,10 @@ public class CompactedTopicImpl implements CompactedTopic {
         bk.asyncDeleteLedger(id,
                              (rc, ctx) -> {
                                  if (rc != BKException.Code.OK) {
-                                     log.warn("Error deleting compacted topic ledger {}",
-                                              id, BKException.create(rc));
+                                     log.warn()
+                                             .attr("ledgerId", id)
+                                             .attr("error", BKException.create(rc))
+                                             .log("Error deleting compacted topic ledger");
                                  } else {
                                      log.debug("Compacted topic ledger deleted successfully");
                                  }
@@ -332,6 +335,5 @@ public class CompactedTopicImpl implements CompactedTopic {
     public CompletableFuture<CompactedTopicContext> getCompactedTopicContextFuture() {
         return compactedTopicContext;
     }
-    private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }
 

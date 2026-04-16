@@ -34,11 +34,9 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.ResourceQuotasBase;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
-@Slf4j
 @Path("/resource-quotas")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -53,7 +51,7 @@ public class ResourceQuotas extends ResourceQuotasBase {
         getDefaultResourceQuotaAsync()
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get default resource quota", clientAppId());
+                    log.error("Failed to get default resource quota");
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
@@ -68,7 +66,7 @@ public class ResourceQuotas extends ResourceQuotasBase {
         setDefaultResourceQuotaAsync(quota)
                 .thenAccept(__ -> response.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to set default resource quota", clientAppId());
+                    log.error("Failed to set default resource quota");
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
         });
@@ -93,8 +91,10 @@ public class ResourceQuotas extends ResourceQuotasBase {
         internalGetNamespaceBundleResourceQuota(bundleRange)
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get namespace resource quota for bundle {}",
-                            clientAppId(), bundleRange, ex);
+                    log.error()
+                            .attr("bundle", bundleRange)
+                            .exception(ex)
+                            .log("Failed to get namespace resource quota for bundle");
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
@@ -120,12 +120,16 @@ public class ResourceQuotas extends ResourceQuotasBase {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceBundleResourceQuota(bundleRange, quota)
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully set namespace bundle resource quota {}", clientAppId(), bundleRange);
+                    log.info()
+                            .attr("quota", bundleRange)
+                            .log("Successfully set namespace bundle resource quota");
                     response.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to set namespace resource quota for bundle {}",
-                            clientAppId(), bundleRange, ex);
+                    log.error()
+                            .attr("bundle", bundleRange)
+                            .exception(ex)
+                            .log("Failed to set namespace resource quota for bundle");
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
@@ -150,12 +154,16 @@ public class ResourceQuotas extends ResourceQuotasBase {
         validateNamespaceName(tenant, namespace);
         internalRemoveNamespaceBundleResourceQuota(bundleRange)
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully remove namespace bundle resource quota {}", clientAppId(), bundleRange);
+                    log.info()
+                            .attr("quota", bundleRange)
+                            .log("Successfully remove namespace bundle resource quota");
                     response.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to remove namespace bundle resource quota {}",
-                            clientAppId(), bundleRange, ex);
+                    log.error()
+                            .attr("quota", bundleRange)
+                            .exception(ex)
+                            .log("Failed to remove namespace bundle resource quota");
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });

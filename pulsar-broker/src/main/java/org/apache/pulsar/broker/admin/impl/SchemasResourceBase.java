@@ -48,8 +48,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SchemasResourceBase extends AdminResource {
 
@@ -245,10 +243,7 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
     }
 
-
     protected boolean shouldPrintErrorLog(Throwable ex) {
         return isNot307And404Exception(ex);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
 }

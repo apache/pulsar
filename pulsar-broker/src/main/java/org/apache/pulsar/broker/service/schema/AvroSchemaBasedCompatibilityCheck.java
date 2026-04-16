@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.Collections;
 import java.util.LinkedList;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.SchemaValidationException;
@@ -36,7 +36,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 /**
  * The abstract implementation of {@link SchemaCompatibilityCheck} using Avro Schema.
  */
-@Slf4j
+@CustomLog
 abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityCheck {
 
     @Override
@@ -63,7 +63,7 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
             SchemaValidator schemaValidator = createSchemaValidator(strategy);
             schemaValidator.validate(toSchema, fromList);
         } catch (SchemaParseException e) {
-            log.warn("Error during schema parsing: {}", e.getMessage());
+            log.warn().exceptionMessage(e).log("Error during schema parsing");
             throw new IncompatibleSchemaException(e);
         } catch (SchemaValidationException e) {
             String msg = String.format("Error during schema compatibility check with strategy %s: %s: %s",

@@ -36,6 +36,7 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -75,12 +76,11 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Web Service embedded into Pulsar.
  */
+@CustomLog
 public class WebService implements AutoCloseable {
 
     private static final String MATCH_ALL = "/*";
@@ -421,15 +421,20 @@ public class WebService implements AutoCloseable {
             server.start();
 
             if (httpConnector != null) {
-                log.info("HTTP Service started at http://{}:{}", httpConnector.getHost(), httpConnector.getLocalPort());
+                log.info()
+                        .attr("host", httpConnector.getHost())
+                        .attr("localPort", httpConnector.getLocalPort())
+                        .log("HTTP Service started");
                 pulsar.getConfiguration().setWebServicePort(Optional.of(httpConnector.getLocalPort()));
             } else {
                 log.info("HTTP Service disabled");
             }
 
             if (httpsConnector != null) {
-                log.info("HTTPS Service started at https://{}:{}", httpsConnector.getHost(),
-                        httpsConnector.getLocalPort());
+                log.info()
+                        .attr("host", httpsConnector.getHost())
+                        .attr("localPort", httpsConnector.getLocalPort())
+                        .log("HTTPS Service started");
                 pulsar.getConfiguration().setWebServicePortTls(Optional.of(httpsConnector.getLocalPort()));
             } else {
                 log.info("HTTPS Service disabled");
@@ -453,7 +458,7 @@ public class WebService implements AutoCloseable {
                     try {
                         doClose();
                     } catch (Exception e) {
-                        log.error("Error while closing web service", e);
+                        log.error().exception(e).log("Error while closing web service");
                     }
                 });
                 webServiceTerminator.setName("pulsar-web-service-terminator");
@@ -529,9 +534,7 @@ public class WebService implements AutoCloseable {
         try {
             this.sslFactory.update();
         } catch (Exception e) {
-            log.error("Failed to refresh SSL context", e);
+            log.error().exception(e).log("Failed to refresh SSL context");
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(WebService.class);
 }
