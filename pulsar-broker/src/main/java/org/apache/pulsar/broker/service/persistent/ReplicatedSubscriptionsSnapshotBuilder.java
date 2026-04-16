@@ -26,6 +26,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
@@ -34,6 +35,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshotRespons
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
+@CustomLog
 public class ReplicatedSubscriptionsSnapshotBuilder {
 
     private final String snapshotId;
@@ -75,7 +77,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
     }
 
     void start() {
-        controller.log.debug()
+        log.debug()
                 .attr("snapshotId", snapshotId)
                 .attr("clusters", missingClusters)
                 .log("Starting new snapshot");
@@ -85,14 +87,14 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
     }
 
     synchronized void receivedSnapshotResponse(Position position, ReplicatedSubscriptionsSnapshotResponse response) {
-        controller.log.debug()
+        log.debug()
                 .attr("cluster", response.getCluster().getCluster())
                 .log("Received response");
         String cluster = response.getCluster().getCluster();
         responses.putIfAbsent(cluster, new MarkersMessageIdData().copyFrom(response.getCluster().getMessageId()));
         missingClusters.remove(cluster);
 
-        controller.log.debug()
+        log.debug()
                 .attr("missingClusters", missingClusters)
                 .log("Missing clusters");
 
@@ -113,7 +115,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
             return;
         }
 
-        controller.log.debug()
+        log.debug()
                 .attr("snapshotId", snapshotId)
                 .log("Snapshot is complete");
         // Snapshot is now complete, store it in the local topic
