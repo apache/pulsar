@@ -43,7 +43,7 @@ Configuration:
       - name: "pulsar.log.format"
         value: "text"
       - name: "pulsar.log.json.template"
-        value: "classpath:EcsLayout.json"
+        value: "file:conf/OtelLogLayout.json"
 
   # Example: logger-filter script
 #  Scripts:

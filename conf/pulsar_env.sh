@@ -29,7 +29,7 @@
 # Logs location
 # PULSAR_LOG_DIR=
 
-# Log format: "text" (default) or "json" (ECS JSON format, useful for log aggregators)
+# Log format: "text" (default) or "json" (flat OpenTelemetry JSON, useful for log aggregators)
 # PULSAR_LOG_FORMAT=json
 
 # Configuration file of settings used in broker server

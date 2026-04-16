@@ -330,9 +330,9 @@ fi
 
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
 # PULSAR_LOG_CONSOLE_JSON_TEMPLATE is deprecated — use PULSAR_LOG_JSON_TEMPLATE
-PULSAR_LOG_JSON_TEMPLATE=${PULSAR_LOG_JSON_TEMPLATE:-${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"classpath:EcsLayout.json"}}
+PULSAR_LOG_JSON_TEMPLATE=${PULSAR_LOG_JSON_TEMPLATE:-${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"file:$PULSAR_HOME/conf/OtelLogLayout.json"}}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
-# Log format: "text" (default) or "json" (ECS JSON) — selects the layout for both
+# Log format: "text" (default) or "json" (OpenTelemetry-flat JSON) — selects the layout for both
 # the Console and RollingFile appenders via Log4j2 SystemPropertyArbiter
 PULSAR_LOG_FORMAT=${PULSAR_LOG_FORMAT:-"text"}
 
