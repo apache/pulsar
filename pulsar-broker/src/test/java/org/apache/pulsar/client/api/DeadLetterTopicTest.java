@@ -1546,7 +1546,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         }
 
         log.info().attr("letterQueue", totalInDeadLetter).attr("expected", sendMessages)
-                .log("Total messages in dead letter queue, Expected");
+                .log("Total messages in dead letter queue");
         assertEquals(totalInDeadLetter, sendMessages,
                 "All messages should eventually reach DLQ, but flow control may prevent this");
 

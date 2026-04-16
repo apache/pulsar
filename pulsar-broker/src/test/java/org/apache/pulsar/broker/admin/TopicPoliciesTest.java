@@ -2335,7 +2335,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info()
                 .attr("maxconsumers", maxProducers)
                 .attr("willSetToTheTopic", testTopic)
-                .log("MaxConsumers: will set to the topic");
+                .log("MaxConsumers will be set to the topic");
         try {
             admin.topicPolicies().setMaxConsumers(testTopic, maxProducers);
             Assert.fail();

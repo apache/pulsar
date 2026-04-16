@@ -832,7 +832,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             log.info()
                     .attr("isDone", completableFuture.isDone())
                     .attr("isCompletedExceptionally", completableFuture.isCompletedExceptionally())
-                    .log("isDone: , isCompletedExceptionally");
+                    .log("Future completed successfully");
             assertTrue(completableFuture.isDone() && !completableFuture.isCompletedExceptionally());
         });
     }

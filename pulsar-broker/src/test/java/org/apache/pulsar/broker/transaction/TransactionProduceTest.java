@@ -182,7 +182,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
 
         Assert.assertEquals(0, messageSet.size());
-        log.info().attr("produceAnd", endAction ? "commit" : "abort").log("produce and test finished.");
+        log.info().attr("endAction", endAction ? "commit" : "abort").log("produce and commit/abort test finished");
     }
 
     @Test

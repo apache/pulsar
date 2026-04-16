@@ -1214,11 +1214,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // Make the test fail if there's a cache miss
         pulsarTestContext.getMockBookKeeper().setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
             log.error()
-                    .attr("used", ledgerId)
-                    .attr("firstEntry", firstEntry)
                     .attr("ledgerId", ledgerId)
+                    .attr("firstEntry", firstEntry)
                     .attr("lastEntry", lastEntry)
-                    .log("Attempting to read from BK when cache should be used. : to");
+                    .log("Attempting to read from BK when cache should be used");
             return CompletableFuture.failedFuture(
                     new ManagedLedgerException.NonRecoverableLedgerException(
                             "Should not read from BK since cache should be used."));
@@ -5010,7 +5009,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                                               Throwable exception) {
                 MessageImpl msgImpl = (MessageImpl) message;
                 log.info()
-                        .attr("acknowledgement", msgImpl.getDataBuffer().refCnt())
+                        .attr("refCount", msgImpl.getDataBuffer().refCnt())
                         .log("payload.refCnf on send acknowledgement");
                 if (msgImpl.getDataBuffer().refCnt() < 1) {
                     payloadWasReleasedWhenIntercept.set(true);
@@ -5034,11 +5033,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // Create message payload, refCnf = 1 now.
             ByteBuf payload = PulsarByteBufAllocator.DEFAULT.heapBuffer(1);
             payloads[i] = payload;
-            log.info().attr("payload", i).attr("st", payload.refCnt()).log("payload_ .refCnf 1st");
+            log.info().attr("payload", i).attr("refCnt", payload.refCnt()).log("Payload refCnt (1st)“);
             payload.writeByte(i);
             // refCnf = 2 now.
             payload.retain();
-            log.info().attr("payload", i).attr("nd", payload.refCnt()).log("payload_ .refCnf 2nd");
+            log.info().attr("payload", i).attr("refCnt", payload.refCnt()).log("Payload refCnt (2nd)");
             MessageMetadata messageMetadata = new MessageMetadata();
             messageMetadata.setUncompressedSize(1);
             MessageImpl<byte[]> message1 = MessageImpl.create(topic, null, messageMetadata, payload, Optional.empty(),
@@ -5054,7 +5053,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                         .attr("payload", indexForLog)
                         .attr("refCnf", payload.refCnt())
                         .attr("ex", ex == null ? "null" : ex.getMessage())
-                        .log("payload_ .refCnf 3rd after_complete_refCnf: , ex");
+                        .log("Payload refCnt (3rd)");
             });
         }
         sendFutureList.get(messageCount - 1).join();
@@ -5064,7 +5063,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // Verify: payload's refCnf.
         for (int i = 0; i < messageCount; i++) {
-            log.info().attr("payload", i).attr("th", payloads[i].refCnt()).log("payload_ .refCnf 4th");
+            log.info().attr("payload", i).attr("th", payloads[i].refCnt()).log("Payload refCnt (4th)");
             assertEquals(payloads[i].refCnt(), 1);
         }
 

@@ -329,7 +329,7 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
                     .attr("schema", message.getReaderSchema().get())
                     .attr("messageId", message.getMessageId())
                     .attr("data", new String(message.getData()))
-                    .log("consumer received message (schema");
+                    .log("consumer received message");
             consumer.reconsumeLater(message, 1, TimeUnit.SECONDS);
             assertTrue(messageIds.contains(message.getMessageId()));
             totalReceived++;
