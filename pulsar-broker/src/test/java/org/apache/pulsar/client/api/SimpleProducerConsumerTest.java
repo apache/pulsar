@@ -5033,7 +5033,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // Create message payload, refCnf = 1 now.
             ByteBuf payload = PulsarByteBufAllocator.DEFAULT.heapBuffer(1);
             payloads[i] = payload;
-            log.info().attr("payload", i).attr("refCnt", payload.refCnt()).log("Payload refCnt (1st)“);
+            log.info().attr("payload", i).attr("refCnt", payload.refCnt()).log("Payload refCnt (1st)");
             payload.writeByte(i);
             // refCnf = 2 now.
             payload.retain();
