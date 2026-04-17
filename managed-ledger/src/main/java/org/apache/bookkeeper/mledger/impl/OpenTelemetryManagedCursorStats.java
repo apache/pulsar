@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import com.google.common.collect.Streams;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.BatchCallback;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -54,6 +55,16 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
     // Replaces pulsar_ml_cursor_readLedgerSize
     public static final String INCOMING_BYTE_COUNTER = "pulsar.broker.managed_ledger.cursor.incoming.size";
     private final ObservableLongMeasurement incomingByteCounter;
+
+    // Broker-level counters incremented when cursor persistence silently truncates ack state.
+    // See managedLedgerMaxUnackedRangesToPersist and managedLedgerMaxBatchDeletedIndexToPersist.
+    public static final String PERSIST_OVERFLOW_RANGES_COUNTER =
+            "pulsar.broker.managed_ledger.cursor.persist.overflow.range.count";
+    private final LongCounter persistOverflowRangesCounter;
+
+    public static final String PERSIST_OVERFLOW_BATCH_INDEXES_COUNTER =
+            "pulsar.broker.managed_ledger.cursor.persist.overflow.batch.index.count";
+    private final LongCounter persistOverflowBatchIndexesCounter;
 
     private final BatchCallback batchCallback;
 
@@ -96,6 +107,22 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
                 .setDescription("The total amount of data read from the ledger.")
                 .buildObserver();
 
+        persistOverflowRangesCounter = meter
+                .counterBuilder(PERSIST_OVERFLOW_RANGES_COUNTER)
+                .setUnit("{overflow}")
+                .setDescription("The number of times a cursor exceeded"
+                        + " managedLedgerMaxUnackedRangesToPersist, causing ack state to be truncated"
+                        + " at persistence. Ack state beyond the limit is lost on broker restart.")
+                .build();
+
+        persistOverflowBatchIndexesCounter = meter
+                .counterBuilder(PERSIST_OVERFLOW_BATCH_INDEXES_COUNTER)
+                .setUnit("{overflow}")
+                .setDescription("The number of times a cursor exceeded"
+                        + " managedLedgerMaxBatchDeletedIndexToPersist, causing batch deleted index state"
+                        + " to be truncated at persistence. State beyond the limit is lost on broker restart.")
+                .build();
+
         batchCallback = meter.batchCallback(() -> factory.getManagedLedgers()
                         .values()
                         .stream()
@@ -113,6 +140,14 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
     @Override
     public void close() {
         batchCallback.close();
+    }
+
+    public void incrementPersistOverflowRanges() {
+        persistOverflowRangesCounter.add(1);
+    }
+
+    public void incrementPersistOverflowBatchIndexes() {
+        persistOverflowBatchIndexesCounter.add(1);
     }
 
     private void recordMetrics(ManagedCursor cursor) {

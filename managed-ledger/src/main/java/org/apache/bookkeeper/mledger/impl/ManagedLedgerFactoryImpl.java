@@ -140,6 +140,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final OpenTelemetryManagedLedgerCacheStats openTelemetryCacheStats;
     @Getter
     private final OpenTelemetryManagedLedgerStats openTelemetryManagedLedgerStats;
+    @Getter
     private final OpenTelemetryManagedCursorStats openTelemetryManagedCursorStats;
 
     //indicate whether shutdown() is called.

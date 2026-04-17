@@ -42,6 +42,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -119,6 +121,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
+import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.collections4.iterators.EmptyIterator;
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -6030,6 +6033,140 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Map<String, Long> properties = cursor.getProperties();
         assertEquals(properties.size(), 1);
         assertEquals(properties.get(propertyKey), lastIndex - 1);
+    }
+
+    @DataProvider(name = "rangesOverflowScenarios")
+    public static Object[][] rangesOverflowScenarios() {
+        // maxRanges, totalEntries, shouldOverflow.
+        return new Object[][] {
+                { 5, 16, true },   // 8 ack holes, above limit 5 → overflow
+                { 10, 6, false },  // 3 ack holes, limit 10 → no overflow
+                { 5, 6, false },   // 3 ack holes, limit 5 → no overflow
+        };
+    }
+
+    @Test(timeOut = 20000, dataProvider = "rangesOverflowScenarios")
+    public void testPersistOverflowRangesCounter(int maxRanges, int totalEntries, boolean shouldOverflow)
+            throws Exception {
+        @Cleanup
+        InMemoryMetricReader metricReader = InMemoryMetricReader.create();
+        @Cleanup
+        var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
+                .disableShutdownHook()
+                .addPropertiesSupplier(() -> Map.of("otel.metrics.exporter", "none",
+                        "otel.traces.exporter", "none",
+                        "otel.logs.exporter", "none"))
+                .addMeterProviderCustomizer((builder, __) -> builder.registerMetricReader(metricReader))
+                .build()
+                .getOpenTelemetrySdk();
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl otelFactory = new ManagedLedgerFactoryImpl(
+                metadataStore,
+                (policyConfig) -> CompletableFuture.completedFuture(bkc),
+                new ManagedLedgerFactoryConfig(), NullStatsLogger.INSTANCE, openTelemetry);
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxUnackedRangesToPersist(maxRanges);
+        // Force persistence through the ledger path (not metadata store).
+        config.setMaxUnackedRangesToPersistInMetadataStore(0);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) otelFactory.open("test-persist-overflow-ranges-" + UUID.randomUUID(), config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < totalEntries; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        // Ack alternating positions to create ack holes in the cursor.
+        for (int i = 1; i < positions.size(); i += 2) {
+            cursor.delete(positions.get(i));
+        }
+
+        ledger.close();
+
+        long overflowCount = metricReader.collectAllMetrics().stream()
+                .filter(m -> OpenTelemetryManagedCursorStats.PERSIST_OVERFLOW_RANGES_COUNTER.equals(m.getName()))
+                .flatMap(m -> m.getLongSumData().getPoints().stream())
+                .mapToLong(point -> point.getValue())
+                .sum();
+
+        // Direction only: persist cadence during close() is not a stable contract.
+        if (shouldOverflow) {
+            assertTrue(overflowCount >= 1, "expected overflow, was " + overflowCount);
+        } else {
+            assertEquals(overflowCount, 0L, "expected no overflow, was " + overflowCount);
+        }
+    }
+
+    @DataProvider(name = "batchIndexesOverflowScenarios")
+    public static Object[][] batchIndexesOverflowScenarios() {
+        // maxBatchIndexes, totalEntries, shouldOverflow.
+        return new Object[][] {
+                { 5, 16, true },   // 16 batch entries, above limit 5 → overflow
+                { 10, 6, false },  // 6 batch entries, limit 10 → no overflow
+                { 5, 5, false },   // 5 batch entries at exact limit → no overflow
+        };
+    }
+
+    @Test(timeOut = 20000, dataProvider = "batchIndexesOverflowScenarios")
+    public void testPersistOverflowBatchIndexesCounter(int maxBatchIndexes, int totalEntries, boolean shouldOverflow)
+            throws Exception {
+        @Cleanup
+        InMemoryMetricReader metricReader = InMemoryMetricReader.create();
+        @Cleanup
+        var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
+                .disableShutdownHook()
+                .addPropertiesSupplier(() -> Map.of("otel.metrics.exporter", "none",
+                        "otel.traces.exporter", "none",
+                        "otel.logs.exporter", "none"))
+                .addMeterProviderCustomizer((builder, __) -> builder.registerMetricReader(metricReader))
+                .build()
+                .getOpenTelemetrySdk();
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl otelFactory = new ManagedLedgerFactoryImpl(
+                metadataStore,
+                (policyConfig) -> CompletableFuture.completedFuture(bkc),
+                new ManagedLedgerFactoryConfig(), NullStatsLogger.INSTANCE, openTelemetry);
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxBatchDeletedIndexToPersist(maxBatchIndexes);
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        config.setMaxUnackedRangesToPersistInMetadataStore(0);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) otelFactory.open("test-persist-overflow-batch-" + UUID.randomUUID(), config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < totalEntries; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        // Partial-ack each position so it lands in batchDeletedIndexes rather than individualDeletedMessages.
+        for (Position position : positions) {
+            BitSet ackSet = new BitSet(10);
+            ackSet.set(0, 10);
+            ackSet.clear(0);
+            cursor.delete(AckSetStateUtil.createPositionWithAckSet(
+                    position.getLedgerId(), position.getEntryId(), ackSet.toLongArray()));
+        }
+
+        ledger.close();
+
+        long overflowCount = metricReader.collectAllMetrics().stream()
+                .filter(m -> OpenTelemetryManagedCursorStats.PERSIST_OVERFLOW_BATCH_INDEXES_COUNTER.equals(m.getName()))
+                .flatMap(m -> m.getLongSumData().getPoints().stream())
+                .mapToLong(point -> point.getValue())
+                .sum();
+
+        // Direction only: persist cadence during close() is not a stable contract.
+        if (shouldOverflow) {
+            assertTrue(overflowCount >= 1, "expected overflow, was " + overflowCount);
+        } else {
+            assertEquals(overflowCount, 0L, "expected no overflow, was " + overflowCount);
+        }
     }
 
     @SuppressWarnings("try")

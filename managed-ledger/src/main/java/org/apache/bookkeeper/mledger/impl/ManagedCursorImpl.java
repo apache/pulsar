@@ -234,6 +234,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     // active state cache in ManagedCursor. It should be in sync with the state in activeCursors in ManagedLedger.
     private volatile boolean isActive = false;
 
+    // Emit the truncation WARN logs exactly once per crossing.
+    private final AtomicBoolean lastCursorDataFullyPersistable = new AtomicBoolean(true);
+    private final AtomicBoolean lastBatchDeletedIndexFullyPersistable = new AtomicBoolean(true);
+
     // This is a lock used to update the registration state of the cursor in the managed ledger.
     private final Object registerToWaitingCursorsLock = new Object();
     // This is used to track if the cursor is registered in the managed ledger's waitingCursors queue
@@ -3375,6 +3379,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
             List<MessageRange> rangeList = new ArrayList<>();
+            final int maxRanges = getConfig().getMaxUnackedRangesToPersist();
 
             individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
                 MessageRange messageRange = new MessageRange();
@@ -3388,11 +3393,32 @@ public class ManagedCursorImpl implements ManagedCursor {
                 acksSerializedSize.addAndGet(messageRange.getSerializedSize());
                 rangeList.add(messageRange);
 
-                return rangeList.size() <= getConfig().getMaxUnackedRangesToPersist();
+                return rangeList.size() <= maxRanges;
             });
 
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
+
+            if (rangeList.size() > maxRanges) {
+                ledger.getFactory().getOpenTelemetryManagedCursorStats().incrementPersistOverflowRanges();
+                if (lastCursorDataFullyPersistable.compareAndSet(true, false)) {
+                    int totalRanges = individualDeletedMessages.size();
+                    log.warn()
+                        .attr("totalRanges", totalRanges)
+                        .attr("maxRanges", maxRanges)
+                        .attr("truncated", totalRanges - rangeList.size())
+                        .log("Individually deleted message ranges exceed"
+                            + " managedLedgerMaxUnackedRangesToPersist."
+                            + " Acknowledged messages beyond this limit are not persisted"
+                            + " and will be replayed on broker restart."
+                            + " Consider raising managedLedgerMaxUnackedRangesToPersist,"
+                            + " verifying managedLedgerPersistIndividualAckAsLongArray=true (the default),"
+                            + " and setting managedCursorInfoCompressionType=LZ4 to reduce the persisted size.");
+                }
+            } else {
+                lastCursorDataFullyPersistable.compareAndSet(false, true);
+            }
+
             return rangeList;
         } finally {
             lock.writeLock().unlock();
@@ -3407,7 +3433,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             List<BatchedEntryDeletionIndexInfo> result = new ArrayList<>();
             final var iterator = batchDeletedIndexes.entrySet().iterator();
-            while (iterator.hasNext() && result.size() < getConfig().getMaxBatchDeletedIndexToPersist()) {
+            int maxIndexes = getConfig().getMaxBatchDeletedIndexToPersist();
+            while (iterator.hasNext() && result.size() < maxIndexes) {
                 final var entry = iterator.next();
                 BatchedEntryDeletionIndexInfo batchDeletedIndexInfo = new BatchedEntryDeletionIndexInfo();
                 batchDeletedIndexInfo.setPosition()
@@ -3419,6 +3446,26 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
                 result.add(batchDeletedIndexInfo);
             }
+
+            if (iterator.hasNext()) {
+                ledger.getFactory().getOpenTelemetryManagedCursorStats().incrementPersistOverflowBatchIndexes();
+                if (lastBatchDeletedIndexFullyPersistable.compareAndSet(true, false)) {
+                    int totalIndexes = batchDeletedIndexes.size();
+                    log.warn()
+                        .attr("totalIndexes", totalIndexes)
+                        .attr("maxIndexes", maxIndexes)
+                        .attr("truncated", totalIndexes - result.size())
+                        .log("Batch deleted indexes exceed"
+                            + " managedLedgerMaxBatchDeletedIndexToPersist."
+                            + " Partially acknowledged batch messages beyond this limit are not persisted"
+                            + " and will be replayed on broker restart."
+                            + " Consider raising managedLedgerMaxBatchDeletedIndexToPersist"
+                            + " and setting managedCursorInfoCompressionType=LZ4 to reduce the persisted size.");
+                }
+            } else {
+                lastBatchDeletedIndexFullyPersistable.compareAndSet(false, true);
+            }
+
             return result;
         } finally {
             lock.readLock().unlock();
