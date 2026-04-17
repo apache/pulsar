@@ -6071,8 +6071,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Force persistence through the ledger path (not metadata store).
         config.setMaxUnackedRangesToPersistInMetadataStore(0);
 
-        ManagedLedgerImpl ledger =
-                (ManagedLedgerImpl) otelFactory.open("test-persist-overflow-ranges-" + UUID.randomUUID(), config);
+        String ledgerName = "test-persist-overflow-ranges-" + UUID.randomUUID();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) otelFactory.open(ledgerName, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
 
         List<Position> positions = new ArrayList<>();
@@ -6095,6 +6095,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Direction only: persist cadence during close() is not a stable contract.
         if (shouldOverflow) {
             assertTrue(overflowCount >= 1, "expected overflow, was " + overflowCount);
+
+            ManagedLedgerImpl reopened = (ManagedLedgerImpl) otelFactory.open(ledgerName, config);
+            ManagedCursorImpl recovered = (ManagedCursorImpl) reopened.openCursor("c1");
+            assertEquals(recovered.getIndividuallyDeletedMessagesSet().asRanges().size(), maxRanges,
+                    "persisted range count must equal maxRanges");
         } else {
             assertEquals(overflowCount, 0L, "expected no overflow, was " + overflowCount);
         }

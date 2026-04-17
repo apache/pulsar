@@ -3380,8 +3380,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
             List<MessageRange> rangeList = new ArrayList<>();
             final int maxRanges = getConfig().getMaxUnackedRangesToPersist();
+            final MutableBoolean overflowed = new MutableBoolean(false);
 
             individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+                if (rangeList.size() >= maxRanges) {
+                    overflowed.setTrue();
+                    return false;
+                }
                 MessageRange messageRange = new MessageRange();
                 messageRange.setLowerEndpoint()
                         .setLedgerId(lowerKey)
@@ -3393,13 +3398,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                 acksSerializedSize.addAndGet(messageRange.getSerializedSize());
                 rangeList.add(messageRange);
 
-                return rangeList.size() <= maxRanges;
+                return true;
             });
 
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
 
-            if (rangeList.size() > maxRanges) {
+            if (overflowed.booleanValue()) {
                 ledger.getFactory().getOpenTelemetryManagedCursorStats().incrementPersistOverflowRanges();
                 if (lastCursorDataFullyPersistable.compareAndSet(true, false)) {
                     int totalRanges = individualDeletedMessages.size();
