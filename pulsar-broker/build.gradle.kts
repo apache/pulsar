@@ -163,6 +163,7 @@ dependencies {
 }
 
 tasks.withType<Test> {
+    dependsOn(testNars, testExamplesJar)
     val narFiles = testNars.incoming.artifacts.resolvedArtifacts
     val jarFiles = testExamplesJar.incoming.artifacts.resolvedArtifacts
     doFirst {

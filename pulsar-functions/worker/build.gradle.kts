@@ -113,6 +113,7 @@ dependencies {
 }
 
 tasks.withType<Test> {
+    dependsOn(testNars, testExamplesJar)
     // Map resolved NAR/JAR files to system properties
     val narFiles = testNars.incoming.artifacts.resolvedArtifacts
     val jarFiles = testExamplesJar.incoming.artifacts.resolvedArtifacts
