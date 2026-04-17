@@ -397,8 +397,8 @@ The Apache Software License, Version 2.0
   * AirCompressor
      - aircompressor-2.0.3.jar
  * AsyncHttpClient
-    - async-http-client-2.12.4.jar
-    - async-http-client-netty-utils-2.12.4.jar
+    - async-http-client-2.14.5.jar
+    - async-http-client-netty-utils-2.14.5.jar
  * Jetty
     - jetty-client-9.4.58.v20250814.jar
     - jetty-http-9.4.58.v20250814.jar
@@ -463,7 +463,7 @@ Eclipse Public License - v2.0 -- ../licenses/LICENSE-EPL-2.0.txt
  * Jakarta Injection -- jakarta.inject-2.6.1.jar
 
 Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
- * Reactive Streams -- reactive-streams-1.0.3.jar
+ * Reactive Streams -- reactive-streams-1.0.4.jar
 
 Creative Commons Attribution License
  * Jcip -- ../licenses/LICENSE-jcip.txt
