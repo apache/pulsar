@@ -33,7 +33,6 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -135,7 +134,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
                 .serviceUrl(proxyService.getServiceUrl()).build();
         String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         LookupService lookupService = client.getLookup();
-        assertTrue(lookupService instanceof BinaryProtoLookupService);
+        assertTrue(lookupService.isBinaryProtoLookupService());
         ClientCnx lookupConnection = client.getCnxPool().getConnection(lookupService.resolveHost()).join();
 
         // Make no permits to lookup.
