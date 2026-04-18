@@ -6162,7 +6162,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         long truncationCount = metricReader.collectAllMetrics().stream()
-                .filter(m -> OpenTelemetryManagedCursorStats.PERSIST_BATCH_DELETED_INDEXES_TRUNCATED.equals(m.getName()))
+                .filter(m -> OpenTelemetryManagedCursorStats.PERSIST_BATCH_DELETED_INDEXES_TRUNCATED
+                        .equals(m.getName()))
                 .flatMap(m -> m.getLongSumData().getPoints().stream())
                 .mapToLong(point -> point.getValue())
                 .sum();
