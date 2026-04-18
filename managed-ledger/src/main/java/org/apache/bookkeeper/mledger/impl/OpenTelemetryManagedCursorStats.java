@@ -20,6 +20,8 @@ package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.Streams;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
@@ -58,13 +60,13 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
 
     // Broker-level counters incremented when cursor persistence silently truncates ack state.
     // See managedLedgerMaxUnackedRangesToPersist and managedLedgerMaxBatchDeletedIndexToPersist.
-    public static final String PERSIST_OVERFLOW_RANGES_COUNTER =
-            "pulsar.broker.managed_ledger.cursor.persist.overflow.range.count";
-    private final LongCounter persistOverflowRangesCounter;
+    public static final String PERSIST_UNACKED_RANGES_TRUNCATED =
+            "pulsar.broker.managed_ledger.cursor.persist.unacked_ranges.truncated";
+    private final LongCounter persistUnackedRangesTruncated;
 
-    public static final String PERSIST_OVERFLOW_BATCH_INDEXES_COUNTER =
-            "pulsar.broker.managed_ledger.cursor.persist.overflow.batch.index.count";
-    private final LongCounter persistOverflowBatchIndexesCounter;
+    public static final String PERSIST_BATCH_DELETED_INDEXES_TRUNCATED =
+            "pulsar.broker.managed_ledger.cursor.persist.batch_deleted_indexes.truncated";
+    private final LongCounter persistBatchDeletedIndexesTruncated;
 
     private final BatchCallback batchCallback;
 
@@ -107,17 +109,17 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
                 .setDescription("The total amount of data read from the ledger.")
                 .buildObserver();
 
-        persistOverflowRangesCounter = meter
-                .counterBuilder(PERSIST_OVERFLOW_RANGES_COUNTER)
-                .setUnit("{overflow}")
+        persistUnackedRangesTruncated = meter
+                .counterBuilder(PERSIST_UNACKED_RANGES_TRUNCATED)
+                .setUnit("{truncation}")
                 .setDescription("The number of times a cursor exceeded"
                         + " managedLedgerMaxUnackedRangesToPersist, causing ack state to be truncated"
                         + " at persistence. Ack state beyond the limit is lost on broker restart.")
                 .build();
 
-        persistOverflowBatchIndexesCounter = meter
-                .counterBuilder(PERSIST_OVERFLOW_BATCH_INDEXES_COUNTER)
-                .setUnit("{overflow}")
+        persistBatchDeletedIndexesTruncated = meter
+                .counterBuilder(PERSIST_BATCH_DELETED_INDEXES_TRUNCATED)
+                .setUnit("{truncation}")
                 .setDescription("The number of times a cursor exceeded"
                         + " managedLedgerMaxBatchDeletedIndexToPersist, causing batch deleted index state"
                         + " to be truncated at persistence. State beyond the limit is lost on broker restart.")
@@ -142,12 +144,16 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
         batchCallback.close();
     }
 
-    public void incrementPersistOverflowRanges() {
-        persistOverflowRangesCounter.add(1);
+    public void incrementPersistUnackedRangesTruncated(String managedLedger, String cursor) {
+        persistUnackedRangesTruncated.add(1, Attributes.of(
+                AttributeKey.stringKey("managedLedger"), managedLedger,
+                AttributeKey.stringKey("cursor"), cursor));
     }
 
-    public void incrementPersistOverflowBatchIndexes() {
-        persistOverflowBatchIndexesCounter.add(1);
+    public void incrementPersistBatchDeletedIndexesTruncated(String managedLedger, String cursor) {
+        persistBatchDeletedIndexesTruncated.add(1, Attributes.of(
+                AttributeKey.stringKey("managedLedger"), managedLedger,
+                AttributeKey.stringKey("cursor"), cursor));
     }
 
     private void recordMetrics(ManagedCursor cursor) {

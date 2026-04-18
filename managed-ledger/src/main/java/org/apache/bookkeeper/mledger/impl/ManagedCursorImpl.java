@@ -3380,11 +3380,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
             List<MessageRange> rangeList = new ArrayList<>();
             final int maxRanges = getConfig().getMaxUnackedRangesToPersist();
-            final MutableBoolean overflowed = new MutableBoolean(false);
+            final MutableBoolean truncated = new MutableBoolean(false);
 
             individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
                 if (rangeList.size() >= maxRanges) {
-                    overflowed.setTrue();
+                    truncated.setTrue();
                     return false;
                 }
                 MessageRange messageRange = new MessageRange();
@@ -3404,8 +3404,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
 
-            if (overflowed.booleanValue()) {
-                ledger.getFactory().getOpenTelemetryManagedCursorStats().incrementPersistOverflowRanges();
+            if (truncated.booleanValue()) {
+                ledger.getFactory().getOpenTelemetryManagedCursorStats()
+                        .incrementPersistUnackedRangesTruncated(ledger.getName(), name);
                 if (lastCursorDataFullyPersistable.compareAndSet(true, false)) {
                     int totalRanges = individualDeletedMessages.size();
                     log.warn()
@@ -3453,7 +3454,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             if (iterator.hasNext()) {
-                ledger.getFactory().getOpenTelemetryManagedCursorStats().incrementPersistOverflowBatchIndexes();
+                ledger.getFactory().getOpenTelemetryManagedCursorStats()
+                        .incrementPersistBatchDeletedIndexesTruncated(ledger.getName(), name);
                 if (lastBatchDeletedIndexFullyPersistable.compareAndSet(true, false)) {
                     int totalIndexes = batchDeletedIndexes.size();
                     log.warn()

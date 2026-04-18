@@ -6035,18 +6035,18 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(properties.get(propertyKey), lastIndex - 1);
     }
 
-    @DataProvider(name = "rangesOverflowScenarios")
-    public static Object[][] rangesOverflowScenarios() {
-        // maxRanges, totalEntries, shouldOverflow.
+    @DataProvider(name = "rangesTruncationScenarios")
+    public static Object[][] rangesTruncationScenarios() {
+        // maxRanges, totalEntries, shouldTruncate.
         return new Object[][] {
-                { 5, 16, true },   // 8 ack holes, above limit 5 → overflow
-                { 10, 6, false },  // 3 ack holes, limit 10 → no overflow
-                { 5, 6, false },   // 3 ack holes, limit 5 → no overflow
+                { 5, 16, true },   // 8 ack holes, above limit 5 → truncation
+                { 10, 6, false },  // 3 ack holes, limit 10 → no truncation
+                { 5, 6, false },   // 3 ack holes, limit 5 → no truncation
         };
     }
 
-    @Test(timeOut = 20000, dataProvider = "rangesOverflowScenarios")
-    public void testPersistOverflowRangesCounter(int maxRanges, int totalEntries, boolean shouldOverflow)
+    @Test(timeOut = 20000, dataProvider = "rangesTruncationScenarios")
+    public void testPersistUnackedRangesTruncatedCounter(int maxRanges, int totalEntries, boolean shouldTruncate)
             throws Exception {
         @Cleanup
         InMemoryMetricReader metricReader = InMemoryMetricReader.create();
@@ -6071,7 +6071,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Force persistence through the ledger path (not metadata store).
         config.setMaxUnackedRangesToPersistInMetadataStore(0);
 
-        String ledgerName = "test-persist-overflow-ranges-" + UUID.randomUUID();
+        String ledgerName = "test-persist-unacked-ranges-truncated-" + UUID.randomUUID();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) otelFactory.open(ledgerName, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -6086,38 +6086,38 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         ledger.close();
 
-        long overflowCount = metricReader.collectAllMetrics().stream()
-                .filter(m -> OpenTelemetryManagedCursorStats.PERSIST_OVERFLOW_RANGES_COUNTER.equals(m.getName()))
+        long truncationCount = metricReader.collectAllMetrics().stream()
+                .filter(m -> OpenTelemetryManagedCursorStats.PERSIST_UNACKED_RANGES_TRUNCATED.equals(m.getName()))
                 .flatMap(m -> m.getLongSumData().getPoints().stream())
                 .mapToLong(point -> point.getValue())
                 .sum();
 
         // Direction only: persist cadence during close() is not a stable contract.
-        if (shouldOverflow) {
-            assertTrue(overflowCount >= 1, "expected overflow, was " + overflowCount);
+        if (shouldTruncate) {
+            assertTrue(truncationCount >= 1, "expected truncation, was " + truncationCount);
 
             ManagedLedgerImpl reopened = (ManagedLedgerImpl) otelFactory.open(ledgerName, config);
             ManagedCursorImpl recovered = (ManagedCursorImpl) reopened.openCursor("c1");
             assertEquals(recovered.getIndividuallyDeletedMessagesSet().asRanges().size(), maxRanges,
                     "persisted range count must equal maxRanges");
         } else {
-            assertEquals(overflowCount, 0L, "expected no overflow, was " + overflowCount);
+            assertEquals(truncationCount, 0L, "expected no truncation, was " + truncationCount);
         }
     }
 
-    @DataProvider(name = "batchIndexesOverflowScenarios")
-    public static Object[][] batchIndexesOverflowScenarios() {
-        // maxBatchIndexes, totalEntries, shouldOverflow.
+    @DataProvider(name = "batchIndexesTruncationScenarios")
+    public static Object[][] batchIndexesTruncationScenarios() {
+        // maxBatchIndexes, totalEntries, shouldTruncate.
         return new Object[][] {
-                { 5, 16, true },   // 16 batch entries, above limit 5 → overflow
-                { 10, 6, false },  // 6 batch entries, limit 10 → no overflow
-                { 5, 5, false },   // 5 batch entries at exact limit → no overflow
+                { 5, 16, true },   // 16 batch entries, above limit 5 → truncation
+                { 10, 6, false },  // 6 batch entries, limit 10 → no truncation
+                { 5, 5, false },   // 5 batch entries at exact limit → no truncation
         };
     }
 
-    @Test(timeOut = 20000, dataProvider = "batchIndexesOverflowScenarios")
-    public void testPersistOverflowBatchIndexesCounter(int maxBatchIndexes, int totalEntries, boolean shouldOverflow)
-            throws Exception {
+    @Test(timeOut = 20000, dataProvider = "batchIndexesTruncationScenarios")
+    public void testPersistBatchDeletedIndexesTruncatedCounter(int maxBatchIndexes, int totalEntries,
+            boolean shouldTruncate) throws Exception {
         @Cleanup
         InMemoryMetricReader metricReader = InMemoryMetricReader.create();
         @Cleanup
@@ -6142,7 +6142,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         config.setMaxUnackedRangesToPersistInMetadataStore(0);
 
         ManagedLedgerImpl ledger =
-                (ManagedLedgerImpl) otelFactory.open("test-persist-overflow-batch-" + UUID.randomUUID(), config);
+                (ManagedLedgerImpl) otelFactory.open("test-persist-batch-deleted-indexes-truncated-"
+                        + UUID.randomUUID(), config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
 
         List<Position> positions = new ArrayList<>();
@@ -6160,17 +6161,17 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         ledger.close();
 
-        long overflowCount = metricReader.collectAllMetrics().stream()
-                .filter(m -> OpenTelemetryManagedCursorStats.PERSIST_OVERFLOW_BATCH_INDEXES_COUNTER.equals(m.getName()))
+        long truncationCount = metricReader.collectAllMetrics().stream()
+                .filter(m -> OpenTelemetryManagedCursorStats.PERSIST_BATCH_DELETED_INDEXES_TRUNCATED.equals(m.getName()))
                 .flatMap(m -> m.getLongSumData().getPoints().stream())
                 .mapToLong(point -> point.getValue())
                 .sum();
 
         // Direction only: persist cadence during close() is not a stable contract.
-        if (shouldOverflow) {
-            assertTrue(overflowCount >= 1, "expected overflow, was " + overflowCount);
+        if (shouldTruncate) {
+            assertTrue(truncationCount >= 1, "expected truncation, was " + truncationCount);
         } else {
-            assertEquals(overflowCount, 0L, "expected no overflow, was " + overflowCount);
+            assertEquals(truncationCount, 0L, "expected no truncation, was " + truncationCount);
         }
     }
 
