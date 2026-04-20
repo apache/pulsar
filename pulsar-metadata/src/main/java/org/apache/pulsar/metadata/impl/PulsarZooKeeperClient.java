@@ -359,7 +359,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     }
 
     private void closeZkHandle() throws InterruptedException {
-        ZooKeeper zkHandle = getZkHandle();
+        ZooKeeper zkHandle = zk.get();
         if (null == zkHandle) {
             super.close();
         } else {
