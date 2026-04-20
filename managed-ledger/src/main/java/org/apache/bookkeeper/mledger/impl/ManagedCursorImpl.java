@@ -3406,7 +3406,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (truncated.booleanValue()) {
                 ledger.getFactory().getOpenTelemetryManagedCursorStats()
-                        .incrementPersistUnackedRangesTruncated(ledger.getName(), name);
+                        .incrementPersistUnackedRangesTruncated(this);
                 if (lastCursorDataFullyPersistable.compareAndSet(true, false)) {
                     int totalRanges = individualDeletedMessages.size();
                     log.warn()
@@ -3455,7 +3455,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             if (iterator.hasNext()) {
                 ledger.getFactory().getOpenTelemetryManagedCursorStats()
-                        .incrementPersistBatchDeletedIndexesTruncated(ledger.getName(), name);
+                        .incrementPersistBatchDeletedIndexesTruncated(this);
                 if (lastBatchDeletedIndexFullyPersistable.compareAndSet(true, false)) {
                     int totalIndexes = batchDeletedIndexes.size();
                     log.warn()

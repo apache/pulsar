@@ -20,8 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.collect.Streams;
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
@@ -144,16 +142,12 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
         batchCallback.close();
     }
 
-    public void incrementPersistUnackedRangesTruncated(String managedLedger, String cursor) {
-        persistUnackedRangesTruncated.add(1, Attributes.of(
-                AttributeKey.stringKey("managedLedger"), managedLedger,
-                AttributeKey.stringKey("cursor"), cursor));
+    public void incrementPersistUnackedRangesTruncated(ManagedCursor cursor) {
+        persistUnackedRangesTruncated.add(1, cursor.getManagedCursorAttributes().getAttributes());
     }
 
-    public void incrementPersistBatchDeletedIndexesTruncated(String managedLedger, String cursor) {
-        persistBatchDeletedIndexesTruncated.add(1, Attributes.of(
-                AttributeKey.stringKey("managedLedger"), managedLedger,
-                AttributeKey.stringKey("cursor"), cursor));
+    public void incrementPersistBatchDeletedIndexesTruncated(ManagedCursor cursor) {
+        persistBatchDeletedIndexesTruncated.add(1, cursor.getManagedCursorAttributes().getAttributes());
     }
 
     private void recordMetrics(ManagedCursor cursor) {

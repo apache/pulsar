@@ -6071,7 +6071,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // Force persistence through the ledger path (not metadata store).
         config.setMaxUnackedRangesToPersistInMetadataStore(0);
 
-        String ledgerName = "test-persist-unacked-ranges-truncated-" + UUID.randomUUID();
+        String ledgerName = "my-tenant/my-ns/persistent/test-persist-unacked-ranges-truncated-" + UUID.randomUUID();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) otelFactory.open(ledgerName, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
 
@@ -6141,9 +6141,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         config.setDeletionAtBatchIndexLevelEnabled(true);
         config.setMaxUnackedRangesToPersistInMetadataStore(0);
 
-        ManagedLedgerImpl ledger =
-                (ManagedLedgerImpl) otelFactory.open("test-persist-batch-deleted-indexes-truncated-"
-                        + UUID.randomUUID(), config);
+        String ledgerName = "my-tenant/my-ns/persistent/test-persist-batch-deleted-indexes-truncated-"
+                + UUID.randomUUID();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) otelFactory.open(ledgerName, config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
 
         List<Position> positions = new ArrayList<>();
