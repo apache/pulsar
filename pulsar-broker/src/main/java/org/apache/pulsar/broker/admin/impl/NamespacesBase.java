@@ -2759,7 +2759,7 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalSetProperty(String key, String value, AsyncResponse asyncResponse) {
-       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+       validateBothAdminAccessForTenantAndNamespaceOperationAsync(namespaceName, NamespaceOperation.UPDATE_PROPERTIES)
                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                    policies.properties.put(key, value);
@@ -2779,7 +2779,7 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalSetProperties(Map<String, String> properties, AsyncResponse asyncResponse) {
-       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+       validateBothAdminAccessForTenantAndNamespaceOperationAsync(namespaceName, NamespaceOperation.UPDATE_PROPERTIES)
                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                    policies.properties.putAll(properties);
@@ -2799,7 +2799,7 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalGetProperty(String key, AsyncResponse asyncResponse) {
-       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+       validateBothAdminAccessForTenantAndNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_PROPERTIES)
                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                .thenAccept(policies -> asyncResponse.resume(policies.properties.get(key)))
                .exceptionally(ex -> {
@@ -2812,7 +2812,7 @@ public abstract class NamespacesBase extends AdminResource {
    }
 
    protected void internalGetProperties(AsyncResponse asyncResponse) {
-       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+       validateBothAdminAccessForTenantAndNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_PROPERTIES)
                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                .thenAccept(policies -> asyncResponse.resume(policies.properties))
                .exceptionally(ex -> {
@@ -2825,7 +2825,7 @@ public abstract class NamespacesBase extends AdminResource {
 
    protected void internalRemoveProperty(String key, AsyncResponse asyncResponse) {
        AtomicReference<String> oldVal = new AtomicReference<>(null);
-       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+       validateBothAdminAccessForTenantAndNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_PROPERTIES)
                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                    oldVal.set(policies.properties.remove(key));
@@ -2845,7 +2845,7 @@ public abstract class NamespacesBase extends AdminResource {
 
    protected void internalClearProperties(AsyncResponse asyncResponse) {
        AtomicReference<Integer> clearedCount = new AtomicReference<>(0);
-       validateAdminAccessForTenantAsync(namespaceName.getTenant())
+       validateBothAdminAccessForTenantAndNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_PROPERTIES)
                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                    clearedCount.set(policies.properties.size());
@@ -3206,4 +3206,41 @@ public abstract class NamespacesBase extends AdminResource {
                         getBundles(config().getDefaultNumberOfNamespaceBundles()));
     }
 
+
+    protected CompletableFuture<Void> validateBothAdminAccessForTenantAndNamespaceOperationAsync(
+            NamespaceName namespaceName, NamespaceOperation operation) {
+        final var tenantAdminValidation = validateAdminAccessForTenantAsync(namespaceName.getTenant());
+        final var namespaceOperationValidation = validateNamespaceOperationAsync(namespaceName, operation);
+        return FutureUtil.waitForAll(List.of(tenantAdminValidation, namespaceOperationValidation))
+                .handle((result, err) -> {
+                    if (!tenantAdminValidation.isCompletedExceptionally()
+                            || !namespaceOperationValidation.isCompletedExceptionally()) {
+                        return null;
+                    }
+                    if (log.isDebugEnabled()) {
+                        Throwable tenantAdminValidationException = null;
+                        try {
+                            tenantAdminValidation.join();
+                        } catch (Throwable ex) {
+                            tenantAdminValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        Throwable namespaceOperationValidationException = null;
+                        try {
+                            namespaceOperationValidation.join();
+                        } catch (Throwable ex) {
+                            namespaceOperationValidationException = FutureUtil.unwrapCompletionException(ex);
+                        }
+                        log.debug("validateBothAdminAccessForTenantAndNamespaceOperationAsync failed."
+                                        + " originalPrincipal={} clientAppId={} operation={} namespace={} "
+                                        + "tenantAdminValidationError={} namespaceOperationValidationError={}",
+                                originalPrincipal(), clientAppId(), operation.toString(), namespaceName,
+                                tenantAdminValidationException, namespaceOperationValidationException);
+                    }
+                    throw new RestException(Status.UNAUTHORIZED,
+                            String.format("Unauthorized to validateBothAdminAccessForTenantAndNamespaceOperationAsync"
+                                            + " for originalPrincipal [%s] and clientAppId [%s] about operation [%s]"
+                                            + " on namespace [%s]",
+                                    originalPrincipal(), clientAppId(), operation.toString(), namespaceName));
+                });
+    }
 }

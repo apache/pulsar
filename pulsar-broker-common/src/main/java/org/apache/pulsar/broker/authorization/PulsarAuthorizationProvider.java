@@ -606,6 +606,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case GRANT_PERMISSION:
                             case GET_PERMISSION:
                             case REVOKE_PERMISSION:
+                            case GET_PROPERTIES:
+                            case UPDATE_PROPERTIES:
+                            case DELETE_PROPERTIES:
                                 return CompletableFuture.completedFuture(false);
                             default:
                                 return FutureUtil.failedFuture(new IllegalStateException(
