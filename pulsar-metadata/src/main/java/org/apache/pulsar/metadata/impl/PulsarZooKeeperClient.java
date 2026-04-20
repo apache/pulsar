@@ -34,7 +34,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.OpStatsLogger;
@@ -111,8 +110,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     private final OpStatsLogger syncStats;
     private final OpStatsLogger createClientStats;
 
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-
     private final Runnable clientCreator = new Runnable() {
 
         @Override
@@ -122,27 +119,22 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
                     @Override
                     public ZooKeeper call() throws KeeperException, InterruptedException {
-                        lock.writeLock().lock();
                         log.info("Reconnecting zookeeper {}.", connectString);
+                        // close the previous one
+                        closeZkHandle();
+                        ZooKeeper newZk;
                         try {
-                            // close the previous one
-                            closeZkHandle();
-                            ZooKeeper newZk;
-                            try {
-                                newZk = createZooKeeper();
-                            } catch (IOException | QuorumPeerConfig.ConfigException e) {
-                                log.error("Failed to create zookeeper instance to {} with config path {}",
-                                        connectString, configPath, e);
-                                throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
-                            }
-                            waitForConnection();
-                            zk.set(newZk);
-                            log.info("ZooKeeper session {} is created to {}.",
-                                    Long.toHexString(newZk.getSessionId()), connectString);
-                            return newZk;
-                        } finally {
-                            lock.writeLock().unlock();
+                            newZk = createZooKeeper();
+                        } catch (IOException | QuorumPeerConfig.ConfigException e) {
+                            log.error("Failed to create zookeeper instance to {} with config path {}",
+                                    connectString, configPath, e);
+                            throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
                         }
+                        waitForConnection();
+                        zk.set(newZk);
+                        log.info("ZooKeeper session {} is created to {}.",
+                                Long.toHexString(newZk.getSessionId()), connectString);
+                        return newZk;
                     }
 
                     @Override
@@ -158,15 +150,6 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         }
 
     };
-
-    private ZooKeeper getZkHandle() {
-        lock.readLock().lock();
-        try {
-            return zk.get();
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
 
     @VisibleForTesting
     static PulsarZooKeeperClient createConnectedZooKeeperClient(
@@ -438,7 +421,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public long getSessionId() {
-        ZooKeeper zkHandle = getZkHandle();
+        ZooKeeper zkHandle = zk.get();
         if (null == zkHandle) {
             return super.getSessionId();
         }
@@ -447,7 +430,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public byte[] getSessionPasswd() {
-        ZooKeeper zkHandle = getZkHandle();
+        ZooKeeper zkHandle = zk.get();
         if (null == zkHandle) {
             return super.getSessionPasswd();
         }
@@ -456,7 +439,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public int getSessionTimeout() {
-        ZooKeeper zkHandle = getZkHandle();
+        ZooKeeper zkHandle = zk.get();
         if (null == zkHandle) {
             return super.getSessionTimeout();
         }
@@ -465,7 +448,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public void addAuthInfo(String scheme, byte[] auth) {
-        ZooKeeper zkHandle = getZkHandle();
+        ZooKeeper zkHandle = zk.get();
         if (null == zkHandle) {
             super.addAuthInfo(scheme, auth);
             return;
@@ -503,7 +486,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public List<OpResult> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.multi(ops);
                 }
@@ -535,7 +518,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.multi(ops, multiCb, worker);
                 } else {
@@ -558,7 +541,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         // since there is no reference about which client that the transaction could use
         // so just use ZooKeeper instance directly.
         // you'd better to use {@link #multi}.
-        ZooKeeper zkHandle = getZkHandle();
+        ZooKeeper zkHandle = zk.get();
         if (null == zkHandle) {
             return super.transaction();
         }
@@ -576,7 +559,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public List<ACL> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.getACL(path, stat);
                 }
@@ -611,7 +594,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.getACL(path, stat, aclCb, worker);
                 } else {
@@ -635,7 +618,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public Stat call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.setACL(path, acl, version);
                 }
@@ -671,7 +654,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.setACL(path, acl, version, stCb, worker);
                 } else {
@@ -708,7 +691,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.sync(path, vCb, worker);
                 } else {
@@ -722,7 +705,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public States getState() {
-        ZooKeeper zkHandle = getZkHandle();
+        ZooKeeper zkHandle = zk.get();
         if (null == zkHandle) {
             return PulsarZooKeeperClient.super.getState();
         } else {
@@ -732,7 +715,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
     @Override
     public String toString() {
-        ZooKeeper zkHandle = getZkHandle();
+        ZooKeeper zkHandle = zk.get();
         if (null == zkHandle) {
             return PulsarZooKeeperClient.super.toString();
         } else {
@@ -748,7 +731,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public String call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.create(path, data, acl, createMode);
                 }
@@ -784,7 +767,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.create(path, data, acl, createMode, createCb, worker);
                 } else {
@@ -807,7 +790,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public Void call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.delete(path, version);
                 } else {
@@ -844,7 +827,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.delete(path, version, deleteCb, worker);
                 } else {
@@ -867,7 +850,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public Stat call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.exists(path, watcher);
                 }
@@ -888,7 +871,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public Stat call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.exists(path, watch);
                 }
@@ -923,7 +906,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.exists(path, watcher, stCb, worker);
                 } else {
@@ -960,7 +943,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.exists(path, watch, stCb, worker);
                 } else {
@@ -984,7 +967,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public byte[] call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.getData(path, watcher, stat);
                 }
@@ -1006,7 +989,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public byte[] call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.getData(path, watch, stat);
                 }
@@ -1041,7 +1024,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.getData(path, watcher, dataCb, worker);
                 } else {
@@ -1078,7 +1061,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.getData(path, watch, dataCb, worker);
                 } else {
@@ -1102,7 +1085,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public Stat call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.setData(path, data, version);
                 }
@@ -1138,7 +1121,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.setData(path, data, version, stCb, worker);
                 } else {
@@ -1162,7 +1145,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public Void call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode);
                 } else {
@@ -1199,7 +1182,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode, cb, ctx);
                 } else {
@@ -1223,7 +1206,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public List<String> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.getChildren(path, watcher, stat);
                 }
@@ -1245,7 +1228,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public List<String> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.getChildren(path, watch, stat);
                 }
@@ -1282,7 +1265,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.getChildren(path, watcher, childCb, worker);
                 } else {
@@ -1321,7 +1304,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.getChildren(path, watch, childCb, worker);
                 } else {
@@ -1346,7 +1329,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public List<String> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.getChildren(path, watcher);
                 }
@@ -1368,7 +1351,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             public List<String> call() throws KeeperException, InterruptedException {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     return PulsarZooKeeperClient.super.getChildren(path, watch);
                 }
@@ -1405,7 +1388,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.getChildren(path, watcher, childCb, worker);
                 } else {
@@ -1444,7 +1427,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
             @Override
             void zkRun() {
-                ZooKeeper zkHandle = getZkHandle();
+                ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
                     PulsarZooKeeperClient.super.getChildren(path, watch, childCb, worker);
                 } else {
