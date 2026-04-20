@@ -42,16 +42,19 @@ import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.Result;
+import org.eclipse.jetty.client.Result;
+import org.eclipse.jetty.ee8.nested.AbstractHandler;
+import org.eclipse.jetty.ee8.nested.ContextHandler;
+import org.eclipse.jetty.ee8.nested.Request;
+import org.eclipse.jetty.ee8.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.eclipse.jetty.http.UriCompliance;
 import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.handler.AbstractHandler;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ProcessorUtils;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
@@ -91,6 +94,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         backingServer3 = new Server();
         HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setUriCompliance(UriCompliance.LEGACY);
         httpConfig.setRequestHeaderSize(20000);
         ServerConnector connector = new ServerConnector(backingServer3, new HttpConnectionFactory(httpConfig));
         connector.setPort(0);
@@ -99,11 +103,11 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         backingServer3.start();
     }
 
-    private static AbstractHandler newHandler(String text) {
-        return new AbstractHandler() {
+    private static Handler newHandler(String text) {
+        AbstractHandler handler = new AbstractHandler() {
             @Override
-            public void handle(String target, Request baseRequest,
-                               HttpServletRequest request, HttpServletResponse response)
+            public void handle(String target, Request baseRequest, HttpServletRequest request,
+                               HttpServletResponse response)
                     throws IOException, ServletException {
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
@@ -113,6 +117,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                         uri.substring(0, uri.length() > 1024 ? 1024 : uri.length())));
             }
         };
+        return new ContextHandler("/", handler).get();
     }
 
     private static ServletContextHandler newStreamingHandler(LinkedBlockingQueue<String> dataQueue) {

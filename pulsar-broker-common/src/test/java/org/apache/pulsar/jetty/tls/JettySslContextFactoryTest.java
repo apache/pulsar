@@ -66,7 +66,7 @@ public class JettySslContextFactoryTest {
         PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
         sslFactory.initialize(sslConfiguration);
         sslFactory.createInternalSslContext();
-        SslContextFactory factory = JettySslContextFactory.createSslContextFactory(null,
+        SslContextFactory.Server factory = JettySslContextFactory.createSslContextFactory(null,
                 sslFactory, true, null, null);
 
         ServerConnector connector = new ServerConnector(server, factory);
@@ -109,7 +109,7 @@ public class JettySslContextFactoryTest {
         PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
         sslFactory.initialize(sslConfiguration);
         sslFactory.createInternalSslContext();
-        SslContextFactory factory = JettySslContextFactory.createSslContextFactory(null,
+        SslContextFactory.Server factory = JettySslContextFactory.createSslContextFactory(null,
                 sslFactory, true, null,
                 new HashSet<String>() {
                     {
@@ -162,7 +162,7 @@ public class JettySslContextFactoryTest {
         PulsarSslFactory sslFactory = new DefaultPulsarSslFactory();
         sslFactory.initialize(sslConfiguration);
         sslFactory.createInternalSslContext();
-        SslContextFactory factory = JettySslContextFactory.createSslContextFactory(null,
+        SslContextFactory.Server factory = JettySslContextFactory.createSslContextFactory(null,
                 sslFactory, true,
                 new HashSet<String>() {
                     {

@@ -27,9 +27,10 @@ import nl.altindag.console.ConsoleCaptor;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.assertj.core.api.ThrowingConsumer;
 import org.awaitility.Awaitility;
+import org.eclipse.jetty.client.ContentResponse;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProxyProtocolClientConnectionFactory.V2;
-import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -45,7 +46,8 @@ public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest 
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        httpClient = new HttpClient(new SslContextFactory(true));
+        httpClient = new HttpClient();
+        httpClient.setSslContextFactory(new SslContextFactory.Client(true));
         httpClient.start();
     }
 
@@ -81,7 +83,7 @@ public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest 
         performLoggingTest(consoleCaptor -> {
             // Send a GET request to the metrics URL
             ContentResponse response = httpClient.newRequest(metricsUrl)
-                    .header("X-Forwarded-For", "11.22.33.44:12345")
+                    .headers(hdrs -> hdrs.ensureField(new HttpField("X-Forwarded-For", "11.22.33.44:12345")))
                     .send();
 
             // Validate the response
@@ -100,7 +102,7 @@ public class WebServiceOriginalClientIPTest extends MockedPulsarServiceBaseTest 
         performLoggingTest(consoleCaptor -> {
             // Send a GET request to the metrics URL
             ContentResponse response = httpClient.newRequest(metricsUrl)
-                    .header("Forwarded", "for=11.22.33.44:12345")
+                    .headers(hdrs -> hdrs.ensureField(new HttpField("Forwarded", "for=11.22.33.44:12345")))
                     .send();
 
             // Validate the response

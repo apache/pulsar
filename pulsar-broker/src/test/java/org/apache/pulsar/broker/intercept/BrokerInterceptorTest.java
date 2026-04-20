@@ -49,6 +49,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -109,17 +110,18 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @Override
     protected void cleanup() throws Exception {
-        teardown();
+        teardown(null);
     }
 
     @AfterMethod(alwaysRun = true)
-    public void teardown() throws Exception {
+    public void teardown(ITestResult testResult) throws Exception {
         this.listeners.close();
-
-        verify(listener1, times(1)).close();
-        verify(listener2, times(1)).close();
-        verify(ncl1, times(1)).close();
-        verify(ncl2, times(1)).close();
+        if (testResult != null && testResult.getStatus() == ITestResult.SUCCESS) {
+            verify(listener1, times(1)).close();
+            verify(listener2, times(1)).close();
+            verify(ncl1, times(1)).close();
+            verify(ncl2, times(1)).close();
+        }
         super.internalCleanup();
     }
 
@@ -212,13 +214,13 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-            .topic("test-before-send-message")
-            .create();
+                .topic("test-before-send-message")
+                .create();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-            .topic("test-before-send-message")
-            .subscriptionName("test")
-            .subscribe();
+                .topic("test-before-send-message")
+                .subscriptionName("test")
+                .subscribe();
 
         assertEquals(counterBrokerInterceptor.getMessageProducedCount(), 0);
         assertEquals(counterBrokerInterceptor.getMessageDispatchCount(), 0);

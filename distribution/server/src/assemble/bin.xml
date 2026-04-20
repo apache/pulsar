@@ -128,6 +128,8 @@
         <exclude>com.google.android:annotations</exclude>
         <!-- Needed only in the pulsar-shell distro only -->
         <exclude>net.java.dev.jna:jna</exclude>
+        <!-- Exclude org.apache.zookeeper:zookeeper since the patched version is included in the distribution -->
+        <exclude>org.apache.zookeeper:zookeeper</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>

@@ -48,8 +48,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.ee8.nested.Request;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -172,7 +171,9 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
         AdditionalServlet proxyAdditionalServlet = Mockito.mock(AdditionalServlet.class);
         Mockito.when(proxyAdditionalServlet.getBasePath()).thenReturn(BASE_PATH);
-        Mockito.when(proxyAdditionalServlet.getServletHolder()).thenReturn(new ServletHolder(servlet));
+        Mockito.when(proxyAdditionalServlet.getServletInstance()).thenReturn(servlet);
+        Mockito.when(proxyAdditionalServlet.getServletType()).thenReturn(
+                AdditionalServlet.AdditionalServletType.JAVAX_SERVLET);
 
         AdditionalServlets proxyAdditionalServlets = Mockito.mock(AdditionalServlets.class);
         Map<String, AdditionalServletWithClassLoader> map = new HashMap<>();

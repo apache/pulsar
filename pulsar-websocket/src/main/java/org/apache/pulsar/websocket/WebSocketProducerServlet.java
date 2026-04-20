@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.websocket;
 
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
-import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
+import java.time.Duration;
+import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServletFactory;
 
-public class WebSocketProducerServlet extends WebSocketServlet {
+public class WebSocketProducerServlet extends JettyWebSocketServlet {
     private static final long serialVersionUID = 1L;
 
     public static final String SERVLET_PATH = "/ws/producer";
@@ -34,12 +35,14 @@ public class WebSocketProducerServlet extends WebSocketServlet {
     }
 
     @Override
-    public void configure(WebSocketServletFactory factory) {
-        factory.getPolicy().setMaxTextMessageSize(service.getConfig().getWebSocketMaxTextFrameSize());
+    public void configure(JettyWebSocketServletFactory factory) {
+        factory.setMaxTextMessageSize(service.getConfig().getWebSocketMaxTextFrameSize());
         if (service.getConfig().getWebSocketSessionIdleTimeoutMillis() > 0) {
-            factory.getPolicy().setIdleTimeout(service.getConfig().getWebSocketSessionIdleTimeoutMillis());
+            factory.setIdleTimeout(Duration.ofMillis(service.getConfig().getWebSocketSessionIdleTimeoutMillis()));
         }
-        factory.setCreator((request, response) ->
-                new ProducerHandler(service, request.getHttpServletRequest(), response));
+        factory.setCreator((request, response) -> {
+            ProducerHandler producerHandler = new ProducerHandler(service, request.getHttpServletRequest(), response);
+            return producerHandler.isAllowConnect() && response.getStatusCode() < 400 ? producerHandler : null;
+        });
     }
 }

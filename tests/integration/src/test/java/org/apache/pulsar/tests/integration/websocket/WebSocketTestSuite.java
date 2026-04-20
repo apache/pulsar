@@ -32,7 +32,10 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
+import org.eclipse.jetty.websocket.api.Callback;
+import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.slf4j.Logger;
@@ -81,9 +84,10 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
     }
 
     @WebSocket
-    public static class Client extends WebSocketAdapter implements AutoCloseable {
+    public abstract static class Client implements AutoCloseable {
         final BlockingQueue<String> incomingMessages = new ArrayBlockingQueue<>(10);
         private final WebSocketClient client;
+        private Session session;
 
         Client(String webSocketUri) throws Exception {
             HttpClient httpClient = new HttpClient();
@@ -92,11 +96,16 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
             client.connect(this, URI.create(webSocketUri)).get();
         }
 
-        void sendText(String payload) throws IOException {
-            getSession().getRemote().sendString(payload);
+        @OnWebSocketOpen
+        public void onWebSocketConnect(Session session) {
+            this.session = session;
         }
 
-        @Override
+        void sendText(String payload) throws IOException {
+            session.sendText(payload, Callback.NOOP);
+        }
+
+        @OnWebSocketMessage
         public void onWebSocketText(String s) {
             incomingMessages.add(s);
         }
@@ -107,7 +116,6 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
                 Assert.fail("Did not get websocket response within timeout");
             }
             return ObjectMapperFactory.getMapper().getObjectMapper().readValue(response, new TypeReference<>() {});
-
         }
 
         @Override

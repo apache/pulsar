@@ -42,15 +42,19 @@ import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketError;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
 @Slf4j
-@WebSocket(maxTextMessageSize = 64 * 1024)
-public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements Closeable {
+@WebSocket
+public class ClientSideEncryptionWssProducer implements Closeable {
 
     private Session session;
     private volatile CompletableFuture<MessageIdData> sendFuture;
@@ -80,8 +84,8 @@ public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements
     public void start() throws Exception {
         wssClient = new WebSocketClient();
         wssClient.start();
-        session = wssClient.connect(this, buildConnectURL(), new ClientUpgradeRequest()).get();
-        assertTrue(session.isOpen());
+        Session ses = wssClient.connect(this, new ClientUpgradeRequest(buildConnectURL())).get();
+        assertTrue(ses.isOpen());
     }
 
     private URI buildConnectURL() throws PulsarClientException.CryptoException {
@@ -130,7 +134,7 @@ public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements
         // Do send.
         sendFuture = new CompletableFuture<>();
         String jsonMsg = ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
-        this.session.getRemote().sendString(jsonMsg);
+        this.session.sendText(jsonMsg, Callback.NOOP);
         // Wait for response.
         executor.schedule(() -> {
             synchronized (ClientSideEncryptionWssProducer.this) {
@@ -142,7 +146,7 @@ public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements
         return sendFuture.get();
     }
 
-    @Override
+    @OnWebSocketClose
     public void onWebSocketClose(int statusCode, String reason) {
         log.info("Connection closed: {} - {}", statusCode, reason);
         this.session = null;
@@ -151,18 +155,18 @@ public class ClientSideEncryptionWssProducer extends WebSocketAdapter implements
         }
     }
 
-    @Override
+    @OnWebSocketOpen
     public void onWebSocketConnect(Session session) {
         log.info("Got connect: {}", session);
         this.session = session;
     }
 
-    @Override
+    @OnWebSocketError
     public void onWebSocketError(Throwable cause) {
         log.error("Received an error", cause);
     }
 
-    @Override
+    @OnWebSocketMessage
     public void onWebSocketText(String text) {
         try {
             ResponseOfSend responseOfSend =

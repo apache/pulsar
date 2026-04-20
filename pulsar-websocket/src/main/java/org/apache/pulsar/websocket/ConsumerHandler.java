@@ -54,9 +54,9 @@ import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.apache.pulsar.websocket.data.EndOfTopicResponse;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WriteCallback;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.eclipse.jetty.ee8.websocket.api.Session;
+import org.eclipse.jetty.ee8.websocket.api.WriteCallback;
+import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,7 +99,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             .expireAfterWrite(1, TimeUnit.HOURS)
             .build();
 
-    public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+    public ConsumerHandler(WebSocketService service, HttpServletRequest request, JettyServerUpgradeResponse response) {
         super(service, request, response);
 
         ConsumerBuilderImpl<byte[]> builder;
@@ -137,6 +137,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
             }
+            allowConnect = true;
         } catch (Exception e) {
             log.warn("[{}:{}] Failed in creating subscription {} on topic {}", request.getRemoteAddr(),
                     request.getRemotePort(), subscription, topic, e);
@@ -187,7 +188,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                                     public void writeFailed(Throwable th) {
                                         log.warn("[{}/{}] Failed to deliver msg to {} {}", consumer.getTopic(),
                                                 subscription,
-                                                getRemote().getInetSocketAddress().toString(), th.getMessage());
+                                                getRemote().getRemoteAddress().toString(), th.getMessage());
                                         pendingMessages.decrementAndGet();
                                         // schedule receive as one of the delivery failed
                                         service.getExecutor().execute(() -> receiveMessage());
@@ -198,7 +199,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                                         if (log.isDebugEnabled()) {
                                             log.debug("[{}/{}] message is delivered successfully to {} ",
                                                     consumer.getTopic(),
-                                                    subscription, getRemote().getInetSocketAddress().toString());
+                                                    subscription, getRemote().getRemoteAddress().toString());
                                         }
                                         updateDeliverMsgStat(msgSize);
                                     }
@@ -218,7 +219,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                         subscription);
             } else {
                 log.warn("[{}/{}] Error occurred while consumer handler was delivering msg to {}: {}",
-                        consumer.getTopic(), subscription, getRemote().getInetSocketAddress().toString(),
+                        consumer.getTopic(), subscription, getRemote().getRemoteAddress().toString(),
                         exception.getMessage());
             }
             return null;
@@ -260,7 +261,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private void handleEndOfTopic() {
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received check reach the end of topic request from {} ", consumer.getTopic(),
-                    subscription, getRemote().getInetSocketAddress().toString());
+                    subscription, getRemote().getRemoteAddress().toString());
         }
         try {
             String msg = objectWriter().writeValueAsString(
@@ -270,14 +271,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 @Override
                 public void writeFailed(Throwable th) {
                     log.warn("[{}/{}] Failed to send end of topic msg to {} due to {}", consumer.getTopic(),
-                            subscription, getRemote().getInetSocketAddress().toString(), th.getMessage());
+                            subscription, getRemote().getRemoteAddress().toString(), th.getMessage());
                 }
 
                 @Override
                 public void writeSuccess() {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}/{}] End of topic message is delivered successfully to {} ",
-                                consumer.getTopic(), subscription, getRemote().getInetSocketAddress().toString());
+                                consumer.getTopic(), subscription, getRemote().getRemoteAddress().toString());
                     }
                 }
             });
@@ -291,7 +292,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private void handleUnsubscribe(ConsumerCommand command) throws PulsarClientException {
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received unsubscribe request from {} ", consumer.getTopic(),
-                    subscription, getRemote().getInetSocketAddress().toString());
+                    subscription, getRemote().getRemoteAddress().toString());
         }
         consumer.unsubscribe();
     }
@@ -311,7 +312,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         MessageId msgId = MessageId.fromByteArray(Base64.getDecoder().decode(command.messageId));
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
-                    subscription, msgId, getRemote().getInetSocketAddress().toString());
+                    subscription, msgId, getRemote().getRemoteAddress().toString());
         }
 
         MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
@@ -329,7 +330,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             topic.toString());
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received negative ack request of message {} from {} ", consumer.getTopic(),
-                    subscription, msgId, getRemote().getInetSocketAddress().toString());
+                    subscription, msgId, getRemote().getRemoteAddress().toString());
         }
 
         MessageId originalMsgId = messageIdCache.asMap().remove(command.messageId);
@@ -344,7 +345,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private void handlePermit(ConsumerCommand command) throws IOException {
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received {} permits request from {} ", consumer.getTopic(),
-                    subscription, command.permitMessages, getRemote().getInetSocketAddress().toString());
+                    subscription, command.permitMessages, getRemote().getRemoteAddress().toString());
         }
         if (command.permitMessages == null) {
             throw new IOException("Missing required permitMessages field for 'permit' command");

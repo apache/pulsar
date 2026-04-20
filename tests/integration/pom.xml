@@ -244,6 +244,11 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.eclipse.jetty.websocket</groupId>
+      <artifactId>jetty-websocket-jetty-client</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>

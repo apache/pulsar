@@ -36,22 +36,10 @@
       <groupId>com.datastax.oss</groupId>
       <artifactId>bookkeeper-server</artifactId>
     </dependency>
-
     <dependency>
       <groupId>com.datastax.oss</groupId>
-      <artifactId>prometheus-metrics-provider</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.datastax.oss</groupId>
-      <artifactId>codahale-metrics-provider</artifactId>
-      <version>${datastax.bookkeeper.version}</version>
-      <exclusions>
-        <exclusion>
-          <artifactId>amqp-client</artifactId>
-          <groupId>com.rabbitmq</groupId>
-        </exclusion>
-      </exclusions>
+      <artifactId>zookeeper-with-patched-admin</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
