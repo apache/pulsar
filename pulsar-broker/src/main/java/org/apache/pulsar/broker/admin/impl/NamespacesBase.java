@@ -490,7 +490,7 @@ public abstract class NamespacesBase extends AdminResource {
                                 // There are still more than one clusters configured for the global namespace
                                 throw new RestException(Status.PRECONDITION_FAILED,
                                     "Cannot delete the global namespace " + nsName + ". There are still more than "
-                                    + "one replication clusters configured.");
+                                    + "one replication clusters configured or replication clusters is empty.");
                             }
                             if (!cluster.equals(config().getClusterName())) {
                                 // the only replication cluster is other cluster, redirect
@@ -1970,7 +1970,7 @@ public abstract class NamespacesBase extends AdminResource {
             log.info(msg);
             return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, msg));
         }
-        pulsar().getBrokerService().setCurrentClusterAllowedIfNoClusterIsAllowed(ns, policies);
+        pulsar().getBrokerService().setCurrentClusterAllowedWhenCreating(ns, policies);
 
         // Validate cluster names and permissions
         return Stream.concat(policies.replication_clusters.stream(), policies.allowed_clusters.stream())

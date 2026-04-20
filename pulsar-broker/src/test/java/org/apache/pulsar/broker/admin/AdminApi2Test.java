@@ -41,7 +41,11 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -137,6 +141,7 @@ import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -1524,6 +1529,36 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // Global cluster, if there, should be omitted from the results
         assertEquals(admin.namespaces().getNamespaceReplicationClusters(namespace),
                 Collections.singletonList(localCluster));
+    }
+
+    @Test
+    public void testCreateNamespaceWithEmptyReplicationClustersByHttp() throws Exception {
+        String localCluster = pulsar.getConfiguration().getClusterName();
+        String namespacePart = newUniqueName("ns");
+        String namespace = defaultTenant + "/" + namespacePart;
+
+        // Create namespace with "allowed_cluster", and the param "replication_clusters" is empty.
+        HttpClient httpClient = HttpClient.newHttpClient();
+        URI adminV2Uri = URI.create(brokerUrl.toString()).resolve("/admin/v2/");
+        String namespaceRequestBody = "{\"allowed_clusters\": [\"" + localCluster + "\"]}";
+        HttpRequest createNamespaceRequest =
+                HttpRequest.newBuilder(adminV2Uri.resolve("namespaces/" + namespace))
+                        .header("Content-Type", "application/json")
+                        .PUT(HttpRequest.BodyPublishers.ofString(namespaceRequestBody))
+                        .build();
+        HttpResponse<String> createNamespaceResponse = httpClient.send(createNamespaceRequest,
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(createNamespaceResponse.statusCode(), Status.NO_CONTENT.getStatusCode(),
+                "Failed to create namespace by HTTP: " + createNamespaceResponse.body());
+
+        // Verify: replication_clusters is not empty.
+        Awaitility.await().untilAsserted(() -> {
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            assertEquals(policies.replication_clusters.size(), 1);
+            assertEquals(policies.allowed_clusters.size(), 1);
+            assertTrue(policies.replication_clusters.contains(localCluster));
+            assertTrue(policies.allowed_clusters.contains(localCluster));
+        });
     }
 
     @Test(timeOut = 30000)
