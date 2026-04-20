@@ -77,31 +77,16 @@ public class TopicName implements ServiceUnitId {
         return TopicName.get(name);
     }
 
-    /**
-     * Get or create a TopicName from the cache.
-     *
-     * <p>Optimization over {@code computeIfAbsent}: avoids holding the ConcurrentHashMap bin-lock
-     * while constructing a new TopicName object. The construction (string splitting / parsing) is
-     * pure CPU work and can be done outside the lock. In the typical steady-state (cache hit) this
-     * method does a single volatile read via {@code get()} and returns immediately with no
-     * synchronization overhead.
-     *
-     * <p>In the cache-miss case, two threads racing on the same key may both construct a
-     * {@code TopicName} instance, but only one wins the {@code putIfAbsent} and the loser's
-     * instance is simply discarded. This is safe because {@code TopicName} is immutable and
-     * construction is cheap compared to the lock-contention / context-switch cost of
-     * {@code computeIfAbsent}.
-     */
     public static TopicName get(String topic) {
         // Fast path: already cached — single volatile read, no lock.
         TopicName tp = cache.get(topic);
         if (tp != null) {
             return tp;
         }
-        // Slow path: construct outside the bin-lock to avoid blocking other threads.
+        // Use get()+put() instead of computeIfAbsent() to keep construction outside the bin-lock.
+        // Duplicate instances from racing threads are safe to discard since TopicName is immutable.
         TopicName newTp = new TopicName(topic);
         TopicName existing = cache.put(topic, newTp);
-        // If another thread raced us and already inserted, use its instance (keeps identity stable).
         return existing != null ? existing : newTp;
     }
 
