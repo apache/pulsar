@@ -188,7 +188,11 @@ public class DrainingHashesTracker {
                     int hash = hashIterator.nextInt();
                     DrainingHashEntry entry = getEntry(hash);
                     if (entry == null) {
-                        log.warn()
+                        // Not-found entries are expected as a benign race between the draining-hash
+                        // stats read path and the draining-hash removal path (fixed in #23854 to
+                        // avoid deadlocks). Logging at WARN was noisy; DEBUG keeps the signal for
+                        // troubleshooting without polluting broker logs.
+                        log.debug()
                                 .attr("dispatcher", dispatcherName)
                                 .attr("hash", hash)
                                 .attr("consumer", consumer)

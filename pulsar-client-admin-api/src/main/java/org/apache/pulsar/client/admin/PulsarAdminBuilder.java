@@ -45,7 +45,7 @@ public interface PulsarAdminBuilder {
      * <pre>
      * {@code
      * Map<String, Object> config = new HashMap<>();
-     * config.put("serviceHttpUrl", "http://localhost:6650");
+     * config.put("serviceUrl", "pulsar://localhost:6650");
      *
      * PulsarAdminBuilder builder = ...;
      * builder = builder.loadConf(config);
