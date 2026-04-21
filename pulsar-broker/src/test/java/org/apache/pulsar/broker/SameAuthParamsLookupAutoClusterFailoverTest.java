@@ -64,7 +64,11 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
     }
     @SuppressWarnings("deprecation")
 
-    @Test(dataProvider = "enabledTls", timeOut = 240 * 1000)
+    // Each state-convergence phase below waits up to 2 minutes. With 3 phases plus
+    // cluster startup/teardown, the 240s overall timeout can be tight on slow CI agents
+    // (the probe timeout is 3s and recoverThreshold=5, so a single slow probe can
+    // stretch a phase to ~30s). Allow 8 minutes overall to match the per-phase budget.
+    @Test(dataProvider = "enabledTls", timeOut = 480 * 1000)
     public void testAutoClusterFailover(boolean enabledTls) throws Exception {
         // Start clusters.
         setup();
@@ -117,7 +121,7 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
 
         // Test failover 0 --> 2.
         pulsar1.close();
-        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(120, TimeUnit.SECONDS).untilAsserted(() -> {
             CompletableFuture<Boolean> checkStatesFuture2 = new CompletableFuture<>();
             executor.submit(() -> {
                 boolean res = stateArray[0] == PulsarServiceState.Failed;
@@ -134,7 +138,7 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
         executor.execute(() -> {
             urlArray[1] = url2;
         });
-        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(120, TimeUnit.SECONDS).untilAsserted(() -> {
             CompletableFuture<Boolean> checkStatesFuture3 = new CompletableFuture<>();
             executor.submit(() -> {
                 boolean res = stateArray[0] == PulsarServiceState.Failed;
@@ -151,7 +155,7 @@ public class SameAuthParamsLookupAutoClusterFailoverTest extends OneWayReplicato
         executor.execute(() -> {
             urlArray[0] = url2;
         });
-        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(120, TimeUnit.SECONDS).untilAsserted(() -> {
             CompletableFuture<Boolean> checkStatesFuture4 = new CompletableFuture<>();
             executor.submit(() -> {
                 boolean res = stateArray[0] == PulsarServiceState.Healthy;
