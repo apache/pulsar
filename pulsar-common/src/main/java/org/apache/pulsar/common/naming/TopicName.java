@@ -79,11 +79,16 @@ public class TopicName implements ServiceUnitId {
     }
 
     public static TopicName get(String topic) {
+        // Fast path: already cached — single volatile read, no lock.
         TopicName tp = cache.get(topic);
         if (tp != null) {
             return tp;
         }
-        return cache.computeIfAbsent(topic, k -> new TopicName(k));
+        // Use get()+put() instead of computeIfAbsent() to keep construction outside the bin-lock.
+        // Duplicate instances from racing threads are safe to discard since TopicName is immutable.
+        TopicName newTp = new TopicName(topic);
+        TopicName existing = cache.put(topic, newTp);
+        return existing != null ? existing : newTp;
     }
 
     public static TopicName getPartitionedTopicName(String topic) {
