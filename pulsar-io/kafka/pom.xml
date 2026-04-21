@@ -111,6 +111,11 @@
     </dependency>
 
     <dependency>
+      <groupId>at.yawk.lz4</groupId>
+      <artifactId>lz4-java</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>io.confluent</groupId>
       <artifactId>kafka-schema-registry-client</artifactId>
       <version>${confluent.version}</version>
