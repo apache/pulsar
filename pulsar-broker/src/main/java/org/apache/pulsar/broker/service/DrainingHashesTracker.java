@@ -185,8 +185,8 @@ public class DrainingHashesTracker {
                     int hash = hashIterator.nextInt();
                     DrainingHashEntry entry = getEntry(hash);
                     if (entry == null) {
-                        log.warn("[{}] Draining hash {} not found in the tracker for consumer {}", dispatcherName, hash,
-                                consumer);
+                        log.debug("[{}] Draining hash {} not found in the tracker for consumer {}", dispatcherName,
+                                hash, consumer);
                         continue;
                     }
                     int unackedMessages = entry.getRefCount();
