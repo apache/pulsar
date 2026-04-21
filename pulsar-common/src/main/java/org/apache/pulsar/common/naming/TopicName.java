@@ -121,59 +121,54 @@ public class TopicName implements ServiceUnitId {
         try {
             // The topic name can be in two different forms, one is fully qualified topic name,
             // the other one is short topic name
-            if (!completeTopicName.contains("://")) {
+            int index = completeTopicName.indexOf("://");
+            if (index < 0) {
                 // The short topic name can be:
                 // - <topic>
                 // - <property>/<namespace>/<topic>
-                String[] parts = StringUtils.split(completeTopicName, '/');
-                if (parts.length == 3) {
-                    completeTopicName = TopicDomain.persistent.name() + "://" + completeTopicName;
-                } else if (parts.length == 1) {
-                    completeTopicName = TopicDomain.persistent.name() + "://"
-                        + PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE + "/" + parts[0];
+                List<String> parts = splitBySlash(completeTopicName, 0);
+                this.domain = TopicDomain.persistent;
+                this.cluster = null;
+                if (parts.size() == 3) {
+                    this.tenant = parts.get(0);
+                    this.namespacePortion = parts.get(1);
+                    this.localName = parts.get(2);
+                } else if (parts.size() == 1) {
+                    this.tenant = PUBLIC_TENANT;
+                    this.namespacePortion = DEFAULT_NAMESPACE;
+                    this.localName = parts.get(0);
                 } else {
                     throw new IllegalArgumentException(
                         "Invalid short topic name '" + completeTopicName + "', it should be in the format of "
                         + "<tenant>/<namespace>/<topic> or <topic>");
                 }
-            }
-
-            // The fully qualified topic name can be in two different forms:
-            // new:    persistent://tenant/namespace/topic
-            // legacy: persistent://tenant/cluster/namespace/topic
-
-            List<String> parts = Splitter.on("://").limit(2).splitToList(completeTopicName);
-            this.domain = TopicDomain.getEnum(parts.get(0));
-
-            String rest = parts.get(1);
-
-            // The rest of the name can be in different forms:
-            // new:    tenant/namespace/<localName>
-            // legacy: tenant/cluster/namespace/<localName>
-            // Examples of localName:
-            // 1. some, name, xyz
-            // 2. xyz-123, feeder-2
-
-
-            parts = Splitter.on("/").limit(4).splitToList(rest);
-            if (parts.size() == 3) {
-                // New topic name without cluster name
-                this.tenant = parts.get(0);
-                this.cluster = null;
-                this.namespacePortion = parts.get(1);
-                this.localName = parts.get(2);
-                this.partitionIndex = getPartitionIndex(completeTopicName);
-                this.namespaceName = NamespaceName.get(tenant, namespacePortion);
-            } else if (parts.size() == 4) {
-                // Legacy topic name that includes cluster name
-                this.tenant = parts.get(0);
-                this.cluster = parts.get(1);
-                this.namespacePortion = parts.get(2);
-                this.localName = parts.get(3);
-                this.partitionIndex = getPartitionIndex(completeTopicName);
-                this.namespaceName = NamespaceName.get(tenant, cluster, namespacePortion);
+                this.completeTopicName = domain.name() + "://" + tenant + "/" + namespacePortion + "/" + localName;
             } else {
-                throw new IllegalArgumentException("Invalid topic name: " + completeTopicName);
+                // The fully qualified topic name can be in two different forms:
+                // new:    persistent://tenant/namespace/topic
+                // legacy: persistent://tenant/cluster/namespace/topic
+                //
+                // Examples of localName:
+                // 1. some, name, xyz
+                // 2. xyz-123, feeder-2
+                List<String> parts = splitBySlash(completeTopicName.substring(index + "://".length()), 4);
+                if (parts.size() == 3) {
+                    // New topic name without cluster name
+                    this.cluster = null;
+                    this.tenant = parts.get(0);
+                    this.namespacePortion = parts.get(1);
+                    this.localName = parts.get(2);
+                } else if (parts.size() == 4) {
+                    // Legacy topic name that includes cluster name
+                    this.tenant = parts.get(0);
+                    this.cluster = parts.get(1);
+                    this.namespacePortion = parts.get(2);
+                    this.localName = parts.get(3);
+                } else {
+                    throw new IllegalArgumentException("Invalid topic name " + completeTopicName);
+                }
+                this.completeTopicName = completeTopicName;
+                this.domain = TopicDomain.getEnum(completeTopicName.substring(0, index));
             }
 
             if (StringUtils.isBlank(localName)) {
@@ -181,16 +176,14 @@ public class TopicName implements ServiceUnitId {
                         + " be blank.", completeTopicName));
             }
 
+            this.partitionIndex = getPartitionIndex(localName);
+            if (cluster == null) {
+                this.namespaceName = NamespaceName.get(tenant, namespacePortion);
+            } else {
+                this.namespaceName = NamespaceName.get(tenant, cluster, namespacePortion);
+            }
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Invalid topic name: " + completeTopicName, e);
-        }
-        if (isV2()) {
-            this.completeTopicName = String.format("%s://%s/%s/%s",
-                                                   domain, tenant, namespacePortion, localName);
-        } else {
-            this.completeTopicName = String.format("%s://%s/%s/%s/%s",
-                                                   domain, tenant, cluster,
-                                                   namespacePortion, localName);
         }
     }
 
