@@ -758,19 +758,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public synchronized void addFailed(ManagedLedgerException exception, Object ctx) {
+        PublishContext callback = (PublishContext) ctx;
         /* If the topic is being transferred(in the Releasing bundle state),
-         we don't want to forcefully close topic here.
-         Instead, we will rely on the service unit state channel's bundle(topic) transfer protocol.
-         At the end of the transfer protocol, at Owned state, the source broker should close the topic properly.
+         we don't want to forcefully close the topic here.
+         Instead, complete the broker-side publish callback and let the transfer protocol finish the topic close on the
+         source broker.
          */
         if (transferring) {
             log.debug()
                     .exception(exception)
                     .log("Failed to persist msg in store while transferring");
+            callback.completed(new TopicClosedException(exception), -1, -1);
+            decrementPendingWriteOpsAndCheck();
             return;
         }
 
-        PublishContext callback = (PublishContext) ctx;
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();

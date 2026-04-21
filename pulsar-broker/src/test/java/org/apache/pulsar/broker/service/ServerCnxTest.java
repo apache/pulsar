@@ -73,6 +73,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -1917,6 +1918,51 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @Test(timeOut = 30000)
+    public void testInFlightSendFailureDuringTransferReleasesBrokerStateWithoutSendError() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                "prod-name", Collections.emptyMap(), false);
+        channel.writeInbound(clientCommand);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+
+        PersistentTopic topic = (PersistentTopic) brokerService.getTopicReference(successTopicName).orElseThrow();
+        Producer producer = topic.getProducers().values().iterator().next();
+        CountDownLatch addEntryStarted = new CountDownLatch(1);
+        AtomicReference<AddEntryCallback> addEntryCallback = new AtomicReference<>();
+        AtomicReference<Object> addEntryContext = new AtomicReference<>();
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            addEntryCallback.set(invocationOnMock.getArgument(2));
+            addEntryContext.set(invocationOnMock.getArgument(3));
+            addEntryStarted.countDown();
+            return null;
+        }).when(ledgerMock).asyncAddEntry(any(ByteBuf.class), anyInt(), any(AddEntryCallback.class), any());
+
+        sendMessage();
+
+        assertTrue(addEntryStarted.await(1, TimeUnit.SECONDS));
+        assertEquals(topic.getPendingWriteOps().get(), 1L);
+        assertEquals(producer.getPendingPublishAcks(), 1L);
+
+        setTopicTransferring(topic);
+        addEntryCallback.get().addFailed(
+                new ManagedLedgerException.ManagedLedgerAlreadyClosedException("Managed ledger was already closed"),
+                addEntryContext.get());
+
+        Awaitility.await().during(200, TimeUnit.MILLISECONDS).atMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+            channel.runPendingTasks();
+            assertNull(tryPeekResponse(channel, clientChannelHelper));
+        });
+        assertTrue(channel.isActive());
+        Awaitility.await().atMost(1, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    assertEquals(topic.getPendingWriteOps().get(), 0L);
+                    assertEquals(producer.getPendingPublishAcks(), 0L);
+                });
+    }
+
     private void sendMessage() {
         MessageMetadata messageMetadata = new MessageMetadata()
                 .setPublishTime(System.currentTimeMillis())
@@ -1928,6 +1974,20 @@ public class ServerCnxTest {
                 ChecksumType.None, messageMetadata, data));
         channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
         clientCommand.release();
+    }
+
+    private void setTopicTransferring(PersistentTopic topic) throws Exception {
+        Field transferringField = AbstractTopic.class.getDeclaredField("transferring");
+        transferringField.setAccessible(true);
+        transferringField.set(topic, true);
+
+        Field isFencedField = AbstractTopic.class.getDeclaredField("isFenced");
+        isFencedField.setAccessible(true);
+        isFencedField.set(topic, true);
+
+        Field isClosingOrDeletingField = PersistentTopic.class.getDeclaredField("isClosingOrDeleting");
+        isClosingOrDeletingField.setAccessible(true);
+        isClosingOrDeletingField.set(topic, true);
     }
 
     @Test(timeOut = 30000)
