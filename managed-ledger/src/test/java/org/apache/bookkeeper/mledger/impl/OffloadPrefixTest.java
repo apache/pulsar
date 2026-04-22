@@ -56,6 +56,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -234,7 +235,11 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
             String content = "entry-" + i;
             ledger.addEntry(content.getBytes());
         }
-        assertEquals(ledger.getLedgersInfoAsList().size(), 2);
+        // After filling exactly 2 ledgers, the 2nd is closed and a 3rd empty ledger starts
+        // being created asynchronously. Wait for that to finish so the rest of the test runs
+        // against a stable state (l1 full, l2 full, l3 empty) instead of racing with rollover.
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(ledger.getLedgersInfoAsList().size(), 3));
 
         Position p = ledger.getLastConfirmedEntry(); // position at end of second ledger
 
