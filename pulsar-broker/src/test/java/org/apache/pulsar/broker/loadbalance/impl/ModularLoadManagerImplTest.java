@@ -282,14 +282,18 @@ public class ModularLoadManagerImplTest {
         }
     }
 
-    private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {
-        return nsFactory.getBundle(NamespaceName.get(property, cluster, namespace),
+    private NamespaceBundle makeBundle(NamespaceName nsname) {
+        return nsFactory.getBundle(nsname,
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
     }
 
+    private NamespaceBundle makeBundle(final String tenant, final String namespace) {
+        return makeBundle(NamespaceName.get(tenant, namespace));
+    }
+
     private NamespaceBundle makeBundle(final String all) {
-        return makeBundle(all, all, all);
+        return makeBundle(NamespaceName.get(all, all, all));
     }
 
     private String mockBundleName(final int i) {
@@ -412,6 +416,26 @@ public class ModularLoadManagerImplTest {
         String topicLookupAfterUnload = admin1.lookups().lookupTopic(topic);
         log.debug("final broker service url - {}", topicLookupAfterUnload);
         Assert.assertEquals(brokerServiceUrl, topicLookupAfterUnload);
+    }
+
+    @Test
+    public void testBrokerAffinityLookupUsesFullBundleName() throws Exception {
+        String affinityBroker1 = "affinity-broker-1";
+        String affinityBroker2 = "affinity-broker-2";
+        NamespaceBundle bundle1 = makeBundle("tenant-1", "ns-1");
+        NamespaceBundle bundle2 = makeBundle("tenant-1", "ns-2");
+
+        LoadManager wrapper = pulsar1.getLoadManager().get();
+        wrapper.setNamespaceBundleAffinity(bundle1.toString(), affinityBroker1);
+        wrapper.setNamespaceBundleAffinity(bundle2.toString(), affinityBroker2);
+
+        Optional<ResourceUnit> leastLoadedBroker1 = wrapper.getLeastLoaded(bundle1);
+        Optional<ResourceUnit> leastLoadedBroker2 = wrapper.getLeastLoaded(bundle2);
+
+        Assert.assertTrue(leastLoadedBroker1.isPresent());
+        Assert.assertTrue(leastLoadedBroker2.isPresent());
+        Assert.assertEquals(leastLoadedBroker1.get().getResourceId(), affinityBroker1);
+        Assert.assertEquals(leastLoadedBroker2.get().getResourceId(), affinityBroker2);
     }
 
     /**
