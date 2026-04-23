@@ -29,28 +29,28 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
  */
 public final class LedgerMetadataUtils {
 
-    private static final String METADATA_PROPERTY_APPLICATION = "application";
-    private static final byte[] METADATA_PROPERTY_APPLICATION_PULSAR = "pulsar".getBytes(StandardCharsets.UTF_8);
+    public static final String METADATA_PROPERTY_APPLICATION = "application";
+    public static final byte[] METADATA_PROPERTY_APPLICATION_PULSAR = "pulsar".getBytes(StandardCharsets.UTF_8);
 
-    private static final String METADATA_PROPERTY_COMPONENT = "component";
-    private static final byte[] METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER =
+    public static final String METADATA_PROPERTY_COMPONENT = "component";
+    public static final byte[] METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER =
             "managed-ledger".getBytes(StandardCharsets.UTF_8);
-    private static final byte[] METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER =
+    public static final byte[] METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER =
             "compacted-ledger".getBytes(StandardCharsets.UTF_8);
-    private static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA = "schema".getBytes(StandardCharsets.UTF_8);
+    public static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA = "schema".getBytes(StandardCharsets.UTF_8);
 
-    private static final byte[] METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET =
+    public static final byte[] METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET =
             "delayed-index-bucket".getBytes(StandardCharsets.UTF_8);
 
-    private static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "pulsar/managed-ledger";
-    private static final String METADATA_PROPERTY_CURSOR_NAME = "pulsar/cursor";
-    private static final String METADATA_PROPERTY_COMPACTEDTOPIC = "pulsar/compactedTopic";
-    private static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
-    private static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
+    public static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "pulsar/managed-ledger";
+    public static final String METADATA_PROPERTY_CURSOR_NAME = "pulsar/cursor";
+    public static final String METADATA_PROPERTY_COMPACTEDTOPIC = "pulsar/compactedTopic";
+    public static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
+    public static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
 
-    private static final String METADATA_PROPERTY_DELAYED_INDEX_BUCKET_KEY = "pulsar/delayedIndexBucketKey";
-    private static final String METADATA_PROPERTY_DELAYED_INDEX_TOPIC = "pulsar/delayedIndexTopic";
-    private static final String METADATA_PROPERTY_DELAYED_INDEX_CURSOR = "pulsar/delayedIndexCursor";
+    public static final String METADATA_PROPERTY_DELAYED_INDEX_BUCKET_KEY = "pulsar/delayedIndexBucketKey";
+    public static final String METADATA_PROPERTY_DELAYED_INDEX_TOPIC = "pulsar/delayedIndexTopic";
+    public static final String METADATA_PROPERTY_DELAYED_INDEX_CURSOR = "pulsar/delayedIndexCursor";
 
     /**
      * Build base metadata for every ManagedLedger.
