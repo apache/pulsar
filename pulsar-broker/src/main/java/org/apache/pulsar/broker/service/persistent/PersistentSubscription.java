@@ -515,12 +515,7 @@ public class PersistentSubscription extends AbstractSubscription {
                     .attr("newMD", newMD)
                     .attr("oldMD", oldMD)
                     .log("Mark deleted messages to position from position");
-            // Signal the dispatchers to give chance to take extra actions
-            if (dispatcher != null) {
-                dispatcher.afterAckMessages(null, ctx);
-            }
-            // Signal the dispatchers to give chance to take extra actions
-            notifyTheMarkDeletePositionChanged(oldMD);
+           notifyTheMarkDeletePositionChanged(oldMD);
         }
 
         @Override
@@ -530,10 +525,6 @@ public class PersistentSubscription extends AbstractSubscription {
                     .attr("ctx", ctx)
                     .exceptionMessage(exception)
                     .log("Failed to mark delete for position");
-            // Signal the dispatchers to give chance to take extra actions
-            if (dispatcher != null) {
-                dispatcher.afterAckMessages(null, ctx);
-            }
         }
     };
 
@@ -544,10 +535,6 @@ public class PersistentSubscription extends AbstractSubscription {
             log.debug()
                     .attr("context", context)
                     .log("Deleted message");
-            // Signal the dispatchers to give chance to take extra actions
-            if (dispatcher != null) {
-                dispatcher.afterAckMessages(null, context);
-            }
             notifyTheMarkDeletePositionChanged((Position) context);
         }
 
@@ -557,10 +544,6 @@ public class PersistentSubscription extends AbstractSubscription {
                     .attr("ctx", ctx)
                     .exceptionMessage(exception)
                     .log("Failed to delete message");
-            // Signal the dispatchers to give chance to take extra actions
-            if (dispatcher != null) {
-                dispatcher.afterAckMessages(exception, ctx);
-            }
         }
     };
 
@@ -579,6 +562,7 @@ public class PersistentSubscription extends AbstractSubscription {
             handleReplicatedSubscriptionsUpdate(newMD);
 
             if (dispatcher != null) {
+                dispatcher.afterAckMessages(null, null);
                 dispatcher.markDeletePositionMoveForward();
             }
         }
@@ -784,6 +768,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                 .log("Backlog size before clearing");
 
+        final Position oldMarkDeletePosition = cursor.getMarkDeletedPosition();
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
             @Override
             public void clearBacklogComplete(Object ctx) {
@@ -798,10 +783,10 @@ public class PersistentSubscription extends AbstractSubscription {
                             future.complete(null);
                         }
                     });
-                    dispatcher.afterAckMessages(null, ctx);
                 } else {
                     future.complete(null);
                 }
+                notifyTheMarkDeletePositionChanged(oldMarkDeletePosition);
             }
 
             @Override
@@ -810,9 +795,6 @@ public class PersistentSubscription extends AbstractSubscription {
                         .exception(exception)
                         .log("Failed to clear backlog");
                 future.completeExceptionally(exception);
-                if (dispatcher != null) {
-                    dispatcher.afterAckMessages(exception, ctx);
-                }
             }
         }, null);
 
@@ -827,6 +809,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 .attr("numMessagesToSkip", numMessagesToSkip)
                 .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                 .log("Skipping messages");
+        final Position oldMarkDeletePosition = cursor.getMarkDeletedPosition();
         cursor.asyncSkipEntries(numMessagesToSkip, IndividualDeletedEntries.Exclude,
                 new AsyncCallbacks.SkipEntriesCallback() {
                     @Override
@@ -836,9 +819,7 @@ public class PersistentSubscription extends AbstractSubscription {
                                 .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                                 .log("Skipped messages");
                         future.complete(null);
-                        if (dispatcher != null) {
-                            dispatcher.afterAckMessages(null, ctx);
-                        }
+                        notifyTheMarkDeletePositionChanged(oldMarkDeletePosition);
                     }
 
                     @Override
@@ -848,9 +829,6 @@ public class PersistentSubscription extends AbstractSubscription {
                                 .exception(exception)
                                 .log("Failed to skip messages");
                         future.completeExceptionally(exception);
-                        if (dispatcher != null) {
-                            dispatcher.afterAckMessages(exception, ctx);
-                        }
                     }
                 }, null);
 
@@ -983,6 +961,7 @@ public class PersistentSubscription extends AbstractSubscription {
             }
 
             forceReset.thenAccept(forceResetValue -> {
+                final Position oldMarkDeletePosition = cursor.getMarkDeletedPosition();
                 cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
                     @Override
                     public void resetComplete(Object ctx) {
@@ -991,8 +970,8 @@ public class PersistentSubscription extends AbstractSubscription {
                                 .log("Successfully reset subscription to position");
                         if (dispatcher != null) {
                             dispatcher.cursorIsReset();
-                            dispatcher.afterAckMessages(null, finalPosition);
                         }
+                        notifyTheMarkDeletePositionChanged(oldMarkDeletePosition);
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
                         inProgressResetCursorFuture = null;
                         future.complete(null);

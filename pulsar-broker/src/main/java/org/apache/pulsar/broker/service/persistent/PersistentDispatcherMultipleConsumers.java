@@ -65,6 +65,7 @@ import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
+import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.SendMessageInfo;
@@ -145,7 +146,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected enum ReadType {
         Normal, Replay
     }
-    private Position lastMarkDeletePositionBeforeReadMoreEntries;
     private volatile long readMoreEntriesCallCount;
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
@@ -339,6 +339,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
+    @Override
+    public void markDeletePositionMoveForward() {
+        // When the mark-delete position advances (due to ack or TTL expiry), remove stale entries that are
+        // now below the new mark-delete position from the redelivery tracker and each consumer's pending acks.
+        synchronized (PersistentDispatcherMultipleConsumers.this) {
+            Position mdp = cursor.getMarkDeletedPosition();
+            if (mdp != null) {
+                redeliveryMessages.removeAllUpTo(mdp.getLedgerId(), mdp.getEntryId());
+                for (Consumer consumer : consumerList) {
+                    PendingAcksMap pendingAcks = consumer.getPendingAcks();
+                    if (pendingAcks != null) {
+                        pendingAcks.removeAllUpTo(mdp.getLedgerId(), mdp.getEntryId());
+                    }
+                }
+            }
+        }
+    }
+
     public synchronized void readMoreEntries() {
         if (cursor.isClosed()) {
             log.debug("Cursor is already closed, skipping read more entries");
@@ -361,17 +379,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
         // increment the counter for readMoreEntries calls, to track the number of times readMoreEntries is called
         readMoreEntriesCallCount++;
-
-        // remove possible expired messages from redelivery tracker and pending acks
-        Position markDeletePosition = cursor.getMarkDeletedPosition();
-        if (lastMarkDeletePositionBeforeReadMoreEntries != markDeletePosition) {
-            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            for (Consumer consumer : consumerList) {
-                consumer.getPendingAcks()
-                        .removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
-            lastMarkDeletePositionBeforeReadMoreEntries = markDeletePosition;
-        }
 
         // totalAvailablePermits may be updated by other threads
         int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
