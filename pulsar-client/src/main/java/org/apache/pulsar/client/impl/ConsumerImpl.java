@@ -2268,8 +2268,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     protected void updateAutoScaleReceiverQueueHint() {
+        // Called from the enqueue path right after offer(): the message we just added may
+        // already have been drained by a concurrent take() (which doesn't hold
+        // incomingQueueLock), so clamp incomingMessages.size() to at least 1 to reflect the
+        // post-enqueue state and avoid spuriously clearing the hint in that race.
         boolean prev = scaleReceiverQueueHint.getAndSet(
-                getAvailablePermits() + incomingMessages.size() >= getCurrentReceiverQueueSize());
+                getAvailablePermits() + Math.max(1, incomingMessages.size())
+                        >= getCurrentReceiverQueueSize());
         if (log.isDebugEnabled() && prev != scaleReceiverQueueHint.get()) {
             log.debug("updateAutoScaleReceiverQueueHint {} -> {}", prev, scaleReceiverQueueHint.get());
         }
