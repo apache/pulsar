@@ -151,6 +151,11 @@ class ClientTestFixtures {
             Object msg = invocation.getArgument(0);
             ReferenceCountUtil.release(msg);
             return listenerFuture;
+        }).when(ctx).write(any());
+        doAnswer(invocation -> {
+            Object msg = invocation.getArgument(0);
+            ReferenceCountUtil.release(msg);
+            return listenerFuture;
         }).when(ctx).write(any(), any());
         doAnswer(invocation -> {
             Object msg = invocation.getArgument(0);
