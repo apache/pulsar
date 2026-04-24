@@ -30,7 +30,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -128,7 +127,7 @@ public class SubscriptionCoordinator {
         }
 
         // Fresh registration — persist first, then install in-memory and rebalance.
-        ConsumerSession session = new ConsumerSession(consumerName, consumerId, cnx);
+        ConsumerSession session = newSession(consumerName, consumerId, cnx);
         return resources.registerConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
@@ -154,7 +153,7 @@ public class SubscriptionCoordinator {
                     synchronized (this) {
                         if (sessions.isEmpty()) {
                             segmentAssignments.clear();
-                            return Map.<ConsumerSession, ConsumerAssignment>of();
+                            return Map.of();
                         }
                         return rebalanceAndNotify();
                     }
@@ -173,12 +172,6 @@ public class SubscriptionCoordinator {
             return;
         }
         session.markDisconnected();
-        log.info().attr("consumer", consumerName)
-                .attr("gracePeriodSeconds", gracePeriod.toSeconds())
-                .log("Consumer disconnected; starting grace period");
-        session.setGraceTimer(scheduler.schedule(
-                () -> evictExpiredConsumer(consumerName),
-                gracePeriod.toMillis(), TimeUnit.MILLISECONDS));
     }
 
     /**
@@ -192,11 +185,12 @@ public class SubscriptionCoordinator {
             if (sessions.containsKey(name)) {
                 continue;
             }
-            ConsumerSession session = ConsumerSession.restored(name);
+            // restored() arms the grace timer internally. The eviction callback takes the
+            // coordinator's monitor, which we hold here, so ordering against the upcoming
+            // sessions.put is guaranteed.
+            ConsumerSession session = ConsumerSession.restored(name, gracePeriod, scheduler,
+                    () -> evictExpiredConsumer(name), log);
             sessions.put(name, session);
-            session.setGraceTimer(scheduler.schedule(
-                    () -> evictExpiredConsumer(name),
-                    gracePeriod.toMillis(), TimeUnit.MILLISECONDS));
         }
         // Compute the deterministic assignment against the current layout. No sends: the
         // consumers aren't connected yet. They will receive their assignment on reconnect.
@@ -227,6 +221,15 @@ public class SubscriptionCoordinator {
     }
 
     // --- Internals ---
+
+    /**
+     * Build a new {@link ConsumerSession} wired with this coordinator's grace period,
+     * scheduler, logger context, and eviction callback.
+     */
+    private ConsumerSession newSession(String consumerName, long consumerId, TransportCnx cnx) {
+        return new ConsumerSession(consumerName, consumerId, cnx, gracePeriod, scheduler,
+                () -> evictExpiredConsumer(consumerName), log);
+    }
 
     /**
      * Evict a consumer whose grace-period timer has fired. Runs on the scheduler thread.

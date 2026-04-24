@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import io.github.merlimat.slog.Logger;
+import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import org.apache.pulsar.broker.service.TransportCnx;
 
@@ -39,6 +43,11 @@ import org.apache.pulsar.broker.service.TransportCnx;
  *
  * <p>Equality and hash are based on {@code consumerName} alone so that a reconnection
  * with a new protocol-level {@code consumerId} resolves to the same session.
+ *
+ * <p>The grace-period timer is fully encapsulated: {@link #markDisconnected()} schedules
+ * it, {@link #attach(long, TransportCnx)} cancels it. The eviction action is supplied by
+ * the caller as a {@link Runnable} at construction, so the session doesn't need a
+ * back-reference to the coordinator.
  */
 public class ConsumerSession {
 
@@ -61,20 +70,48 @@ public class ConsumerSession {
     @Getter
     private volatile ScheduledFuture<?> graceTimer;
 
-    public ConsumerSession(String consumerName, long consumerId, TransportCnx cnx) {
+    private final Duration gracePeriod;
+    private final ScheduledExecutorService scheduler;
+    private final Runnable onGraceExpiry;
+    private final Logger log;
+
+    public ConsumerSession(String consumerName,
+                           long consumerId,
+                           TransportCnx cnx,
+                           Duration gracePeriod,
+                           ScheduledExecutorService scheduler,
+                           Runnable onGraceExpiry,
+                           Logger parentLogger) {
         this.consumerName = consumerName;
         this.consumerId = consumerId;
         this.cnx = cnx;
         this.connected = cnx != null;
+        this.gracePeriod = gracePeriod;
+        this.scheduler = scheduler;
+        this.onGraceExpiry = onGraceExpiry;
+        this.log = Logger.get(ConsumerSession.class).with()
+                .ctx(parentLogger)
+                .attr("consumerName", consumerName)
+                .attr("consumerId", () -> this.consumerId)
+                .attr("connected", () -> this.connected)
+                .build();
     }
 
     /**
      * Create a session for a consumer whose registration was loaded from the metadata store
-     * on controller leader failover. Starts in "disconnected" state; a grace timer should be
-     * attached immediately so the consumer is evicted if it does not reconnect in time.
+     * on controller leader failover. The returned session is in the "just disconnected"
+     * state with its grace-period timer already armed — if the consumer does not reconnect
+     * within the grace period the {@code onGraceExpiry} callback fires.
      */
-    public static ConsumerSession restored(String consumerName) {
-        return new ConsumerSession(consumerName, -1L, null);
+    public static ConsumerSession restored(String consumerName,
+                                           Duration gracePeriod,
+                                           ScheduledExecutorService scheduler,
+                                           Runnable onGraceExpiry,
+                                           Logger parentLogger) {
+        ConsumerSession session = new ConsumerSession(consumerName, -1L, null,
+                gracePeriod, scheduler, onGraceExpiry, parentLogger);
+        session.startGraceTimer();
+        return session;
     }
 
     /**
@@ -89,20 +126,40 @@ public class ConsumerSession {
     }
 
     /**
-     * Mark the session as disconnected. The caller is responsible for scheduling the
-     * grace-period eviction task via {@link #setGraceTimer(ScheduledFuture)}.
+     * Mark the session as disconnected and start the grace-period timer. The eviction task
+     * (supplied at construction as {@code onGraceExpiry}) runs on the scheduler when the
+     * timer fires unless a reconnect arrives first via {@link #attach(long, TransportCnx)}.
      */
     public synchronized void markDisconnected() {
         this.connected = false;
         this.cnx = null;
+        log.info().attr("gracePeriodSeconds", gracePeriod.toSeconds())
+                .log("Consumer disconnected; starting grace period");
+        startGraceTimer();
     }
 
-    public synchronized void setGraceTimer(ScheduledFuture<?> timer) {
+    /**
+     * Start (or restart) the grace-period eviction timer using the configured
+     * {@code onGraceExpiry} callback. Any previously-running timer is cancelled first.
+     *
+     * <p>Called from {@link #markDisconnected()} and from {@link #restored}.
+     */
+    private synchronized void startGraceTimer() {
+        setGraceTimer(scheduler.schedule(onGraceExpiry,
+                gracePeriod.toMillis(), TimeUnit.MILLISECONDS));
+    }
+
+    private synchronized void setGraceTimer(ScheduledFuture<?> timer) {
         cancelGraceTimer();
         this.graceTimer = timer;
     }
 
-    public synchronized void cancelGraceTimer() {
+    /**
+     * Cancel any pending grace timer. Package-private so that the coordinator can cancel
+     * the timer when the consumer explicitly unregisters (in which case the session is
+     * removed from the coordinator's map and no eviction callback should fire).
+     */
+    synchronized void cancelGraceTimer() {
         if (graceTimer != null) {
             graceTimer.cancel(false);
             graceTimer = null;
