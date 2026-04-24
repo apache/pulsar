@@ -503,13 +503,13 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     /**
-     * Reject {@code topic://} (PIP-460 scalable topics) — users on the V4 SDK must switch
-     * to the V5 SDK for those. The {@code segment://} domain is <em>internal</em>: it is
-     * how the V5 client talks to the individual backing topics of a scalable topic, so we
-     * deliberately let it through here.
+     * Reject {@code topic://} (PIP-460 scalable topics) and {@code segment://} (the internal
+     * backing-topic domain used by V5 scalable topics). Users on the V4 SDK must switch to the
+     * V5 SDK for either.
      */
     private static boolean isScalableDomain(String topic) {
-        return TopicName.get(topic).isScalable();
+        TopicName topicName = TopicName.get(topic);
+        return topicName.isScalable() || topicName.isSegment();
     }
 
     private <T> CompletableFuture<Producer<T>> createProducerAsync(String topic,
