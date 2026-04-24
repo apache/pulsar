@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.commons.text.StringEscapeUtils.escapeJava;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
@@ -29,6 +30,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -393,7 +395,7 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     public CompletableFuture<Void> addSubscriptionToTxn(TxnID txnID, List<Subscription> subscriptionList) {
-            log.debug().attr("subscription", subscriptionList).attr("txn", txnID).log("Add subscription to txn.");
+        log.debug().attr("subscription", subscriptionList).attr("txn", txnID).log("Add subscription to txn.");
 
         CompletableFuture<Void> callback = new CompletableFuture<>();
         if (!canSendRequest(callback)) {
@@ -403,7 +405,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         ByteBuf cmd = Commands.newAddSubscriptionToTxn(
                 requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
         String description = String.format("Add subscription %s to TXN %s", toStringSubscriptionList(subscriptionList),
-                String.valueOf(txnID));
+                txnID);
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client, description, cnx());
         internalPinnedExecutor.execute(() -> {
             pendingRequests.put(requestId, op);
@@ -419,11 +421,13 @@ public class TransactionMetaStoreHandler extends HandlerState
         if (list == null || list.isEmpty()) {
             return "[]";
         }
-        StringBuilder builder = new StringBuilder("[");
+
+        StringJoiner joiner = new StringJoiner("", "[", "]");
         for (Subscription subscription : list) {
-            builder.append(String.format("%s %s", subscription.getTopic(), subscription.getSubscription()));
+            joiner.add(escapeJava(subscription.getTopic()) + " " + escapeJava(subscription.getSubscription()));
         }
-        return builder.append("]").toString();
+
+        return joiner.toString();
     }
 
     public void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse response) {

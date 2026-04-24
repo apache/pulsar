@@ -26,10 +26,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.assertFalse;
 import io.netty.channel.Channel;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.Subscription;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -59,6 +63,65 @@ public class TransactionMetaStoreHandlerTest {
         assertTrue(connectFuture.isCompletedExceptionally());
         assertEquals(handler.getState(), HandlerState.State.Terminated);
         verify(cnx, times(0)).registerTransactionMetaStoreHandler(anyLong(), any());
+
+        client.close();
+    }
+
+    @Test
+    public void testAddSubscriptionToTxnDescriptionSanitized() throws Exception {
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650").build();
+        final CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                0L, client, "topic", connectFuture);
+
+        handler.setState(HandlerState.State.Terminated);
+
+        Subscription subscription = new Subscription();
+        subscription.setTopic("topic\nnewline");
+        subscription.setSubscription("subscription\ttab");
+
+        CompletableFuture<Void> future = handler.addSubscriptionToTxn(
+                new TxnID(1L, 1L), List.of(subscription));
+
+        Awaitility.await().atMost(Duration.ofSeconds(3)).until(future::isDone);
+        assertTrue(future.isCompletedExceptionally());
+
+        future.exceptionally(exception -> {
+            assertTrue(exception.getMessage().contains("topic\\nnewline"));
+            assertTrue(exception.getMessage().contains("subscription\\ttab"));
+            assertFalse(exception.getMessage().contains("\n"));
+            assertFalse(exception.getMessage().contains("\t"));
+            return null;
+        });
+
+        client.close();
+    }
+
+    @Test
+    public void testAddSubscriptionToTxnDescriptionBracketInjection() throws Exception {
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650").build();
+        final CompletableFuture<Void> connectFuture = new CompletableFuture<>();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                0L, client, "topic", connectFuture);
+
+        handler.setState(HandlerState.State.Terminated);
+
+        Subscription subscription = new Subscription();
+        subscription.setTopic("topic] [injected");
+        subscription.setSubscription("sub");
+
+        CompletableFuture<Void> future = handler.addSubscriptionToTxn(
+                new TxnID(1L, 1L), List.of(subscription));
+
+        Awaitility.await().atMost(Duration.ofSeconds(3)).until(future::isDone);
+        assertTrue(future.isCompletedExceptionally());
+
+        future.exceptionally(exception -> {
+            assertFalse(exception.getMessage().contains("] [injected"));
+            return null;
+        });
 
         client.close();
     }

@@ -43,6 +43,7 @@ dependencies {
         exclude(group = "io.netty")
     }
     implementation(libs.commons.lang3)
+    implementation(libs.commons.text)
     implementation(libs.asynchttpclient)
     implementation(libs.netty.reactive.streams)
     implementation(libs.slog)
