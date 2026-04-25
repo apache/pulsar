@@ -60,6 +60,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 @CustomLog
 public class AuthorizationService {
 
+    private static final String UNKNOWN_OPERATION = "unknown";
+
     private final PulsarResources resources;
     private final AuthorizationProvider provider;
     private final ServiceConfiguration conf;
@@ -559,7 +561,7 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         return recordAuthorizationDenial(provider.allowTenantOperationAsync(tenantName, role, operation, authData),
-                AuthorizationMetrics.RESOURCE_TYPE_TENANT, operation.name().toLowerCase());
+                AuthorizationMetrics.RESOURCE_TYPE_TENANT, operationName(operation));
     }
 
     public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName,
@@ -568,7 +570,7 @@ public class AuthorizationService {
                                                                 String role,
                                                                 AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
-            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_TENANT, operation.name().toLowerCase());
+            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_TENANT, operationName(operation));
         }
         if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTenantOperationAsync(
@@ -589,23 +591,23 @@ public class AuthorizationService {
                                                                 String role,
                                                                 AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
-            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_BROKER, brokerOperation.name().toLowerCase());
+            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_BROKER, operationName(brokerOperation));
         }
 
         if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
             final var isRoleAuthorizedFuture = recordAuthorizationDenial(
                     provider.allowBrokerOperationAsync(clusterName, brokerId, brokerOperation, role, authData),
-                    AuthorizationMetrics.RESOURCE_TYPE_BROKER, brokerOperation.name().toLowerCase());
+                    AuthorizationMetrics.RESOURCE_TYPE_BROKER, operationName(brokerOperation));
             final var isOriginalAuthorizedFuture = recordAuthorizationDenial(
                     provider.allowBrokerOperationAsync(clusterName, brokerId, brokerOperation, originalRole,
                             authData),
-                    AuthorizationMetrics.RESOURCE_TYPE_BROKER, brokerOperation.name().toLowerCase());
+                    AuthorizationMetrics.RESOURCE_TYPE_BROKER, operationName(brokerOperation));
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
             return recordAuthorizationDenial(
                     provider.allowBrokerOperationAsync(clusterName, brokerId, brokerOperation, role, authData),
-                    AuthorizationMetrics.RESOURCE_TYPE_BROKER, brokerOperation.name().toLowerCase());
+                    AuthorizationMetrics.RESOURCE_TYPE_BROKER, operationName(brokerOperation));
         }
     }
 
@@ -615,22 +617,22 @@ public class AuthorizationService {
                                                                 String role,
                                                                 AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
-            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_CLUSTER, clusterOperation.name().toLowerCase());
+            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_CLUSTER, operationName(clusterOperation));
         }
 
         if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
             final var isRoleAuthorizedFuture = recordAuthorizationDenial(
                     provider.allowClusterOperationAsync(clusterName, clusterOperation, role, authData),
-                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER, clusterOperation.name().toLowerCase());
+                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER, operationName(clusterOperation));
             final var isOriginalAuthorizedFuture = recordAuthorizationDenial(
                     provider.allowClusterOperationAsync(clusterName, clusterOperation, originalRole, authData),
-                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER, clusterOperation.name().toLowerCase());
+                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER, operationName(clusterOperation));
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
             return recordAuthorizationDenial(
                     provider.allowClusterOperationAsync(clusterName, clusterOperation, role, authData),
-                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER, clusterOperation.name().toLowerCase());
+                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER, operationName(clusterOperation));
         }
     }
 
@@ -641,22 +643,22 @@ public class AuthorizationService {
                                                                  String role,
                                                                  AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
-            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_CLUSTER_POLICY, operation.name().toLowerCase());
+            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_CLUSTER_POLICY, operationName(operation));
         }
 
         if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
             final var isRoleAuthorizedFuture = recordAuthorizationDenial(
                     provider.allowClusterPolicyOperationAsync(clusterName, role, policy, operation, authData),
-                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER_POLICY, operation.name().toLowerCase());
+                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER_POLICY, operationName(operation));
             final var isOriginalAuthorizedFuture = recordAuthorizationDenial(
                     provider.allowClusterPolicyOperationAsync(clusterName, originalRole, policy, operation, authData),
-                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER_POLICY, operation.name().toLowerCase());
+                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER_POLICY, operationName(operation));
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
             return recordAuthorizationDenial(
                     provider.allowClusterPolicyOperationAsync(clusterName, role, policy, operation, authData),
-                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER_POLICY, operation.name().toLowerCase());
+                    AuthorizationMetrics.RESOURCE_TYPE_CLUSTER_POLICY, operationName(operation));
         }
     }
 
@@ -701,7 +703,7 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         return recordAuthorizationDenial(provider.allowNamespaceOperationAsync(namespaceName, role, operation,
-                authData), AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE, operation.name().toLowerCase());
+                authData), AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE, operationName(operation));
     }
 
     public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName,
@@ -710,7 +712,7 @@ public class AuthorizationService {
                                                                    String role,
                                                                    AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
-            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE, operation.name().toLowerCase());
+            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE, operationName(operation));
         }
         if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowNamespaceOperationAsync(
@@ -745,7 +747,7 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         return recordAuthorizationDenial(provider.allowNamespacePolicyOperationAsync(namespaceName, policy, operation,
-                role, authData), AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE_POLICY, operation.name().toLowerCase());
+                role, authData), AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE_POLICY, operationName(operation));
     }
 
     public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
@@ -755,7 +757,7 @@ public class AuthorizationService {
                                                                          String role,
                                                                          AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
-            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE_POLICY, operation.name().toLowerCase());
+            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE_POLICY, operationName(operation));
         }
         if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowNamespacePolicyOperationAsync(
@@ -809,7 +811,7 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
         return recordAuthorizationDenial(provider.allowTopicPolicyOperationAsync(topicName, role, policy, operation,
-                authData), AuthorizationMetrics.RESOURCE_TYPE_TOPIC_POLICY, operation.name().toLowerCase());
+                authData), AuthorizationMetrics.RESOURCE_TYPE_TOPIC_POLICY, operationName(operation));
     }
 
     public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topicName,
@@ -819,7 +821,7 @@ public class AuthorizationService {
                                                                      String role,
                                                                      AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
-            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_TOPIC_POLICY, operation.name().toLowerCase());
+            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_TOPIC_POLICY, operationName(operation));
         }
         if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicPolicyOperationAsync(
@@ -882,7 +884,7 @@ public class AuthorizationService {
 
         CompletableFuture<Boolean> allowFuture = recordAuthorizationDenial(
                 provider.allowTopicOperationAsync(topicName, role, operation, authData),
-                AuthorizationMetrics.RESOURCE_TYPE_TOPIC, operation.name().toLowerCase());
+                AuthorizationMetrics.RESOURCE_TYPE_TOPIC, operationName(operation));
         return allowFuture.whenComplete((allowed, exception) -> {
             if (exception == null) {
                 if (allowed) {
@@ -914,7 +916,7 @@ public class AuthorizationService {
                                                                AuthenticationDataSource originalAuthData,
                                                                AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, originalAuthData)) {
-            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_TOPIC, operation.name().toLowerCase());
+            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_TOPIC, operationName(operation));
         }
         if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicOperationAsync(
@@ -934,7 +936,7 @@ public class AuthorizationService {
                                                                String role,
                                                                AuthenticationDataSource authData) {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
-            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_TOPIC, operation.name().toLowerCase());
+            return deniedFuture(AuthorizationMetrics.RESOURCE_TYPE_TOPIC, operationName(operation));
         }
         if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicOperationAsync(
@@ -986,6 +988,10 @@ public class AuthorizationService {
     private CompletableFuture<Boolean> deniedFuture(String resourceType, String operation) {
         authorizationMetrics.recordFailure(resourceType, operation);
         return CompletableFuture.completedFuture(false);
+    }
+
+    private static String operationName(Enum<?> operation) {
+        return operation == null ? UNKNOWN_OPERATION : operation.name().toLowerCase();
     }
 
     private CompletableFuture<Boolean> recordAuthorizationDenial(CompletableFuture<Boolean> authorizationFuture,
