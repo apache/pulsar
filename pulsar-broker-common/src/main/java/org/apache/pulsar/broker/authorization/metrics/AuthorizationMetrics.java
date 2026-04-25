@@ -30,8 +30,18 @@ public class AuthorizationMetrics {
     public static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.authorization";
     public static final String RESULT_SUCCESS = "success";
     public static final String RESULT_FAILURE = "failure";
+    public static final String RESOURCE_TYPE_SUPERUSER = "superuser";
+    public static final String RESOURCE_TYPE_TENANT_ADMIN = "tenant_admin";
+    public static final String RESOURCE_TYPE_TENANT = "tenant";
+    public static final String RESOURCE_TYPE_BROKER = "broker";
+    public static final String RESOURCE_TYPE_CLUSTER = "cluster";
+    public static final String RESOURCE_TYPE_CLUSTER_POLICY = "cluster_policy";
+    public static final String RESOURCE_TYPE_NAMESPACE = "namespace";
+    public static final String RESOURCE_TYPE_NAMESPACE_POLICY = "namespace_policy";
+    public static final String RESOURCE_TYPE_TOPIC = "topic";
     public static final String RESOURCE_TYPE_TOPIC_POLICY = "topic_policy";
-    public static final AttributeKey<String> RESOURCE_TYPE_KEY = AttributeKey.stringKey("pulsar.authorization.type");
+    public static final AttributeKey<String> RESOURCE_TYPE_KEY =
+            AttributeKey.stringKey("pulsar.authorization.resource.type");
     public static final AttributeKey<String> OPERATION_KEY = AttributeKey.stringKey("pulsar.authorization.operation");
     public static final AttributeKey<String> RESULT_KEY = AttributeKey.stringKey("pulsar.authorization.result");
 

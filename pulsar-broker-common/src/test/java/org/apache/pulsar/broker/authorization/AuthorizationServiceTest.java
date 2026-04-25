@@ -137,10 +137,12 @@ public class AuthorizationServiceTest {
 
     @Test
     public void testAuthorizationFailureMetricForTopicOperation() throws Exception {
-        double before = getAuthorizationOperations("topic", TopicOperation.PRODUCE.name().toLowerCase(), "failure");
+        double before = getAuthorizationOperations(AuthorizationMetrics.RESOURCE_TYPE_TOPIC,
+                TopicOperation.PRODUCE.name().toLowerCase(), AuthorizationMetrics.RESULT_FAILURE);
         boolean isAuthorized = authorizationService.allowTopicOperationAsync(TopicName.get("topic"),
                 TopicOperation.PRODUCE, null, "fail.client", null).get();
-        double after = getAuthorizationOperations("topic", TopicOperation.PRODUCE.name().toLowerCase(), "failure");
+        double after = getAuthorizationOperations(AuthorizationMetrics.RESOURCE_TYPE_TOPIC,
+                TopicOperation.PRODUCE.name().toLowerCase(), AuthorizationMetrics.RESULT_FAILURE);
 
         assertFalse(isAuthorized);
         assertTrue(after - before == 1.0d);
@@ -148,12 +150,12 @@ public class AuthorizationServiceTest {
 
     @Test
     public void testAuthorizationFailureMetricForInvalidOriginalPrincipal() throws Exception {
-        double before = getAuthorizationOperations("namespace", NamespaceOperation.PACKAGES.name().toLowerCase(),
-                "failure");
+        double before = getAuthorizationOperations(AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE,
+                NamespaceOperation.PACKAGES.name().toLowerCase(), AuthorizationMetrics.RESULT_FAILURE);
         boolean isAuthorized = authorizationService.allowNamespaceOperationAsync(NamespaceName.get("public/default"),
                 NamespaceOperation.PACKAGES, "pass.client", "pass.not-proxy", null).get();
-        double after = getAuthorizationOperations("namespace", NamespaceOperation.PACKAGES.name().toLowerCase(),
-                "failure");
+        double after = getAuthorizationOperations(AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE,
+                NamespaceOperation.PACKAGES.name().toLowerCase(), AuthorizationMetrics.RESULT_FAILURE);
 
         assertFalse(isAuthorized);
         assertTrue(after - before == 1.0d);
@@ -161,10 +163,12 @@ public class AuthorizationServiceTest {
 
     @Test
     public void testAuthorizationSuccessMetricForTopicOperation() throws Exception {
-        double before = getAuthorizationOperations("topic", TopicOperation.PRODUCE.name().toLowerCase(), "success");
+        double before = getAuthorizationOperations(AuthorizationMetrics.RESOURCE_TYPE_TOPIC,
+                TopicOperation.PRODUCE.name().toLowerCase(), AuthorizationMetrics.RESULT_SUCCESS);
         boolean isAuthorized = authorizationService.allowTopicOperationAsync(TopicName.get("topic"),
                 TopicOperation.PRODUCE, null, "pass.client", null).get();
-        double after = getAuthorizationOperations("topic", TopicOperation.PRODUCE.name().toLowerCase(), "success");
+        double after = getAuthorizationOperations(AuthorizationMetrics.RESOURCE_TYPE_TOPIC,
+                TopicOperation.PRODUCE.name().toLowerCase(), AuthorizationMetrics.RESULT_SUCCESS);
 
         assertTrue(isAuthorized);
         assertTrue(after - before == 1.0d);

@@ -73,7 +73,7 @@ public class OpenTelemetryAuthorizationStatsTest extends BrokerTestBase {
 
         assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
                 AuthorizationMetrics.AUTHORIZATION_COUNTER_METRIC_NAME,
-                Attributes.of(AuthorizationMetrics.RESOURCE_TYPE_KEY, "topic",
+                Attributes.of(AuthorizationMetrics.RESOURCE_TYPE_KEY, AuthorizationMetrics.RESOURCE_TYPE_TOPIC,
                         AuthorizationMetrics.OPERATION_KEY, "produce",
                         AuthorizationMetrics.RESULT_KEY, AuthorizationMetrics.RESULT_SUCCESS),
                 1);
@@ -86,7 +86,7 @@ public class OpenTelemetryAuthorizationStatsTest extends BrokerTestBase {
 
         assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
                 AuthorizationMetrics.AUTHORIZATION_COUNTER_METRIC_NAME,
-                Attributes.of(AuthorizationMetrics.RESOURCE_TYPE_KEY, "topic",
+                Attributes.of(AuthorizationMetrics.RESOURCE_TYPE_KEY, AuthorizationMetrics.RESOURCE_TYPE_TOPIC,
                         AuthorizationMetrics.OPERATION_KEY, "produce",
                         AuthorizationMetrics.RESULT_KEY, AuthorizationMetrics.RESULT_FAILURE),
                 1);
@@ -99,7 +99,7 @@ public class OpenTelemetryAuthorizationStatsTest extends BrokerTestBase {
 
         assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
                 AuthorizationMetrics.AUTHORIZATION_COUNTER_METRIC_NAME,
-                Attributes.of(AuthorizationMetrics.RESOURCE_TYPE_KEY, "namespace",
+                Attributes.of(AuthorizationMetrics.RESOURCE_TYPE_KEY, AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE,
                         AuthorizationMetrics.OPERATION_KEY, "packages",
                         AuthorizationMetrics.RESULT_KEY, AuthorizationMetrics.RESULT_FAILURE),
                 1);
