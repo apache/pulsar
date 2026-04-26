@@ -38,6 +38,9 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 public class MockAuthorizationProvider implements AuthorizationProvider {
 
     private CompletableFuture<Boolean> shouldPass(String role) {
+        if (role != null && role.startsWith("error")) {
+            return CompletableFuture.failedFuture(new RuntimeException("Authorization provider error"));
+        }
         return CompletableFuture.completedFuture(role != null && role.startsWith("pass"));
     }
 

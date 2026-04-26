@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
+import static org.testng.AssertJUnit.fail;
 import io.opentelemetry.api.common.Attributes;
 import java.util.HashSet;
+import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.MockAuthorizationProvider;
@@ -102,6 +104,24 @@ public class OpenTelemetryAuthorizationStatsTest extends BrokerTestBase {
                 Attributes.of(AuthorizationMetrics.RESOURCE_TYPE_KEY, AuthorizationMetrics.RESOURCE_TYPE_NAMESPACE,
                         AuthorizationMetrics.OPERATION_KEY, "packages",
                         AuthorizationMetrics.RESULT_KEY, AuthorizationMetrics.RESULT_FAILURE),
+                1);
+    }
+
+    @Test
+    public void testAuthorizationError() throws Exception {
+        try {
+            authorizationService.allowTopicOperationAsync(TopicName.get("topic"),
+                    TopicOperation.PRODUCE, null, "error.client", null).get();
+            fail("Expected authorization provider error");
+        } catch (ExecutionException e) {
+            // Expected.
+        }
+
+        assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
+                AuthorizationMetrics.AUTHORIZATION_COUNTER_METRIC_NAME,
+                Attributes.of(AuthorizationMetrics.RESOURCE_TYPE_KEY, AuthorizationMetrics.RESOURCE_TYPE_TOPIC,
+                        AuthorizationMetrics.OPERATION_KEY, "produce",
+                        AuthorizationMetrics.RESULT_KEY, AuthorizationMetrics.RESULT_ERROR),
                 1);
     }
 }

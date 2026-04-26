@@ -20,8 +20,10 @@ package org.apache.pulsar.broker.authorization;
 
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import io.prometheus.client.CollectorRegistry;
 import java.util.HashSet;
+import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.metrics.AuthorizationMetrics;
@@ -171,6 +173,23 @@ public class AuthorizationServiceTest {
                 TopicOperation.PRODUCE.name().toLowerCase(), AuthorizationMetrics.RESULT_SUCCESS);
 
         assertTrue(isAuthorized);
+        assertTrue(after - before == 1.0d);
+    }
+
+    @Test
+    public void testAuthorizationErrorMetricForTopicOperation() throws Exception {
+        double before = getAuthorizationOperations(AuthorizationMetrics.RESOURCE_TYPE_TOPIC,
+                TopicOperation.PRODUCE.name().toLowerCase(), AuthorizationMetrics.RESULT_ERROR);
+        try {
+            authorizationService.allowTopicOperationAsync(TopicName.get("topic"),
+                    TopicOperation.PRODUCE, null, "error.client", null).get();
+            fail("Expected authorization provider error");
+        } catch (ExecutionException e) {
+            // Expected.
+        }
+        double after = getAuthorizationOperations(AuthorizationMetrics.RESOURCE_TYPE_TOPIC,
+                TopicOperation.PRODUCE.name().toLowerCase(), AuthorizationMetrics.RESULT_ERROR);
+
         assertTrue(after - before == 1.0d);
     }
 

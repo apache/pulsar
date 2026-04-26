@@ -30,6 +30,7 @@ public class AuthorizationMetrics {
     public static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.authorization";
     public static final String RESULT_SUCCESS = "success";
     public static final String RESULT_FAILURE = "failure";
+    public static final String RESULT_ERROR = "error";
     public static final String RESOURCE_TYPE_SUPERUSER = "superuser";
     public static final String RESOURCE_TYPE_TENANT_ADMIN = "tenant_admin";
     public static final String RESOURCE_TYPE_TENANT = "tenant";
@@ -62,16 +63,21 @@ public class AuthorizationMetrics {
     }
 
     public void recordSuccess(String resourceType, String operation) {
-        authorizationOperations.labels(resourceType, operation, RESULT_SUCCESS).inc();
-        authorizationCounter.add(1, Attributes.of(RESOURCE_TYPE_KEY, resourceType,
-                OPERATION_KEY, operation,
-                RESULT_KEY, RESULT_SUCCESS));
+        record(resourceType, operation, RESULT_SUCCESS);
     }
 
     public void recordFailure(String resourceType, String operation) {
-        authorizationOperations.labels(resourceType, operation, RESULT_FAILURE).inc();
+        record(resourceType, operation, RESULT_FAILURE);
+    }
+
+    public void recordError(String resourceType, String operation) {
+        record(resourceType, operation, RESULT_ERROR);
+    }
+
+    private void record(String resourceType, String operation, String result) {
+        authorizationOperations.labels(resourceType, operation, result).inc();
         authorizationCounter.add(1, Attributes.of(RESOURCE_TYPE_KEY, resourceType,
                 OPERATION_KEY, operation,
-                RESULT_KEY, RESULT_FAILURE));
+                RESULT_KEY, result));
     }
 }
