@@ -1121,6 +1121,34 @@ public class Consumer {
         return pendingAcks;
     }
 
+    /**
+     * Remove all pending acks up to the given mark-delete position and decrement the consumer's unacked message
+     * counter by the remaining unacked count for each removed entry.
+     *
+     * <p>This is used when the cursor's mark-delete position advances past entries that are still in the consumer's
+     * pending acks. The remaining unacked count accounts for batch index level acknowledgments — only the truly
+     * unacked batch indexes are decremented.
+     *
+     * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
+     * @param markDeleteEntryId the entry ID up to which to remove pending acks
+     */
+    public void removePendingAcksUpToAndCountUnacked(long markDeleteLedgerId, long markDeleteEntryId) {
+        if (pendingAcks == null) {
+            return;
+        }
+
+        int[] totalUnacked = {0};
+        pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId,
+                (ledgerId, entryId, batchSize, stickyKeyHash) -> {
+                    totalUnacked[0] += (int) getUnAckedCountForBatchIndexLevelEnabled(
+                            PositionFactory.create(ledgerId, entryId), batchSize);
+                });
+        if (totalUnacked[0] > 0) {
+            addAndGetUnAckedMsgs(this, -totalUnacked[0]);
+            updateBlockedConsumerOnUnackedMsgs(this);
+        }
+    }
+
     public int getPriorityLevel() {
         return priorityLevel;
     }

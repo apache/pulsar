@@ -324,13 +324,16 @@ public class PendingAcksMap {
     }
 
     /**
-     * Remove all pending acks up to the given ledger ID and entry ID.
+     * Remove all pending acks up to the given ledger ID and entry ID, invoking a callback for each removed entry.
      *
      * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
      * @param markDeleteEntryId the entry ID up to which to remove pending acks
+     * @param removedEntryCallback optional callback invoked for each removed entry (within the write lock),
+     *                             receiving ledgerId, entryId, batchSize, and stickyKeyHash
      */
-    public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId) {
-        internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, false);
+    public void removeAllUpTo(long markDeleteLedgerId, long markDeleteEntryId,
+                             PendingAcksConsumer removedEntryCallback) {
+        internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, false, removedEntryCallback);
     }
 
     /**
@@ -343,8 +346,10 @@ public class PendingAcksMap {
      * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
      * @param markDeleteEntryId the entry ID up to which to remove pending acks
      * @param useWriteLock true if the method should use a write lock, false otherwise
+     * @param removedEntryCallback optional callback invoked for each removed entry (within the write lock)
      */
-    private void internalRemoveAllUpTo(long markDeleteLedgerId, long markDeleteEntryId, boolean useWriteLock) {
+    private void internalRemoveAllUpTo(long markDeleteLedgerId, long markDeleteEntryId, boolean useWriteLock,
+                                      PendingAcksConsumer removedEntryCallback) {
         PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
         // track if the write lock was acquired
         boolean acquiredWriteLock = false;
@@ -380,13 +385,18 @@ public class PendingAcksMap {
                         retryWithWriteLock = true;
                         return;
                     }
+                    IntIntPair value = intIntPairEntry.getValue();
+                    int batchSize = value.leftInt();
+                    int stickyKeyHash = value.rightInt();
                     if (pendingAcksRemoveHandler != null) {
                         if (!batchStarted) {
                             pendingAcksRemoveHandler.startBatch();
                             batchStarted = true;
                         }
-                        int stickyKeyHash = intIntPairEntry.getValue().rightInt();
                         pendingAcksRemoveHandler.handleRemoving(consumer, ledgerId, entryId, stickyKeyHash, closed);
+                    }
+                    if (removedEntryCallback != null) {
+                        removedEntryCallback.accept(ledgerId, entryId, batchSize, stickyKeyHash);
                     }
                     entryMapIterator.remove();
                     // also remove from the original map if we're iterating a copy
@@ -411,7 +421,7 @@ public class PendingAcksMap {
             } else {
                 readLock.unlock();
                 if (retryWithWriteLock) {
-                    internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, true);
+                    internalRemoveAllUpTo(markDeleteLedgerId, markDeleteEntryId, true, removedEntryCallback);
                 }
             }
         }

@@ -367,8 +367,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         if (lastMarkDeletePositionBeforeReadMoreEntries != markDeletePosition) {
             redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
             for (Consumer consumer : consumerList) {
-                consumer.getPendingAcks()
-                        .removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+                consumer.removePendingAcksUpToAndCountUnacked(
+                        markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
             }
             lastMarkDeletePositionBeforeReadMoreEntries = markDeletePosition;
         }
