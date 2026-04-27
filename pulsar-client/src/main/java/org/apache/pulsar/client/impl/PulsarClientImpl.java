@@ -503,6 +503,70 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     /**
+     * Create a reader against a segment topic bypassing the scalable domain check.
+     * This is intended for internal use by the V5 {@code CheckpointConsumer} to read each
+     * segment's underlying {@code segment://} topic.
+     */
+    public <T> CompletableFuture<Reader<T>> createSegmentReaderAsync(ReaderConfigurationData<T> conf,
+                                                                      Schema<T> schema) {
+        if (state.get() != State.Open) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+        }
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Reader configuration undefined"));
+        }
+        if (conf.getTopicNames().size() != 1) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException(
+                            "createSegmentReaderAsync requires exactly one topic, got "
+                                    + conf.getTopicNames().size()));
+        }
+        String topic = conf.getTopicName();
+        if (!TopicName.isValid(topic)) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+        }
+        if (conf.getStartMessageId() == null) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Invalid startMessageId"));
+        }
+        return preProcessSchemaBeforeSubscribe(this, schema, topic)
+                .thenCompose(schemaClone -> createSingleTopicReaderAsync(conf, schemaClone));
+    }
+
+    /**
+     * Subscribe to a segment topic bypassing the scalable domain check.
+     * This is intended for internal use by the V5 client to subscribe to per-segment v4
+     * topics for the {@code segment://} backing topics it owns.
+     */
+    public <T> CompletableFuture<Consumer<T>> subscribeSegmentAsync(ConsumerConfigurationData<T> conf,
+                                                                     Schema<T> schema) {
+        if (state.get() != State.Open) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+        }
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
+        }
+        if (conf.getTopicNames().size() != 1) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException(
+                            "subscribeSegmentAsync requires exactly one topic, got " + conf.getTopicNames().size()));
+        }
+        String topic = conf.getSingleTopic();
+        if (!TopicName.isValid(topic)) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+        }
+        if (isBlank(conf.getSubscriptionName())) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Empty subscription name"));
+        }
+        return singleTopicSubscribeAsync(conf, schema, null);
+    }
+
+    /**
      * Reject {@code topic://} (PIP-460 scalable topics) and {@code segment://} (the internal
      * backing-topic domain used by V5 scalable topics). Users on the V4 SDK must switch to the
      * V5 SDK for either.

@@ -316,14 +316,14 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T>, DagW
         PulsarClientImpl v4Client = client.v4Client();
         org.apache.pulsar.client.api.MessageId startMsgId = resolveStartPosition(segment.segmentId());
 
-        var builder = v4Client.newReader(v4Schema)
-                .topic(segment.segmentTopicName())
-                .startMessageId(startMsgId);
+        var segConf = new org.apache.pulsar.client.impl.conf.ReaderConfigurationData<T>();
+        segConf.getTopicNames().add(segment.segmentTopicName());
+        segConf.setStartMessageId(startMsgId);
         if (consumerName != null) {
-            builder.readerName(consumerName + "-seg-" + segment.segmentId());
+            segConf.setReaderName(consumerName + "-seg-" + segment.segmentId());
         }
 
-        return builder.createAsync()
+        return v4Client.createSegmentReaderAsync(segConf, v4Schema)
                 .thenApply(reader -> {
                     startReadLoop(reader, segment.segmentId());
                     return reader;

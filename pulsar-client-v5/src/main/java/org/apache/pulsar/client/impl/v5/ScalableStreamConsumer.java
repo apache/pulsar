@@ -305,14 +305,14 @@ final class ScalableStreamConsumer<T> implements StreamConsumer<T>, DagWatchClie
     private CompletableFuture<org.apache.pulsar.client.api.Consumer<T>> createSegmentConsumerAsync(
             ActiveSegment segment) {
         PulsarClientImpl v4Client = client.v4Client();
-        var builder = v4Client.newConsumer(v4Schema)
-                .topic(segment.segmentTopicName())
-                .subscriptionName(subscriptionName)
-                .subscriptionType(SubscriptionType.Exclusive);
+        var segConf = new org.apache.pulsar.client.impl.conf.ConsumerConfigurationData<T>();
+        segConf.getTopicNames().add(segment.segmentTopicName());
+        segConf.setSubscriptionName(subscriptionName);
+        segConf.setSubscriptionType(SubscriptionType.Exclusive);
         if (consumerConf.getConsumerName() != null) {
-            builder.consumerName(consumerConf.getConsumerName() + "-seg-" + segment.segmentId());
+            segConf.setConsumerName(consumerConf.getConsumerName() + "-seg-" + segment.segmentId());
         }
-        return builder.subscribeAsync()
+        return v4Client.subscribeSegmentAsync(segConf, v4Schema)
                 .thenApply(consumer -> {
                     startReceiveLoop(consumer, segment.segmentId());
                     return consumer;
