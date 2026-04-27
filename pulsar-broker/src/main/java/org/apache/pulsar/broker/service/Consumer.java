@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -1132,19 +1133,20 @@ public class Consumer {
      * @param markDeleteLedgerId the ledger ID up to which to remove pending acks
      * @param markDeleteEntryId the entry ID up to which to remove pending acks
      */
-    public void removePendingAcksUpToAndCountUnacked(long markDeleteLedgerId, long markDeleteEntryId) {
+    public void removePendingAcksUpToPositionAndDecrementUnacked(long markDeleteLedgerId, long markDeleteEntryId) {
         if (pendingAcks == null) {
             return;
         }
 
-        int[] totalUnacked = {0};
+        AtomicInteger atomicTotalUnacked = new AtomicInteger(0);
         pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId,
                 (ledgerId, entryId, batchSize, stickyKeyHash) -> {
-                    totalUnacked[0] += (int) getUnAckedCountForBatchIndexLevelEnabled(
-                            PositionFactory.create(ledgerId, entryId), batchSize);
+                    atomicTotalUnacked.addAndGet((int) getUnAckedCountForBatchIndexLevelEnabled(
+                            PositionFactory.create(ledgerId, entryId), batchSize));
                 });
-        if (totalUnacked[0] > 0) {
-            addAndGetUnAckedMsgs(this, -totalUnacked[0]);
+        int totalUnacked = atomicTotalUnacked.get();
+        if (totalUnacked > 0) {
+            addAndGetUnAckedMsgs(this, -totalUnacked);
             updateBlockedConsumerOnUnackedMsgs(this);
         }
     }
