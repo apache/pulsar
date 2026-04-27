@@ -317,9 +317,13 @@ final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient
     private CompletableFuture<org.apache.pulsar.client.api.Consumer<T>> createSegmentConsumerAsync(
             ActiveSegment segment) {
         PulsarClientImpl v4Client = client.v4Client();
-        var segConf = new org.apache.pulsar.client.impl.conf.ConsumerConfigurationData<T>();
+        // Clone the user-facing consumer config so per-segment consumers inherit every
+        // builder knob (receiverQueueSize / ackTimeout / nack backoff / DLQ / ...) and not
+        // just the few fields we explicitly carry over.
+        var segConf = consumerConf.clone();
+        segConf.getTopicNames().clear();
+        segConf.setTopicsPattern(null);
         segConf.getTopicNames().add(segment.segmentTopicName());
-        segConf.setSubscriptionName(subscriptionName);
         segConf.setSubscriptionType(SubscriptionType.Shared);
         if (consumerConf.getConsumerName() != null) {
             segConf.setConsumerName(consumerConf.getConsumerName() + "-seg-" + segment.segmentId());
