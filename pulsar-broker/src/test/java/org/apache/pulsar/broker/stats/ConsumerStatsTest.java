@@ -747,7 +747,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "subscriptionTypes")
     public void testUnackedCountNonBatchAfterExpire(SubscriptionType subType) throws Exception {
-        String topic = "persistent://public/default/unacked-expire-nonbatch-" + subType + "-" + UUID.randomUUID();
+        String topic = newTopicName();
         String sub = "sub";
         int numMessages = 10;
 
@@ -781,7 +781,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "subscriptionTypes")
     public void testUnackedCountBatchAfterExpire(SubscriptionType subType) throws Exception {
-        String topic = "persistent://public/default/unacked-expire-batch-" + subType + "-" + UUID.randomUUID();
+        String topic = newTopicName();
         String sub = "sub";
         int numMessages = 10;
 
@@ -823,7 +823,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "subscriptionTypes")
     public void testUnackedCountBatchPartialAckAfterExpire(SubscriptionType subType) throws Exception {
-        String topic = "persistent://public/default/unacked-expire-batch-partial-" + subType + "-" + UUID.randomUUID();
+        String topic = newTopicName();
         String sub = "sub";
         int numMessages = 10;
         int ackCount = 5;
