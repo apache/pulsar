@@ -37,7 +37,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -1138,13 +1137,13 @@ public class Consumer {
             return;
         }
 
-        AtomicInteger atomicTotalUnacked = new AtomicInteger(0);
+        MutableInt mutableTotalUnacked = new MutableInt(0);
         pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId,
                 (ledgerId, entryId, batchSize, stickyKeyHash) -> {
-                    atomicTotalUnacked.addAndGet((int) getUnAckedCountForBatchIndexLevelEnabled(
+                    mutableTotalUnacked.add((int) getUnAckedCountForBatchIndexLevelEnabled(
                             PositionFactory.create(ledgerId, entryId), batchSize));
                 });
-        int totalUnacked = atomicTotalUnacked.get();
+        int totalUnacked = mutableTotalUnacked.intValue();
         if (totalUnacked > 0) {
             addAndGetUnAckedMsgs(this, -totalUnacked);
             updateBlockedConsumerOnUnackedMsgs(this);
