@@ -102,8 +102,11 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
 
     @Override
     public long lastSequenceId() {
-        // Aggregate: return the max across all segment producers
-        long max = -1;
+        // Reflect the configured initialSequenceId even before any segment producer has
+        // been created (segment producers are spun up lazily on first send), so a caller
+        // that sets initialSequenceId(N) and immediately reads lastSequenceId() sees N.
+        long max = producerConf.getInitialSequenceId() == null
+                ? -1L : producerConf.getInitialSequenceId();
         for (var producer : segmentProducers.values()) {
             max = Math.max(max, producer.getLastSequenceId());
         }
@@ -345,34 +348,50 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             return existing;
         }
 
-        return segmentProducers.computeIfAbsent(segmentId, id -> {
-            // Find the segment topic name
-            String segmentTopicName = null;
-            for (var seg : activeSegments) {
-                if (seg.segmentId() == id) {
-                    segmentTopicName = seg.segmentTopicName();
-                    break;
+        try {
+            return segmentProducers.computeIfAbsent(segmentId, id -> {
+                // Find the segment topic name
+                String segmentTopicName = null;
+                for (var seg : activeSegments) {
+                    if (seg.segmentId() == id) {
+                        segmentTopicName = seg.segmentTopicName();
+                        break;
+                    }
                 }
-            }
-            if (segmentTopicName == null) {
-                throw new RuntimeException("Segment " + id + " not found in active segments");
-            }
+                if (segmentTopicName == null) {
+                    throw new RuntimeException("Segment " + id + " not found in active segments");
+                }
 
-            try {
-                PulsarClientImpl v4Client = client.v4Client();
-                var segConf = new org.apache.pulsar.client.impl.conf.ProducerConfigurationData();
-                segConf.setTopicName(segmentTopicName);
-                segConf.setSendTimeoutMs(producerConf.getSendTimeoutMs());
-                segConf.setBlockIfQueueFull(producerConf.isBlockIfQueueFull());
-                if (producerConf.getProducerName() != null
-                        && !producerConf.getProducerName().isEmpty()) {
-                    segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);
+                try {
+                    PulsarClientImpl v4Client = client.v4Client();
+                    // Clone the user-facing producer config so per-segment producers inherit
+                    // every builder knob (compression, batching, chunking, encryption,
+                    // initialSequenceId, accessMode, properties, ...) and not just the few
+                    // fields explicitly carried over.
+                    var segConf = producerConf.clone();
+                    segConf.setTopicName(segmentTopicName);
+                    if (producerConf.getProducerName() != null
+                            && !producerConf.getProducerName().isEmpty()) {
+                        segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);
+                    }
+                    return v4Client.createSegmentProducerAsync(segConf, v4Schema)
+                            .get();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
                 }
-                return v4Client.createSegmentProducerAsync(segConf, v4Schema)
-                        .get();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
+            });
+        } catch (RuntimeException re) {
+            // computeIfAbsent can't throw checked exceptions; unwrap a v4 PulsarClientException
+            // and rethrow as the V5 type so callers see the contract they expect (and don't
+            // get a misleading bare RuntimeException for a producer-fenced / busy segment).
+            Throwable cause = re.getCause();
+            while (cause instanceof java.util.concurrent.ExecutionException && cause.getCause() != null) {
+                cause = cause.getCause();
             }
-        });
+            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException v4Exc) {
+                throw new PulsarClientException(v4Exc.getMessage(), v4Exc);
+            }
+            throw re;
+        }
     }
 }
