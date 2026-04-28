@@ -1154,8 +1154,6 @@ public class Consumer {
 
     public void redeliverUnacknowledgedMessages(long consumerEpoch) {
         // cleanup unackedMessage bucket and redeliver those unack-msgs again
-        clearUnAckedMsgs();
-        blockedConsumerOnUnackedMsgs = false;
         if (log.isDebugEnabled()) {
             log.debug("[{}-{}] consumer {} received redelivery", topicName, subscription, consumerId);
         }
@@ -1163,7 +1161,7 @@ public class Consumer {
         if (pendingAcks != null) {
             List<Position> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
-            pendingAcks.forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
+            pendingAcks.forEachAndClear((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                 int unAckedCount =
                         (int) getUnAckedCountForBatchIndexLevelEnabled(PositionFactory.create(ledgerId, entryId),
                                 batchSize);
@@ -1171,15 +1169,18 @@ public class Consumer {
                 pendingPositions.add(PositionFactory.create(ledgerId, entryId));
             });
 
-            for (Position p : pendingPositions) {
-                pendingAcks.remove(p.getLedgerId(), p.getEntryId());
+            if (totalRedeliveryMessages.intValue() > 0) {
+                addAndGetUnAckedMsgs(this, -totalRedeliveryMessages.intValue());
             }
+            blockedConsumerOnUnackedMsgs = false;
 
             msgRedeliver.recordMultipleEvents(totalRedeliveryMessages.intValue(), totalRedeliveryMessages.intValue());
             msgRedeliverCounter.add(totalRedeliveryMessages.intValue());
 
             subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
         } else {
+            clearUnAckedMsgs();
+            blockedConsumerOnUnackedMsgs = false;
             subscription.redeliverUnacknowledgedMessages(this, consumerEpoch);
         }
 
@@ -1191,7 +1192,7 @@ public class Consumer {
         List<Position> pendingPositions = new ArrayList<>();
         for (MessageIdData msg : messageIds) {
             Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
-            IntIntPair pendingAck = pendingAcks.get(position.getLedgerId(), position.getEntryId());
+            IntIntPair pendingAck = pendingAcks.removeAndGet(position.getLedgerId(), position.getEntryId());
             if (pendingAck != null) {
                 int unAckedCount = (int) getUnAckedCountForBatchIndexLevelEnabled(position, pendingAck.leftInt());
                 pendingAcks.remove(position.getLedgerId(), position.getEntryId());
@@ -1212,17 +1213,7 @@ public class Consumer {
         msgRedeliver.recordMultipleEvents(totalRedeliveryMessages, totalRedeliveryMessages);
         msgRedeliverCounter.add(totalRedeliveryMessages);
 
-        int numberOfBlockedPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(this, 0);
-
-        // if permitsReceivedWhileConsumerBlocked has been accumulated then pass it to Dispatcher to flow messages
-        if (numberOfBlockedPermits > 0) {
-            MESSAGE_PERMITS_UPDATER.getAndAdd(this, numberOfBlockedPermits);
-            if (log.isDebugEnabled()) {
-               log.debug("[{}-{}] Added {} blockedPermits to broker.service.Consumer's messagePermits for consumer {}",
-                       topicName, subscription, numberOfBlockedPermits, consumerId);
-            }
-            subscription.consumerFlow(this, numberOfBlockedPermits);
-        }
+        flowConsumerBlockedPermits(this);
     }
 
     public Subscription getSubscription() {

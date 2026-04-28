@@ -204,9 +204,26 @@ public class PendingAcksMap {
      * @param processor the processor to handle each pending ack
      */
     public void forEachAndClose(PendingAcksConsumer processor) {
+        internalForEachAndClear(processor, true);
+    }
+
+    /**
+     * Iterate over all the pending acks and clear the map.
+     * Unlike {@link #forEachAndClose(PendingAcksConsumer)}, this method does not close the map,
+     * so new entries can still be added after this method returns.
+     *
+     * @param processor the processor to handle each pending ack
+     */
+    public void forEachAndClear(PendingAcksConsumer processor) {
+        internalForEachAndClear(processor, false);
+    }
+
+    private void internalForEachAndClear(PendingAcksConsumer processor, boolean close) {
         try {
             writeLock.lock();
-            closed = true;
+            if (close) {
+                closed = true;
+            }
             PendingAcksRemoveHandler pendingAcksRemoveHandler = pendingAcksRemoveHandlerSupplier.get();
             if (pendingAcksRemoveHandler != null) {
                 try {
@@ -226,7 +243,6 @@ public class PendingAcksMap {
             writeLock.unlock();
         }
     }
-
     /**
      * Check if the map contains a pending ack for the given ledger ID and entry ID.
      *
@@ -320,6 +336,35 @@ public class PendingAcksMap {
                 pendingAcks.remove(ledgerId);
             }
             return removed;
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    /**
+     * Atomically remove and return the pending ack for the given ledger ID and entry ID.
+     * Unlike {@link #remove(long, long)}, this method returns the removed entry so the caller
+     * can access the batch size and sticky key hash without a separate get operation.
+     *
+     * @param ledgerId the ledger ID
+     * @param entryId the entry ID
+     * @return the removed entry as an IntIntPair (batchSize, stickyKeyHash), or null if not found
+     */
+    public IntIntPair removeAndGet(long ledgerId, long entryId) {
+        try {
+            writeLock.lock();
+            Long2ObjectSortedMap<IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            if (ledgerMap == null) {
+                return null;
+            }
+            IntIntPair removedEntry = ledgerMap.remove(entryId);
+            if (removedEntry != null) {
+                handleRemovePendingAck(ledgerId, entryId, removedEntry.rightInt());
+            }
+            if (removedEntry != null && ledgerMap.isEmpty()) {
+                pendingAcks.remove(ledgerId);
+            }
+            return removedEntry;
         } finally {
             writeLock.unlock();
         }
