@@ -76,10 +76,17 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
         DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topicName);
 
         return dagWatch.start()
-                .thenApply(initialLayout -> {
+                .thenCompose(initialLayout -> {
                     ScalableTopicProducer<T> producer = new ScalableTopicProducer<>(
                             client, v5Schema, conf, dagWatch, initialLayout);
-                    return (Producer<T>) producer;
+                    // For exclusive access modes, claim every active segment up front so
+                    // a collision surfaces here instead of being deferred to first send.
+                    return producer.eagerAttachInitialAsync()
+                            .thenApply(__ -> (Producer<T>) producer)
+                            .exceptionallyCompose(ex -> producer.closeAsync().handle((__, ___) -> {
+                                throw ex instanceof java.util.concurrent.CompletionException ce
+                                        ? ce : new java.util.concurrent.CompletionException(ex);
+                            }));
                 });
     }
 

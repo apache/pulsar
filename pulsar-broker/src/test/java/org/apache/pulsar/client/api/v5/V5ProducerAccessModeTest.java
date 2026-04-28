@@ -81,22 +81,15 @@ public class V5ProducerAccessModeTest extends V5ClientBaseTest {
                 .topic(topic)
                 .accessMode(ProducerAccessMode.EXCLUSIVE)
                 .create();
-        // Force the per-segment v4 producer to actually attach to the segment topic —
-        // V5 segment producers are spun up lazily on first send, so the EXCLUSIVE
-        // collision isn't observable until at least one send has gone through.
-        first.newMessage().value("first-claim").send();
 
-        // Second EXCLUSIVE on the same topic: the V5 builder may succeed at create()
-        // (segment producers are still lazy), but the first send must fail with a
-        // producer-fenced / busy error from the broker.
-        @Cleanup
-        Producer<String> second = v5Client.newProducer(Schema.string())
-                .topic(topic)
-                .accessMode(ProducerAccessMode.EXCLUSIVE)
-                .create();
+        // Second EXCLUSIVE on the same topic must fail at create() — the V5 builder
+        // eagerly claims every active segment up front for exclusive access modes.
         try {
-            second.newMessage().value("second-claim").send();
-            fail("a second EXCLUSIVE producer should not be able to send");
+            v5Client.newProducer(Schema.string())
+                    .topic(topic)
+                    .accessMode(ProducerAccessMode.EXCLUSIVE)
+                    .create();
+            fail("a second EXCLUSIVE producer should not be able to attach");
         } catch (PulsarClientException expected) {
             String msg = expected.getMessage() == null ? "" : expected.getMessage();
             assertTrue(msg.contains("Busy") || msg.contains("Fenced")
@@ -104,18 +97,12 @@ public class V5ProducerAccessModeTest extends V5ClientBaseTest {
                     "unexpected error message for second EXCLUSIVE producer: " + msg);
         }
 
-        // The first one is still healthy.
+        // The first producer is still healthy and can send.
         first.newMessage().value("still-here").send();
     }
 
     @Test
     public void testWaitForExclusiveSucceedsAfterFirstReleases() throws Exception {
-        // NOTE: V5 producers create per-segment v4 producers lazily on first send, so the
-        // second WAIT_FOR_EXCLUSIVE producer's create() does not actually block — the
-        // exclusivity collision is deferred until the first send. This test therefore
-        // doesn't verify the "blocks at create()" semantics; it only verifies that a
-        // WAIT_FOR_EXCLUSIVE producer can send successfully once the previous EXCLUSIVE
-        // owner has closed.
         String topic = newScalableTopic(1);
 
         Producer<String> first = v5Client.newProducer(Schema.string())
@@ -124,15 +111,22 @@ public class V5ProducerAccessModeTest extends V5ClientBaseTest {
                 .create();
         first.newMessage().value("first-claim").send();
 
-        // Once the first releases the topic, a WAIT_FOR_EXCLUSIVE producer should
-        // succeed end-to-end.
+        // Start a WAIT_FOR_EXCLUSIVE create() on a separate thread — it should block
+        // until the first producer releases. We can't observe blocking directly, so we
+        // assert it has not completed before close, then completes once close lands.
+        java.util.concurrent.CompletableFuture<Producer<String>> secondFuture =
+                v5Client.newProducer(Schema.string())
+                        .topic(topic)
+                        .accessMode(ProducerAccessMode.WAIT_FOR_EXCLUSIVE)
+                        .createAsync();
+        Thread.sleep(500);
+        org.testng.Assert.assertFalse(secondFuture.isDone(),
+                "WAIT_FOR_EXCLUSIVE create() must block while the first producer holds the claim");
+
         first.close();
 
         @Cleanup
-        Producer<String> second = v5Client.newProducer(Schema.string())
-                .topic(topic)
-                .accessMode(ProducerAccessMode.WAIT_FOR_EXCLUSIVE)
-                .create();
+        Producer<String> second = secondFuture.get(10, java.util.concurrent.TimeUnit.SECONDS);
         MessageId id = second.newMessage().value("after-takeover").send();
         assertNotNull(id);
     }

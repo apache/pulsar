@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.v5.MessageBuilder;
 import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
@@ -299,6 +300,29 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     @Override
     public void onLayoutChange(ClientSegmentLayout newLayout, ClientSegmentLayout oldLayout) {
         applyLayout(newLayout);
+        // After a layout update under an exclusive access mode, we want to claim any
+        // newly-introduced segments eagerly so the exclusivity guarantee covers the
+        // whole topic, not just segments hit by the next send. Best-effort: this runs
+        // off the DagWatchClient callback and any failure is logged; the next send to
+        // that segment will surface the error via the normal PulsarClientException
+        // path. (The initial-create path uses {@link #eagerAttachInitialAsync} for
+        // strict claim.)
+        if (requiresExclusiveAttach()) {
+            CompletableFuture.runAsync(() -> {
+                for (var seg : newLayout.activeSegments()) {
+                    if (segmentProducers.containsKey(seg.segmentId())) {
+                        continue;
+                    }
+                    try {
+                        getOrCreateSegmentProducer(seg.segmentId());
+                    } catch (PulsarClientException e) {
+                        log.warn().attr("segmentId", seg.segmentId())
+                                .exceptionMessage(e)
+                                .log("Eager exclusive attach failed; will retry on next send");
+                    }
+                }
+            }, client.v4Client().getInternalExecutorService());
+        }
     }
 
     private void applyLayout(ClientSegmentLayout layout) {
@@ -325,9 +349,38 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             }
         }
 
-        // New segment producers will be created lazily on first message
         log.info().attr("epoch", layout.epoch())
                 .attr("activeSegments", newSegmentIds).log("Layout applied");
+    }
+
+    /**
+     * Strict variant of the eager attach used at initial create time: surfaces any
+     * exclusivity failure as a {@link PulsarClientException} so {@code create()} fails
+     * up front instead of silently deferring the collision to first send.
+     */
+    CompletableFuture<Void> eagerAttachInitialAsync() {
+        if (!requiresExclusiveAttach()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return CompletableFuture.runAsync(() -> {
+            for (var seg : activeSegments) {
+                if (segmentProducers.containsKey(seg.segmentId())) {
+                    continue;
+                }
+                try {
+                    getOrCreateSegmentProducer(seg.segmentId());
+                } catch (PulsarClientException e) {
+                    throw new java.util.concurrent.CompletionException(e);
+                }
+            }
+        }, client.v4Client().getInternalExecutorService());
+    }
+
+    private boolean requiresExclusiveAttach() {
+        ProducerAccessMode mode = producerConf.getAccessMode();
+        return mode == ProducerAccessMode.Exclusive
+                || mode == ProducerAccessMode.ExclusiveWithFencing
+                || mode == ProducerAccessMode.WaitForExclusive;
     }
 
     // --- Internal ---
