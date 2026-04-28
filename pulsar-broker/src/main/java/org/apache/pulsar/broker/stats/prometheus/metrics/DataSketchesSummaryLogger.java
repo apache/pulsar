@@ -22,6 +22,7 @@ import com.yahoo.sketches.quantiles.DoublesSketch;
 import com.yahoo.sketches.quantiles.DoublesUnion;
 import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
 
 public class DataSketchesSummaryLogger {
@@ -37,7 +38,7 @@ public class DataSketchesSummaryLogger {
      */
     private volatile DoublesSketch values;
     private final LongAdder countAdder = new LongAdder();
-    private final LongAdder sumAdder = new LongAdder();
+    private final DoubleAdder sumAdder = new DoubleAdder();
 
     public DataSketchesSummaryLogger() {
         this.current = new ThreadLocalAccessor();
@@ -48,7 +49,7 @@ public class DataSketchesSummaryLogger {
         double valueMillis = unit.toMicros(eventLatency) / 1000.0;
 
         countAdder.increment();
-        sumAdder.add((long) valueMillis);
+        sumAdder.add(valueMillis);
 
         current.getLocalData().updateSuccess(valueMillis);
     }
@@ -69,7 +70,7 @@ public class DataSketchesSummaryLogger {
         return countAdder.sum();
     }
 
-    public long getSum() {
+    public double getSum() {
         return sumAdder.sum();
     }
 
