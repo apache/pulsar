@@ -30,17 +30,20 @@ import org.testng.annotations.Test;
 /**
  * Coverage for {@link QueueConsumerBuilder#deadLetterPolicy(DeadLetterPolicy)}: after
  * {@code maxRedeliverCount} negative-acks, the broker forwards the message to the
- * configured (or auto-named) dead-letter topic.
+ * configured dead-letter topic.
  *
- * <p>The DLQ topic ends up at {@code <originalTopic>-<subscription>-DLQ} when none is
- * specified by the policy. We subscribe to it via the V4 client (it's a regular
- * persistent topic, not a scalable one) to verify delivery.
+ * <p><b>Known V5 gap:</b> the DLQ topic is currently a non-scalable persistent topic.
+ * The V5 source consumer's underlying v4 {@code ConsumerImpl} creates the DLQ producer
+ * via {@code client.newProducer(...)}, which rejects {@code topic://} scalable topic
+ * names. Routing the DLQ producer through V5's segment-bypass path is required before
+ * a scalable DLQ can be used here.
  */
 public class V5DeadLetterPolicyTest extends V5ClientBaseTest {
 
     @Test
     public void testMessageGoesToDlqAfterMaxRedeliveries() throws Exception {
         String topic = newScalableTopic(1);
+        // Non-scalable DLQ topic — see class-level note about the V5 gap.
         String dlqTopic = "persistent://" + getNamespace() + "/dlq-explicit";
 
         @Cleanup
@@ -56,8 +59,7 @@ public class V5DeadLetterPolicyTest extends V5ClientBaseTest {
                 .deadLetterPolicy(new DeadLetterPolicy(2, null, dlqTopic, null))
                 .subscribe();
 
-        // Subscribe to the DLQ first via the V4 client (DLQ is a regular persistent
-        // topic, not scalable).
+        // Subscribe to the DLQ via the V4 client (DLQ is a regular persistent topic).
         @Cleanup
         org.apache.pulsar.client.api.Consumer<String> dlqConsumer = pulsarClient
                 .newConsumer(org.apache.pulsar.client.api.Schema.STRING)
@@ -80,7 +82,8 @@ public class V5DeadLetterPolicyTest extends V5ClientBaseTest {
         }
 
         // Now it should appear on the DLQ topic.
-        org.apache.pulsar.client.api.Message<String> dlqMsg = dlqConsumer.receive(10, java.util.concurrent.TimeUnit.SECONDS);
+        org.apache.pulsar.client.api.Message<String> dlqMsg =
+                dlqConsumer.receive(10, java.util.concurrent.TimeUnit.SECONDS);
         assertNotNull(dlqMsg, "message did not land on the DLQ topic");
         assertEquals(dlqMsg.getValue(), "dead");
         dlqConsumer.acknowledge(dlqMsg);
