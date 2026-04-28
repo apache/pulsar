@@ -97,7 +97,16 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilderV5<T> accessMode(ProducerAccessMode accessMode) {
-        conf.setAccessMode(org.apache.pulsar.client.api.ProducerAccessMode.valueOf(accessMode.name()));
+        // V5 enum uses SCREAMING_SNAKE_CASE; v4 uses PascalCase, so a literal valueOf(name())
+        // would throw IllegalArgumentException. Map explicitly.
+        conf.setAccessMode(switch (accessMode) {
+            case SHARED -> org.apache.pulsar.client.api.ProducerAccessMode.Shared;
+            case EXCLUSIVE -> org.apache.pulsar.client.api.ProducerAccessMode.Exclusive;
+            case EXCLUSIVE_WITH_FENCING ->
+                    org.apache.pulsar.client.api.ProducerAccessMode.ExclusiveWithFencing;
+            case WAIT_FOR_EXCLUSIVE ->
+                    org.apache.pulsar.client.api.ProducerAccessMode.WaitForExclusive;
+        });
         return this;
     }
 
