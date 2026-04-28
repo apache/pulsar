@@ -1331,9 +1331,14 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Awaitility.await().untilAsserted(() ->
                 assertTrue(pulsar1.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
         primaryLoadManager.monitor();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer()
-                        .isActive()));
+        // playLeader()/playFollower() run on a single-threaded loadManagerExecutor, so
+        // playLeader() on the new leader can be queued behind a still-running playFollower()
+        // from the prior demotion. Under CI load this serial chain plus the syncer.start()
+        // work (which opens both table views and runs syncExistingItems/syncTailItems)
+        // can take longer than 30s, so use a more generous timeout here.
+        Awaitility.await().atMost(60, TimeUnit.SECONDS)
+            .untilAsserted(() -> assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer()
+                .isActive()));
         assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer().isActive());
 
         // === Phase 2: add a 3rd broker using the OTHER table view impl ===
@@ -1436,7 +1441,7 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Awaitility.await().untilAsserted(() ->
                 assertFalse(pulsar1.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
         primaryLoadManager.monitor();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
+        Awaitility.await().atMost(60, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertFalse(primaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
         assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer().isActive());
