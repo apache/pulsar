@@ -18,31 +18,26 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Builder;
-import lombok.Data;
+public enum TokenEndpointAuthMethod {
+    CLIENT_SECRET_POST("client_secret_post"),
+    TLS_CLIENT_AUTH("tls_client_auth");
 
-/**
- * A token request based on the exchange of client credentials.
- *
- * @see <a href="https://tools.ietf.org/html/rfc6749#section-4.4">OAuth 2.0 RFC 6749, section 4.4</a>
- */
-@Data
-@Builder
-public class ClientCredentialsExchangeRequest {
+    private final String value;
 
-    @JsonProperty("client_id")
-    private String clientId;
+    TokenEndpointAuthMethod(String value) {
+        this.value = value;
+    }
 
-    @JsonProperty("client_secret")
-    private String clientSecret;
+    public String value() {
+        return value;
+    }
 
-    @JsonProperty("audience")
-    private String audience;
-
-    @JsonProperty("scope")
-    private String scope;
-
-    @JsonProperty("token_endpoint_auth_method")
-    private TokenEndpointAuthMethod authMethod;
+    public static TokenEndpointAuthMethod fromValue(String value) {
+        for (TokenEndpointAuthMethod method : values()) {
+            if (method.value.equalsIgnoreCase(value)) {
+                return method;
+            }
+        }
+        throw new IllegalArgumentException("Unsupported token endpoint auth method: " + value);
+    }
 }
