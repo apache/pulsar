@@ -1376,10 +1376,15 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
                 assertTrue(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
         makeSecondaryAsLeader();
         makePrimaryAsLeader();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
+        // playLeader()/playFollower() run on a single-threaded loadManagerExecutor, so
+        // playLeader() on the new leader can be queued behind a still-running playFollower()
+        // from the prior demotion. Under CI load this serial chain plus the syncer.start()
+        // work (which opens both table views and runs syncExistingItems/syncTailItems)
+        // can take longer than 30s, so use a more generous timeout here.
+        Awaitility.await().atMost(60, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertTrue(primaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
+        Awaitility.await().atMost(60, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
         ServiceConfiguration defaultConf = getDefaultConf();
@@ -1590,10 +1595,10 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         Awaitility.await().untilAsserted(() ->
                 assertFalse(pulsar2.getConfiguration().isLoadBalancerServiceUnitTableViewSyncerEnabled()));
         makeSecondaryAsLeader();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
+        Awaitility.await().atMost(60, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertFalse(primaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
-        Awaitility.await().atMost(30, TimeUnit.SECONDS)
+        Awaitility.await().atMost(60, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertFalse(secondaryLoadManager.getServiceUnitStateTableViewSyncer()
                         .isActive()));
     }
