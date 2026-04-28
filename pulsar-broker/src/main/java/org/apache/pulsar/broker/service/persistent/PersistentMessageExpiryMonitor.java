@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -211,9 +212,18 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             long numMessagesExpired = (long) ctx - cursor.getNumberOfEntriesInBacklog(false);
             msgExpired.recordMultipleEvents(numMessagesExpired, 0 /* no value stats */);
             totalMsgExpired.add(numMessagesExpired);
-            // If the subscription is a Key_Shared subscription, we should to trigger message dispatch.
-            if (subscription != null && subscription.getType() == SubType.Key_Shared) {
-                subscription.getDispatcher().markDeletePositionMoveForward();
+            if (subscription != null) {
+                Dispatcher dispatcher = subscription.getDispatcher();
+                if (dispatcher != null) {
+                    Position mdPos = cursor.getMarkDeletedPosition();
+                    if (mdPos != null) {
+                        dispatcher.prunePendingAcksUpToPosition(mdPos.getLedgerId(), mdPos.getEntryId());
+                    }
+                    // If the subscription is a Key_Shared subscription, we should to trigger message dispatch.
+                    if (subscription.getType() == SubType.Key_Shared) {
+                        dispatcher.markDeletePositionMoveForward();
+                    }
+                }
             }
             expirationCheckInProgress = FALSE;
             log.debug()

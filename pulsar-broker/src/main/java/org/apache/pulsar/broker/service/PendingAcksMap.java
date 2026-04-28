@@ -87,12 +87,13 @@ public class PendingAcksMap {
         /**
          * Accept a pending acknowledgment.
          *
-         * @param ledgerId      the ledger ID
-         * @param entryId       the entry ID
-         * @param batchSize     the batch size
-         * @param stickyKeyHash the sticky key hash
+         * @param ledgerId          the ledger ID
+         * @param entryId           the entry ID
+         * @param remainingUnacked  the number of remaining unacked messages in this entry
+         *                          (accounts for batch index level acknowledgments)
+         * @param stickyKeyHash     the sticky key hash
          */
-        void accept(long ledgerId, long entryId, int batchSize, int stickyKeyHash);
+        void accept(long ledgerId, long entryId, int remainingUnacked, int stickyKeyHash);
     }
 
     private final Consumer consumer;
@@ -122,11 +123,12 @@ public class PendingAcksMap {
      *
      * @param ledgerId the ledger ID
      * @param entryId the entry ID
-     * @param batchSize the batch size
+     * @param remainingUnacked the number of remaining unacked messages in this entry
+     *                         (for batch entries with some indexes already acked, this may be less than batchSize)
      * @param stickyKeyHash the sticky key hash
      * @return true if the pending ack was added, and it's allowed to send a message, false otherwise
      */
-    public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int batchSize, int stickyKeyHash) {
+    public boolean addPendingAckIfAllowed(long ledgerId, long entryId, int remainingUnacked, int stickyKeyHash) {
         try {
             writeLock.lock();
             // prevent adding sticky hash to pending acks if the PendingAcksMap has already been closed
@@ -143,7 +145,7 @@ public class PendingAcksMap {
             }
             TreeMap<Long, IntIntPair> ledgerPendingAcks =
                     pendingAcks.computeIfAbsent(ledgerId, k -> new TreeMap<>());
-            ledgerPendingAcks.put(entryId, IntIntPair.of(batchSize, stickyKeyHash));
+            ledgerPendingAcks.put(entryId, IntIntPair.of(remainingUnacked, stickyKeyHash));
             return true;
         } finally {
             writeLock.unlock();
@@ -306,6 +308,34 @@ public class PendingAcksMap {
                 pendingAcks.remove(ledgerId);
             }
             return removed;
+        } finally {
+            writeLock.unlock();
+        }
+    }
+
+    /**
+     * Atomically update the remaining unacked count for a pending ack entry by subtracting the given delta.
+     * Called from the ack handler after computing the number of batch indexes acknowledged in a partial ack.
+     *
+     * @param ledgerId the ledger ID
+     * @param entryId the entry ID
+     * @param ackedDelta the number of batch indexes that were just acknowledged
+     * @return true if the entry was found and updated, false otherwise
+     */
+    public boolean updateRemainingUnacked(long ledgerId, long entryId, int ackedDelta) {
+        try {
+            writeLock.lock();
+            TreeMap<Long, IntIntPair> ledgerMap = pendingAcks.get(ledgerId);
+            if (ledgerMap == null) {
+                return false;
+            }
+            IntIntPair current = ledgerMap.get(entryId);
+            if (current == null) {
+                return false;
+            }
+            int newRemaining = current.leftInt() - ackedDelta;
+            ledgerMap.put(entryId, IntIntPair.of(newRemaining, current.rightInt()));
+            return true;
         } finally {
             writeLock.unlock();
         }
