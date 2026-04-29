@@ -59,7 +59,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
-import java.util.function.UnaryOperator;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
@@ -93,6 +92,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -163,7 +163,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     public void beforeMethod() throws Exception {
         admin.namespaces().removeRetention("my-tenant/my-ns");
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
-        AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = UnaryOperator.identity();
+        AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = RawReader::seekAsync;
     }
 
     protected long compact(String topic) throws ExecutionException, InterruptedException {
@@ -2535,16 +2535,16 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // Simulate the production race: PersistentSubscription.resetCursorInternal disconnects the
         // consumer before responding to the seek, which fails the client's in-flight seek future
-        // with ConnectException even though the cursor is repositioned server-side. The first seek
-        // here is replaced with a failed future; the real seek still executes (so the subscription
-        // is actually at the target position), and the compactor's retry picks back up.
+        // with ConnectException. The first attempt here returns a synthetic failure without invoking
+        // the real seek (so nothing is in flight on the underlying ConsumerImpl); the retry calls
+        // seekAsync for real and the compaction proceeds.
         final var attempts = new AtomicInteger(0);
-        AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = original -> {
+        AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = (reader, msgId) -> {
             if (attempts.getAndIncrement() == 0) {
                 return FutureUtil.failedFuture(
                         new PulsarClientException.ConnectException("simulated disconnect during seek"));
             }
-            return original;
+            return reader.seekAsync(msgId);
         };
 
         final long compactedLedgerId = compact(topic);

@@ -29,8 +29,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
-import java.util.function.UnaryOperator;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -66,7 +66,8 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
   @VisibleForTesting
   static Runnable injectionAfterSeekInPhaseTwo = () -> {};
   @VisibleForTesting
-  static UnaryOperator<CompletableFuture<Void>> injectionPhaseTwoSeek = UnaryOperator.identity();
+  static BiFunction<RawReader, MessageId, CompletableFuture<Void>> injectionPhaseTwoSeek =
+      RawReader::seekAsync;
   protected static final int MAX_OUTSTANDING = 500;
   protected final Duration phaseOneLoopReadTimeout;
   protected final boolean topicCompactionRetainNullKey;
@@ -252,7 +253,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
 
   private void attemptPhaseTwoSeek(RawReader reader, MessageId from, Backoff backoff,
       CompletableFuture<Void> promise) {
-    injectionPhaseTwoSeek.apply(reader.seekAsync(from)).whenComplete((v, ex) -> {
+    injectionPhaseTwoSeek.apply(reader, from).whenComplete((v, ex) -> {
       if (ex == null) {
         promise.complete(null);
         return;
