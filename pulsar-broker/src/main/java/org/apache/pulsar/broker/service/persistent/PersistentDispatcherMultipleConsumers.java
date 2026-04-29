@@ -142,7 +142,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected enum ReadType {
         Normal, Replay
     }
-    private Position lastMarkDeletePositionBeforeReadMoreEntries;
     private volatile long readMoreEntriesCallCount;
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
@@ -357,17 +356,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
         // increment the counter for readMoreEntries calls, to track the number of times readMoreEntries is called
         readMoreEntriesCallCount++;
-
-        // remove possible expired messages from redelivery tracker and pending acks
-        Position markDeletePosition = cursor.getMarkDeletedPosition();
-        if (lastMarkDeletePositionBeforeReadMoreEntries != markDeletePosition) {
-            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            for (Consumer consumer : consumerList) {
-                consumer.removePendingAcksUpToPositionAndDecrementUnacked(
-                        markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
-            lastMarkDeletePositionBeforeReadMoreEntries = markDeletePosition;
-        }
 
         // totalAvailablePermits may be updated by other threads
         int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
@@ -603,6 +591,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     @Override
     public CopyOnWriteArrayList<Consumer> getConsumers() {
         return consumerList;
+    }
+
+    @Override
+    public void markDeletePositionMoveForward() {
+        Position markDeletePosition = cursor.getMarkDeletedPosition();
+        if (markDeletePosition != null) {
+            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            for (Consumer consumer : consumerList) {
+                consumer.removePendingAcksUpToPositionAndDecrementUnacked(
+                        markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            }
+        }
     }
 
     @Override
