@@ -149,7 +149,8 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             String key, T value, java.util.Map<String, String> properties,
             java.time.Instant eventTime, Long sequenceId,
             java.time.Duration deliverAfter, java.time.Instant deliverAt,
-            java.util.List<String> replicationClusters) throws PulsarClientException {
+            java.util.List<String> replicationClusters,
+            org.apache.pulsar.client.api.v5.Transaction txn) throws PulsarClientException {
 
         for (int attempt = 0; attempt < 3; attempt++) {
             long segmentId = routeMessage(key);
@@ -157,7 +158,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
 
             try {
                 var v4MsgId = buildV4Message(producer, key, value, properties,
-                        eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters)
+                        eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn)
                         .send();
                 return new MessageIdV5(v4MsgId, segmentId);
             } catch (org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException
@@ -193,17 +194,19 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             String key, T value, java.util.Map<String, String> properties,
             java.time.Instant eventTime, Long sequenceId,
             java.time.Duration deliverAfter, java.time.Instant deliverAt,
-            java.util.List<String> replicationClusters) {
+            java.util.List<String> replicationClusters,
+            org.apache.pulsar.client.api.v5.Transaction txn) {
 
         return sendInternalAsyncWithRetry(key, value, properties,
-                eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, 0);
+                eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn, 0);
     }
 
     private CompletableFuture<MessageIdV5> sendInternalAsyncWithRetry(
             String key, T value, java.util.Map<String, String> properties,
             java.time.Instant eventTime, Long sequenceId,
             java.time.Duration deliverAfter, java.time.Instant deliverAt,
-            java.util.List<String> replicationClusters, int attempt) {
+            java.util.List<String> replicationClusters,
+            org.apache.pulsar.client.api.v5.Transaction txn, int attempt) {
 
         long segmentId;
         try {
@@ -220,7 +223,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         }
 
         return buildV4Message(producer, key, value, properties,
-                eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters)
+                eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn)
                 .sendAsync()
                 .thenApply(v4MsgId -> new MessageIdV5(v4MsgId, segmentId))
                 .exceptionallyCompose(ex -> {
@@ -241,7 +244,8 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                         java.util.concurrent.TimeUnit.MILLISECONDS))
                                 .thenCompose(__ -> sendInternalAsyncWithRetry(
                                         key, value, properties, eventTime, sequenceId,
-                                        deliverAfter, deliverAt, replicationClusters, attempt + 1));
+                                        deliverAfter, deliverAt, replicationClusters,
+                                        txn, attempt + 1));
                     }
                     return CompletableFuture.failedFuture(ex);
                 });
@@ -252,9 +256,12 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             String key, T value, java.util.Map<String, String> properties,
             java.time.Instant eventTime, Long sequenceId,
             java.time.Duration deliverAfter, java.time.Instant deliverAt,
-            java.util.List<String> replicationClusters) {
+            java.util.List<String> replicationClusters,
+            org.apache.pulsar.client.api.v5.Transaction txn) {
 
-        var msgBuilder = producer.newMessage().value(value);
+        org.apache.pulsar.client.api.transaction.Transaction v4Txn = TransactionV5.unwrap(txn);
+        var msgBuilder = (v4Txn != null ? producer.newMessage(v4Txn) : producer.newMessage())
+                .value(value);
 
         if (key != null) {
             msgBuilder.key(key);

@@ -170,7 +170,13 @@ final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient
 
     @Override
     public void acknowledge(MessageId messageId, Transaction txn) {
-        throw new UnsupportedOperationException("Transactional ack not yet implemented");
+        if (!(messageId instanceof MessageIdV5 id)) {
+            throw new IllegalArgumentException("Expected MessageIdV5, got: " + messageId.getClass());
+        }
+        var future = segmentConsumers.get(id.segmentId());
+        if (future != null) {
+            future.thenAccept(c -> c.acknowledgeAsync(id.v4MessageId(), TransactionV5.unwrap(txn)));
+        }
     }
 
     @Override

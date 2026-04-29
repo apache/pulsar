@@ -208,8 +208,16 @@ final class ScalableStreamConsumer<T>
 
     @Override
     public void acknowledgeCumulative(MessageId messageId, Transaction txn) {
-        // Transaction support not yet implemented
-        throw new UnsupportedOperationException("Transactional ack not yet implemented");
+        if (!(messageId instanceof MessageIdV5 id)) {
+            throw new IllegalArgumentException("Expected MessageIdV5, got: " + messageId.getClass());
+        }
+        var v4Txn = TransactionV5.unwrap(txn);
+        for (var entry : id.positionVector().entrySet()) {
+            var future = segmentConsumers.get(entry.getKey());
+            if (future != null) {
+                future.thenAccept(c -> c.acknowledgeCumulativeAsync(entry.getValue(), v4Txn));
+            }
+        }
     }
 
     @Override

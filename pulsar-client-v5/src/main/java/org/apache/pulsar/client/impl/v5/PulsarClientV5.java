@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.v5.CheckpointConsumerBuilder;
 import org.apache.pulsar.client.api.v5.ProducerBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClient;
@@ -37,10 +41,12 @@ final class PulsarClientV5 implements PulsarClient {
 
     private final PulsarClientImpl v4Client;
     private final String description;
+    private final Duration transactionTimeout;
 
-    PulsarClientV5(PulsarClientImpl v4Client, String description) {
+    PulsarClientV5(PulsarClientImpl v4Client, String description, Duration transactionTimeout) {
         this.v4Client = v4Client;
         this.description = description;
+        this.transactionTimeout = transactionTimeout;
     }
 
     /**
@@ -72,13 +78,24 @@ final class PulsarClientV5 implements PulsarClient {
 
     @Override
     public Transaction newTransaction() throws PulsarClientException {
-        throw new PulsarClientException("Transactions not yet implemented");
+        try {
+            return newTransactionAsync().get();
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            throw new PulsarClientException(cause.getMessage(), cause);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException("Interrupted while creating transaction", e);
+        }
     }
 
     @Override
     public CompletableFuture<Transaction> newTransactionAsync() {
-        return CompletableFuture.failedFuture(
-                new PulsarClientException("Transactions not yet implemented"));
+        var builder = v4Client.newTransaction();
+        if (transactionTimeout != null) {
+            builder.withTransactionTimeout(transactionTimeout.toMillis(), TimeUnit.MILLISECONDS);
+        }
+        return builder.build().thenApply(v4Txn -> (Transaction) new TransactionV5(v4Txn));
     }
 
     @Override
@@ -93,8 +110,7 @@ final class PulsarClientV5 implements PulsarClient {
     @Override
     public CompletableFuture<Void> closeAsync() {
         return v4Client.closeAsync().exceptionally(ex -> {
-            throw new java.util.concurrent.CompletionException(
-                    new PulsarClientException(ex.getMessage(), ex));
+            throw new CompletionException(new PulsarClientException(ex.getMessage(), ex));
         });
     }
 

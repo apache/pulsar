@@ -43,6 +43,7 @@ final class AsyncMessageBuilderV5<T> implements AsyncMessageBuilder<T> {
     private Duration deliverAfter;
     private Instant deliverAt;
     private List<String> replicationClusters;
+    private Transaction txn;
 
     AsyncMessageBuilderV5(ScalableTopicProducer<T> producer) {
         this.producer = producer;
@@ -52,7 +53,7 @@ final class AsyncMessageBuilderV5<T> implements AsyncMessageBuilder<T> {
     public CompletableFuture<MessageId> send() {
         return producer.sendInternalAsync(
                 key, value, properties, eventTime, sequenceId,
-                deliverAfter, deliverAt, replicationClusters)
+                deliverAfter, deliverAt, replicationClusters, txn)
                 .thenApply(id -> id);
     }
 
@@ -70,7 +71,7 @@ final class AsyncMessageBuilderV5<T> implements AsyncMessageBuilder<T> {
 
     @Override
     public AsyncMessageBuilderV5<T> transaction(Transaction txn) {
-        // TODO: Wire up transaction support
+        this.txn = txn;
         return this;
     }
 
