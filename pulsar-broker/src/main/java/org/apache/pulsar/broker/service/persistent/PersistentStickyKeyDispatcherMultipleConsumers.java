@@ -642,6 +642,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     public void markDeletePositionMoveForward() {
+        super.markDeletePositionMoveForward();
         // reschedule a read with a backoff after moving the mark-delete position forward since there might have
         // been consumers that were blocked by hash and couldn't make progress
         reScheduleReadWithKeySharedUnblockingInterval();

@@ -490,6 +490,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
 
     @Override
     public void markDeletePositionMoveForward() {
+        super.markDeletePositionMoveForward();
         // Execute the notification in different thread to avoid a mutex chain here
         // from the delete operation that was completed
         topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {

@@ -589,10 +589,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
-    public void prunePendingAcksUpToPosition(long ledgerId, long entryId) {
-        redeliveryMessages.removeAllUpTo(ledgerId, entryId);
-        for (Consumer consumer : consumerList) {
-            consumer.removePendingAcksUpToPositionAndDecrementUnacked(ledgerId, entryId);
+    public void markDeletePositionMoveForward() {
+        Position markDeletePosition = cursor.getMarkDeletedPosition();
+        if (markDeletePosition != null) {
+            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            for (Consumer consumer : consumerList) {
+                consumer.removePendingAcksUpToPositionAndDecrementUnacked(
+                        markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            }
         }
     }
 

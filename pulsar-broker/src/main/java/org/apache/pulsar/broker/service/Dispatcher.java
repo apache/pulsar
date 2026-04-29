@@ -131,6 +131,15 @@ public interface Dispatcher {
         //No-op
     }
 
+    /**
+     * This hook is invoked after cursor mark-delete operations triggered by
+     * message removal flows such as expiry, skip, or clear backlog, but not for
+     * regular ack-driven mark-delete operations due to their higher frequency.
+     *
+     * <p>Since the cursor ack set may no longer be available after mark-delete,
+     * the cleanup logic relies on the remaining unacked count stored in
+     * {@code PendingAcksMap} entries.
+     */
     default void markDeletePositionMoveForward() {
         // No-op
     }
@@ -140,23 +149,6 @@ public interface Dispatcher {
      */
     default boolean checkAndUnblockIfStuck() {
         return false;
-    }
-
-    /**
-     * Prune pending-ack entries up to the specified position and updates the
-     * consumer unacked-message counters accordingly.
-     *
-     * <p>This hook is invoked after the cursor mark-delete operation completes
-     * (for example, during message expiry, skip, or clear backlog). Since the
-     * cursor ack set may no longer be available after mark-delete, the counter
-     * adjustment relies on the remaining unacked count stored in the
-     * {@code PendingAcksMap} entries.
-     *
-     * @param ledgerId the ledger ID of the inclusive upper bound position
-     * @param entryId the entry ID of the inclusive upper bound position
-     */
-    default void prunePendingAcksUpToPosition(long ledgerId, long entryId) {
-        // No-op by default
     }
 
     /**

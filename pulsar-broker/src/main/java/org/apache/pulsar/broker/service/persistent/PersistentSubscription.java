@@ -577,10 +577,6 @@ public class PersistentSubscription extends AbstractSubscription {
         if (newMD.compareTo(oldPosition) != 0) {
             updateLastMarkDeleteAdvancedTimestamp();
             handleReplicatedSubscriptionsUpdate(newMD);
-
-            if (dispatcher != null) {
-                dispatcher.markDeletePositionMoveForward();
-            }
         }
     }
 
@@ -798,10 +794,7 @@ public class PersistentSubscription extends AbstractSubscription {
                             future.complete(null);
                         }
                     });
-                    Position mdPos = cursor.getMarkDeletedPosition();
-                    if (mdPos != null) {
-                        dispatcher.prunePendingAcksUpToPosition(mdPos.getLedgerId(), mdPos.getEntryId());
-                    }
+                    dispatcher.markDeletePositionMoveForward();
                     dispatcher.afterAckMessages(null, ctx);
                 } else {
                     future.complete(null);
@@ -841,10 +834,7 @@ public class PersistentSubscription extends AbstractSubscription {
                                 .log("Skipped messages");
                         future.complete(null);
                         if (dispatcher != null) {
-                            Position mdPos = cursor.getMarkDeletedPosition();
-                            if (mdPos != null) {
-                                dispatcher.prunePendingAcksUpToPosition(mdPos.getLedgerId(), mdPos.getEntryId());
-                            }
+                            dispatcher.markDeletePositionMoveForward();
                             dispatcher.afterAckMessages(null, ctx);
                         }
                     }
