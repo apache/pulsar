@@ -610,7 +610,6 @@ public class Consumer {
                 }
             } else {
                 position = PositionFactory.create(msgId.getLedgerId(), msgId.getEntryId());
-                // Atomically remove the entry and get the stored remainingUnacked.
                 IntIntPair removed = ackOwnerConsumer.removePendingAckAndGet(
                         position.getLedgerId(), position.getEntryId());
                 if (removed != null) {
