@@ -40,29 +40,25 @@ public class CmdScalableTopics extends CmdBase {
         @Parameters(description = "tenant/namespace", arity = "1")
         private String namespace;
 
-        @Option(names = {"-pk", "--property-key"},
-                description = "Filter to topics whose properties contain this key"
-                        + " (must be paired with --property-value)")
-        private String propertyKey;
-
-        @Option(names = {"-pv", "--property-value"},
-                description = "Property value to match (must be paired with --property-key)")
-        private String propertyValue;
+        @Option(names = {"-p", "--property"},
+                description = "Filter to topics whose properties contain this key=value pair")
+        private String property;
 
         @Override
         void run() throws Exception {
             String ns = validateNamespace(namespace);
-            boolean keySet = propertyKey != null && !propertyKey.isEmpty();
-            boolean valueSet = propertyValue != null;
-            if (keySet ^ valueSet) {
-                throw new IllegalArgumentException(
-                        "--property-key and --property-value must be specified together");
-            }
-            if (keySet) {
-                print(scalableTopics().listScalableTopicsByProperty(ns, propertyKey, propertyValue));
-            } else {
+            if (property == null || property.isEmpty()) {
                 print(scalableTopics().listScalableTopics(ns));
+                return;
             }
+            int eq = property.indexOf('=');
+            if (eq <= 0 || eq == property.length() - 1) {
+                throw new IllegalArgumentException(
+                        "--property must be in the form key=value, got: " + property);
+            }
+            String key = property.substring(0, eq);
+            String value = property.substring(eq + 1);
+            print(scalableTopics().listScalableTopicsByProperty(ns, key, value));
         }
     }
 
