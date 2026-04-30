@@ -65,19 +65,23 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     }
 
     @Override
-    public List<String> listScalableTopicsByProperty(String namespace, String propertyKey, String propertyValue)
+    public List<String> listScalableTopicsByProperties(String namespace, Map<String, String> propertyFilters)
             throws PulsarAdminException {
-        return sync(() -> listScalableTopicsByPropertyAsync(namespace, propertyKey, propertyValue));
+        return sync(() -> listScalableTopicsByPropertiesAsync(namespace, propertyFilters));
     }
 
     @Override
-    public CompletableFuture<List<String>> listScalableTopicsByPropertyAsync(String namespace,
-                                                                              String propertyKey,
-                                                                              String propertyValue) {
+    public CompletableFuture<List<String>> listScalableTopicsByPropertiesAsync(String namespace,
+                                                                                Map<String, String> propertyFilters) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns)
-                .queryParam("propertyKey", propertyKey)
-                .queryParam("propertyValue", propertyValue);
+        WebTarget path = namespacePath(ns);
+        if (propertyFilters != null) {
+            // Each filter becomes a repeated `?property=k=v` query parameter; the broker
+            // collects them into a list and AND-merges before issuing the index lookup.
+            for (Map.Entry<String, String> e : propertyFilters.entrySet()) {
+                path = path.queryParam("property", e.getKey() + "=" + e.getValue());
+            }
+        }
         return asyncGetRequest(path, new GenericType<List<String>>() {});
     }
 

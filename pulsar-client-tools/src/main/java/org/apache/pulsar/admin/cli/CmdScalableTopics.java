@@ -35,30 +35,26 @@ public class CmdScalableTopics extends CmdBase {
     }
 
     @Command(description = "Get the list of scalable topics under a namespace, optionally"
-            + " filtered to those whose properties contain a given key/value pair")
+            + " filtered to those whose properties contain every given key=value pair")
     private class ListCmd extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
         private String namespace;
 
         @Option(names = {"-p", "--property"},
-                description = "Filter to topics whose properties contain this key=value pair")
-        private String property;
+                description = "Filter to topics whose properties contain this key=value pair."
+                        + " Repeat to AND multiple filters together.",
+                arity = "0..*")
+        private List<String> properties;
 
         @Override
         void run() throws Exception {
             String ns = validateNamespace(namespace);
-            if (property == null || property.isEmpty()) {
+            Map<String, String> filters = parseListKeyValueMap(properties);
+            if (filters == null || filters.isEmpty()) {
                 print(scalableTopics().listScalableTopics(ns));
-                return;
+            } else {
+                print(scalableTopics().listScalableTopicsByProperties(ns, filters));
             }
-            int eq = property.indexOf('=');
-            if (eq <= 0 || eq == property.length() - 1) {
-                throw new IllegalArgumentException(
-                        "--property must be in the form key=value, got: " + property);
-            }
-            String key = property.substring(0, eq);
-            String value = property.substring(eq + 1);
-            print(scalableTopics().listScalableTopicsByProperty(ns, key, value));
         }
     }
 

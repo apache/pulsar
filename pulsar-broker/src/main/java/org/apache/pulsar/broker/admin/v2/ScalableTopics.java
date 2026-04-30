@@ -26,6 +26,7 @@ import io.swagger.annotations.ApiResponses;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -94,18 +95,16 @@ public class ScalableTopics extends AdminResource {
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Filter by topic property name (must be paired with propertyValue)")
-            @QueryParam("propertyKey") String propertyKey,
-            @ApiParam(value = "Filter by topic property value (must be paired with propertyKey)")
-            @QueryParam("propertyValue") String propertyValue) {
+            @ApiParam(value = "Filter to topics whose properties contain every key=value pair."
+                    + " Each repetition of the parameter adds one filter (AND semantics).")
+            @QueryParam("property") List<String> properties) {
         validateNamespaceName(tenant, namespace);
-        boolean filterByProperty = propertyKey != null && !propertyKey.isEmpty()
-                && propertyValue != null;
+        Map<String, String> propertyFilters = parseKeyValuePairs(properties);
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
-                .thenCompose(__ -> filterByProperty
-                        ? resources().findScalableTopicsByPropertyAsync(
-                                namespaceName, propertyKey, propertyValue)
-                        : resources().listScalableTopicsAsync(namespaceName))
+                .thenCompose(__ -> propertyFilters.isEmpty()
+                        ? resources().listScalableTopicsAsync(namespaceName)
+                        : resources().findScalableTopicsByPropertiesAsync(
+                                namespaceName, propertyFilters))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error().attr("clientAppId", clientAppId()).attr("namespace", namespaceName)
@@ -113,6 +112,30 @@ public class ScalableTopics extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    /**
+     * Parse {@code key=value} entries from a list of query parameter values into a map.
+     * Accepts {@code null} / empty input. Rejects malformed entries (no {@code =}, empty
+     * key, or empty value) with a 412.
+     */
+    private static Map<String, String> parseKeyValuePairs(List<String> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> result = new java.util.LinkedHashMap<>(entries.size());
+        for (String entry : entries) {
+            if (entry == null || entry.isEmpty()) {
+                continue;
+            }
+            int eq = entry.indexOf('=');
+            if (eq <= 0 || eq == entry.length() - 1) {
+                throw new RestException(Response.Status.fromStatusCode(412),
+                        "property filter must be in the form key=value, got: " + entry);
+            }
+            result.put(entry.substring(0, eq), entry.substring(eq + 1));
+        }
+        return result;
     }
 
     // --- Create ---

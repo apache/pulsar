@@ -35,10 +35,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Coverage for the {@code findScalableTopicsByPropertyAsync} entry point on
+ * Coverage for the {@code findScalableTopicsByPropertiesAsync} entry point on
  * {@link ScalableTopicResources}: verifies that topic properties registered at
  * create/update time are queryable via the secondary-index API, that updates
- * refresh the index, and that the filter is correctly scoped to a namespace.
+ * refresh the index, that the filter is correctly scoped to a namespace, and
+ * that multi-property filters AND the conditions together.
  *
  * <p>Uses {@link LocalMemoryMetadataStore} which does not implement native
  * secondary indexes, so this exercises the fallback scan + per-record property
@@ -87,17 +88,55 @@ public class ScalableTopicPropertyIndexTest {
         resources.createScalableTopicAsync(topicIn(ns, "t-carol"),
                 metaWithProps(Map.of("owner", "carol", "team", "data"))).get();
 
-        // Filter by owner=alice — only t-alice matches.
+        // Single-property filter: owner=alice — only t-alice matches.
         List<String> aliceOwned = resources
-                .findScalableTopicsByPropertyAsync(ns, "owner", "alice").get();
+                .findScalableTopicsByPropertiesAsync(ns, Map.of("owner", "alice")).get();
         assertEquals(aliceOwned, List.of("topic://tenant/ns-a/t-alice"));
 
-        // Filter by team=platform — both alice and bob.
+        // Single-property filter: team=platform — both alice and bob.
         Set<String> platform = new HashSet<>(resources
-                .findScalableTopicsByPropertyAsync(ns, "team", "platform").get());
+                .findScalableTopicsByPropertiesAsync(ns, Map.of("team", "platform")).get());
         assertEquals(platform, Set.of(
                 "topic://tenant/ns-a/t-alice",
                 "topic://tenant/ns-a/t-bob"));
+    }
+
+    @Test
+    public void andsMultiplePropertyFilters() throws Exception {
+        NamespaceName ns = NamespaceName.get("tenant/ns-and");
+
+        // alice/platform and bob/platform share team; alice/data and alice/platform
+        // share owner. The AND of (team=platform, owner=alice) must narrow to the
+        // single record that satisfies both.
+        resources.createScalableTopicAsync(topicIn(ns, "t-1"),
+                metaWithProps(Map.of("owner", "alice", "team", "platform"))).get();
+        resources.createScalableTopicAsync(topicIn(ns, "t-2"),
+                metaWithProps(Map.of("owner", "alice", "team", "data"))).get();
+        resources.createScalableTopicAsync(topicIn(ns, "t-3"),
+                metaWithProps(Map.of("owner", "bob", "team", "platform"))).get();
+
+        List<String> match = resources.findScalableTopicsByPropertiesAsync(ns,
+                Map.of("owner", "alice", "team", "platform")).get();
+        assertEquals(match, List.of("topic://tenant/ns-and/t-1"));
+
+        // No record satisfies both — empty result.
+        assertTrue(resources.findScalableTopicsByPropertiesAsync(ns,
+                Map.of("owner", "alice", "team", "ops")).get().isEmpty());
+    }
+
+    @Test
+    public void emptyFilterReturnsAllTopicsInNamespace() throws Exception {
+        NamespaceName ns = NamespaceName.get("tenant/ns-empty-filter");
+        resources.createScalableTopicAsync(topicIn(ns, "t-1"),
+                metaWithProps(Map.of("owner", "alice"))).get();
+        resources.createScalableTopicAsync(topicIn(ns, "t-2"),
+                metaWithProps(Map.of("owner", "bob"))).get();
+
+        Set<String> all = new HashSet<>(resources
+                .findScalableTopicsByPropertiesAsync(ns, Map.of()).get());
+        assertEquals(all, Set.of(
+                "topic://tenant/ns-empty-filter/t-1",
+                "topic://tenant/ns-empty-filter/t-2"));
     }
 
     @Test
@@ -112,11 +151,11 @@ public class ScalableTopicPropertyIndexTest {
                 metaWithProps(Map.of("owner", "alice"))).get();
 
         List<String> inNsA = resources
-                .findScalableTopicsByPropertyAsync(nsA, "owner", "alice").get();
+                .findScalableTopicsByPropertiesAsync(nsA, Map.of("owner", "alice")).get();
         assertEquals(inNsA, List.of("topic://tenant/ns-a/t1"));
 
         List<String> inNsB = resources
-                .findScalableTopicsByPropertyAsync(nsB, "owner", "alice").get();
+                .findScalableTopicsByPropertiesAsync(nsB, Map.of("owner", "alice")).get();
         assertEquals(inNsB, List.of("topic://tenant/ns-b/t2"));
     }
 
@@ -127,11 +166,11 @@ public class ScalableTopicPropertyIndexTest {
                 metaWithProps(Map.of("owner", "alice"))).get();
 
         // Wrong value
-        assertTrue(resources.findScalableTopicsByPropertyAsync(ns, "owner", "bob")
+        assertTrue(resources.findScalableTopicsByPropertiesAsync(ns, Map.of("owner", "bob"))
                 .get().isEmpty());
 
         // Wrong key
-        assertTrue(resources.findScalableTopicsByPropertyAsync(ns, "team", "alice")
+        assertTrue(resources.findScalableTopicsByPropertiesAsync(ns, Map.of("team", "alice"))
                 .get().isEmpty());
     }
 
@@ -142,7 +181,7 @@ public class ScalableTopicPropertyIndexTest {
 
         resources.createScalableTopicAsync(tn,
                 metaWithProps(Map.of("owner", "alice"))).get();
-        assertEquals(resources.findScalableTopicsByPropertyAsync(ns, "owner", "alice").get(),
+        assertEquals(resources.findScalableTopicsByPropertiesAsync(ns, Map.of("owner", "alice")).get(),
                 List.of(tn.toString()));
 
         // Reassign owner via update — the new owner must be queryable, and the
@@ -152,9 +191,9 @@ public class ScalableTopicPropertyIndexTest {
             return current;
         }).get();
 
-        assertEquals(resources.findScalableTopicsByPropertyAsync(ns, "owner", "bob").get(),
+        assertEquals(resources.findScalableTopicsByPropertiesAsync(ns, Map.of("owner", "bob")).get(),
                 List.of(tn.toString()));
-        assertTrue(resources.findScalableTopicsByPropertyAsync(ns, "owner", "alice")
+        assertTrue(resources.findScalableTopicsByPropertiesAsync(ns, Map.of("owner", "alice"))
                 .get().isEmpty());
     }
 
@@ -168,7 +207,7 @@ public class ScalableTopicPropertyIndexTest {
 
         // Filtering by any property must skip the un-tagged record.
         List<String> matches = resources
-                .findScalableTopicsByPropertyAsync(ns, "owner", "alice").get();
+                .findScalableTopicsByPropertiesAsync(ns, Map.of("owner", "alice")).get();
         assertEquals(matches, List.of("topic://tenant/ns-noprops/t-tagged"));
     }
 }

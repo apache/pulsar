@@ -51,26 +51,26 @@ public interface ScalableTopics {
 
     /**
      * Get the list of scalable topics under a namespace whose properties contain
-     * the given key/value pair.
+     * every key/value pair in {@code propertyFilters} (AND semantics).
      *
-     * <p>Backed by a secondary index registered on the topic property at create/update
-     * time, so the lookup is efficient and does not scan every topic in the namespace.
+     * <p>Backed by the secondary index registered on the topic properties at
+     * create/update time. On stores with native index support the lookup uses one
+     * filter to narrow the candidate set and verifies the rest on the loaded record;
+     * stores without index support fall back to a per-record check.
      *
-     * @param namespace     Namespace name in the format "tenant/namespace"
-     * @param propertyKey   Property name to filter on
-     * @param propertyValue Exact property value to match
-     * @return list of matching scalable topic names
+     * @param namespace       Namespace name in the format "tenant/namespace"
+     * @param propertyFilters Property names and exact values that all must match
+     * @return list of matching scalable topic names; an empty filter returns the full
+     *         namespace listing
      */
-    List<String> listScalableTopicsByProperty(String namespace, String propertyKey, String propertyValue)
+    List<String> listScalableTopicsByProperties(String namespace, Map<String, String> propertyFilters)
             throws PulsarAdminException;
 
     /**
-     * Get the list of scalable topics under a namespace whose properties contain
-     * the given key/value pair, asynchronously.
+     * Async variant of {@link #listScalableTopicsByProperties(String, Map)}.
      */
-    CompletableFuture<List<String>> listScalableTopicsByPropertyAsync(String namespace,
-                                                                      String propertyKey,
-                                                                      String propertyValue);
+    CompletableFuture<List<String>> listScalableTopicsByPropertiesAsync(String namespace,
+                                                                         Map<String, String> propertyFilters);
 
     /**
      * Create a new scalable topic.

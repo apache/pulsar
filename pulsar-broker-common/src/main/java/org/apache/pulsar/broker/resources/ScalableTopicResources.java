@@ -118,32 +118,57 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     }
 
     /**
-     * List scalable topics in a namespace whose {@code properties} map contains the given
-     * key/value pair. On stores with native secondary index support (Oxia) this is served
-     * by the index registered at create/update time; otherwise it falls back to a children
-     * scan + per-record property check.
+     * List scalable topics in a namespace whose {@code properties} map contains every
+     * key/value pair in {@code propertyFilters} (AND semantics).
      *
-     * @param ns            the namespace to scope the query to
-     * @param propertyKey   property name to filter on
-     * @param propertyValue exact property value to match
-     * @return fully qualified scalable topic names matching the property
+     * <p>Stores with native secondary-index support (Oxia) serve the most-restrictive
+     * lookup via the index for one of the filters, then a record-level check rejects
+     * anything that doesn't satisfy the rest. Stores without native index support fall
+     * through to a children scan + the same predicate. An empty {@code propertyFilters}
+     * map degenerates to {@link #listScalableTopicsAsync}.
+     *
+     * @param ns              the namespace to scope the query to
+     * @param propertyFilters property name/value pairs that all must match (AND)
+     * @return fully qualified scalable topic names matching every filter
      */
-    public CompletableFuture<List<String>> findScalableTopicsByPropertyAsync(
-            NamespaceName ns, String propertyKey, String propertyValue) {
+    public CompletableFuture<List<String>> findScalableTopicsByPropertiesAsync(
+            NamespaceName ns, Map<String, String> propertyFilters) {
+        if (propertyFilters == null || propertyFilters.isEmpty()) {
+            return listScalableTopicsAsync(ns);
+        }
         String scanPathPrefix = joinPath(SCALABLE_TOPIC_PATH, ns.toString());
         ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
-        return getStore().findByIndex(scanPathPrefix, propertyKey, propertyValue, result -> {
-                    // Fallback path (no native index): re-check the property on the loaded record.
-                    try {
-                        ScalableTopicMetadata md =
-                                mapper.readValue(result.getValue(), ScalableTopicMetadata.class);
-                        return md.getProperties() != null
-                                && propertyValue.equals(md.getProperties().get(propertyKey));
-                    } catch (IOException e) {
+
+        // Pick any single filter to drive the index lookup (native stores will use it
+        // to narrow the candidate set; iteration order is acceptable since we don't
+        // know index cardinalities up front). The predicate then enforces AND across
+        // every filter on the loaded record.
+        Map.Entry<String, String> indexFilter = propertyFilters.entrySet().iterator().next();
+        java.util.function.Predicate<org.apache.pulsar.metadata.api.GetResult> matchesAll = result -> {
+            try {
+                ScalableTopicMetadata md =
+                        mapper.readValue(result.getValue(), ScalableTopicMetadata.class);
+                Map<String, String> props = md.getProperties();
+                if (props == null) {
+                    return false;
+                }
+                for (Map.Entry<String, String> e : propertyFilters.entrySet()) {
+                    if (!e.getValue().equals(props.get(e.getKey()))) {
                         return false;
                     }
-                })
+                }
+                return true;
+            } catch (IOException e) {
+                return false;
+            }
+        };
+        return getStore().findByIndex(scanPathPrefix,
+                        indexFilter.getKey(), indexFilter.getValue(), matchesAll)
+                // Native-index implementations don't apply the fallback predicate, so
+                // re-check here. On the fallback path this is a no-op (predicate already
+                // applied) but cheap.
                 .thenApply(results -> results.stream()
+                        .filter(matchesAll)
                         .map(r -> {
                             String path = r.getStat().getPath();
                             String encoded = path.substring(path.lastIndexOf('/') + 1);
