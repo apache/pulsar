@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -58,28 +57,16 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     private static final String SCALABLE_TOPIC_PATH = "/topics";
     private static final String SUBSCRIPTIONS_SEGMENT = "subscriptions";
     private static final String CONSUMERS_SEGMENT = "consumers";
-    /**
-     * Index name prefix used for the per-property secondary indexes. Each property
-     * {@code k -> v} on a {@link ScalableTopicMetadata} record is registered as
-     * {@code (PROPERTY_INDEX_PREFIX + k) -> v} so that callers can query topics by a
-     * specific property's value via {@link MetadataStore#findByIndex}.
-     */
-    private static final String PROPERTY_INDEX_PREFIX = "topic-prop-";
 
     /**
-     * Map every entry of a topic's properties to a secondary index entry. Empty
-     * properties yield no indexes, leaving the record un-indexed.
+     * Use the topic's {@code properties} map verbatim as the secondary-index entries.
+     * Each property {@code k -> v} is registered as the index named {@code k} with
+     * secondary key {@code v}; querying by that key/value pair via
+     * {@link MetadataStore#findByIndex} returns the record. Index names live in a
+     * per-record-type namespace, so there's no need to disambiguate them with a prefix.
      */
     private static final Function<ScalableTopicMetadata, Map<String, String>> PROPERTY_INDEX_EXTRACTOR =
-            metadata -> {
-                Map<String, String> props = metadata.getProperties();
-                if (props == null || props.isEmpty()) {
-                    return Map.of();
-                }
-                Map<String, String> indexes = new HashMap<>(props.size());
-                props.forEach((k, v) -> indexes.put(PROPERTY_INDEX_PREFIX + k, v));
-                return indexes;
-            };
+            metadata -> metadata.getProperties() != null ? metadata.getProperties() : Map.of();
 
     private final MetadataCache<SubscriptionMetadata> subscriptionCache;
     private final MetadataCache<ConsumerRegistration> consumerRegistrationCache;
@@ -144,9 +131,8 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     public CompletableFuture<List<String>> findScalableTopicsByPropertyAsync(
             NamespaceName ns, String propertyKey, String propertyValue) {
         String scanPathPrefix = joinPath(SCALABLE_TOPIC_PATH, ns.toString());
-        String indexName = PROPERTY_INDEX_PREFIX + propertyKey;
         ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
-        return getStore().findByIndex(scanPathPrefix, indexName, propertyValue, result -> {
+        return getStore().findByIndex(scanPathPrefix, propertyKey, propertyValue, result -> {
                     // Fallback path (no native index): re-check the property on the loaded record.
                     try {
                         ScalableTopicMetadata md =
