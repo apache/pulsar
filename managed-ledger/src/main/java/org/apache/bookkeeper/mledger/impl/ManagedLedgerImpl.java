@@ -4451,9 +4451,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     synchronized void setFencedForDeletion() {
         log.info().attr("ledgerName", name).log("Moving to FencedForDeletion state");
-        STATE_UPDATER.set(this, State.FencedForDeletion);
-        if (STATE_UPDATER.get(this) != State.Fenced) {
-            STATE_UPDATER.set(this, State.Fenced);
+        if (STATE_UPDATER.get(this) != State.FencedForDeletion) {
+            STATE_UPDATER.set(this, State.FencedForDeletion);
             clearPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger "
                 + name + " is fenced"));
         }

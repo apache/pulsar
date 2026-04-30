@@ -764,17 +764,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
          Instead, we will rely on the service unit state channel's bundle(topic) transfer protocol.
          At the end of the transfer protocol, at Owned state, the source broker should close the topic properly.
          */
+        PublishContext callback = (PublishContext) ctx;
         if (transferring) {
             log.debug()
                     .exception(exception)
                     .log("Failed to persist msg in store while transferring");
+            callback.completed(new TopicClosedException(exception), -1, -1);
+            decrementPendingWriteOpsAndCheck();
             return;
         }
 
-        PublishContext callback = (PublishContext) ctx;
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
+            callback.completed(new TopicFencedException(exception.getMessage()), -1, -1);
+            decrementPendingWriteOpsAndCheck();
         } else {
             // fence topic when failed to write a message to BK
             fence();
