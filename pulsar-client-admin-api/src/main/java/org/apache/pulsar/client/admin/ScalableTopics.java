@@ -50,6 +50,29 @@ public interface ScalableTopics {
     CompletableFuture<List<String>> listScalableTopicsAsync(String namespace);
 
     /**
+     * Get the list of scalable topics under a namespace whose properties contain
+     * the given key/value pair.
+     *
+     * <p>Backed by a secondary index registered on the topic property at create/update
+     * time, so the lookup is efficient and does not scan every topic in the namespace.
+     *
+     * @param namespace     Namespace name in the format "tenant/namespace"
+     * @param propertyKey   Property name to filter on
+     * @param propertyValue Exact property value to match
+     * @return list of matching scalable topic names
+     */
+    List<String> listScalableTopicsByProperty(String namespace, String propertyKey, String propertyValue)
+            throws PulsarAdminException;
+
+    /**
+     * Get the list of scalable topics under a namespace whose properties contain
+     * the given key/value pair, asynchronously.
+     */
+    CompletableFuture<List<String>> listScalableTopicsByPropertyAsync(String namespace,
+                                                                      String propertyKey,
+                                                                      String propertyValue);
+
+    /**
      * Create a new scalable topic.
      *
      * @param topic              Topic name in the format "tenant/namespace/topic"

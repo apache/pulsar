@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.api;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -116,6 +117,24 @@ public interface MetadataCache<T> {
     CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction);
 
     /**
+     * Atomic read-modify-update with secondary index entries refreshed from the new value.
+     *
+     * <p>Equivalent to {@link #readModifyUpdate(String, Function)} but on each successful
+     * write the {@code indexExtractor} is invoked on the new value and the resulting
+     * {@code indexName -> secondaryKey} map is associated with the record. See
+     * {@link #create(String, Object, Function)} for the index-extractor contract.
+     *
+     * @param path           the path of the object in the metadata store
+     * @param modifyFunction read-modify-update function
+     * @param indexExtractor function that derives secondary index entries from the new value
+     * @return a future that completes with the new stored value
+     */
+    default CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction,
+                                                  Function<T, Map<String, String>> indexExtractor) {
+        return readModifyUpdate(path, modifyFunction);
+    }
+
+    /**
      * Create a new object in the metadata store.
      * <p>
      * This operation will make sure to keep the cache consistent.
@@ -129,6 +148,27 @@ public interface MetadataCache<T> {
      *             If the object is already present.
      */
     CompletableFuture<Void> create(String path, T value);
+
+    /**
+     * Create a new object in the metadata store with secondary index entries derived from
+     * the value.
+     *
+     * <p>The {@code indexExtractor} is invoked with the new value and returns a map of
+     * {@code indexName -> secondaryKey}. Stores that support native secondary indexes
+     * (e.g. Oxia) persist these alongside the record so that
+     * {@link MetadataStore#findByIndex} can serve queries efficiently. Stores that don't
+     * support indexes ignore the hints; the value is still written normally.
+     *
+     * @param path the path of the object in the metadata store
+     * @param value the object to insert
+     * @param indexExtractor function that derives secondary index entries from the value
+     * @return a future to track the completion of the operation
+     * @throws AlreadyExistsException if the object is already present
+     */
+    default CompletableFuture<Void> create(String path, T value,
+                                           Function<T, Map<String, String>> indexExtractor) {
+        return create(path, value);
+    }
 
     /**
      * Create or update the value of the given path in the metadata store without version comparison.

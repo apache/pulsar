@@ -27,8 +27,10 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -232,6 +234,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction) {
+        return readModifyUpdate(path, modifyFunction, v -> Collections.emptyMap());
+    }
+
+    @Override
+    public CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction,
+                                                 Function<T, Map<String, String>> indexExtractor) {
         final var executor = this.executor.chooseThread(path);
         return executeWithRetry(() -> objCache.get(path)
                 .thenComposeAsync(optEntry -> {
@@ -254,9 +262,12 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                         return FutureUtils.exception(t);
                     }
 
-                    return store.put(path, newValue, Optional.of(expectedVersion)).thenAccept(__ -> {
-                        refresh(path);
-                    }).thenApply(__ -> newValueObj);
+                    final T finalNewValue = newValueObj;
+                    return putWithIndexes(path, newValue, Optional.of(expectedVersion),
+                                    EnumSet.noneOf(CreateOption.class),
+                                    indexExtractor.apply(finalNewValue))
+                            .thenAccept(__ -> refresh(path))
+                            .thenApply(__ -> finalNewValue);
                 }, executor), path);
     }
 
@@ -274,8 +285,16 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public CompletableFuture<Void> create(String path, T value) {
+        return create(path, value, v -> Collections.emptyMap());
+    }
+
+    @Override
+    public CompletableFuture<Void> create(String path, T value,
+                                          Function<T, Map<String, String>> indexExtractor) {
         final var future = new CompletableFuture<Void>();
-        serialize(path, value).thenCompose(content -> store.put(path, content, Optional.of(-1L)))
+        serialize(path, value).thenCompose(content -> putWithIndexes(
+                        path, content, Optional.of(-1L), EnumSet.noneOf(CreateOption.class),
+                        indexExtractor.apply(value)))
             // Make sure we have the value cached before the operation is completed
             // In addition to caching the value, we need to add a watch on the path,
             // so when/if it changes on any other node, we are notified and we can
@@ -292,6 +311,19 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 }
             });
         return future;
+    }
+
+    /**
+     * Route writes through the extended store API when secondary indexes are present and
+     * the underlying store supports them. Falls back to the base {@code put} otherwise.
+     */
+    private CompletableFuture<?> putWithIndexes(String path, byte[] content, Optional<Long> version,
+                                                EnumSet<CreateOption> options,
+                                                Map<String, String> indexes) {
+        if (storeExtended != null && indexes != null && !indexes.isEmpty()) {
+            return storeExtended.put(path, content, version, options, indexes);
+        }
+        return store.put(path, content, version);
     }
 
     @Override

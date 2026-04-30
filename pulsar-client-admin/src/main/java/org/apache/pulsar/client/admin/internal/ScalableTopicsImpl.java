@@ -64,6 +64,23 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         return asyncGetRequest(namespacePath(ns), new GenericType<List<String>>() {});
     }
 
+    @Override
+    public List<String> listScalableTopicsByProperty(String namespace, String propertyKey, String propertyValue)
+            throws PulsarAdminException {
+        return sync(() -> listScalableTopicsByPropertyAsync(namespace, propertyKey, propertyValue));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> listScalableTopicsByPropertyAsync(String namespace,
+                                                                              String propertyKey,
+                                                                              String propertyValue) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns)
+                .queryParam("propertyKey", propertyKey)
+                .queryParam("propertyValue", propertyValue);
+        return asyncGetRequest(path, new GenericType<List<String>>() {});
+    }
+
     // --- Create ---
 
     @Override

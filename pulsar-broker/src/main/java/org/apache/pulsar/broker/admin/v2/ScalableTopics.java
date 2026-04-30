@@ -93,10 +93,19 @@ public class ScalableTopics extends AdminResource {
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Filter by topic property name (must be paired with propertyValue)")
+            @QueryParam("propertyKey") String propertyKey,
+            @ApiParam(value = "Filter by topic property value (must be paired with propertyKey)")
+            @QueryParam("propertyValue") String propertyValue) {
         validateNamespaceName(tenant, namespace);
+        boolean filterByProperty = propertyKey != null && !propertyKey.isEmpty()
+                && propertyValue != null;
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
-                .thenCompose(__ -> resources().listScalableTopicsAsync(namespaceName))
+                .thenCompose(__ -> filterByProperty
+                        ? resources().findScalableTopicsByPropertyAsync(
+                                namespaceName, propertyKey, propertyValue)
+                        : resources().listScalableTopicsAsync(namespaceName))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error().attr("clientAppId", clientAppId()).attr("namespace", namespaceName)
