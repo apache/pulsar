@@ -478,12 +478,11 @@ public class NonPersistentTopics extends PersistentTopics {
                     .attr("bundleRange", bundleRange)
                     .log("list of topics on namespace bundle");
                 validateNamespaceOperation(namespaceName, NamespaceOperation.GET_BUNDLE);
-        Policies policies = getNamespacePolicies(namespaceName);
 
         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
         validateGlobalNamespaceOwnership(namespaceName);
 
-        isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange).thenAccept(flag -> {
+        isBundleOwnedByAnyBroker(namespaceName, bundleRange).thenAccept(flag -> {
             if (!flag) {
                 log.info()
                         .attr("namespace", namespaceName)
@@ -491,7 +490,7 @@ public class NonPersistentTopics extends PersistentTopics {
                         .log("Namespace bundle is not owned by any broker");
                 asyncResponse.resume(Response.noContent().build());
             } else {
-                validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange, true, true)
+                validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange, true, true)
                         .thenAccept(nsBundle -> {
                             final var bundleTopics = pulsar().getBrokerService().getMultiLayerTopicsMap()
                                     .get(namespaceName.toString());

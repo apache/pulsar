@@ -585,7 +585,7 @@ public abstract class PulsarWebResource {
         return !pulsarService.getConfiguration().isAuthorizationEnabled();
     }
 
-    protected NamespaceBundle validateNamespaceBundleRange(NamespaceName fqnn, BundlesData bundles,
+    protected CompletableFuture<NamespaceBundle> validateNamespaceBundleRangeAsync(NamespaceName fqnn,
             String bundleRange) {
         try {
             checkArgument(bundleRange.contains("_"), "Invalid bundle range: " + bundleRange);
@@ -596,77 +596,72 @@ public abstract class PulsarWebResource {
                     (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
             NamespaceBundle nsBundle = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundle(fqnn,
                     hashRange);
-            NamespaceBundles nsBundles = pulsar().getNamespaceService().getNamespaceBundleFactory().getBundles(fqnn,
-                    bundles);
-            nsBundles.validateBundle(nsBundle);
-            return nsBundle;
+            return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundlesAsync(fqnn)
+                    .thenApply(nsBundles -> {
+                        try {
+                            nsBundles.validateBundle(nsBundle);
+                            return nsBundle;
+                        } catch (IllegalArgumentException e) {
+                            log.error()
+                                    .attr("namespace", fqnn.toString())
+                                    .attr("bundleRange", bundleRange)
+                                    .exceptionMessage(e)
+                                    .log("Invalid bundle range");
+                            throw new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage());
+                        } catch (Exception e) {
+                            log.error()
+                                    .attr("namespace", fqnn.toString())
+                                    .attr("bundleRange", bundleRange)
+                                    .exception(e)
+                                    .log("Failed to validate namespace bundle");
+                            throw new RestException(e);
+                        }
+                    });
         } catch (IllegalArgumentException e) {
             log.error()
                     .attr("namespace", fqnn.toString())
                     .attr("bundleRange", bundleRange)
                     .exceptionMessage(e)
                     .log("Invalid bundle range");
-            throw new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage());
+            return CompletableFuture.failedFuture(
+                    new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage()));
+        } catch (RestException e) {
+            return CompletableFuture.failedFuture(e);
         } catch (Exception e) {
             log.error()
-                    .attr("bundle", fqnn.toString())
+                    .attr("namespace", fqnn.toString())
                     .attr("bundleRange", bundleRange)
                     .exception(e)
                     .log("Failed to validate namespace bundle");
-            throw new RestException(e);
+            return CompletableFuture.failedFuture(new RestException(e));
         }
     }
 
     /**
      * Checks whether a given bundle is currently loaded by any broker.
      */
-    protected CompletableFuture<Boolean> isBundleOwnedByAnyBroker(NamespaceName fqnn, BundlesData bundles,
-            String bundleRange) {
-        NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
-        NamespaceService nsService = pulsar().getNamespaceService();
-
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
-            return nsService.checkOwnershipPresentAsync(nsBundle);
-        }
-
-        LookupOptions options = LookupOptions.builder()
-                .authoritative(false)
-                .requestHttps(isRequestHttps())
-                .readOnly(true)
-                .loadTopicsInBundle(false).build();
-
-        return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(Optional::isPresent);
-    }
-
-    protected NamespaceBundle validateNamespaceBundleOwnership(NamespaceName fqnn, BundlesData bundles,
-            String bundleRange, boolean authoritative, boolean readOnly) {
-        try {
-            NamespaceBundle nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
-            validateBundleOwnership(nsBundle, authoritative, readOnly);
-            return nsBundle;
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception e) {
-            log.error()
-                    .attr("bundle", fqnn.toString())
-                    .attr("bundleRange", bundleRange)
-                    .exception(e)
-                    .log("Failed to validate namespace bundle");
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Boolean> isBundleOwnedByAnyBroker(NamespaceName fqnn, String bundleRange) {
+        return validateNamespaceBundleRangeAsync(fqnn, bundleRange)
+                .thenCompose(nsBundle -> {
+                    NamespaceService nsService = pulsar().getNamespaceService();
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+                       return nsService.checkOwnershipPresentAsync(nsBundle);
+                    }
+                    LookupOptions options = LookupOptions.builder()
+                        .authoritative(false)
+                        .requestHttps(isRequestHttps())
+                        .readOnly(true)
+                        .loadTopicsInBundle(false).build();
+                    return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(Optional::isPresent);
+                });
     }
 
     protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(
-            NamespaceName fqnn, BundlesData bundles, String bundleRange,
+            NamespaceName fqnn, String bundleRange,
             boolean authoritative, boolean readOnly) {
-        NamespaceBundle nsBundle;
-        try {
-            nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
-        } catch (WebApplicationException wae) {
-            return CompletableFuture.failedFuture(wae);
-        }
-        return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly)
-                .thenApply(__ -> nsBundle);
+        return validateNamespaceBundleRangeAsync(fqnn, bundleRange)
+                .thenCompose(nsBundle -> validateBundleOwnershipAsync(nsBundle, authoritative, readOnly)
+                        .thenApply(__ -> nsBundle));
     }
 
     public void validateBundleOwnership(NamespaceBundle bundle, boolean authoritative, boolean readOnly)

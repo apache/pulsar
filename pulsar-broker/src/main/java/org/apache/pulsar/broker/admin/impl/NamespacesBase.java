@@ -612,8 +612,7 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     return future
                             .thenCompose(__ ->
-                                    validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles,
-                                            bundleRange,
+                                    validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                                             authoritative, true))
                             .thenCompose(bundle -> {
                                 return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
@@ -1528,9 +1527,8 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                 })
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(policies ->
-                     isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)
+                .thenCompose(__ ->
+                     isBundleOwnedByAnyBroker(namespaceName, bundleRange)
                         .thenCompose(flag -> {
                             if (!flag) {
                                 log.info()
@@ -1540,7 +1538,7 @@ public abstract class NamespacesBase extends AdminResource {
                                 return CompletableFuture.completedFuture(null);
                             }
                             Optional<String> destinationBrokerOpt = Optional.ofNullable(destinationBroker);
-                            return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                            return validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                                     authoritative, true)
                                     .thenCompose(nsBundle -> pulsar().getNamespaceService()
                                             .unloadNamespaceBundle(nsBundle, destinationBrokerOpt));
@@ -1585,7 +1583,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(bundleRange -> {
                     return getNamespacePoliciesAsync(namespaceName)
                             .thenCompose(policies ->
-                                    validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                                    validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                                         authoritative, false))
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
                                     pulsar().getNamespaceService()
@@ -1604,7 +1602,7 @@ public abstract class NamespacesBase extends AdminResource {
                         PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies -> {
-                    return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                    return validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                             false, true)
                             .thenCompose(nsBundle ->
                                     pulsar().getNamespaceService().getOwnedTopicListForNamespaceBundle(nsBundle))
@@ -1972,11 +1970,10 @@ public abstract class NamespacesBase extends AdminResource {
                     // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
                     return validateGlobalNamespaceOwnershipAsync(namespaceName);
                 })
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(policies ->
+                .thenCompose(__ ->
                         // Allow acquiring ownership for an unassigned bundle so backlog can be cleared
                         // even if not loaded.
-                        validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                        validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                                 authoritative, false))
                 .thenCompose(bundle -> clearBacklogAsync(bundle, null))
                 .thenRun(() -> log.info()
@@ -2028,11 +2025,10 @@ public abstract class NamespacesBase extends AdminResource {
                     // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
                     return validateGlobalNamespaceOwnershipAsync(namespaceName);
                 })
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(policies ->
+                .thenCompose(__ ->
                         // Allow acquiring ownership for an unassigned bundle so backlog can be cleared
                         // even if not loaded.
-                        validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                        validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                                 authoritative, false))
                 .thenCompose(bundle -> clearBacklogAsync(bundle, subscription))
                 .thenRun(() -> log.info()
@@ -2082,7 +2078,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies ->
-                        validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                        validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                                 authoritative, false))
                 .thenCompose(bundle -> unsubscribeAsync(bundle, subscription))
                 .thenRun(() -> log.info()
