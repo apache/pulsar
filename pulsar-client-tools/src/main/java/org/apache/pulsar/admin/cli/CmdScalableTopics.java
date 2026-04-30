@@ -34,14 +34,35 @@ public class CmdScalableTopics extends CmdBase {
         return getAdmin().scalableTopics();
     }
 
-    @Command(description = "Get the list of scalable topics under a namespace")
+    @Command(description = "Get the list of scalable topics under a namespace, optionally"
+            + " filtered to those whose properties contain a given key/value pair")
     private class ListCmd extends CliCommand {
         @Parameters(description = "tenant/namespace", arity = "1")
         private String namespace;
 
+        @Option(names = {"-pk", "--property-key"},
+                description = "Filter to topics whose properties contain this key"
+                        + " (must be paired with --property-value)")
+        private String propertyKey;
+
+        @Option(names = {"-pv", "--property-value"},
+                description = "Property value to match (must be paired with --property-key)")
+        private String propertyValue;
+
         @Override
         void run() throws Exception {
-            print(scalableTopics().listScalableTopics(validateNamespace(namespace)));
+            String ns = validateNamespace(namespace);
+            boolean keySet = propertyKey != null && !propertyKey.isEmpty();
+            boolean valueSet = propertyValue != null;
+            if (keySet ^ valueSet) {
+                throw new IllegalArgumentException(
+                        "--property-key and --property-value must be specified together");
+            }
+            if (keySet) {
+                print(scalableTopics().listScalableTopicsByProperty(ns, propertyKey, propertyValue));
+            } else {
+                print(scalableTopics().listScalableTopics(ns));
+            }
         }
     }
 
