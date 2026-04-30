@@ -1799,6 +1799,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // by the broker, the lastConsumedTimestamp will as the consume subscribe time.
         Consumer<byte[]> consumer = client.newConsumer().topic(topic)
             .subscriptionName(subscribeName)
+            .isAckReceiptEnabled(true)
             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
             .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
             .subscribe();
