@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -141,8 +142,60 @@ public class SubscriptionCoordinatorTest {
         Map<ConsumerSession, ConsumerAssignment> result =
                 coordinator.onLayoutChange(newLayout).get();
 
+        // After the split: segment 0 is sealed, two new active children take its place,
+        // and segments 1..3 stay active. The default test coordinator runs without a
+        // SegmentDrainChecker, so parent-drain ordering is disabled and every segment in
+        // the DAG (active + sealed) is assigned — 5 active + 1 sealed = 6.
         assertEquals(result.size(), 1);
-        assertEquals(findByName(result, "consumer-1").assignedSegments().size(), 5);
+        assertEquals(findByName(result, "consumer-1").assignedSegments().size(), 6);
+    }
+
+    /**
+     * Coordinator running with a {@link SegmentDrainChecker} must hold back active
+     * children until <em>every</em> sealed parent is reported as drained. Until then
+     * only the sealed parent and the unrelated initial active segments make it into
+     * the assignment.
+     */
+    @Test
+    public void testActiveChildrenBlockedUntilParentDrained() throws Exception {
+        // Re-create the coordinator with a controllable drain checker. We start with no
+        // sealed segments reported as drained.
+        Set<Long> drained = ConcurrentHashMap.newKeySet();
+        SegmentDrainChecker checker = (segment, sub) ->
+                CompletableFuture.completedFuture(drained.contains(segment.segmentId()));
+        SubscriptionCoordinator orderedCoordinator = new SubscriptionCoordinator("test-sub",
+                topicName, initialLayout, resources, scheduler, Duration.ofMillis(200),
+                checker, Duration.ofMillis(50));
+        try {
+            orderedCoordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+
+            SegmentLayout afterSplit = initialLayout.splitSegment(0);
+            Map<ConsumerSession, ConsumerAssignment> result =
+                    orderedCoordinator.onLayoutChange(afterSplit).get();
+
+            // Layout: segment 0 sealed (parent=∅), segments 1..3 active (parent=∅),
+            // segments 4 + 5 active (parent=[0]). Children of 0 must be excluded until
+            // 0 is drained.
+            ConsumerAssignment a = findByName(result, "consumer-1");
+            assertNotNull(a);
+            Set<Long> assigned = new HashSet<>(segmentIds(a));
+            assertTrue(assigned.containsAll(Set.of(0L, 1L, 2L, 3L)),
+                    "sealed parent + initial active children must be assigned, got " + assigned);
+            assertFalse(assigned.contains(4L), "child of un-drained parent must be blocked");
+            assertFalse(assigned.contains(5L), "child of un-drained parent must be blocked");
+
+            // Mark the parent drained — the next poll should pick it up and the children
+            // must end up assigned.
+            drained.add(0L);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                Set<Long> nowAssigned = new HashSet<>(segmentIds(
+                        findByName(orderedCoordinator.currentAssignment(), "consumer-1")));
+                assertTrue(nowAssigned.containsAll(Set.of(0L, 1L, 2L, 3L, 4L, 5L)),
+                        "after parent drain, all 6 segments must be assigned, got " + nowAssigned);
+            });
+        } finally {
+            orderedCoordinator.close();
+        }
     }
 
     @Test

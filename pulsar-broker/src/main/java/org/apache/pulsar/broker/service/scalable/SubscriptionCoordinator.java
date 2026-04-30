@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -65,24 +68,45 @@ public class SubscriptionCoordinator {
     // TODO: make configurable via broker config (e.g. scalableTopicConsumerSessionTimeoutSeconds)
     private static final Duration DEFAULT_GRACE_PERIOD = Duration.ofSeconds(60);
 
+    /**
+     * Default cadence at which the coordinator polls the broker for sealed-segment drain
+     * progress. The first drain check after a layout change typically lands within one tick.
+     */
+    static final Duration DEFAULT_DRAIN_POLL_INTERVAL = Duration.ofSeconds(2);
+
     @Getter
     private final String subscriptionName;
     private final TopicName topicName;
     private final ScalableTopicResources resources;
     private final ScheduledExecutorService scheduler;
     private final Duration gracePeriod;
+    private final SegmentDrainChecker drainChecker;
+    private final Duration drainPollInterval;
 
     /** Keyed by consumerName — the stable session identity. */
     private final Map<String, ConsumerSession> sessions = new ConcurrentHashMap<>();
     private Map<Long, ConsumerSession> segmentAssignments = new LinkedHashMap<>();
     private SegmentLayout currentLayout;
 
+    /**
+     * Sealed segments confirmed drained for this subscription (cursor at end). In-memory
+     * only — on controller-leader failover the new leader rediscovers drain status by
+     * polling. {@link #computeAssignment} consults this set to decide which active
+     * children of a split / merge are eligible to be assigned (children stay blocked
+     * until <em>every</em> sealed parent is drained, so message order isn't broken).
+     */
+    private final Set<Long> drainedSegmentIds = ConcurrentHashMap.newKeySet();
+
+    private ScheduledFuture<?> drainPollTask;
+    private boolean drainPollInProgress;
+
     public SubscriptionCoordinator(String subscriptionName,
                                    TopicName topicName,
                                    SegmentLayout initialLayout,
                                    ScalableTopicResources resources,
                                    ScheduledExecutorService scheduler) {
-        this(subscriptionName, topicName, initialLayout, resources, scheduler, DEFAULT_GRACE_PERIOD);
+        this(subscriptionName, topicName, initialLayout, resources, scheduler,
+                DEFAULT_GRACE_PERIOD, null, DEFAULT_DRAIN_POLL_INTERVAL);
     }
 
     public SubscriptionCoordinator(String subscriptionName,
@@ -91,14 +115,29 @@ public class SubscriptionCoordinator {
                                    ScalableTopicResources resources,
                                    ScheduledExecutorService scheduler,
                                    Duration gracePeriod) {
+        this(subscriptionName, topicName, initialLayout, resources, scheduler, gracePeriod,
+                null, DEFAULT_DRAIN_POLL_INTERVAL);
+    }
+
+    public SubscriptionCoordinator(String subscriptionName,
+                                   TopicName topicName,
+                                   SegmentLayout initialLayout,
+                                   ScalableTopicResources resources,
+                                   ScheduledExecutorService scheduler,
+                                   Duration gracePeriod,
+                                   SegmentDrainChecker drainChecker,
+                                   Duration drainPollInterval) {
         this.subscriptionName = subscriptionName;
         this.topicName = topicName;
         this.currentLayout = initialLayout;
         this.resources = resources;
         this.scheduler = scheduler;
         this.gracePeriod = gracePeriod;
+        this.drainChecker = drainChecker;
+        this.drainPollInterval = drainPollInterval;
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
     }
+
 
     // --- Register / unregister / reconnect ---
 
@@ -132,7 +171,9 @@ public class SubscriptionCoordinator {
                 .thenApply(__ -> {
                     synchronized (this) {
                         sessions.put(consumerName, session);
-                        return rebalanceAndNotify();
+                        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
+                        ensureDrainPollerRunning();
+                        return result;
                     }
                 });
     }
@@ -202,7 +243,8 @@ public class SubscriptionCoordinator {
 
     /**
      * Handle a layout change (split/merge). Recompute and push assignments to connected
-     * consumers.
+     * consumers, then make sure the drain poller is running so any new sealed segments
+     * get noticed.
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> onLayoutChange(
             SegmentLayout newLayout) {
@@ -211,7 +253,145 @@ public class SubscriptionCoordinator {
             segmentAssignments.clear();
             return CompletableFuture.completedFuture(Map.of());
         }
-        return CompletableFuture.completedFuture(rebalanceAndNotify());
+        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
+        ensureDrainPollerRunning();
+        return CompletableFuture.completedFuture(result);
+    }
+
+    /**
+     * Stop the periodic drain-status poller. Called by the controller on close. Idempotent.
+     */
+    public synchronized void close() {
+        if (drainPollTask != null) {
+            drainPollTask.cancel(false);
+            drainPollTask = null;
+        }
+    }
+
+    // --- Drain tracking ---
+
+    /**
+     * A segment is assignable to consumers when:
+     * <ul>
+     *   <li>it's sealed — there's no harm in always handing it out (the v4 layer drains or
+     *       sees {@code TopicTerminated} immediately if already drained); or</li>
+     *   <li>it's active <b>and</b> every parent in the current layout has been drained for
+     *       this subscription. Without the parent-drain check we'd hand a consumer the
+     *       child of a just-split segment immediately, breaking per-key ordering against
+     *       any unread messages still sitting in the parent.</li>
+     * </ul>
+     *
+     * <p>If no {@link SegmentDrainChecker} was configured (e.g., the simple test
+     * constructor), the parent-drain ordering is disabled and every segment is treated
+     * as assignable.
+     */
+    private boolean isAssignable(SegmentInfo segment, SegmentLayout layout) {
+        if (drainChecker == null || !segment.isActive()) {
+            return true;
+        }
+        for (long parentId : segment.parentIds()) {
+            // A parent that's no longer in the DAG has been pruned (its data is gone), so
+            // treat it as drained — there's nothing to wait on.
+            if (layout.getAllSegments().containsKey(parentId)
+                    && !drainedSegmentIds.contains(parentId)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Mark the given sealed segments as drained. Visible for testing — production code
+     * goes through {@link #pollDrainStatus()}, which queries the broker.
+     */
+    synchronized void markSegmentsDrained(Set<Long> segmentIds) {
+        boolean changed = false;
+        for (long id : segmentIds) {
+            if (drainedSegmentIds.add(id)) {
+                changed = true;
+            }
+        }
+        if (changed && !sessions.isEmpty()) {
+            log.info().attr("drained", segmentIds).log("Sealed segments drained, rebalancing");
+            rebalanceAndNotify();
+        }
+    }
+
+    /**
+     * Start (idempotent) the periodic drain poller. No-op when no {@link SegmentDrainChecker}
+     * was configured. Cancelled by {@link #close()} or when there are no sealed-undrained
+     * segments left to check.
+     */
+    private void ensureDrainPollerRunning() {
+        if (drainChecker == null) {
+            return;
+        }
+        if (drainPollTask != null && !drainPollTask.isCancelled() && !drainPollTask.isDone()) {
+            return;
+        }
+        long periodMs = drainPollInterval.toMillis();
+        drainPollTask = scheduler.scheduleWithFixedDelay(this::pollDrainStatus,
+                periodMs, periodMs, TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Single poll iteration: ask the drain checker about every sealed segment that isn't
+     * already known to be drained, collect the newly-drained ones, and rebalance.
+     */
+    private void pollDrainStatus() {
+        SegmentLayout layout;
+        List<SegmentInfo> toCheck;
+        synchronized (this) {
+            if (drainPollInProgress || sessions.isEmpty()) {
+                return;
+            }
+            layout = currentLayout;
+            toCheck = layout.getAllSegments().values().stream()
+                    .filter(seg -> !seg.isActive() && !drainedSegmentIds.contains(seg.segmentId()))
+                    .toList();
+            if (toCheck.isEmpty()) {
+                // Every sealed segment is already drained — no need to keep polling.
+                if (drainPollTask != null) {
+                    drainPollTask.cancel(false);
+                    drainPollTask = null;
+                }
+                return;
+            }
+            drainPollInProgress = true;
+        }
+
+        Set<Long> newlyDrained = ConcurrentHashMap.newKeySet();
+        @SuppressWarnings("rawtypes")
+        CompletableFuture[] futures = new CompletableFuture[toCheck.size()];
+        for (int i = 0; i < toCheck.size(); i++) {
+            SegmentInfo seg = toCheck.get(i);
+            futures[i] = drainChecker.isDrained(seg, subscriptionName)
+                    .handle((drained, ex) -> {
+                        if (ex != null) {
+                            // Log at debug — drain checks happen often and transient errors
+                            // (e.g., topic still being looked up) shouldn't spam.
+                            log.debug().attr("segmentId", seg.segmentId())
+                                    .exceptionMessage(ex)
+                                    .log("Drain check failed; will retry next poll");
+                            return null;
+                        }
+                        if (Boolean.TRUE.equals(drained)) {
+                            newlyDrained.add(seg.segmentId());
+                        }
+                        return null;
+                    });
+        }
+        CompletableFuture.allOf(futures).whenComplete((__, ex) -> {
+            try {
+                if (!newlyDrained.isEmpty()) {
+                    markSegmentsDrained(new HashSet<>(newlyDrained));
+                }
+            } finally {
+                synchronized (SubscriptionCoordinator.this) {
+                    drainPollInProgress = false;
+                }
+            }
+        });
     }
 
     // --- Accessors ---
@@ -267,11 +447,29 @@ public class SubscriptionCoordinator {
     }
 
     /**
-     * Compute a balanced assignment of active segments to consumers.
+     * Compute a balanced assignment of segments to consumers.
      *
-     * <p>Strategy: sort segments by hash range start, sort consumers by name, then
-     * round-robin. Deterministic: the same inputs always produce the same output, so a new
-     * leader recomputing assignments after failover gets the same result as the old leader.
+     * <p>Strategy: sort segments by hash range, then segment id (tiebreak), sort consumers by
+     * name, then round-robin. Deterministic: the same inputs always produce the same output,
+     * so a new leader recomputing assignments after failover gets the same result as the old
+     * leader.
+     *
+     * <p><b>DAG replay.</b> The assignment includes every <em>sealed</em> segment in the
+     * DAG. A fresh EARLIEST subscription needs to read messages produced before it joined,
+     * and those may live on segments that have since been sealed by a split / merge.
+     *
+     * <p><b>Parent-drain ordering.</b> An <em>active</em> child segment is only assigned
+     * once <em>every</em> parent in the DAG has been drained for this subscription
+     * (tracked in {@link #drainedSegmentIds}). Without this guard a consumer would be
+     * handed an active child immediately after a split and start receiving new messages
+     * for some key while the same key's pre-split messages still sit unread on the sealed
+     * parent — breaking per-key ordering. Initial active segments (those with no parents
+     * in the layout) are unaffected and assigned right away.
+     *
+     * <p>The client side (per-segment v4 consumer) drains a sealed-but-still-present
+     * segment naturally and closes it on {@code TopicTerminated}; a sealed-and-already-
+     * drained segment yields {@code TopicTerminated} immediately, so the cost of
+     * including it is one short-lived v4 subscribe.
      */
     Map<ConsumerSession, ConsumerAssignment> computeAssignment(
             SegmentLayout layout, Collection<ConsumerSession> consumers) {
@@ -280,8 +478,10 @@ public class SubscriptionCoordinator {
             return Map.of();
         }
 
-        List<SegmentInfo> sortedSegments = layout.getActiveSegments().values().stream()
-                .sorted(Comparator.comparing(SegmentInfo::hashRange))
+        List<SegmentInfo> sortedSegments = layout.getAllSegments().values().stream()
+                .filter(seg -> isAssignable(seg, layout))
+                .sorted(Comparator.comparing(SegmentInfo::hashRange)
+                        .thenComparingLong(SegmentInfo::segmentId))
                 .toList();
 
         List<ConsumerSession> sortedConsumers = consumers.stream()
@@ -337,6 +537,14 @@ public class SubscriptionCoordinator {
     }
 
     private Map<ConsumerSession, ConsumerAssignment> snapshotAssignments() {
+        return computeAssignment(currentLayout, sessions.values());
+    }
+
+    /**
+     * Test hook: return the assignment that would be sent right now, computed against the
+     * current layout and connected consumers. Visible for unit tests.
+     */
+    synchronized Map<ConsumerSession, ConsumerAssignment> currentAssignment() {
         return computeAssignment(currentLayout, sessions.values());
     }
 }

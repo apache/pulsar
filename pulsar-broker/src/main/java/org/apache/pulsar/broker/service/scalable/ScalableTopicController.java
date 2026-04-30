@@ -175,7 +175,38 @@ public class ScalableTopicController {
                 currentLayout,
                 resources,
                 brokerService.getPulsar().getExecutor(),
-                gracePeriod);
+                gracePeriod,
+                this::isSegmentDrained,
+                SubscriptionCoordinator.DEFAULT_DRAIN_POLL_INTERVAL);
+    }
+
+    /**
+     * Drain check used by every {@link SubscriptionCoordinator} on this topic. Looks the
+     * segment topic up locally and, if it's owned by this broker, asks the
+     * {@link org.apache.pulsar.broker.service.Subscription} how many entries remain in
+     * the backlog. Returns false if the topic isn't loaded here yet — drain progress will
+     * be observed on a later poll once the owning consumer's subscribe lands. Multi-broker
+     * coverage requires a future segment-aware stats admin endpoint; for now the
+     * controller and the segment topic frequently colocate (typical case) so this is
+     * sufficient for the in-process tests.
+     */
+    private CompletableFuture<Boolean> isSegmentDrained(SegmentInfo segment, String subscription) {
+        String segmentTopicName = toSegmentPersistentName(segment);
+        return brokerService.getTopicIfExists(segmentTopicName)
+                .thenApply(optTopic -> {
+                    if (optTopic.isEmpty()) {
+                        // Topic not loaded locally — assume not drained yet, retry on the
+                        // next poll. The consumer's subscribe will load it on its owning
+                        // broker; once that broker is colocated with us (or we add a
+                        // cross-broker segment stats path) the next check succeeds.
+                        return false;
+                    }
+                    var sub = optTopic.get().getSubscription(subscription);
+                    if (sub == null) {
+                        return false;
+                    }
+                    return sub.getNumberOfEntriesInBacklog(false) <= 0;
+                });
     }
 
     private CompletableFuture<Void> electLeader() {
@@ -525,6 +556,9 @@ public class ScalableTopicController {
 
     public CompletableFuture<Void> close() {
         closed = true;
+        // Stop each coordinator's drain poller before clearing — otherwise the scheduler
+        // task keeps running after the controller goes away.
+        subscriptions.values().forEach(SubscriptionCoordinator::close);
         subscriptions.clear();
         return leaderElection.asyncClose();
     }
