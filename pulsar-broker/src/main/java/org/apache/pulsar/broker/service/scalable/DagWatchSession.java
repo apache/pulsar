@@ -169,6 +169,16 @@ public class DagWatchSession {
             }
         }
 
+        // Propagate the controller-broker URL so V5 clients can connect to the right broker
+        // for scalable-topic subscribe. Without this the client falls back to its configured
+        // service URL, which on a multi-broker cluster is rarely the controller leader.
+        if (response.controllerBrokerUrl() != null) {
+            dag.setControllerBrokerUrl(response.controllerBrokerUrl());
+        }
+        if (response.controllerBrokerUrlTls() != null) {
+            dag.setControllerBrokerUrlTls(response.controllerBrokerUrlTls());
+        }
+
         return dag;
     }
 
