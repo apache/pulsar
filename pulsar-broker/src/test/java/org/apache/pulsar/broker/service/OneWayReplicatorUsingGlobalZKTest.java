@@ -100,6 +100,13 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.testReplicatorProducerStatInTopic();
     }
 
+    @Override
+    @Test(enabled = false)
+    public void testMultipleVersionSchemas(boolean isAllowAutoUpdateSchema,
+                                           Boolean allowAutoUpdateSchemaWithReplicator) throws Exception {
+        super.testDeleteTopicWhenReplicating();
+    }
+
     @Test(dataProvider = "isPartitioned")
     public void testReplicatorCreateTopic(boolean isPartitioned) throws Exception {
         super.testReplicatorCreateTopic(isPartitioned);

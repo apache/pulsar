@@ -120,6 +120,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -2319,6 +2320,40 @@ public class PulsarAdminToolTest {
         CmdNonPersistentTopics nonPersistentTopics = new CmdNonPersistentTopics(() -> admin);
         nonPersistentTopics.run(split("list-in-bundle myprop/ns1 --bundle 0x23d70a30_0x26666658"));
         verify(mockNonPersistentTopics).getListInBundle("myprop/ns1", "0x23d70a30_0x26666658");
+    }
+
+    @Test
+    public void topicsAnalyzeBacklogParameterParsing() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
+
+        AnalyzeSubscriptionBacklogResult backlogResult = new AnalyzeSubscriptionBacklogResult();
+        doReturn(backlogResult).when(mockTopics)
+                .analyzeSubscriptionBacklog(eq("persistent://myprop/ns1/ds1"), eq("sub1"), Mockito.any());
+        doReturn(backlogResult).when(mockTopics)
+                .analyzeSubscriptionBacklog(eq("persistent://myprop/ns1/ds1"), eq("sub1"), Mockito.any(),
+                        Mockito.any());
+
+        CmdTopics cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("analyze-backlog persistent://myprop/ns1/ds1 -s sub1 --position 1:1"));
+        verify(mockTopics).analyzeSubscriptionBacklog(eq("persistent://myprop/ns1/ds1"), eq("sub1"),
+                eq(Optional.of(new MessageIdImpl(1, 1, -1))));
+
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("analyze-backlog persistent://myprop/ns1/ds1 -s sub1 -b 100 --plain --quiet"));
+        verify(mockTopics).analyzeSubscriptionBacklog(eq("persistent://myprop/ns1/ds1"), eq("sub1"),
+                eq(Optional.empty()), Mockito.any());
+    }
+
+    @Test
+    public void topicsAnalyzeBacklogRejectsNonPositiveBacklogScanMaxEntries() {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
+
+        CmdTopics cmdTopics = new CmdTopics(() -> admin);
+        assertFalse(cmdTopics.run(split("analyze-backlog persistent://myprop/ns1/ds1 -s sub1 -b 0")));
     }
 
     @Test

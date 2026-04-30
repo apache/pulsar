@@ -743,7 +743,8 @@ public class PulsarClientException extends IOException {
      * "supports_topic_watchers" was introduced at "2.11" and is no longer supported, so skip this enum.
      */
     public enum FailedFeatureCheck {
-        SupportsGetPartitionedMetadataWithoutAutoCreation;
+        SupportsGetPartitionedMetadataWithoutAutoCreation,
+        SupportsScalableTopics;
     }
 
     /**

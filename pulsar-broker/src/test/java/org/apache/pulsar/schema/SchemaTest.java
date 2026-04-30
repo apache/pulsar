@@ -55,6 +55,9 @@ import lombok.EqualsAndHashCode;
 import org.apache.avro.Schema.Parser;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
+import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -1378,6 +1381,118 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         });
         producers.clear();
         producers2.clear();
+    }
+
+    /**
+     * Test that when multiple producers concurrently create schema for a brand-new topic,
+     * the orphan BookKeeper ledgers created by the losing requests are properly cleaned up.
+     */
+    @Test
+    public void testConcurrentCreateSchemaNoOrphanLedger() throws Exception {
+        final String namespace = "test-namespace-" + randomName(16);
+        String ns = PUBLIC_TENANT + "/" + namespace;
+        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+
+        final String topic = getTopicName(ns, "testConcurrentCreateSchemaNoOrphanLedger");
+        final String schemaName = TopicName.get(topic).getSchemaName();
+
+        PulsarMockBookKeeper mockBk = (PulsarMockBookKeeper) pulsar.getBookKeeperClient();
+
+        // Concurrently create producers with the same schema on a brand-new topic
+        int concurrency = 16;
+        List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = createProducersInParallel(
+                topic, Schema.AVRO(Schemas.PersonOne.class), concurrency);
+        try {
+            FutureUtil.waitForAll(producers).join();
+
+            // Verify only 1 schema version exists
+            assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
+
+            int schemaLedgerCount = countSchemaLedgers(mockBk, schemaName);
+            assertEquals(schemaLedgerCount, 1,
+                    "Expected exactly 1 schema ledger for the topic, but found "
+                            + schemaLedgerCount + ". Orphan ledgers were not cleaned up.");
+        } finally {
+            closeProducers(producers);
+        }
+    }
+
+    /**
+     * Test that concurrent compatible schema updates clean up ledgers created by requests
+     * that lose the schema locator CAS race.
+     */
+    @Test
+    public void testConcurrentUpdateSchemaNoOrphanLedger() throws Exception {
+        final String namespace = "test-namespace-" + randomName(16);
+        String ns = PUBLIC_TENANT + "/" + namespace;
+        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+
+        final String topic = getTopicName(ns, "testConcurrentUpdateSchemaNoOrphanLedger");
+        final String schemaName = TopicName.get(topic).getSchemaName();
+        PulsarMockBookKeeper mockBk = (PulsarMockBookKeeper) pulsar.getBookKeeperClient();
+
+        @Cleanup
+        Producer<Schemas.PersonOne> initialProducer = pulsarClient
+                .newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic)
+                .create();
+        assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
+
+        int concurrency = 16;
+        List<CompletableFuture<Producer<Schemas.PersonThree>>> producers = createProducersInParallel(
+                topic, Schema.AVRO(Schemas.PersonThree.class), concurrency);
+        try {
+            FutureUtil.waitForAll(producers).join();
+
+            assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
+            int schemaLedgerCount = countSchemaLedgers(mockBk, schemaName);
+            assertEquals(schemaLedgerCount, 2,
+                    "Expected exactly 2 schema ledgers for the topic, but found "
+                            + schemaLedgerCount + ". Orphan ledgers were not cleaned up.");
+        } finally {
+            closeProducers(producers);
+        }
+    }
+
+    private <T> List<CompletableFuture<Producer<T>>> createProducersInParallel(
+            String topic, Schema<T> schema, int concurrency) throws InterruptedException {
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(concurrency);
+        List<CompletableFuture<Producer<T>>> producers = Collections.synchronizedList(new ArrayList<>(concurrency));
+        CountDownLatch latch = new CountDownLatch(concurrency);
+        for (int i = 0; i < concurrency; i++) {
+            executor.execute(() -> {
+                try {
+                    producers.add(pulsarClient.newProducer(schema).topic(topic).createAsync());
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
+        return producers;
+    }
+
+    private int countSchemaLedgers(PulsarMockBookKeeper mockBk, String schemaName) {
+        int schemaLedgerCount = 0;
+        for (PulsarMockLedgerHandle lh : mockBk.getLedgerMap().values()) {
+            Map<String, byte[]> metadata = lh.getLedgerMetadata().getCustomMetadata();
+            byte[] schemaIdBytes = metadata.get(LedgerMetadataUtils.METADATA_PROPERTY_SCHEMAID);
+            if (schemaIdBytes != null && schemaName.equals(new String(schemaIdBytes, StandardCharsets.UTF_8))) {
+                schemaLedgerCount++;
+            }
+        }
+        return schemaLedgerCount;
+    }
+
+    private <T> void closeProducers(List<CompletableFuture<Producer<T>>> producers) {
+        producers.forEach(p -> {
+            try {
+                p.join().close();
+            } catch (Exception ignore) {
+            }
+        });
+        producers.clear();
     }
 
     @EqualsAndHashCode

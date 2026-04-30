@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProducerTest;
@@ -106,6 +107,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
     @Override
     protected ServiceConfiguration getDefaultConf() {
         ServiceConfiguration conf = super.getDefaultConf();
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         conf.setMaxUnackedMessagesPerConsumer(0);
         // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
         // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
@@ -729,6 +731,170 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         assertThat(c2Stats.getDrainingHashesClearedTotal()).isEqualTo(0);
         assertThat(c2Stats.getDrainingHashesUnackedMessages()).isEqualTo(0);
 
+    }
+
+    @DataProvider(name = "subscriptionTypes")
+    public Object[][] subscriptionTypes() {
+        return new Object[][]{
+                {SubscriptionType.Shared},
+                {SubscriptionType.Key_Shared}
+        };
+    }
+
+    /**
+     * Verify unacked count is correctly decremented when removeAllUpTo removes non-batch
+     * entries from pendingAcks after mark-delete advances via message expiry.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testUnackedCountNonBatchAfterExpire(SubscriptionType subType) throws Exception {
+        String topic = newTopicName();
+        String sub = "sub";
+        int numMessages = 10;
+
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).enableBatching(false).create();
+        @Cleanup Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic).subscriptionName(sub)
+                .subscriptionType(subType)
+                .subscribe();
+
+        for (int i = 0; i < numMessages; i++) {
+            producer.send(("msg-" + i).getBytes());
+        }
+
+        org.apache.pulsar.broker.service.Consumer svcConsumer =
+                getTheUniqueServiceConsumer(topic, sub);
+        for (int i = 0; i < numMessages; i++) {
+            Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(msg, "Expected to receive message " + i);
+        }
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(numMessages, svcConsumer.getUnackedMessages()));
+
+        expireAndVerifyUnackedDrained(topic, sub, producer, consumer, svcConsumer);
+    }
+
+    /**
+     * Verify unacked count is correctly decremented when removeAllUpTo removes batch
+     * entries from pendingAcks after mark-delete advances via message expiry.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testUnackedCountBatchAfterExpire(SubscriptionType subType) throws Exception {
+        String topic = newTopicName();
+        String sub = "sub";
+        int numMessages = 10;
+
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .batchingMaxMessages(20)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .enableBatching(true)
+                .create();
+        @Cleanup Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic).subscriptionName(sub)
+                .subscriptionType(subType)
+                .subscribe();
+
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("batch-" + i).getBytes()).sendAsync();
+        }
+        producer.flush();
+
+        for (int i = 0; i < numMessages; i++) {
+            Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(msg, "Expected to receive message " + i);
+        }
+
+        org.apache.pulsar.broker.service.Consumer svcConsumer =
+                getTheUniqueServiceConsumer(topic, sub);
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(numMessages, svcConsumer.getUnackedMessages()));
+
+        expireAndVerifyUnackedDrained(topic, sub, producer, consumer, svcConsumer);
+    }
+
+    /**
+     * Verify unacked count is correctly decremented when removeAllUpTo removes a partially-acked
+     * batch entry from pendingAcks after mark-delete advances via message expiry.
+     *
+     * <p>Flow: produce batch(batchSize=10) → consume all → ack 5 of 10 → expire → unacked should be 0.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testUnackedCountBatchPartialAckAfterExpire(SubscriptionType subType) throws Exception {
+        String topic = newTopicName();
+        String sub = "sub";
+        int numMessages = 10;
+        int ackCount = 5;
+
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .batchingMaxMessages(20)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .enableBatching(true)
+                .create();
+        @Cleanup Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(sub)
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(subType)
+                .subscribe();
+
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage().value(("batch-" + i).getBytes()).sendAsync();
+        }
+        producer.flush();
+
+        List<Message<byte[]>> messages = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(msg, "Expected to receive message " + i);
+            messages.add(msg);
+        }
+
+        org.apache.pulsar.broker.service.Consumer svcConsumer =
+                getTheUniqueServiceConsumer(topic, sub);
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(numMessages, svcConsumer.getUnackedMessages()));
+
+        // Partially ack — ack 5 of 10 batch indexes
+        for (int i = 0; i < ackCount; i++) {
+            consumer.acknowledge(messages.get(i));
+        }
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(numMessages - ackCount, svcConsumer.getUnackedMessages()));
+
+        expireAndVerifyUnackedDrained(topic, sub, producer, consumer, svcConsumer);
+    }
+
+    private void expireAndVerifyUnackedDrained(String topic, String sub,
+                                               Producer<byte[]> producer, Consumer<byte[]> consumer,
+                                               org.apache.pulsar.broker.service.Consumer svcConsumer)
+            throws Exception {
+        PersistentTopic pTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topic).get();
+
+        Thread.sleep(1100);
+        pTopic.getSubscription(sub).expireMessagesAsync(1).get();
+
+        // Trigger readMoreEntries to invoke removeAllUpTo
+        producer.send("trigger".getBytes());
+        Message<byte[]> triggerMsg = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertNotNull(triggerMsg);
+        consumer.acknowledge(triggerMsg);
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(0, svcConsumer.getUnackedMessages()));
+    }
+
+    private org.apache.pulsar.broker.service.Consumer getTheUniqueServiceConsumer(String topic, String sub) {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                (AbstractPersistentDispatcherMultipleConsumers) persistentTopic.getSubscription(sub).getDispatcher();
+        return dispatcher.getConsumers().iterator().next();
     }
 
     private String findConsumerNameForHash(SubscriptionStats subscriptionStats, int hash) {

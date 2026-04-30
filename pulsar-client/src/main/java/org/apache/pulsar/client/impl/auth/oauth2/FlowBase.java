@@ -26,6 +26,9 @@ import java.net.URL;
 import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLException;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
@@ -34,9 +37,14 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.Metadata;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.MetadataResolver;
+import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.PulsarHttpAsyncSslEngineFactory;
+import org.apache.pulsar.common.util.PulsarSslConfiguration;
+import org.apache.pulsar.common.util.PulsarSslFactory;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.asynchttpclient.SslEngineFactory;
 
 /**
  * An abstract OAuth 2.0 authorization flow.
@@ -47,10 +55,14 @@ abstract class FlowBase implements Flow {
     public static final String CONFIG_PARAM_CONNECT_TIMEOUT = "connectTimeout";
     public static final String CONFIG_PARAM_READ_TIMEOUT = "readTimeout";
     public static final String CONFIG_PARAM_TRUST_CERTS_FILE_PATH = "trustCertsFilePath";
+    public static final String CONFIG_PARAM_CERT_FILE = "tlsCertFile";
+    public static final String CONFIG_PARAM_TLS_KEY_FILE = "tlsKeyFile";
+    public static final String CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION = "autoCertRefreshDuration";
     public static final String CONFIG_PARAM_WELL_KNOWN_METADATA_PATH = "wellKnownMetadataPath";
 
     protected static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(10);
     protected static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(30);
+    protected static final Duration DEFAULT_AUTO_CERT_REFRESH_DURATION = Duration.ofSeconds(300);
 
     private static final long serialVersionUID = 1L;
 
@@ -58,17 +70,23 @@ abstract class FlowBase implements Flow {
     protected final AsyncHttpClient httpClient;
     protected final String wellKnownMetadataPath;
 
+    protected transient PulsarSslFactory sslFactory;
+    protected transient ScheduledExecutorService sslRefreshScheduler;
     protected transient Metadata metadata;
 
     protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
+                       String certFile, String keyFile, Duration autoCertRefreshDuration,
                        String wellKnownMetadataPath) {
         this.issuerUrl = issuerUrl;
-        this.httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath);
+        this.httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath, certFile, keyFile);
+        long autoCertRefreshSeconds = getParameterDurationToSeconds(CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION,
+                autoCertRefreshDuration, DEFAULT_AUTO_CERT_REFRESH_DURATION);
+        scheduleSslContextRefreshIfEnabled(autoCertRefreshSeconds);
         this.wellKnownMetadataPath = wellKnownMetadataPath;
     }
 
     private AsyncHttpClient defaultHttpClient(Duration readTimeout, Duration connectTimeout,
-                                              String trustCertsFilePath) {
+                                              String trustCertsFilePath, String certFile, String keyFile) {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
         confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
@@ -79,7 +97,31 @@ abstract class FlowBase implements Flow {
         confBuilder.setReadTimeout(
                 getParameterDurationToMillis(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
-        if (StringUtils.isNotBlank(trustCertsFilePath)) {
+        boolean hasCertFile = StringUtils.isNotBlank(certFile);
+        boolean hasKeyFile = StringUtils.isNotBlank(keyFile);
+        if (hasCertFile != hasKeyFile) {
+            throw new IllegalArgumentException("Invalid TLS client certificate configuration: " + CONFIG_PARAM_CERT_FILE
+                    + " and " + CONFIG_PARAM_TLS_KEY_FILE + " must be provided together");
+        }
+        if (hasCertFile && hasKeyFile) {
+            try {
+                PulsarSslConfiguration sslConfiguration = PulsarSslConfiguration.builder()
+                        .tlsCertificateFilePath(certFile)
+                        .tlsKeyFilePath(keyFile)
+                        .tlsTrustCertsFilePath(trustCertsFilePath)
+                        .allowInsecureConnection(false)
+                        .serverMode(false)
+                        .isHttps(true)
+                        .build();
+                sslFactory = new org.apache.pulsar.common.util.DefaultPulsarSslFactory();
+                sslFactory.initialize(sslConfiguration);
+                sslFactory.createInternalSslContext();
+                SslEngineFactory sslEngineFactory = new PulsarHttpAsyncSslEngineFactory(sslFactory, null);
+                confBuilder.setSslEngineFactory(sslEngineFactory);
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid TLS client certificate configuration", e);
+            }
+        } else if (StringUtils.isNotBlank(trustCertsFilePath)) {
             try {
                 confBuilder.setSslContext(SslContextBuilder.forClient()
                         .trustManager(new File(trustCertsFilePath))
@@ -91,19 +133,49 @@ abstract class FlowBase implements Flow {
         return new DefaultAsyncHttpClient(confBuilder.build());
     }
 
+    private void scheduleSslContextRefreshIfEnabled(long refreshSeconds) {
+        if (sslFactory == null || refreshSeconds <= 0 || sslRefreshScheduler != null) {
+            return;
+        }
+        sslRefreshScheduler = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("oauth2-tls-cert-refresher", true));
+        sslRefreshScheduler.scheduleWithFixedDelay(this::refreshSslContext,
+                refreshSeconds, refreshSeconds, TimeUnit.SECONDS);
+        log.info().attr("refreshSeconds", refreshSeconds).log("Scheduled TLS certificate refresh");
+    }
+
+    private void refreshSslContext() {
+        if (this.sslFactory == null) {
+            return;
+        }
+        try {
+            this.sslFactory.update();
+            log.debug("Successfully refreshed SSL context");
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to refresh SSL context");
+        }
+    }
+
     private int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
+        return (int) getParameterDuration(name, value, defaultValue).toMillis();
+    }
+
+    private long getParameterDurationToSeconds(String name, Duration value, Duration defaultValue) {
+        return getParameterDuration(name, value, defaultValue).getSeconds();
+    }
+
+    private Duration getParameterDuration(String name, Duration value, Duration defaultValue) {
         Duration duration;
         if (value == null) {
-                log.debug().attr("name", name)
-                        .attr("defaultValue", defaultValue)
-                        .log("Configuration is using the default value");
+            log.debug().attr("name", name)
+                    .attr("defaultValue", defaultValue)
+                    .log("Configuration is using the default value");
             duration = defaultValue;
         } else {
-                log.debug().attr("name", name).attr("value", value).log("Configuration");
+            log.debug().attr("name", name).attr("value", value).log("Configuration");
             duration = value;
         }
-
-        return (int) duration.toMillis();
+        return duration;
     }
 
     public void initialize() throws PulsarClientException {
@@ -153,6 +225,12 @@ abstract class FlowBase implements Flow {
 
     @Override
     public void close() throws Exception {
+        if (sslRefreshScheduler != null) {
+            sslRefreshScheduler.shutdownNow();
+        }
         httpClient.close();
+        if (sslFactory != null) {
+            sslFactory.close();
+        }
     }
 }

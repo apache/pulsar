@@ -309,4 +309,36 @@ public class ConsumerImplTest {
         Pattern consumerNamePattern = Pattern.compile("[a-zA-Z0-9]{5}");
         assertTrue(consumerNamePattern.matcher(consumer.getConsumerName()).matches());
     }
+
+    @Test(invocationTimeOut = 1000)
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void testUpdateAutoScaleReceiverQueueHintRaceWithConcurrentDrain() {
+        // Regression test: ConsumerBase.enqueueMessageAndCheckBatchReceive() calls
+        // updateAutoScaleReceiverQueueHint() after incomingMessages.offer(message) under
+        // incomingQueueLock, but incomingMessages.take()/poll() does NOT acquire that lock.
+        // A consumer thread draining the queue in parallel with the client-IO thread's
+        // enqueue can therefore remove the just-offered message before the hint read of
+        // incomingMessages.size() runs. The hint would then see size() == 0 and be
+        // spuriously cleared, even though the pipeline was full at enqueue time.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setAutoScaledReceiverQueueSizeEnabled(true);
+        createConsumer(consumerConf);
+        consumer.setCurrentReceiverQueueSize(1);
+
+        // Simulate the race: enqueue a message and drain it before the hint is computed.
+        MessageImpl message = mock(MessageImpl.class);
+        when(message.size()).thenReturn(100);
+        consumer.incomingMessages.offer(message);
+        consumer.incomingMessages.poll();
+
+        Assert.assertEquals(consumer.incomingMessages.size(), 0);
+        Assert.assertEquals(consumer.getAvailablePermits(), 0);
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 1);
+
+        consumer.updateAutoScaleReceiverQueueHint();
+
+        Assert.assertTrue(consumer.scaleReceiverQueueHint.get(),
+                "Hint must reflect the post-enqueue state (pipeline had >=1 message); "
+                        + "a concurrent drain of the just-enqueued message must not clear it.");
+    }
 }

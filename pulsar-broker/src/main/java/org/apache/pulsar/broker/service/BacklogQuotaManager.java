@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,12 +34,14 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics.BacklogQuotaMetrics;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -135,9 +138,7 @@ public class BacklogQuotaManager {
      *            Backlog quota set for the topic
      */
     private void dropBacklogForSizeLimit(PersistentTopic persistentTopic, BacklogQuota quota) {
-        // Set the reduction factor to 90%. The aim is to drop down the backlog to 90% of the quota limit.
-        double reductionFactor = 0.9;
-        double targetSize = reductionFactor * quota.getLimitSize();
+        long targetSize = computeEvictionTarget(quota.getLimitSize());
 
         // Get estimated unconsumed size for the managed ledger associated with this topic. Estimated size is more
         // useful than the actual storage size. Actual storage size gets updated only when managed ledger is trimmed.
@@ -147,7 +148,7 @@ public class BacklogQuotaManager {
         log.debug()
                 .attr("topic", persistentTopic.getName())
                 .attr("targetSize", targetSize)
-                .attr("quotaLimit", targetSize / reductionFactor)
+                .attr("quotaLimit", quota.getLimitSize())
                 .attr("backlogSize", backlogSize)
                 .log("Target size for quota limit");
         ManagedCursor previousSlowestConsumer = null;
@@ -159,13 +160,12 @@ public class BacklogQuotaManager {
                 log.debug().attr("topic", persistentTopic.getName()).log("Slowest consumer is null");
                 break;
             }
-            double messageSkipFactor = ((backlogSize - targetSize) / backlogSize);
 
             if (slowestConsumer == previousSlowestConsumer) {
                 log.info()
                         .attr("topic", persistentTopic.getName())
                         .attr("targetSize", targetSize)
-                        .attr("quotaLimit", targetSize / reductionFactor)
+                        .attr("quotaLimit", quota.getLimitSize())
                         .attr("backlogSize", backlogSize)
                         .log("Cursors not progressing");
                 break;
@@ -173,7 +173,12 @@ public class BacklogQuotaManager {
 
             // Calculate number of messages to be skipped using the current backlog and the skip factor.
             long entriesInBacklog = slowestConsumer.getNumberOfEntriesInBacklog(false);
-            int messagesToSkip = (int) (messageSkipFactor * entriesInBacklog);
+
+            int messagesToSkip = computeEntriesToEvict(
+                    backlogSize,
+                    quota.getLimitSize(),
+                    entriesInBacklog);
+
             try {
                 // If there are no messages to skip, break out of the loop
                 if (messagesToSkip == 0) {
@@ -188,6 +193,7 @@ public class BacklogQuotaManager {
                         .attr("entriesInBacklog", entriesInBacklog)
                         .log("Skipping messages on slowest consumer having backlog entries");
                 slowestConsumer.skipEntries(messagesToSkip, IndividualDeletedEntries.Include);
+                markDeletePositionMoveForward(persistentTopic, slowestConsumer);
             } catch (Exception e) {
                 log.error()
                         .attr("topic", persistentTopic.getName())
@@ -203,8 +209,7 @@ public class BacklogQuotaManager {
             log.debug()
                     .attr("topic", persistentTopic.getName())
                     .attr("backlogSize", backlogSize)
-                    .attr("messageSkipFactor", messageSkipFactor)
-                    .log("Updated unconsumed size =. skipFactor");
+                    .log("Updated unconsumed size");
         }
     }
 
@@ -220,9 +225,8 @@ public class BacklogQuotaManager {
                                          boolean preciseTimeBasedBacklogQuotaCheck) {
         // If enabled precise time based backlog quota check, will expire message based on the timeBaseQuota
         if (preciseTimeBasedBacklogQuotaCheck) {
-            // Set the reduction factor to 90%. The aim is to drop down the backlog to 90% of the quota limit.
-            double reductionFactor = 0.9;
-            int target = (int) (reductionFactor * quota.getLimitTime());
+            int target = (int) computeEvictionTarget(quota.getLimitTime());
+
             log.debug()
                     .attr("topic", persistentTopic.getName())
                     .attr("target", target)
@@ -253,6 +257,7 @@ public class BacklogQuotaManager {
                         long ledgerId = mLedger.getLedgersInfo().ceilingKey(oldestPosition.getLedgerId() + 1);
                         Position nextPosition = PositionFactory.create(ledgerId, -1);
                         slowestConsumer.markDelete(nextPosition);
+                        markDeletePositionMoveForward(persistentTopic, slowestConsumer);
                         continue;
                     }
                     // Timestamp only > 0 if ledger has been closed
@@ -263,6 +268,7 @@ public class BacklogQuotaManager {
                         Position nextPosition = PositionFactory.create(ledgerId, -1);
                         if (!nextPosition.equals(oldestPosition)) {
                             slowestConsumer.markDelete(nextPosition);
+                            markDeletePositionMoveForward(persistentTopic, slowestConsumer);
                             continue;
                         }
                     }
@@ -331,5 +337,49 @@ public class BacklogQuotaManager {
 
         // We may need to check other system cursors here : replicator, compaction
         return false;
+    }
+
+    /**
+     * Invoke {@link Dispatcher#markDeletePositionMoveForward()} for the subscription that owns the given cursor.
+     * This ensures pending acks and redelivery state are cleaned up when the cursor is advanced by
+     * backlog quota eviction (bypassing the subscription-level wrappers that normally fire this hook).
+     *
+     * @param persistentTopic the topic
+     * @param cursor the cursor that was advanced
+     */
+    private void markDeletePositionMoveForward(PersistentTopic persistentTopic, ManagedCursor cursor) {
+        PersistentSubscription subscription =
+                persistentTopic.getSubscriptions().get(Codec.decode(cursor.getName()));
+        if (subscription != null && subscription.getDispatcher() != null) {
+            subscription.getDispatcher().markDeletePositionMoveForward();
+        }
+    }
+
+
+    /**
+     * Compute the target value after backlog eviction.
+     *
+     * @param quotaLimit configured quota limit
+     * @return target value after eviction
+     */
+    private static long computeEvictionTarget(long quotaLimit) {
+        double factor = 0.9;
+        return (long) (factor * quotaLimit);
+    }
+
+    /**
+     * Compute the number of entries to evict in a single eviction iteration.
+     *
+     * @param currentValue current backlog value
+     * @param quotaLimit configured quota limit
+     * @param totalEntries total entries in backlog
+     * @return entries to evict
+     */
+    @VisibleForTesting
+    static int computeEntriesToEvict(
+            long currentValue, long quotaLimit, long totalEntries) {
+        long evictionTarget = computeEvictionTarget(quotaLimit);
+        return (int) ((currentValue - evictionTarget)
+                * (double) totalEntries / currentValue);
     }
 }

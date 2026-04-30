@@ -72,6 +72,12 @@ import org.apache.pulsar.common.api.proto.CommandProducer;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.CommandRedeliverUnacknowledgedMessages;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicAssignmentUpdate;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicClose;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicLookup;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribe;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicUpdate;
 import org.apache.pulsar.common.api.proto.CommandSeek;
 import org.apache.pulsar.common.api.proto.CommandSend;
 import org.apache.pulsar.common.api.proto.CommandSendError;
@@ -478,6 +484,36 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleCommandWatchTopicListClose(cmd.getWatchTopicListClose());
                 break;
 
+            case SCALABLE_TOPIC_LOOKUP:
+                checkArgument(cmd.hasScalableTopicLookup());
+                handleCommandScalableTopicLookup(cmd.getScalableTopicLookup());
+                break;
+
+            case SCALABLE_TOPIC_UPDATE:
+                checkArgument(cmd.hasScalableTopicUpdate());
+                handleCommandScalableTopicUpdate(cmd.getScalableTopicUpdate());
+                break;
+
+            case SCALABLE_TOPIC_CLOSE:
+                checkArgument(cmd.hasScalableTopicClose());
+                handleCommandScalableTopicClose(cmd.getScalableTopicClose());
+                break;
+
+            case SCALABLE_TOPIC_SUBSCRIBE:
+                checkArgument(cmd.hasScalableTopicSubscribe());
+                handleCommandScalableTopicSubscribe(cmd.getScalableTopicSubscribe());
+                break;
+
+            case SCALABLE_TOPIC_SUBSCRIBE_RESPONSE:
+                checkArgument(cmd.hasScalableTopicSubscribeResponse());
+                handleCommandScalableTopicSubscribeResponse(cmd.getScalableTopicSubscribeResponse());
+                break;
+
+            case SCALABLE_TOPIC_ASSIGNMENT_UPDATE:
+                checkArgument(cmd.hasScalableTopicAssignmentUpdate());
+                handleCommandScalableTopicAssignmentUpdate(cmd.getScalableTopicAssignmentUpdate());
+                break;
+
             default:
                 break;
             }
@@ -741,6 +777,33 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleCommandWatchTopicListClose(CommandWatchTopicListClose commandWatchTopicListClose) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicLookup(CommandScalableTopicLookup commandScalableTopicLookup) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicUpdate(CommandScalableTopicUpdate commandScalableTopicUpdate) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicClose(CommandScalableTopicClose commandScalableTopicClose) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicSubscribe(
+            CommandScalableTopicSubscribe commandScalableTopicSubscribe) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicSubscribeResponse(
+            CommandScalableTopicSubscribeResponse commandScalableTopicSubscribeResponse) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandScalableTopicAssignmentUpdate(
+            CommandScalableTopicAssignmentUpdate commandScalableTopicAssignmentUpdate) {
         throw new UnsupportedOperationException();
     }
 

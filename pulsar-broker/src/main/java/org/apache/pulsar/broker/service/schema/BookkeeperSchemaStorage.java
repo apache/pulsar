@@ -39,7 +39,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import lombok.CustomLog;
-import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -348,23 +347,42 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     private CompletableFuture<Long> createNewSchema(String schemaId, byte[] data, byte[] hash) {
+        // Step 1: Store the schema data into a new BookKeeper ledger
         IndexEntry emptyIndex = new IndexEntry();
         emptyIndex.setVersion(0);
         emptyIndex.setHash(hash);
         emptyIndex.setPosition().setEntryId(-1L).setLedgerId(-1L);
+        CompletableFuture<PositionInfo> stored = addNewSchemaEntryToStore(
+                schemaId, Collections.singletonList(emptyIndex), data
+        );
 
-        return addNewSchemaEntryToStore(schemaId, Collections.singletonList(emptyIndex), data).thenCompose(position -> {
-            // The schema was stored in the ledger, now update the z-node with the pointer to it
+        return stored.thenCompose(position -> {
+            // Step 2: Create the schema locator z-node pointing to the ledger
             IndexEntry info = new IndexEntry();
             info.setVersion(0);
             info.setPosition().copyFrom(position);
             info.setHash(hash);
-
             SchemaLocator locator = new SchemaLocator();
             locator.setInfo().copyFrom(info);
             locator.addIndex().copyFrom(info);
+            // Step 3: Handle failure by cleaning up the orphan ledger
+            // if concurrent schema creation caused a CAS conflict
             return createSchemaLocator(getSchemaPath(schemaId), locator)
-                            .thenApply(ignore -> 0L);
+                    .thenApply(ignore -> 0L)
+                    .exceptionallyCompose(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        log.warn()
+                                .attr("schemaId", schemaId)
+                                .attr("ledgerId", position.getLedgerId())
+                                .exception(cause)
+                                .log("Failed to create schema locator with position");
+                        if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
+                            return deleteLedgerAsync(schemaId, position.getLedgerId(),
+                                    "schema locator creation failed")
+                                    .thenCompose(__ -> FutureUtil.failedFuture(cause));
+                        }
+                        return FutureUtil.failedFuture(cause);
+                    });
         });
     }
 
@@ -476,30 +494,46 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         return updateSchemaLocator(getSchemaPath(schemaId),
                 newLocator
                 , locatorEntry.version
-        ).thenApply(ignore -> nextVersion).whenComplete((__, ex) -> {
-            if (ex != null) {
-                Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.warn()
-                        .attr("schemaId", schemaId)
-                        .attr("position", position)
-                        .exception(cause)
-                        .log("Failed to update schema locator with position");
-                if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
-                    bookKeeper.asyncDeleteLedger(position.getLedgerId(), new AsyncCallback.DeleteCallback() {
-                        @Override
-                        public void deleteComplete(int rc, Object ctx) {
-                            if (rc != BKException.Code.OK) {
-                                log.warn()
-                                        .attr("schemaId", schemaId)
-                                        .attr("ledgerId", position.getLedgerId())
-                                        .attr("rc", rc)
-                                        .log("Failed to delete ledger after updating schema locator failed, rc");
-                            }
-                        }
-                    }, null);
-                }
+        ).thenApply(ignore -> nextVersion).exceptionallyCompose(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.warn()
+                    .attr("schemaId", schemaId)
+                    .attr("ledgerId", position.getLedgerId())
+                    .exception(cause)
+                    .log("Failed to update schema locator with position");
+            if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
+                return deleteLedgerAsync(schemaId, position.getLedgerId(),
+                        "schema locator update failed")
+                        .thenCompose(__ -> FutureUtil.failedFuture(cause));
             }
+            return FutureUtil.failedFuture(cause);
         });
+    }
+
+    private CompletableFuture<Void> deleteLedgerAsync(String schemaId, long ledgerId, String reason) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+                if (rc != BKException.Code.OK) {
+                    log.warn()
+                            .attr("schemaId", schemaId)
+                            .attr("ledgerId", ledgerId)
+                            .attr("rc", rc)
+                            .attr("reason", reason)
+                            .log("Failed to delete orphan schema ledger");
+                }
+                future.complete(null);
+            }, null);
+        } catch (Throwable t) {
+            log.warn()
+                    .attr("schemaId", schemaId)
+                    .attr("ledgerId", ledgerId)
+                    .attr("reason", reason)
+                    .exception(t)
+                    .log("Failed to trigger orphan schema ledger deletion");
+            future.complete(null);
+        }
+        return future;
     }
 
     @NonNull

@@ -771,7 +771,7 @@ public class ClientErrorsTest {
         AtomicBoolean msgSent = new AtomicBoolean();
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false, false));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
@@ -812,7 +812,7 @@ public class ClientErrorsTest {
         CountDownLatch latch = new CountDownLatch(1);
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false, false));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();

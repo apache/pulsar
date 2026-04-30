@@ -4105,6 +4105,7 @@ public interface Namespaces {
      *
      * @param namespace pulsar namespace name
      * @param isAllowAutoUpdateSchema flag to enable or disable auto update schema
+     * @param allowAutoUpdateSchemaWithReplicator whether replicator can auto update schema
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
@@ -4112,19 +4113,20 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema)
+    void setIsAllowAutoUpdateSchema(String namespace, boolean isAllowAutoUpdateSchema,
+                                    Boolean allowAutoUpdateSchemaWithReplicator)
             throws PulsarAdminException;
 
+
     /**
-     * Set whether to allow automatic schema updates asynchronously.
-     * <p/>
-     * The flag is when producer bring a new schema and the schema pass compatibility check
-     * whether allow schema auto registered
+     * Set whether to allow automatic schema updates and replicator schema updates in one call asynchronously.
      *
      * @param namespace pulsar namespace name
      * @param isAllowAutoUpdateSchema flag to enable or disable auto update schema
+     * @param allowAutoUpdateSchemaWithReplicator whether replicator can auto update schema
      */
-    CompletableFuture<Void> setIsAllowAutoUpdateSchemaAsync(String namespace, boolean isAllowAutoUpdateSchema);
+    CompletableFuture<Void> setIsAllowAutoUpdateSchemaAsync(String namespace, boolean isAllowAutoUpdateSchema,
+                                                            Boolean allowAutoUpdateSchemaWithReplicator);
 
     /**
      * Set the offload configuration for all the topics in a namespace.

@@ -137,7 +137,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
                     long id = sequence.getAndIncrement();
                     log.info().attr("ledgerId", id).log("Creating ledger");
                     PulsarMockLedgerHandle lh =
-                            new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd);
+                            new PulsarMockLedgerHandle(PulsarMockBookKeeper.this, id, digestType, passwd, properties);
                     ledgers.put(id, lh);
                     return FutureUtils.value(lh);
                 } catch (Throwable t) {

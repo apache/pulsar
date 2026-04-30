@@ -489,11 +489,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
     }
 
     @Override
-    public void markDeletePositionMoveForward() {
+    public void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion) {
+        super.afterAckMessages(exOfDeletion, ctxOfDeletion);
         // Execute the notification in different thread to avoid a mutex chain here
         // from the delete operation that was completed
         topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
             synchronized (PersistentStickyKeyDispatcherMultipleConsumersClassic.this) {
+                super.markDeletePositionMoveForward();
                 if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
                         && removeConsumersFromRecentJoinedConsumers()) {
                     // After we process acks, we need to check whether the mark-delete position was advanced and we

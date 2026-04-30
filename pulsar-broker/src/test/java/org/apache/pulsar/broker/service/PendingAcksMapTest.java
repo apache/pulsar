@@ -31,6 +31,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.pulsar.common.util.collections.IntIntPair;
 import org.testng.annotations.Test;
 
 public class PendingAcksMapTest {
@@ -117,7 +118,8 @@ public class PendingAcksMapTest {
         pendingAcksMap.addPendingAckIfAllowed(1L, 2L, 1, 124);
         pendingAcksMap.addPendingAckIfAllowed(2L, 1L, 1, 125);
 
-        pendingAcksMap.removeAllUpTo(1L, 2L);
+        pendingAcksMap.removeAllUpTo(1L, 2L, (ledgerId, entryId, batchSize, stickyKeyHash) -> {
+        });
 
         assertFalse(pendingAcksMap.contains(1L, 1L));
         assertFalse(pendingAcksMap.contains(1L, 2L));
@@ -134,7 +136,8 @@ public class PendingAcksMapTest {
         pendingAcksMap.addPendingAckIfAllowed(2L, 2L, 1, 126);
         pendingAcksMap.addPendingAckIfAllowed(3L, 1L, 1, 127);
 
-        pendingAcksMap.removeAllUpTo(2L, 1L);
+        pendingAcksMap.removeAllUpTo(2L, 1L, (ledgerId, entryId, batchSize, stickyKeyHash) -> {
+        });
 
         assertFalse(pendingAcksMap.contains(1L, 1L));
         assertFalse(pendingAcksMap.contains(1L, 2L));
@@ -176,11 +179,34 @@ public class PendingAcksMapTest {
         pendingAcksMap.addPendingAckIfAllowed(1L, 2L, 1, 124);
         pendingAcksMap.addPendingAckIfAllowed(2L, 1L, 1, 125);
 
-        pendingAcksMap.removeAllUpTo(1L, 2L);
+        pendingAcksMap.removeAllUpTo(1L, 2L, (ledgerId, entryId, batchSize, stickyKeyHash) -> {
+        });
 
         verify(removeHandler).handleRemoving(consumer, 1L, 1L, 123, false);
         verify(removeHandler).handleRemoving(consumer, 1L, 2L, 124, false);
         verify(removeHandler, never()).handleRemoving(consumer, 2L, 1L, 125, false);
+    }
+
+    @Test
+    public void removeAllUpToWithCallback_InvokesCallbackForEachRemovedEntry() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 3, 123);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 2L, 5, 124);
+        pendingAcksMap.addPendingAckIfAllowed(2L, 1L, 7, 125);
+
+        List<int[]> callbackInvocations = new ArrayList<>();
+        pendingAcksMap.removeAllUpTo(1L, 2L,
+                (ledgerId, entryId, batchSize, stickyKeyHash) -> {
+                    callbackInvocations.add(new int[]{(int) ledgerId, (int) entryId, batchSize, stickyKeyHash});
+                });
+
+        assertEquals(callbackInvocations.size(), 2);
+        assertEquals(callbackInvocations.get(0), new int[]{1, 1, 3, 123});
+        assertEquals(callbackInvocations.get(1), new int[]{1, 2, 5, 124});
+        assertFalse(pendingAcksMap.contains(1L, 1L));
+        assertFalse(pendingAcksMap.contains(1L, 2L));
+        assertTrue(pendingAcksMap.contains(2L, 1L));
     }
 
     @Test
@@ -192,5 +218,85 @@ public class PendingAcksMapTest {
         pendingAcksMap.addPendingAckIfAllowed(2L, 1L, 1, 125);
 
         assertEquals(pendingAcksMap.size(), 3);
+    }
+
+    @Test
+    public void forEachAndClear_ProcessesAndClearsAllPendingAcks() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, 123);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 2L, 1, 124);
+
+        List<Long> processedEntries = new ArrayList<>();
+        pendingAcksMap.forEachAndClear((ledgerId, entryId, batchSize, stickyKeyHash) -> processedEntries.add(entryId));
+
+        assertEquals(processedEntries, List.of(1L, 2L));
+        assertEquals(pendingAcksMap.size(), 0);
+    }
+
+    @Test
+    public void forEachAndClear_AllowsAddingAfterClear() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, 123);
+
+        pendingAcksMap.forEachAndClear((ledgerId, entryId, batchSize, stickyKeyHash) -> {});
+
+        // Unlike forEachAndClose, forEachAndClear should allow new additions
+        boolean result = pendingAcksMap.addPendingAckIfAllowed(1L, 2L, 1, 124);
+        assertTrue(result);
+        assertTrue(pendingAcksMap.contains(1L, 2L));
+    }
+
+    @Test
+    public void forEachAndClear_InvokesRemoveHandler() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap.PendingAcksRemoveHandler removeHandler = mock(PendingAcksMap.PendingAcksRemoveHandler.class);
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> removeHandler);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 1, 123);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 2L, 1, 124);
+
+        pendingAcksMap.forEachAndClear((ledgerId, entryId, batchSize, stickyKeyHash) -> {});
+
+        verify(removeHandler).startBatch();
+        verify(removeHandler).handleRemoving(consumer, 1L, 1L, 123, false);
+        verify(removeHandler).handleRemoving(consumer, 1L, 2L, 124, false);
+        verify(removeHandler).endBatch();
+    }
+
+    @Test
+    public void removeAndGet_RemovesAndReturnsEntry() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 5, 123);
+
+        IntIntPair result = pendingAcksMap.removeAndGet(1L, 1L);
+
+        assertTrue(result != null);
+        assertEquals(result.leftInt(), 5);
+        assertEquals(result.rightInt(), 123);
+        assertFalse(pendingAcksMap.contains(1L, 1L));
+    }
+
+    @Test
+    public void removeAndGet_ReturnsNullWhenNotFound() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> null);
+
+        IntIntPair result = pendingAcksMap.removeAndGet(1L, 1L);
+
+        assertTrue(result == null);
+    }
+
+    @Test
+    public void removeAndGet_InvokesRemoveHandler() {
+        Consumer consumer = createMockConsumer("consumer1");
+        PendingAcksMap.PendingAcksRemoveHandler removeHandler = mock(PendingAcksMap.PendingAcksRemoveHandler.class);
+        PendingAcksMap pendingAcksMap = new PendingAcksMap(consumer, () -> null, () -> removeHandler);
+        pendingAcksMap.addPendingAckIfAllowed(1L, 1L, 5, 123);
+
+        pendingAcksMap.removeAndGet(1L, 1L);
+
+        verify(removeHandler).handleRemoving(consumer, 1L, 1L, 123, false);
     }
 }

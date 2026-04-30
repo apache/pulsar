@@ -73,6 +73,7 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
         config.setDefaultNumPartitions(1);
     }
 
+    @Override
     @Test(enabled = false)
     public void testDeleteTopicWhenReplicating() throws Exception {
         super.testDeleteTopicWhenReplicating();
@@ -82,6 +83,13 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
     @Test(enabled = false)
     public void testReplicatorProducerStatInTopic() throws Exception {
         super.testReplicatorProducerStatInTopic();
+    }
+
+    @Override
+    @Test(enabled = false)
+    public void testMultipleVersionSchemas(boolean isAllowAutoUpdateSchema,
+                                           Boolean allowAutoUpdateSchemaWithReplicator) throws Exception {
+        super.testDeleteTopicWhenReplicating();
     }
 
     @Override

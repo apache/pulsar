@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnl
 import static org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope.changed;
 import static org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope.none;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -40,6 +41,7 @@ import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.grpc.netty.shaded.io.netty.util.concurrent.FastThreadLocal;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
@@ -3305,6 +3307,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
     }
 
+    static final FastThreadLocal<Boolean> COUNTER_AVOID_COUNTING_ADD_SCHEMA_REPEATEDLY = new FastThreadLocal<>() {
+        @Override
+        protected Boolean initialValue() throws Exception {
+            return false;
+        }
+    };
+
     private AtomicInteger injectSchemaCheckCounterForTopic(String topicName) {
         final var topics = pulsar.getBrokerService().getTopics();
         AbstractTopic topic = (AbstractTopic) topics.get(topicName).join().get();
@@ -3314,9 +3323,23 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 counter.incrementAndGet();
-                return invocation.callRealMethod();
+                COUNTER_AVOID_COUNTING_ADD_SCHEMA_REPEATEDLY.set(true);
+                try {
+                    return invocation.callRealMethod();
+                }  finally {
+                    COUNTER_AVOID_COUNTING_ADD_SCHEMA_REPEATEDLY.set(false);
+                }
             }
         }).when(spyTopic).addSchema(any(SchemaData.class));
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                if (!COUNTER_AVOID_COUNTING_ADD_SCHEMA_REPEATEDLY.get()) {
+                    counter.incrementAndGet();
+                }
+                return invocation.callRealMethod();
+            }
+        }).when(spyTopic).addSchema(any(SchemaData.class), anyBoolean());
         doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {

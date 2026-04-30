@@ -111,6 +111,8 @@ dependencies {
     testImplementation(project(path = ":pulsar-package-management:pulsar-package-core", configuration = "testJar"))
     testImplementation(libs.bookkeeper.common) { artifact { classifier = "tests" } }
     testImplementation(libs.zookeeper) { artifact { classifier = "tests" } }
+    testImplementation(project(":pulsar-client-v5"))
+    testImplementation(project(":pulsar-client-api-v5"))
     testImplementation(project(":pulsar-functions:pulsar-functions-local-runner-original"))
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
     testImplementation(project(":pulsar-io:pulsar-io-batch-discovery-triggerers"))

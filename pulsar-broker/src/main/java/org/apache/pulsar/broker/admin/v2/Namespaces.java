@@ -2813,10 +2813,18 @@ public class Namespaces extends NamespacesBase {
     public void setIsAllowAutoUpdateSchema(
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace,
+            @QueryParam("allowAutoUpdateSchemaWithReplicator")
+            @ApiParam(value = "Allow replicator to auto update schema")
+                    Boolean allowAutoUpdateSchemaWithReplicator,
             @ApiParam(value = "Flag of whether to allow auto update schema", required = true)
                     boolean isAllowAutoUpdateSchema) {
         validateNamespaceName(tenant, namespace);
-        internalSetIsAllowAutoUpdateSchema(isAllowAutoUpdateSchema);
+        if (isAllowAutoUpdateSchema && allowAutoUpdateSchemaWithReplicator != null
+                && !allowAutoUpdateSchemaWithReplicator) {
+            throw new RestException(Response.Status.BAD_REQUEST, "Can not enable for all producers but denies for"
+                    + " replicators, which is meaningless");
+        }
+        internalSetIsAllowAutoUpdateSchema(isAllowAutoUpdateSchema, allowAutoUpdateSchemaWithReplicator);
     }
 
     @GET

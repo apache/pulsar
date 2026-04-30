@@ -454,7 +454,7 @@ public class ProxyConnection extends PulsarHandler {
             state = State.ProxyLookupRequests;
             lookupProxyHandler = service.newLookupProxyHandler(this);
             startAuthRefreshTaskIfNotStarted();
-            final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false);
+            final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false, false);
             writeAndFlush(msg);
         }
     }
@@ -467,7 +467,8 @@ public class ProxyConnection extends PulsarHandler {
             int maxMessageSize =
                     connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
             final ByteBuf msg = Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
-                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers());
+                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers(),
+                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsScalableTopics());
             writeAndFlush(msg);
             // Start auth refresh task only if we are not forwarding authorization credentials
             if (!service.getConfiguration().isForwardAuthorizationCredentials()) {

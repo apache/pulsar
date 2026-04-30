@@ -4023,6 +4023,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.addEntry(String.valueOf(i).getBytes(Encoding));
         }
 
+        // Wait for all ledger rolls to complete before reading. With maxEntriesPerLedger=1 and 3 entries,
+        // we expect 4 ledgers (3 closed + 1 current empty). If we read before the last roll completes,
+        // the last entry is read from currentLedger directly (not via ledgerCache), causing ledgerCache
+        // to have fewer entries than expected.
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 4));
+
         // clear the cache to avoid flakiness
         factory.getEntryCacheManager().clear();
 

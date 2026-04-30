@@ -44,6 +44,7 @@ import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.admin.ResourceQuotas;
+import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.Sinks;
@@ -104,6 +105,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
     private final Packages packages;
     private final Transactions transactions;
     private final MetadataMigration metadataMigration;
+    private final ScalableTopics scalableTopics;
     protected final WebTarget root;
     protected final Authentication auth;
     @Getter
@@ -190,6 +192,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.packages = new PackagesImpl(root, auth, asyncHttpConnector, requestTimeoutMs);
         this.transactions = new TransactionsImpl(root, auth, requestTimeoutMs);
         this.metadataMigration = new MetadataMigrationImpl(root, auth, requestTimeoutMs);
+        this.scalableTopics = new ScalableTopicsImpl(root, auth, requestTimeoutMs);
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
@@ -429,6 +432,11 @@ public class PulsarAdminImpl implements PulsarAdmin {
     @Override
     public MetadataMigration metadataMigration() {
         return metadataMigration;
+    }
+
+    @Override
+    public ScalableTopics scalableTopics() {
+        return scalableTopics;
     }
 
     /**

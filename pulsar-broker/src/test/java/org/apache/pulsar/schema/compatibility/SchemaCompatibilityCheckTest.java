@@ -347,7 +347,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
-        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false, true);
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
                 .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
@@ -359,7 +359,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
 
-        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true);
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true, true);
         ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
                 SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
@@ -382,7 +382,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         producer.close();
         consumerTwo.close();
 
-        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false, true);
 
         producer = producerThreeBuilder.create();
         consumerTwo = comsumerBuilder.subscribe();
@@ -427,7 +427,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();
         admin.schemas().createSchema(fqtn, schemaInfo);
 
-        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false, true);
         ProducerBuilder<Schemas.PersonOne> producerOneBuilder = pulsarClient
                 .newProducer(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(fqtn);

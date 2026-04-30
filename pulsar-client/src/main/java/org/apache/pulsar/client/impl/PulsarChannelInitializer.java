@@ -35,6 +35,7 @@ import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -57,6 +58,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final InetSocketAddress socks5ProxyAddress;
     private final String socks5ProxyUsername;
     private final String socks5ProxyPassword;
+    private final Socks5ProxyScope socks5ProxyScope;
     private final ClientConfigurationData conf;
     private final Map<String, PulsarSslFactory> pulsarSslFactoryMap;
 
@@ -71,6 +73,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         this.socks5ProxyAddress = conf.getSocks5ProxyAddress();
         this.socks5ProxyUsername = conf.getSocks5ProxyUsername();
         this.socks5ProxyPassword = conf.getSocks5ProxyPassword();
+        this.socks5ProxyScope = conf.getSocks5ProxyScope();
         this.conf = conf.clone();
         if (tlsEnabled) {
             this.pulsarSslFactoryMap = new ConcurrentHashMap<>();
@@ -154,7 +157,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     CompletableFuture<Channel> initSocks5IfConfig(Channel ch) {
         CompletableFuture<Channel> initSocks5Future = new CompletableFuture<>();
-        if (socks5ProxyAddress != null) {
+        // Only apply SOCKS5 to the binary protocol path when the scope includes binary connections.
+        if (socks5ProxyAddress != null && socks5ProxyScope.appliesToBinary()) {
             ch.eventLoop().execute(() -> {
                 try {
                     Socks5ProxyHandler socks5ProxyHandler =

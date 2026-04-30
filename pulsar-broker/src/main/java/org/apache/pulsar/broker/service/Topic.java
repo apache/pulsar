@@ -310,6 +310,14 @@ public interface Topic {
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
 
     /**
+     * Add a schema to the topic, with an optional override for replication schema auto-update.
+     * The default implementation preserves existing behavior.
+     */
+    default CompletableFuture<SchemaVersion> addSchema(SchemaData schema, boolean isReplicatorProducer) {
+        return addSchema(schema);
+    }
+
+    /**
      * Delete the schema if this topic has a schema defined for it.
      */
     CompletableFuture<SchemaVersion> deleteSchema();

@@ -1292,6 +1292,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = false,
             category = CATEGORY_POLICIES,
+            doc = "Enables the scalable-topics V5 API on this broker. When disabled, "
+                    + "the broker advertises supports_scalable_topics=false in CommandConnected "
+                    + "feature flags and rejects scalable-topic commands from clients."
+    )
+    private boolean scalableTopicsEnabled = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
             doc = "Max length of subscription pattern"
     )
     private int subscriptionPatternMaxLength = 50;

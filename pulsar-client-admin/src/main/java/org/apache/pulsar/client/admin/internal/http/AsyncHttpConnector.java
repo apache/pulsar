@@ -27,6 +27,7 @@ import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.PERMANE
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.SEE_OTHER_303;
 import static org.asynchttpclient.util.HttpConstants.ResponseStatusCodes.TEMPORARY_REDIRECT_307;
 import static org.asynchttpclient.util.MiscUtils.isNonEmpty;
+import com.google.common.annotations.VisibleForTesting;
 import com.spotify.futures.ConcurrencyReducer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.DefaultHttpHeaders;
@@ -61,6 +62,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
@@ -84,10 +86,13 @@ import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.ListenableFuture;
+import org.asynchttpclient.Realm;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.SslEngineFactory;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
+import org.asynchttpclient.proxy.ProxyServer;
+import org.asynchttpclient.proxy.ProxyType;
 import org.asynchttpclient.uri.Uri;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
@@ -239,6 +244,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
             }
         });
         confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
+        configureSocks5ProxyIfNeeded(confBuilder, conf);
     }
 
     protected AsyncHttpClient createAsyncHttpClient(AsyncHttpClientConfig asyncHttpClientConfig) {
@@ -570,6 +576,43 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     @Override
     public String getName() {
         return "Pulsar-Admin";
+    }
+
+    /**
+     * Configure SOCKS5 proxy for the underlying Netty-based async-http-client if
+     * {@link ClientConfigurationData#getSocks5ProxyAddress()} is set. The configuration keys
+     * (socks5ProxyAddress / socks5ProxyUsername / socks5ProxyPassword) are shared with the
+     * pulsar-client module so that admin and client behave consistently.
+     *
+     * <p>async-http-client's {@link ProxyServer} with {@link ProxyType#SOCKS_V5} is backed by
+     * Netty's {@code Socks5ProxyHandler}, which is injected into the channel pipeline when
+     * establishing a new connection.
+     */
+    @VisibleForTesting
+    static void configureSocks5ProxyIfNeeded(DefaultAsyncHttpClientConfig.Builder confBuilder,
+                                             ClientConfigurationData conf) {
+        if (conf == null) {
+            return;
+        }
+        InetSocketAddress socks5Address = conf.getSocks5ProxyAddress();
+        if (socks5Address == null) {
+            return;
+        }
+        if (!conf.getSocks5ProxyScope().appliesToHttp()) {
+            return;
+        }
+        ProxyServer.Builder proxyBuilder =
+                new ProxyServer.Builder(socks5Address.getHostString(), socks5Address.getPort())
+                        .setProxyType(ProxyType.SOCKS_V5);
+        String socks5Username = conf.getSocks5ProxyUsername();
+        if (StringUtils.isNotBlank(socks5Username)) {
+            Realm realm = new Realm.Builder(socks5Username, conf.getSocks5ProxyPassword())
+                    .setScheme(Realm.AuthScheme.BASIC)
+                    .build();
+            proxyBuilder.setRealm(realm);
+        }
+        confBuilder.setProxyServer(proxyBuilder.build());
+        log.info().attr("proxy", socks5Address).log("Pulsar admin client is using SOCKS5 proxy");
     }
 
     @Override

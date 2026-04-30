@@ -40,11 +40,14 @@ import io.netty.channel.Channel;
 import io.netty.util.concurrent.FastThreadLocalThread;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -67,6 +70,7 @@ import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -96,16 +100,21 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ClientImplInternalSetter;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -113,6 +122,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -231,6 +241,199 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             admin1.topics().delete(topicName);
             admin2.topics().delete(topicName);
         });
+    }
+
+    @DataProvider
+    public Object[][] autoUpdateSchemaParams() {
+        return new Object[][] {
+                {true, true},
+                {true, null},
+                {false, true},
+                {false, false},
+                {false, null},
+        };
+    }
+
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Data
+    private static class Customer {
+        String name;
+        int age;
+    }
+
+    @Test(dataProvider = "autoUpdateSchemaParams")
+    public void testMultipleVersionSchemas(boolean isAllowAutoUpdateSchema,
+                                           Boolean allowAutoUpdateSchemaWithReplicator) throws Exception {
+        final String ns = BrokerTestUtil.newUniqueName("public/ns");
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + ns + "/tp_123");
+        final String subscribeName = "s1";
+        admin1.namespaces().createNamespace(ns);
+        admin2.namespaces().createNamespace(ns);
+        admin1.topics().createNonPartitionedTopic(topicName);
+        admin1.namespaces().setNamespaceReplicationClusters(ns,
+                new HashSet<>(Arrays.asList(cluster1, cluster2)), true);
+        waitReplicatorStarted(topicName);
+        admin1.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+        admin2.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, null);
+        RetentionPolicies retentionPolicies = new RetentionPolicies(10, 1);
+        admin1.namespaces().setRetention(ns, retentionPolicies);
+        admin2.namespaces().setRetention(ns, retentionPolicies);
+        PersistentTopic topic1 = (PersistentTopic) broker1.getTopic(topicName, false).join().get();
+        PersistentTopic topic2 = (PersistentTopic) broker2.getTopic(topicName, false).join().get();
+        Awaitility.await().untilAsserted(() -> {
+            HierarchyTopicPolicies policies1 = topic1.getHierarchyTopicPolicies();
+            HierarchyTopicPolicies policies2 = topic2.getHierarchyTopicPolicies();
+            assertEquals(policies1.getSchemaCompatibilityStrategy().get(),
+                    SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+            assertEquals(policies2.getSchemaCompatibilityStrategy().get(),
+                    SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
+            assertTrue(topic1.isAllowAutoUpdateSchema);
+            assertTrue(topic1.isAllowAutoUpdateSchemaWithReplicator);
+            assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
+            assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
+            assertEquals(policies1.getRetentionPolicies().get().getRetentionTimeInMinutes(), 10);
+            assertEquals(policies2.getRetentionPolicies().get().getRetentionTimeInMinutes(), 10);
+        });
+        // Build different schemas.
+        HashMap<String, String> schemaProps = new HashMap<>();
+        schemaProps.put("__jsr310ConversionEnabled", "false");
+        schemaProps.put("__alwaysAllowNull", "true");
+        SchemaInfoImpl schemaInfoV1 = new SchemaInfoImpl("", """
+            {
+              "type" : "record",
+              "name" : "Student",
+              "namespace" : "org.apache.pulsar.broker.service.OneWayReplicatorTest",
+              "fields" : [ {
+                "name" : "age",
+                "type" : "int"
+              }]
+            }
+        """.getBytes(StandardCharsets.UTF_8), SchemaType.AVRO, 0, schemaProps);
+        SchemaInfoImpl schemaInfoV2 = new SchemaInfoImpl("", """
+            {
+              "type" : "record",
+              "name" : "Student",
+              "namespace" : "org.apache.pulsar.broker.service.OneWayReplicatorTest",
+              "fields" : [ {
+                "name" : "age",
+                "type" : "int"
+              }, {
+                "name" : "name",
+                "type" : [ "null", "string" ],
+                "default" : null
+              } ]
+            }
+        """.getBytes(StandardCharsets.UTF_8), SchemaType.AVRO, 0, schemaProps);
+        admin1.schemas().createSchema(topicName, schemaInfoV1);
+        admin1.schemas().createSchema(topicName, schemaInfoV2);
+        long longSchemaVersion1 = admin1.schemas().getVersionBySchemaAsync(topicName, schemaInfoV1)
+                .get(2, TimeUnit.SECONDS);
+        long longSchemaVersion2 = admin1.schemas().getVersionBySchemaAsync(topicName, schemaInfoV2)
+                .get(2, TimeUnit.SECONDS);
+        LongSchemaVersion schemaVersion1 = new LongSchemaVersion(longSchemaVersion1);
+        LongSchemaVersion schemaVersion2 = new LongSchemaVersion(longSchemaVersion2);
+
+        // Publish messages with different schemas.
+        ProducerImpl<byte[]> producer1 =
+                (ProducerImpl<byte[]>) client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName).create();
+        TypedMessageBuilderImpl typedMessageBuilder1 = (TypedMessageBuilderImpl) producer1
+                .newMessage(Schema.AVRO(Customer.class)).value(new Customer(null, 16));
+        MessageImpl message1 = (MessageImpl) typedMessageBuilder1.getMessage();
+        message1.getMessageBuilder().setSchemaVersion(schemaVersion1.bytes());
+        ClientImplInternalSetter.setMessageSchemaState(message1, "Ready");
+        producer1.send(message1);
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats topicStats = admin1.topics().getStats(topicName);
+            assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
+        });
+
+        // Change policies.
+        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema,
+                allowAutoUpdateSchemaWithReplicator);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(topic1.isAllowAutoUpdateSchema);
+            assertTrue(topic1.isAllowAutoUpdateSchemaWithReplicator);
+            assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
+            if (allowAutoUpdateSchemaWithReplicator != null && !allowAutoUpdateSchemaWithReplicator) {
+                assertFalse(topic2.isAllowAutoUpdateSchemaWithReplicator);
+            } else {
+                assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
+            }
+        });
+
+        TypedMessageBuilderImpl typedMessageBuilder2 = (TypedMessageBuilderImpl) producer1
+                .newMessage(Schema.AVRO(Customer.class)).value(new Customer("Apache", 26));
+        MessageImpl message2 = (MessageImpl) typedMessageBuilder2.getMessage();
+        message2.getMessageBuilder().setSchemaVersion(schemaVersion2.bytes());
+        ClientImplInternalSetter.setMessageSchemaState(message2, "Ready");
+        producer1.send(message2);
+        if (allowAutoUpdateSchemaWithReplicator != null && !allowAutoUpdateSchemaWithReplicator) {
+            Thread.sleep(3000);
+            // The message can not be replicated to the remote side.
+            TopicStats topicStats = admin1.topics().getStats(topicName);
+            assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 1);
+            producer1.close();
+            return;
+        }
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats topicStats = admin1.topics().getStats(topicName);
+            assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
+        });
+
+        // Verify: the messages were built successfully.
+        admin1.topics().createSubscription(topicName, subscribeName, MessageId.earliest);
+        Consumer<Customer> consumer1 = client1.newConsumer(Schema.AVRO(Customer.class))
+                .subscriptionName(subscribeName).topic(topicName).subscribe();
+        Message<Customer> msg1 = consumer1.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg1);
+        byte[] bytesVersion1 = msg1.getSchemaVersion();
+        assertEquals(ByteBuffer.wrap(bytesVersion1).getLong(), longSchemaVersion1);
+        assertNull(msg1.getValue().getName());
+        assertEquals(msg1.getValue().getAge(), 16);
+        consumer1.acknowledge(msg1);
+        Message<Customer> msg2 = consumer1.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg2);
+        byte[] bytesVersion2 = msg2.getSchemaVersion();
+        assertEquals(ByteBuffer.wrap(bytesVersion2).getLong(), longSchemaVersion2);
+        assertEquals(msg2.getValue().getName(), "Apache");
+        assertEquals(msg2.getValue().getAge(), 26);
+        consumer1.acknowledge(msg2);
+
+        admin2.topics().createSubscription(topicName, subscribeName, MessageId.earliest);
+        Consumer<Customer> consumer2 = client2.newConsumer(Schema.AVRO(Customer.class))
+                .subscriptionName(subscribeName).topic(topicName).subscribe();
+        Message<Customer> msg21 = consumer2.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg21);
+        byte[] bytesVersion21 = msg21.getSchemaVersion();
+        assertEquals(ByteBuffer.wrap(bytesVersion21).getLong(), 0);
+        assertNull(msg21.getValue().getName());
+        assertEquals(msg21.getValue().getAge(), 16);
+        consumer2.acknowledge(msg21);
+        Message<Customer> msg22 = consumer2.receive(5, TimeUnit.SECONDS);
+        if (allowAutoUpdateSchemaWithReplicator != null && !allowAutoUpdateSchemaWithReplicator) {
+            assertNull(msg22);
+        } else {
+            assertNotNull(msg22);
+            byte[] bytesVersion22 = msg22.getSchemaVersion();
+            assertEquals(ByteBuffer.wrap(bytesVersion22).getLong(), 1);
+            assertEquals(msg22.getValue().getName(), "Apache");
+            assertEquals(msg22.getValue().getAge(), 26);
+            consumer2.acknowledge(msg22);
+        }
+
+        // cleanup.
+        consumer1.close();
+        consumer2.close();
+        producer1.close();
+        admin1.namespaces().setNamespaceReplicationClusters(ns,
+                new HashSet<>(Arrays.asList(cluster1)), true);
+        waitReplicatorStopped(pulsar1, pulsar2, topicName);
+        admin1.topics().delete(topicName);
+        admin2.topics().delete(topicName);
     }
 
     @Test

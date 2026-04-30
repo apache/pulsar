@@ -160,6 +160,23 @@ public class ClientCnx extends PulsarHandler {
                     .expectedItems(16)
                     .concurrencyLevel(1)
                     .build();
+    @Getter(AccessLevel.PACKAGE)
+    private final ConcurrentLongHashMap<DagWatchSession> dagWatchSessions =
+            ConcurrentLongHashMap.<DagWatchSession>newBuilder()
+                    .expectedItems(4)
+                    .concurrencyLevel(1)
+                    .build();
+
+    /**
+     * Per-consumer scalable subscribe sessions, keyed by the {@code consumerId} the V5
+     * client assigned at subscribe time. The broker tags every
+     * {@link CommandScalableTopicAssignmentUpdate} with this id.
+     */
+    private final ConcurrentLongHashMap<ScalableConsumerSession> scalableConsumerSessions =
+            ConcurrentLongHashMap.<ScalableConsumerSession>newBuilder()
+                    .expectedItems(4)
+                    .concurrencyLevel(1)
+                    .build();
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
@@ -202,6 +219,8 @@ public class ClientCnx extends PulsarHandler {
     private boolean brokerSupportsReplDedupByLidAndEid;
     @Getter
     private boolean supportsTopicWatcherReconcile;
+    @Getter
+    private boolean supportsScalableTopics;
 
     /** Idle stat. **/
     @Getter
@@ -354,12 +373,16 @@ public class ClientCnx extends PulsarHandler {
         consumers.forEach((id, consumer) -> consumer.connectionClosed(this, Optional.empty(), Optional.empty()));
         transactionMetaStoreHandlers.forEach((id, handler) -> handler.connectionClosed(this));
         topicListWatchers.forEach((__, watcher) -> watcher.connectionClosed(this));
+        dagWatchSessions.forEach((__, session) -> session.connectionClosed());
+        scalableConsumerSessions.forEach((__, session) -> session.connectionClosed());
 
         waitingLookupRequests.clear();
 
         producers.clear();
         consumers.clear();
         topicListWatchers.clear();
+        dagWatchSessions.clear();
+        scalableConsumerSessions.clear();
 
         timeoutTask.cancel(true);
     }
@@ -414,6 +437,8 @@ public class ClientCnx extends PulsarHandler {
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsReplDedupByLidAndEid();
         supportsTopicWatcherReconcile =
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatcherReconcile();
+        supportsScalableTopics =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsScalableTopics();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
@@ -1080,29 +1105,25 @@ public class ClientCnx extends PulsarHandler {
     }
 
     private <T> void sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
-                                                                 RequestType requestType, boolean flush,
-                                                                 TimedCompletableFuture<T> future) {
+                                                 RequestType requestType, boolean flush,
+                                                 TimedCompletableFuture<T> future) {
         pendingRequests.put(requestId, future);
-        if (flush) {
-            ctx.writeAndFlush(requestMessage).addListener(writeFuture -> {
-                if (!writeFuture.isSuccess()) {
-                    if (pendingRequests.remove(requestId, future) && !future.isDone()) {
-                        log.warn()
-                                .attr("send", requestType.getDescription())
-                                .exceptionMessage(writeFuture.cause())
-                                .log("Failed to send to broker");
-                        future.completeExceptionally(writeFuture.cause());
-                    }
+        (flush ? ctx.writeAndFlush(requestMessage) : ctx.write(requestMessage)).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                if (pendingRequests.remove(requestId, future) && !future.isDone()) {
+                    log.warn()
+                            .attr("send", requestType.getDescription())
+                            .exceptionMessage(writeFuture.cause())
+                            .log("Failed to send to broker");
+                    future.completeExceptionally(writeFuture.cause());
                 }
-            });
-        } else {
-            ctx.write(requestMessage, ctx().voidPromise());
-        }
+            }
+        });
         requestTimeoutQueue.add(new RequestTime(requestId, requestType));
     }
 
     private <T> CompletableFuture<T> sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
-                                                 RequestType requestType, boolean flush) {
+                                                   RequestType requestType, boolean flush) {
         TimedCompletableFuture<T> future = new TimedCompletableFuture<>();
         sendRequestAndHandleTimeout(requestMessage, requestId, requestType, flush, future);
         return future;
@@ -1308,6 +1329,102 @@ public class ClientCnx extends PulsarHandler {
             log.warn().attr("watcherId", watcherId)
                     .log("Received topic list update for unknown watcher from server");
         }
+    }
+
+    @Override
+    protected void handleCommandScalableTopicUpdate(
+            org.apache.pulsar.common.api.proto.CommandScalableTopicUpdate cmd) {
+        checkArgument(state == State.Ready);
+
+        long sessionId = cmd.getSessionId();
+        log.debug().attr("sessionId", sessionId).log("Received scalableTopicUpdate");
+
+        if (cmd.hasError()) {
+            // Error response for the initial lookup
+            DagWatchSession session = dagWatchSessions.remove(sessionId);
+            if (session != null) {
+                session.onError(cmd.getError(), cmd.hasMessage() ? cmd.getMessage() : null);
+            } else {
+                log.warn().attr("sessionId", sessionId)
+                        .log("Received scalable topic error for unknown session");
+            }
+            return;
+        }
+
+        DagWatchSession session = dagWatchSessions.get(sessionId);
+        if (session != null) {
+            session.onUpdate(cmd.getDag());
+        } else {
+            log.warn().attr("sessionId", sessionId)
+                    .log("Received scalable topic update for unknown session");
+        }
+    }
+
+    public void registerDagWatchSession(long sessionId, DagWatchSession session) {
+        dagWatchSessions.put(sessionId, session);
+    }
+
+    public void removeDagWatchSession(long sessionId) {
+        dagWatchSessions.remove(sessionId);
+    }
+
+    @Override
+    protected void handleCommandScalableTopicSubscribeResponse(
+            org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse cmd) {
+        checkArgument(state == State.Ready);
+
+        long requestId = cmd.getRequestId();
+        log.debug().attr("requestId", requestId).log("Received scalableTopicSubscribeResponse");
+
+        if (cmd.hasError()) {
+            CompletableFuture<? extends Object> requestFuture = pendingRequests.remove(requestId);
+            if (requestFuture != null && !requestFuture.isDone()) {
+                requestFuture.completeExceptionally(new PulsarClientException(
+                        "Scalable topic subscribe failed: " + cmd.getError()
+                                + (cmd.hasMessage() ? " - " + cmd.getMessage() : "")));
+            }
+            return;
+        }
+
+        @SuppressWarnings("unchecked")
+        TimedCompletableFuture<org.apache.pulsar.common.api.proto.ScalableConsumerAssignment>
+                requestFuture = (TimedCompletableFuture<
+                org.apache.pulsar.common.api.proto.ScalableConsumerAssignment>) pendingRequests.remove(requestId);
+        if (requestFuture == null || requestFuture.isDone()) {
+            log.warn().attr("requestId", requestId)
+                    .log("Received scalable topic subscribe response for unknown / completed request");
+            return;
+        }
+        // Defensive copy: the proto payload's backing buffer is reused by the decoder
+        // once we return. Build a snapshot the future's downstream consumers can hold.
+        var assignment = new org.apache.pulsar.common.api.proto.ScalableConsumerAssignment();
+        assignment.copyFrom(cmd.getAssignment());
+        requestFuture.complete(assignment);
+    }
+
+    @Override
+    protected void handleCommandScalableTopicAssignmentUpdate(
+            org.apache.pulsar.common.api.proto.CommandScalableTopicAssignmentUpdate cmd) {
+        checkArgument(state == State.Ready);
+
+        long consumerId = cmd.getConsumerId();
+        ScalableConsumerSession session = scalableConsumerSessions.get(consumerId);
+        if (session == null) {
+            log.warn().attr("consumerId", consumerId)
+                    .log("Received scalable topic assignment update for unknown consumer");
+            return;
+        }
+        var assignment = new org.apache.pulsar.common.api.proto.ScalableConsumerAssignment();
+        assignment.copyFrom(cmd.getAssignment());
+        session.onAssignmentUpdate(assignment);
+    }
+
+    public void registerScalableConsumerSession(long consumerId, ScalableConsumerSession session) {
+        scalableConsumerSessions.put(consumerId, session);
+    }
+
+    public void removeScalableConsumerSession(long consumerId) {
+        scalableConsumerSessions.remove(consumerId);
     }
 
     /**

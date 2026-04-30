@@ -39,11 +39,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.PulsarHttpAsyncSslEngineFactory;
@@ -55,10 +57,13 @@ import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
+import org.asynchttpclient.Realm;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.SslEngineFactory;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
+import org.asynchttpclient.proxy.ProxyServer;
+import org.asynchttpclient.proxy.ProxyType;
 
 
 @CustomLog
@@ -143,6 +148,7 @@ public class HttpClient implements Closeable {
         }
         confBuilder.setEventLoopGroup(eventLoopGroup);
         confBuilder.setNettyTimer(timer);
+        configureSocks5ProxyIfNeeded(confBuilder, conf);
         AsyncHttpClientConfig config = confBuilder.build();
         httpClient = new DefaultAsyncHttpClient(config);
 
@@ -380,6 +386,40 @@ public class HttpClient implements Closeable {
         } catch (Exception e) {
             log.error().exception(e).log("Failed to refresh SSL context");
         }
+    }
+
+    /**
+     * Configure SOCKS5 proxy on the async-http-client builder when the proxy address is set and
+     * the configured {@link Socks5ProxyScope} includes HTTP traffic.
+     *
+     * <p>The default scope for {@code PulsarClient} is {@link Socks5ProxyScope#BINARY_ONLY}, so
+     * HTTP lookups and failover HTTP clients will NOT use the proxy unless the caller explicitly
+     * sets the scope to {@link Socks5ProxyScope#HTTP_ONLY} or {@link Socks5ProxyScope#BOTH}.
+     */
+    private static void configureSocks5ProxyIfNeeded(DefaultAsyncHttpClientConfig.Builder confBuilder,
+                                                     ClientConfigurationData conf) {
+        if (conf == null) {
+            return;
+        }
+        InetSocketAddress socks5Address = conf.getSocks5ProxyAddress();
+        if (socks5Address == null) {
+            return;
+        }
+        if (!conf.getSocks5ProxyScope().appliesToHttp()) {
+            return;
+        }
+        ProxyServer.Builder proxyBuilder =
+                new ProxyServer.Builder(socks5Address.getHostString(), socks5Address.getPort())
+                        .setProxyType(ProxyType.SOCKS_V5);
+        String socks5Username = conf.getSocks5ProxyUsername();
+        if (StringUtils.isNotBlank(socks5Username)) {
+            Realm realm = new Realm.Builder(socks5Username, conf.getSocks5ProxyPassword())
+                    .setScheme(Realm.AuthScheme.BASIC)
+                    .build();
+            proxyBuilder.setRealm(realm);
+        }
+        confBuilder.setProxyServer(proxyBuilder.build());
+        log.info().attr("proxy", socks5Address).log("Pulsar client HTTP lookup is using SOCKS5 proxy");
     }
 
 }

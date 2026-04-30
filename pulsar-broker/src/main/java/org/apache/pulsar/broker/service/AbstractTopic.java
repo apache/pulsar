@@ -141,6 +141,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     protected volatile boolean isEncryptionRequired = false;
 
     protected volatile Boolean isAllowAutoUpdateSchema;
+    @Getter
+    protected volatile Boolean isAllowAutoUpdateSchemaWithReplicator;
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
@@ -733,6 +735,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     @Override
     public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
+        return addSchema(schema, false);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> addSchema(SchemaData schema, boolean isReplicatorProducer) {
         if (schema == null) {
             return CompletableFuture.completedFuture(SchemaVersion.Empty);
         }
@@ -740,7 +747,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         String id = getSchemaId();
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
 
-        if (allowAutoUpdateSchema()) {
+        if (allowAutoUpdateSchema(isReplicatorProducer)) {
             return schemaRegistryService.putSchemaIfAbsent(id, schema, getSchemaCompatibilityStrategy());
         } else {
             return schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
@@ -756,14 +763,19 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         }
     }
 
-    private boolean allowAutoUpdateSchema() {
+    private boolean allowAutoUpdateSchema(boolean isReplicatorProducer) {
         if (brokerService.isSystemTopic(topic)) {
             return true;
         }
-        if (isAllowAutoUpdateSchema == null) {
-            return brokerService.pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
+        // Allowed auto updating.
+        boolean allowSchemaAutoUpdate = isAllowAutoUpdateSchema == null
+                ? brokerService.pulsar().getConfig().isAllowAutoUpdateSchemaEnabled()
+                : isAllowAutoUpdateSchema;
+        if (allowSchemaAutoUpdate) {
+            return true;
         }
-        return isAllowAutoUpdateSchema;
+        // Allowed replicator to update schemas.
+        return isReplicatorProducer && isAllowAutoUpdateSchemaWithReplicator;
     }
 
     @Override

@@ -2758,13 +2758,18 @@ public abstract class NamespacesBase extends AdminResource {
                 "schemaValidationEnforced");
     }
 
-    protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema) {
+    protected void internalSetIsAllowAutoUpdateSchema(boolean isAllowAutoUpdateSchema,
+                                                      Boolean isAllowAutoUpdateSchemaWithReplicator) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
 
         mutatePolicy((policies) -> {
                     policies.is_allow_auto_update_schema = isAllowAutoUpdateSchema;
+                    if (isAllowAutoUpdateSchemaWithReplicator != null) {
+                        policies.is_allow_auto_update_schema_with_replicator =
+                                isAllowAutoUpdateSchemaWithReplicator;
+                    }
                     return policies;
                 }, (policies) -> policies.is_allow_auto_update_schema,
                 "isAllowAutoUpdateSchema");

@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-
 /**
  * Builder interface that is used to configure and construct a {@link PulsarClient} instance.
  *
@@ -722,6 +721,22 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * @return the client builder instance
      */
     ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
+
+    /**
+     * Set the scope that controls which connections are routed through the SOCKS5 proxy.
+     *
+     * <p>The default is {@link Socks5ProxyScope#BINARY_ONLY}, which preserves the pre-existing
+     * behavior where the SOCKS5 proxy only applied to Pulsar binary protocol connections to brokers.
+     * HTTP lookup and failover HTTP clients inside {@code PulsarClient} were not affected.
+     *
+     * <p>Set to {@link Socks5ProxyScope#HTTP_ONLY} or {@link Socks5ProxyScope#BOTH} to also route
+     * HTTP/HTTPS lookup traffic and failover HTTP clients through the SOCKS5 proxy.
+     *
+     * @param socks5ProxyScope the scope selector; must not be {@code null}
+     * @return the client builder instance
+     * @see Socks5ProxyScope
+     */
+    ClientBuilder socks5ProxyScope(Socks5ProxyScope socks5ProxyScope);
 
     /**
      * Set the SSL Factory Plugin for custom implementation to create SSL Context and SSLEngine.

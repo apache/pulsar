@@ -330,11 +330,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         for (int i = 0; i < 3; i++) {
             producer.send(String.format("%d", i).getBytes());
         }
-        TopicStats stats = pulsarAdmin.topics().getStats(inputTopicName, true);
-        SubscriptionStats subStats = stats.getSubscriptions().get("public/default/" + functionName);
-        assertNotNull(subStats);
-        assertEquals(3, subStats.getMsgBacklog());
-        assertEquals(3, subStats.getUnackedMessages());
+        awaitAndVerifySubscriptionStats(inputTopicName, functionName, 3, 3);
 
         for (int i = 3; i < numOfMessages; i++) {
             producer.send(String.format("%d", i).getBytes());
@@ -363,15 +359,26 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
 
         // test that all messages are acked
-        stats = pulsarAdmin.topics().getStats(inputTopicName, true);
-        subStats = stats.getSubscriptions().get("public/default/" + functionName);
-        assertNotNull(subStats);
-        assertEquals(0, subStats.getMsgBacklog());
-        assertEquals(0, subStats.getUnackedMessages());
+        awaitAndVerifySubscriptionStats(inputTopicName, functionName, 0, 0);
 
         deleteFunction(functionName);
 
         getFunctionInfoNotFound(functionName);
+    }
+
+    private void awaitAndVerifySubscriptionStats(String inputTopicName, String functionName, int expectedBacklog,
+                                                 int expectedUnacked) {
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> {
+                    TopicStats currentStats = pulsarAdmin.topics().getStats(inputTopicName, true);
+                    SubscriptionStats currentSubStats =
+                            currentStats.getSubscriptions().get("public/default/" + functionName);
+                    assertNotNull(currentSubStats);
+                    // Compare actual to expected
+                    assertEquals(currentSubStats.getMsgBacklog(), expectedBacklog);
+                    assertEquals(currentSubStats.getUnackedMessages(), expectedUnacked);
+                });
     }
 
     protected void testFunctionNegAck(Runtime runtime) throws Exception {

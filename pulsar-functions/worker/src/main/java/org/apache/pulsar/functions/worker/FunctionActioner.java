@@ -267,6 +267,7 @@ public class FunctionActioner {
                 .attr("source", downloadFromHttp ? pkgLocationPath : pkgLocation)
                 .log("Function package file will be downloaded");
 
+        long downloadStartMs = System.currentTimeMillis();
         if (downloadFromHttp) {
             if (!packageUrlValidator.isValidPackageUrl(componentType, pkgLocationPath)) {
                 throw new IllegalArgumentException("Package URL " + pkgLocationPath + " is not valid");
@@ -282,6 +283,13 @@ public class FunctionActioner {
                         pkgLocationPath);
             }
         }
+        log.info().attr("tenant", details.getTenant())
+                .attr("namespace", details.getNamespace())
+                .attr("functionName", details.getName())
+                .attr("pkgFile", tempPkgFile)
+                .attr("sizeBytes", tempPkgFile.length())
+                .attr("durationMs", System.currentTimeMillis() - downloadStartMs)
+                .log("Function package file downloaded");
 
         try {
             // create a hardlink, if there are two concurrent createLink operations, one will fail.

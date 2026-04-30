@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -69,7 +70,14 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
                            DigestType digest, byte[] passwd) throws GeneralSecurityException {
-        super(bk.getClientCtx(), id, new Versioned<>(createMetadata(id, digest, passwd), new LongVersion(0L)),
+        this(bk, id, digest, passwd, Collections.emptyMap());
+    }
+
+    public PulsarMockLedgerHandle(PulsarMockBookKeeper bk, long id,
+                           DigestType digest, byte[] passwd,
+                           Map<String, byte[]> customMetadata) throws GeneralSecurityException {
+        super(bk.getClientCtx(), id,
+              new Versioned<>(createMetadata(id, digest, passwd, customMetadata), new LongVersion(0L)),
               digest, passwd, WriteFlag.NONE);
         this.bk = bk;
         this.id = id;
@@ -271,13 +279,17 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         return readHandle.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
-    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd) {
+    private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd,
+                                                   Map<String, byte[]> customMetadata) {
         List<BookieId> ensemble = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());
-        return LedgerMetadataBuilder.create()
+        LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
             .withDigestType(digest.toApiDigestType())
             .withPassword(passwd)
             .withId(id)
-            .newEnsembleEntry(0L, ensemble)
-            .build();
+            .newEnsembleEntry(0L, ensemble);
+        if (customMetadata != null && !customMetadata.isEmpty()) {
+            builder.withCustomMetadata(customMetadata);
+        }
+        return builder.build();
     }
 }

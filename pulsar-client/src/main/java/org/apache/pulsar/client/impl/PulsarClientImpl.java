@@ -423,7 +423,7 @@ public class PulsarClientImpl implements PulsarClient {
         if (isScalableDomain(topic)) {
             return FutureUtil.failedFuture(
                 new PulsarClientException.InvalidTopicNameException(
-                    "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                    "Scalable topics (topic://) require the V5 client SDK."
                     + " Topic: '" + topic + "'"));
         }
 
@@ -482,6 +482,98 @@ public class PulsarClientImpl implements PulsarClient {
             return null;
         });
         return checkPartitions;
+    }
+
+    /**
+     * Create a producer bypassing the scalable domain check.
+     * This is intended for internal use by the V5 client to create segment producers.
+     */
+    public <T> CompletableFuture<Producer<T>> createSegmentProducerAsync(
+            ProducerConfigurationData conf, Schema<T> schema) {
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
+        }
+        String topic = conf.getTopicName();
+        if (!TopicName.isValid(topic)) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+        }
+        return createProducerAsync(topic, conf, schema, null);
+    }
+
+    /**
+     * Create a reader against a segment topic bypassing the scalable domain check.
+     * This is intended for internal use by the V5 {@code CheckpointConsumer} to read each
+     * segment's underlying {@code segment://} topic.
+     */
+    public <T> CompletableFuture<Reader<T>> createSegmentReaderAsync(ReaderConfigurationData<T> conf,
+                                                                      Schema<T> schema) {
+        if (state.get() != State.Open) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+        }
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Reader configuration undefined"));
+        }
+        if (conf.getTopicNames().size() != 1) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException(
+                            "createSegmentReaderAsync requires exactly one topic, got "
+                                    + conf.getTopicNames().size()));
+        }
+        String topic = conf.getTopicName();
+        if (!TopicName.isValid(topic)) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+        }
+        if (conf.getStartMessageId() == null) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Invalid startMessageId"));
+        }
+        return preProcessSchemaBeforeSubscribe(this, schema, topic)
+                .thenCompose(schemaClone -> createSingleTopicReaderAsync(conf, schemaClone));
+    }
+
+    /**
+     * Subscribe to a segment topic bypassing the scalable domain check.
+     * This is intended for internal use by the V5 client to subscribe to per-segment v4
+     * topics for the {@code segment://} backing topics it owns.
+     */
+    public <T> CompletableFuture<Consumer<T>> subscribeSegmentAsync(ConsumerConfigurationData<T> conf,
+                                                                     Schema<T> schema) {
+        if (state.get() != State.Open) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+        }
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
+        }
+        if (conf.getTopicNames().size() != 1) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException(
+                            "subscribeSegmentAsync requires exactly one topic, got " + conf.getTopicNames().size()));
+        }
+        String topic = conf.getSingleTopic();
+        if (!TopicName.isValid(topic)) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidTopicNameException("Invalid topic name: '" + topic + "'"));
+        }
+        if (isBlank(conf.getSubscriptionName())) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Empty subscription name"));
+        }
+        return singleTopicSubscribeAsync(conf, schema, null);
+    }
+
+    /**
+     * Reject {@code topic://} (PIP-460 scalable topics) and {@code segment://} (the internal
+     * backing-topic domain used by V5 scalable topics). Users on the V4 SDK must switch to the
+     * V5 SDK for either.
+     */
+    private static boolean isScalableDomain(String topic) {
+        TopicName topicName = TopicName.get(topic);
+        return topicName.isScalable() || topicName.isSegment();
     }
 
     private <T> CompletableFuture<Producer<T>> createProducerAsync(String topic,
@@ -592,7 +684,7 @@ public class PulsarClientImpl implements PulsarClient {
             if (isScalableDomain(topic)) {
                 return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidTopicNameException(
-                        "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                        "Scalable topics (topic://) require the V5 client SDK."
                         + " Topic: '" + topic + "'"));
             }
         }
@@ -765,7 +857,7 @@ public class PulsarClientImpl implements PulsarClient {
             if (isScalableDomain(topic)) {
                 return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidTopicNameException(
-                        "Scalable topic domains (topic://, segment://) require the V5 client SDK."
+                        "Scalable topics (topic://) require the V5 client SDK."
                         + " Topic: '" + topic + "'"));
             }
         }
@@ -1217,7 +1309,7 @@ public class PulsarClientImpl implements PulsarClient {
         return producerIdGenerator.getAndIncrement();
     }
 
-    long newConsumerId() {
+    public long newConsumerId() {
         return consumerIdGenerator.getAndIncrement();
     }
 
@@ -1285,6 +1377,14 @@ public class PulsarClientImpl implements PulsarClient {
 
         try {
             TopicName topicName = TopicName.get(topic);
+            // Segment topics are internal storage units of a scalable topic and are never
+            // partitioned. Skip the broker partitioned-metadata lookup — the standard path
+            // isn't set up for the 4-component segment://tenant/ns/parent/descriptor name
+            // and will time out.
+            if (topicName.isSegment()) {
+                metadataFuture.complete(new PartitionedTopicMetadata(0));
+                return metadataFuture;
+            }
             AtomicLong opTimeoutMs = new AtomicLong(conf.getLookupTimeoutMs());
             Backoff backoff = Backoff.builder()
                     .initialDelay(Duration.ofNanos(conf.getInitialBackoffIntervalNanos()))
@@ -1468,10 +1568,5 @@ public class PulsarClientImpl implements PulsarClient {
 
     NameResolver<InetAddress> getNameResolver() {
         return DnsResolverUtil.adaptToNameResolver(addressResolver);
-    }
-
-    private static boolean isScalableDomain(String topic) {
-        TopicName topicName = TopicName.get(topic);
-        return topicName.isScalable() || topicName.isSegment();
     }
 }
