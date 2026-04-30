@@ -21,10 +21,8 @@ package org.apache.pulsar.broker.service.scalable;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
@@ -233,9 +231,11 @@ public class ScalableTopicController {
         SegmentInfo parent = currentLayout.getAllSegments().get(segmentId);
         String parentTopicName = toSegmentPersistentName(parent);
 
-        // Step 1: Discover subscriptions on the parent segment, then create child
-        // segment topics with those subscriptions (routed to owning brokers via admin API)
-        return discoverSubscriptions(parentTopicName)
+        // Step 1: Read the scalable topic's subscriptions from metadata (the single source
+        // of truth — segment topics may live on different brokers, but the subscription set
+        // is tracked here), then create child segment topics with those subscriptions
+        // already provisioned (the create call routes to each segment's owning broker).
+        return resources.listSubscriptionsAsync(topicName)
           .thenCompose(parentSubs -> {
               var subList = new java.util.ArrayList<>(parentSubs);
               return createSegmentTopic(child1, subList)
@@ -277,13 +277,10 @@ public class ScalableTopicController {
         String parent1Topic = toSegmentPersistentName(parent1);
         String parent2Topic = toSegmentPersistentName(parent2);
 
-        // Step 1: Discover subscriptions from both parents (union), then create merged segment
-        return discoverSubscriptions(parent1Topic)
-          .thenCombine(discoverSubscriptions(parent2Topic), (subs1, subs2) -> {
-              Set<String> allSubs = new LinkedHashSet<>(subs1);
-              allSubs.addAll(subs2);
-              return allSubs;
-          })
+        // Step 1: Read the scalable topic's subscriptions from metadata (single source of
+        // truth, see splitSegment), then create the merged segment topic with those
+        // subscriptions provisioned.
+        return resources.listSubscriptionsAsync(topicName)
           .thenCompose(parentSubs -> createSegmentTopic(merged, new java.util.ArrayList<>(parentSubs)))
 
           // Step 2: Terminate both parent segment topics
@@ -580,29 +577,6 @@ public class ScalableTopicController {
         } catch (PulsarServerException e) {
             return CompletableFuture.failedFuture(e);
         }
-    }
-
-    /**
-     * Discover all subscription names on a segment topic. Works whether the topic is
-     * on this broker or a remote one by using the admin client.
-     */
-    private CompletableFuture<Set<String>> discoverSubscriptions(String segmentTopicName) {
-        // Try local first (avoids RPC if the segment is on this broker)
-        return brokerService.getTopicIfExists(segmentTopicName)
-                .thenCompose(optTopic -> {
-                    if (optTopic.isPresent()) {
-                        return CompletableFuture.completedFuture(
-                                new LinkedHashSet<>(optTopic.get().getSubscriptions().keySet()));
-                    }
-                    // Topic is on a remote broker — use admin client
-                    try {
-                        return brokerService.getPulsar().getAdminClient()
-                                .topics().getSubscriptionsAsync(segmentTopicName)
-                                .thenApply(LinkedHashSet::new);
-                    } catch (PulsarServerException e) {
-                        return CompletableFuture.failedFuture(e);
-                    }
-                });
     }
 
     private CompletableFuture<Void> notifySubscriptions(SegmentLayout layout) {

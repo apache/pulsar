@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api.v5;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
@@ -118,14 +119,95 @@ public class V5MultiBrokerScalableTopicTest extends V5MultiBrokerClientBaseTest 
                 "expected controller leadership to spread across every broker, got " + leaders);
     }
 
-    // Split/merge redirected from a non-leader broker were drafted alongside this base
-    // test, but the controller's `discoverSubscriptions` uses
-    // `admin.topics().getSubscriptionsAsync` on a `segment://` URL, which the v4 Topics
-    // REST endpoint doesn't route (404). On single-broker the path is short-circuited by
-    // a local lookup; on multi-broker, when the segment isn't owned by the controller-
-    // leader broker the call fails. Add the split/merge cross-broker tests once the
-    // broker exposes a segment-aware subscription-listing path or the controller stops
-    // needing it.
+    /**
+     * Splitting a scalable topic must succeed when the request hits a non-leader broker:
+     * the admin layer redirects the call to the controller-leader broker via 307, the admin
+     * client follows the redirect, and the metadata reflects the split.
+     */
+    @Test
+    public void testSplitFromNonLeaderBrokerRedirectsToOwner() throws Exception {
+        String topic = newScalableTopic(1);
+
+        // Force the parent segment topic to load by producing a message — split's
+        // terminate step requires the segment to exist on its owning broker.
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+        producer.newMessage().value("warm-up").send();
+
+        int leaderIndex = findControllerLeaderIndex(topic);
+        int nonLeaderIndex = (leaderIndex + 1) % brokers.size();
+
+        long activeId = singleActiveSegmentId(topic);
+        // Issue the split through a non-leader broker's admin. Without redirect this would
+        // fail with a "not the leader" error; with redirect the leader applies the split.
+        admins.get(nonLeaderIndex).scalableTopics().splitSegment(topic, activeId);
+
+        Awaitility.await().untilAsserted(() -> {
+            int active = 0;
+            var meta = admin.scalableTopics().getMetadata(topic);
+            for (var seg : meta.getSegments().values()) {
+                if (seg.isActive()) {
+                    active++;
+                }
+            }
+            assertEquals(active, 2, "split must produce 2 active children");
+        });
+    }
+
+    /**
+     * Same as {@link #testSplitFromNonLeaderBrokerRedirectsToOwner()}, but for merge:
+     * prepare a topic with two adjacent active children (via a split), then merge them
+     * through a non-leader broker's admin and assert the merge completed.
+     */
+    @Test
+    public void testMergeFromNonLeaderBrokerRedirectsToOwner() throws Exception {
+        String topic = newScalableTopic(1);
+        // Warm-up — same reason as split: the parent segment topic must be loaded
+        // on its owning broker before split/merge can terminate it.
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+        producer.newMessage().value("warm-up").send();
+
+        long parentId = singleActiveSegmentId(topic);
+        admin.scalableTopics().splitSegment(topic, parentId);
+        Awaitility.await().untilAsserted(() -> {
+            int active = 0;
+            for (var seg : admin.scalableTopics().getMetadata(topic).getSegments().values()) {
+                if (seg.isActive()) {
+                    active++;
+                }
+            }
+            assertEquals(active, 2);
+        });
+
+        var meta = admin.scalableTopics().getMetadata(topic);
+        long[] activeIds = new long[2];
+        int idx = 0;
+        for (var seg : meta.getSegments().values()) {
+            if (seg.isActive()) {
+                activeIds[idx++] = seg.getSegmentId();
+            }
+        }
+
+        int leaderIndex = findControllerLeaderIndex(topic);
+        int nonLeaderIndex = (leaderIndex + 1) % brokers.size();
+        admins.get(nonLeaderIndex).scalableTopics()
+                .mergeSegments(topic, activeIds[0], activeIds[1]);
+
+        Awaitility.await().untilAsserted(() -> {
+            int active = 0;
+            for (var seg : admin.scalableTopics().getMetadata(topic).getSegments().values()) {
+                if (seg.isActive()) {
+                    active++;
+                }
+            }
+            assertEquals(active, 1, "merge must collapse to a single active segment");
+        });
+    }
 
     /**
      * A V5 StreamConsumer subscribed via a non-owning broker must still reach the controller
@@ -292,6 +374,25 @@ public class V5MultiBrokerScalableTopicTest extends V5MultiBrokerClientBaseTest 
         }
         throw new AssertionError("controller leader '" + leaderBrokerId
                 + "' does not match any broker in cluster");
+    }
+
+    /**
+     * Returns the segment id of the (single) active segment of {@code topic}. Convenience
+     * for tests that work on a freshly-created scalable topic with one initial segment.
+     */
+    private long singleActiveSegmentId(String topic) throws Exception {
+        var meta = admin.scalableTopics().getMetadata(topic);
+        long active = -1;
+        int count = 0;
+        for (var seg : meta.getSegments().values()) {
+            if (seg.isActive()) {
+                active = seg.getSegmentId();
+                count++;
+            }
+        }
+        assertEquals(count, 1, "expected exactly one active segment");
+        assertNotEquals(active, -1L);
+        return active;
     }
 
     private Thread drainStream(StreamConsumer<String> consumer, Set<String> all, Set<String> mine) {

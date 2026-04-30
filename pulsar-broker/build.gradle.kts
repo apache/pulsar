@@ -132,6 +132,7 @@ dependencies {
     testImplementation(libs.jetty.ee8.proxy)
     testImplementation(libs.jetty.websocket.jetty.client)
     testImplementation(libs.opentelemetry.sdk.testing)
+    testImplementation(libs.oxia.testcontainers)
     testRuntimeOnly(libs.avro.protobuf) {
         exclude(group = "com.google.protobuf")
     }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.oxia.testcontainers.OxiaContainer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -32,7 +33,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 import org.apache.pulsar.tests.ThreadLeakDetectorListener;
 
@@ -70,7 +70,7 @@ public class SharedMultiBrokerPulsarCluster {
 
     private static volatile SharedMultiBrokerPulsarCluster instance;
 
-    private TestZKServer zkServer;
+    private OxiaContainer oxiaServer;
     private String metadataStoreUrl;
     private BKCluster bkCluster;
     private final List<PulsarService> brokers = new ArrayList<>(NUM_BROKERS);
@@ -127,13 +127,16 @@ public class SharedMultiBrokerPulsarCluster {
     private void start() throws Exception {
         log.info().attr("brokers", NUM_BROKERS).log("Starting SharedMultiBrokerPulsarCluster");
 
-        // Real ZK server, not the in-memory store. Per-topic leader election (used by the
-        // ScalableTopicController) relies on per-session ephemeral nodes, and the in-memory
-        // store treats every connection on the same JVM as the same session — so multiple
-        // brokers all "win" the same election simultaneously. ZK gives each broker its own
-        // session and the proper Ephemeral / CAS semantics.
-        zkServer = new TestZKServer();
-        metadataStoreUrl = "zk:" + zkServer.getConnectionString();
+        // Real Oxia server (not the in-memory metadata store). Per-topic leader election
+        // (used by the ScalableTopicController) relies on per-session ephemeral nodes, and
+        // the in-memory store treats every connection on the same JVM as the same session
+        // — so multiple brokers all "win" the same election simultaneously. Oxia gives each
+        // broker its own session and the proper ephemeral / CAS semantics. Container-based
+        // because oxia ships no in-process server; tests skip cleanly when Docker isn't
+        // available.
+        oxiaServer = new OxiaContainer(OxiaContainer.DEFAULT_IMAGE_NAME);
+        oxiaServer.start();
+        metadataStoreUrl = "oxia://" + oxiaServer.getServiceAddress();
 
         // Single shared bookie. Same minimal config as SharedPulsarCluster — write quorum stays
         // at 1 across brokers because the bookie count is the limiting factor, not the brokers.
@@ -285,8 +288,8 @@ public class SharedMultiBrokerPulsarCluster {
         if (bkCluster != null) {
             bkCluster.close();
         }
-        if (zkServer != null) {
-            zkServer.close();
+        if (oxiaServer != null) {
+            oxiaServer.close();
         }
     }
 }
