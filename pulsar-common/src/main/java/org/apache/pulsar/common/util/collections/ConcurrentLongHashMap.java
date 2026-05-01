@@ -288,11 +288,25 @@ public class ConcurrentLongHashMap<V> {
         void accept(long key, V value);
     }
 
-    // A section is a portion of the hash map that is covered by a single
+    // A section is a portion of the hash map that is covered by a single lock. The keys, values
+    // and capacity arrays are bundled into an immutable Table snapshot so that readers always see
+    // a consistent (key, value, length) triple, eliminating the partial-publish race that the
+    // previous design had to paper over with Math.min(keys.length, values.length).
     @SuppressWarnings("serial")
     private static final class Section<V> extends StampedLock {
-        private volatile long[] keys;
-        private volatile V[] values;
+        private static final class Table<V> {
+            final long[] keys;
+            final V[] values;
+            final int capacity;
+
+            Table(long[] keys, V[] values, int capacity) {
+                this.keys = keys;
+                this.values = values;
+                this.capacity = capacity;
+            }
+        }
+
+        private volatile Table<V> table;
 
         private volatile int capacity;
         private final int initCapacity;
@@ -314,8 +328,7 @@ public class ConcurrentLongHashMap<V> {
                 float expandFactor, float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
             this.initCapacity = this.capacity;
-            this.keys = new long[this.capacity];
-            this.values = (V[]) new Object[this.capacity];
+            this.table = new Table<>(new long[this.capacity], (V[]) new Object[this.capacity], this.capacity);
             this.size = 0;
             this.usedBuckets = 0;
             this.autoShrink = autoShrink;
@@ -331,11 +344,10 @@ public class ConcurrentLongHashMap<V> {
             long stamp = tryOptimisticRead();
             boolean acquiredLock = false;
 
-            // add local variable here, so OutOfBound won't happen
-            long[] keys = this.keys;
-            V[] values = this.values;
-            // calculate table.length as capacity to avoid rehash changing capacity
-            int bucket = signSafeMod(keyHash, values.length);
+            Table<V> table = this.table;
+            long[] keys = table.keys;
+            V[] values = table.values;
+            int bucket = signSafeMod(keyHash, table.capacity);
 
             try {
                 while (true) {
@@ -357,10 +369,10 @@ public class ConcurrentLongHashMap<V> {
                             stamp = readLock();
                             acquiredLock = true;
 
-                            // update local variable
-                            keys = this.keys;
-                            values = this.values;
-                            bucket = signSafeMod(keyHash, values.length);
+                            table = this.table;
+                            keys = table.keys;
+                            values = table.values;
+                            bucket = signSafeMod(keyHash, table.capacity);
                             storedKey = keys[bucket];
                             storedValue = values[bucket];
                         }
@@ -372,7 +384,7 @@ public class ConcurrentLongHashMap<V> {
                             return null;
                         }
                     }
-                    bucket = (bucket + 1) & (values.length - 1);
+                    bucket = (bucket + 1) & (table.capacity - 1);
                 }
             } finally {
                 if (acquiredLock) {
@@ -385,7 +397,10 @@ public class ConcurrentLongHashMap<V> {
             int bucket = keyHash;
 
             long stamp = writeLock();
-            int capacity = this.capacity;
+            Table<V> table = this.table;
+            long[] keys = table.keys;
+            V[] values = table.values;
+            int capacity = table.capacity;
 
             // Remember where we find the first available spot
             int firstDeletedKey = -1;
@@ -453,10 +468,13 @@ public class ConcurrentLongHashMap<V> {
         private V remove(long key, Object value, int keyHash) {
             int bucket = keyHash;
             long stamp = writeLock();
+            Table<V> table = this.table;
+            long[] keys = table.keys;
+            V[] values = table.values;
+            int capacity = table.capacity;
 
             try {
                 while (true) {
-                    int capacity = this.capacity;
                     bucket = signSafeMod(bucket, capacity);
 
                     long storedKey = keys[bucket];
@@ -527,8 +545,9 @@ public class ConcurrentLongHashMap<V> {
                 if (autoShrink && capacity > initCapacity) {
                     shrinkToInitCapacity();
                 } else {
-                    Arrays.fill(keys, 0);
-                    Arrays.fill(values, EmptyValue);
+                    Table<V> table = this.table;
+                    Arrays.fill(table.keys, 0);
+                    Arrays.fill(table.values, EmptyValue);
                     this.size = 0;
                     this.usedBuckets = 0;
                 }
@@ -540,19 +559,20 @@ public class ConcurrentLongHashMap<V> {
         public void forEach(EntryProcessor<V> processor) {
             long stamp = tryOptimisticRead();
 
-            // We need to make sure that we read these 3 variables in a consistent way
-            int capacity = this.capacity;
-            long[] keys = this.keys;
-            V[] values = this.values;
+            Table<V> table = this.table;
+            int capacity = table.capacity;
+            long[] keys = table.keys;
+            V[] values = table.values;
 
             // Validate no rehashing
             if (!validate(stamp)) {
                 // Fallback to read lock
                 stamp = readLock();
 
-                capacity = this.capacity;
-                keys = this.keys;
-                values = this.values;
+                table = this.table;
+                capacity = table.capacity;
+                keys = table.keys;
+                values = table.values;
                 unlockRead(stamp);
             }
 
@@ -590,6 +610,9 @@ public class ConcurrentLongHashMap<V> {
             // Expand the hashmap
             long[] newKeys = new long[newCapacity];
             V[] newValues = (V[]) new Object[newCapacity];
+            Table<V> table = this.table;
+            long[] keys = table.keys;
+            V[] values = table.values;
 
             // Re-hash table
             for (int i = 0; i < keys.length; i++) {
@@ -600,8 +623,7 @@ public class ConcurrentLongHashMap<V> {
                 }
             }
 
-            keys = newKeys;
-            values = newValues;
+            this.table = new Table<>(newKeys, newValues, newCapacity);
             capacity = newCapacity;
             usedBuckets = size;
             resizeThresholdUp = (int) (capacity * mapFillFactor);
@@ -612,12 +634,9 @@ public class ConcurrentLongHashMap<V> {
             long[] newKeys = new long[initCapacity];
             V[] newValues = (V[]) new Object[initCapacity];
 
-            keys = newKeys;
-            values = newValues;
+            table = new Table<>(newKeys, newValues, initCapacity);
             size = 0;
             usedBuckets = 0;
-            // Capacity needs to be updated after the values, so that we won't see
-            // a capacity value bigger than the actual array size
             capacity = initCapacity;
             resizeThresholdUp = (int) (capacity * mapFillFactor);
             resizeThresholdBelow = (int) (capacity * mapIdleFactor);
