@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -75,6 +76,13 @@ public class ScalableTopicsWatcherSession {
     private final long watchId;
     private final NamespaceName namespace;
     private final Map<String, String> propertyFilters;
+    /**
+     * Hash of the topic set the client believes it has. Optional: present on
+     * reconnect, absent on first subscribe. When equal to the freshly-computed
+     * hash on the broker, {@link #start()} skips emitting the initial snapshot —
+     * the client's state is already correct.
+     */
+    private final String clientHash;
     private final ServerCnx cnx;
     private final ScalableTopicResources resources;
     private final ScheduledExecutorService scheduler;
@@ -102,12 +110,14 @@ public class ScalableTopicsWatcherSession {
     public ScalableTopicsWatcherSession(long watchId,
                                          NamespaceName namespace,
                                          Map<String, String> propertyFilters,
+                                         String clientHash,
                                          ServerCnx cnx,
                                          ScalableTopicResources resources,
                                          ScheduledExecutorService scheduler) {
         this.watchId = watchId;
         this.namespace = namespace;
         this.propertyFilters = propertyFilters == null ? Map.of() : propertyFilters;
+        this.clientHash = clientHash;
         this.cnx = cnx;
         this.resources = resources;
         this.scheduler = scheduler;
@@ -143,6 +153,17 @@ public class ScalableTopicsWatcherSession {
                         currentSet.addAll(initialTopics);
                     }
                     snapshotEmitted.set(true);
+                    // Hash short-circuit: if the client tells us it already has this
+                    // exact set (reconnect within an unchanged window), don't waste
+                    // bytes on the wire. Future Diffs flow as usual.
+                    if (clientHash != null) {
+                        String serverHash = TopicList.calculateHash(initialTopics);
+                        if (clientHash.equals(serverHash)) {
+                            log.info().attr("topics", initialTopics.size())
+                                    .log("Reconnect hash matched; skipping snapshot");
+                            return;
+                        }
+                    }
                     log.info().attr("topics", initialTopics.size()).log("Initial snapshot");
                     cnx.ctx().writeAndFlush(
                             Commands.newWatchScalableTopicsSnapshot(watchId, initialTopics));

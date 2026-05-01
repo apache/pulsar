@@ -880,6 +880,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             var kv = cmd.getPropertyFilterAt(i);
             propertyFilters.put(kv.getKey(), kv.getValue());
         }
+        final String clientHash = cmd.hasCurrentHash() ? cmd.getCurrentHash() : null;
 
         if (!this.service.getPulsar().isRunning()) {
             log.warn("WatchScalableTopics rejected: broker not ready");
@@ -909,7 +910,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     var session = new org.apache.pulsar.broker.service.scalable
                             .ScalableTopicsWatcherSession(watchId, namespaceName, propertyFilters,
-                                    this, resources, service.getPulsar().getExecutor());
+                                    clientHash, this, resources, service.getPulsar().getExecutor());
                     scalableTopicsWatchers.put(watchId, session);
 
                     session.start().exceptionally(ex -> {

@@ -1783,9 +1783,15 @@ public class Commands {
      *                        coordinator); pass {@code null} if not yet assigned
      * @param propertyFilters AND filters; empty / null = match all topics in the namespace
      */
+    /**
+     * @param currentHash optional hash of the client's currently-known topic set.
+     *                    Pass on reconnect to let the broker skip the snapshot when
+     *                    state hasn't changed; pass {@code null} on first subscribe.
+     */
     public static ByteBuf newWatchScalableTopics(long watchId, String namespace,
                                                   String consumerName,
-                                                  java.util.Map<String, String> propertyFilters) {
+                                                  java.util.Map<String, String> propertyFilters,
+                                                  String currentHash) {
         BaseCommand cmd = localCmd(Type.WATCH_SCALABLE_TOPICS);
         org.apache.pulsar.common.api.proto.CommandWatchScalableTopics watch =
                 cmd.setWatchScalableTopics()
@@ -1800,6 +1806,9 @@ public class Commands {
                         .setKey(entry.getKey())
                         .setValue(entry.getValue());
             }
+        }
+        if (currentHash != null) {
+            watch.setCurrentHash(currentHash);
         }
         return serializeWithSize(cmd);
     }

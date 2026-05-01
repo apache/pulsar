@@ -954,6 +954,12 @@ message CommandWatchScalableTopics {
     // Caller identity. Carried so a future namespace-level subscription coordinator
     // can key per-consumer assignments without a protocol bump.
     optional string consumer_name      = 4;
+    // Hash of the topics the client believes are currently in its set. Sent on
+    // reconnect; absent on first subscribe. If it matches the broker's freshly
+    // computed hash, the broker skips emitting the initial Snapshot — the client's
+    // local state is already correct and future Diffs will flow as usual. Same
+    // hash function as CommandGetTopicsOfNamespace (CRC32C over sorted topics).
+    optional string current_hash       = 5;
 }
 
 // Snapshot of the full matching set. Sent on initial subscribe and on every

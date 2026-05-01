@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +35,7 @@ import org.apache.pulsar.client.impl.ScalableTopicsWatcherSession;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.Backoff;
 
 /**
@@ -75,6 +77,14 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
     private final Backoff reconnectBackoff;
 
     private final CompletableFuture<List<String>> initialSnapshotFuture = new CompletableFuture<>();
+    /**
+     * Mirrors the broker's view of the matching set so we can hand a hash on
+     * reconnect — when the set hasn't changed, the broker skips emitting a
+     * fresh snapshot. Updated on every Snapshot replace and Diff apply.
+     * Synchronised because Snapshot / Diff arrive on the netty thread but the
+     * hash may be read on a reconnect callback running elsewhere.
+     */
+    private final Set<String> currentSet = Collections.synchronizedSet(new HashSet<>());
     private volatile Listener listener;
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
@@ -132,8 +142,11 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
             return;
         }
         newCnx.registerScalableTopicsWatcher(watchId, this);
+        // First subscribe: send no hash so the broker emits the initial snapshot
+        // unconditionally. snapshot is what populates initialSnapshotFuture.
         newCnx.ctx().writeAndFlush(Commands.newWatchScalableTopics(
-                        watchId, namespace.toString(), consumerName, propertyFilters))
+                        watchId, namespace.toString(), consumerName, propertyFilters,
+                        /* currentHash= */ null))
                 .addListener(writeFuture -> {
                     if (!writeFuture.isSuccess()) {
                         newCnx.removeScalableTopicsWatcher(watchId);
@@ -154,6 +167,11 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
         // Reset backoff on every successful snapshot — that's the broker confirming
         // the session is live and our local state is consistent.
         reconnectBackoff.reset();
+        // Replace local set so the next reconnect computes the right hash.
+        synchronized (currentSet) {
+            currentSet.clear();
+            currentSet.addAll(topics);
+        }
         if (!initialSnapshotFuture.isDone()) {
             initialSnapshotFuture.complete(topics);
             // The listener is set by the caller AFTER start() resolves, so the initial
@@ -177,6 +195,11 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
         }
         log.info().attr("added", added.size()).attr("removed", removed.size())
                 .log("Diff received");
+        // Apply removed before added — covers rapid remove-then-add of the same name.
+        synchronized (currentSet) {
+            currentSet.removeAll(removed);
+            currentSet.addAll(added);
+        }
         Listener l = listener;
         if (l != null) {
             try {
@@ -184,6 +207,21 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
             } catch (Exception e) {
                 log.error().exception(e).log("Listener threw on diff");
             }
+        }
+    }
+
+    /**
+     * Snapshot the current set under lock so the hash + the watch frame agree on
+     * the same view. CRC32C of sorted topic names — same function used by
+     * {@code CommandGetTopicsOfNamespace} so behaviour matches the existing
+     * topic-list watch on the wire.
+     */
+    private String currentSetHash() {
+        synchronized (currentSet) {
+            if (currentSet.isEmpty()) {
+                return TopicList.calculateHash(java.util.List.of());
+            }
+            return TopicList.calculateHash(new HashSet<>(currentSet));
         }
     }
 
@@ -242,8 +280,15 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
                     }
                     this.cnx = newCnx;
                     newCnx.registerScalableTopicsWatcher(watchId, this);
+                    // Reconnect: send the hash of our current set. If the broker's
+                    // freshly-computed hash matches, it skips emitting a Snapshot —
+                    // the watch is live and our local state is correct. Future
+                    // Diffs flow as usual; if the hash differs the broker sends a
+                    // Snapshot which we apply as a full-state replace.
+                    String hash = currentSetHash();
                     newCnx.ctx().writeAndFlush(Commands.newWatchScalableTopics(
-                                    watchId, namespace.toString(), consumerName, propertyFilters))
+                                    watchId, namespace.toString(), consumerName,
+                                    propertyFilters, hash))
                             .addListener(writeFuture -> {
                                 if (!writeFuture.isSuccess()) {
                                     newCnx.removeScalableTopicsWatcher(watchId);
@@ -251,10 +296,6 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
                                             .log("Watcher reconnect write failed");
                                     scheduleReconnect();
                                 }
-                                // On success the broker will push a fresh Snapshot; the
-                                // client converts it to a full-state replace via the
-                                // listener (or the listener absorbs it as part of the
-                                // multi-topic-consumer reconciliation).
                             });
                 })
                 .exceptionally(ex -> {
@@ -274,11 +315,14 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
     }
 
     /**
-     * Visible for testing — exposes the current set the broker has emitted so far.
-     * In production, the listener is the source of truth.
+     * Visible for testing — snapshot of the current set. In production, the
+     * listener is the source of truth; this method exists so tests can poke the
+     * watcher's hash-tracking state directly.
      */
     Set<String> currentSetForTesting() {
-        return new HashSet<>();
+        synchronized (currentSet) {
+            return new HashSet<>(currentSet);
+        }
     }
 
     long watchId() {
