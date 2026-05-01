@@ -157,12 +157,15 @@ public class ScalableTopicController {
     }
 
     /**
-     * Restore-path entry: type unknown, fall back to STREAM (the conservative default —
-     * STREAM is the only mode that needs parent-drain ordering anyway).
+     * Restore-path entry: consumer type isn't persisted in metadata yet, so we don't
+     * know whether the original subscription was STREAM (needs parent-drain ordering)
+     * or CHECKPOINT / QUEUE (mustn't have it — CHECKPOINT never drains parents because
+     * it doesn't create per-segment cursors). Default to <em>no enforcement</em>; on the
+     * first register-after-restore the controller calls
+     * {@link SubscriptionCoordinator#installDrainChecker} if the type is STREAM.
      */
     private SubscriptionCoordinator createCoordinator(String subscription) {
-        return createCoordinator(subscription,
-                ScalableConsumerType.STREAM);
+        return createCoordinator(subscription, null);
     }
 
     private SubscriptionCoordinator createCoordinator(String subscription,
@@ -173,10 +176,11 @@ public class ScalableTopicController {
         // CHECKPOINT consumers track position client-side via Checkpoints and don't even
         // create per-segment cursors — their parent never reports as drained, so the
         // ordering machinery would block their children indefinitely. QUEUE consumers
-        // are shared and accept out-of-order delivery by design.
-        boolean enforceParentDrain =
-                consumerType == ScalableConsumerType.STREAM;
-        SegmentDrainChecker checker = enforceParentDrain ? this::isSegmentDrained : null;
+        // are shared and accept out-of-order delivery by design. Null type (restore
+        // path) starts without a checker; it's installed lazily on first STREAM
+        // register.
+        SegmentDrainChecker checker =
+                consumerType == ScalableConsumerType.STREAM ? this::isSegmentDrained : null;
 
         // Defensive: PulsarService.getConfig() is null in some unit-test mocks. Fall
         // back to the SubscriptionCoordinator's default grace period in that case.
@@ -395,6 +399,13 @@ public class ScalableTopicController {
         checkLeader();
         SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
                 subscription, sub -> createCoordinator(sub, consumerType));
+        // The coordinator may have been created on the failover-restore path (consumer
+        // type unknown then; we defaulted to "no parent-drain enforcement"). Now that we
+        // know the type, upgrade if it's STREAM. installDrainChecker is a no-op if the
+        // coordinator already has a checker, so safe to call unconditionally.
+        if (consumerType == ScalableConsumerType.STREAM) {
+            coordinator.installDrainChecker(this::isSegmentDrained);
+        }
         return coordinator.registerConsumer(consumerName, consumerId, cnx)
                 .thenApply(assignments -> {
                     // Look up by name since the key may have been an existing session

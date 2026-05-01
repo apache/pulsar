@@ -198,6 +198,135 @@ public class SubscriptionCoordinatorTest {
         }
     }
 
+    /**
+     * After the drain poller has backed off, a fresh consumer registration must cancel
+     * the long-delay scheduled task and re-arm at the initial delay — otherwise the new
+     * consumer would wait the full backed-off delay before its first drain check.
+     * Regression for the review note: {@code ensureDrainPollerRunning} alone is a no-op
+     * when a task is already scheduled, so progress events have to cancel-and-rearm.
+     */
+    @Test
+    public void testFreshRegisterCancelsBackedOffPollAndRearmsImmediately() throws Exception {
+        java.util.concurrent.atomic.AtomicInteger checks = new java.util.concurrent.atomic.AtomicInteger();
+        SegmentDrainChecker checker = (segment, sub) -> {
+            checks.incrementAndGet();
+            return CompletableFuture.completedFuture(false);
+        };
+        // Initial 50ms, max 5s — exponential, several polls happen quickly.
+        SubscriptionCoordinator c = new SubscriptionCoordinator("test-sub",
+                topicName, initialLayout.splitSegment(0), resources, scheduler,
+                Duration.ofMillis(200), checker, Duration.ofMillis(50), Duration.ofSeconds(5));
+        try {
+            c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+            // Let a few polls happen so the backoff grows past the initial delay.
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .until(() -> checks.get() >= 3);
+
+            int countBefore = checks.get();
+            // Pretend the long-delay task is in flight by registering another consumer —
+            // the reset+rearm helper must fire a fresh check at ~initial delay (50ms).
+            c.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
+            // 250ms is well under any plausible backed-off delay; if the task wasn't
+            // cancelled and re-armed, no new check would land in this window.
+            Thread.sleep(250);
+            assertTrue(checks.get() > countBefore,
+                    "register-on-progress must cancel pending task and re-arm at initial delay");
+        } finally {
+            c.close();
+        }
+    }
+
+    /**
+     * close() during an in-flight poll must prevent the {@code whenComplete} rearm path
+     * from scheduling a new task — otherwise the controller goes away while a stale
+     * drain check is queued for execution.
+     */
+    @Test
+    public void testCloseRaceWithInFlightPollDoesNotLeakRearm() throws Exception {
+        // Drain checker that blocks until released — gives us a deterministic in-flight
+        // window that overlaps with close().
+        CompletableFuture<Boolean> blocking = new CompletableFuture<>();
+        java.util.concurrent.atomic.AtomicInteger checks = new java.util.concurrent.atomic.AtomicInteger();
+        SegmentDrainChecker checker = (segment, sub) -> {
+            checks.incrementAndGet();
+            return blocking;
+        };
+        SubscriptionCoordinator c = new SubscriptionCoordinator("test-sub",
+                topicName, initialLayout.splitSegment(0), resources, scheduler,
+                Duration.ofMillis(200), checker, Duration.ofMillis(20), Duration.ofSeconds(1));
+        c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+        // Wait until at least one poll has started.
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> checks.get() >= 1);
+
+        c.close();
+        // Release the in-flight check after close — its whenComplete will run with
+        // closed=true and must NOT schedule another task.
+        blocking.complete(false);
+
+        int countAfterClose = checks.get();
+        Thread.sleep(200);
+        assertEquals(checks.get(), countAfterClose,
+                "no further drain checks should fire after close()");
+    }
+
+    /**
+     * On controller-leader failover the restore path creates a coordinator without
+     * knowing the consumer type (not yet persisted in metadata). It must default to
+     * <em>no parent-drain enforcement</em> — picking STREAM as a "conservative default"
+     * would deadlock CHECKPOINT subscriptions, whose parents never report drained.
+     */
+    @Test
+    public void testRestoredCoordinatorStartsWithoutParentDrainOrdering() throws Exception {
+        // restoreConsumers installs a session and computes assignment immediately. With
+        // no drain checker the active children of the (sealed) split parent are eligible
+        // right away.
+        coordinator.restoreConsumers(java.util.List.of("consumer-1"));
+        SegmentLayout afterSplit = initialLayout.splitSegment(0);
+        Map<ConsumerSession, ConsumerAssignment> result =
+                coordinator.onLayoutChange(afterSplit).get();
+        ConsumerAssignment a = findByName(result, "consumer-1");
+        assertNotNull(a);
+        Set<Long> assigned = new HashSet<>(segmentIds(a));
+        // 4 active + 1 sealed + 2 split children — restore-path coordinator has no
+        // checker so children are NOT held back.
+        assertEquals(assigned.size(), 6,
+                "restored coordinator (no drain checker) must hand out every DAG segment "
+                        + "right away to avoid deadlocking CHECKPOINT/QUEUE subs, got "
+                        + assigned);
+    }
+
+    /**
+     * After a STREAM consumer reconnects to a restored coordinator, the controller is
+     * expected to install a real drain checker via
+     * {@link SubscriptionCoordinator#installDrainChecker(SegmentDrainChecker)}. Once
+     * installed, parent-drain ordering kicks in: children of an un-drained parent get
+     * filtered out of the next assignment.
+     */
+    @Test
+    public void testInstallDrainCheckerAfterRestoreEnablesOrdering() throws Exception {
+        coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+        SegmentLayout afterSplit = initialLayout.splitSegment(0);
+        coordinator.onLayoutChange(afterSplit).get();
+        // No checker yet → all 6 segments assigned.
+        assertEquals(segmentIds(findByName(coordinator.currentAssignment(), "consumer-1")).size(),
+                6);
+
+        // Install a checker that says "nothing is drained" → children of segment 0 must
+        // disappear from the next assignment.
+        Set<Long> drained = ConcurrentHashMap.newKeySet();
+        coordinator.installDrainChecker((segment, sub) ->
+                CompletableFuture.completedFuture(drained.contains(segment.segmentId())));
+        Set<Long> assigned = new HashSet<>(segmentIds(
+                findByName(coordinator.currentAssignment(), "consumer-1")));
+        // Parent stays (sealed always assignable); children of 0 are blocked.
+        assertTrue(assigned.contains(0L) && assigned.contains(1L) && assigned.contains(2L)
+                        && assigned.contains(3L),
+                "sealed parent + initial active segments must remain, got " + assigned);
+        assertEquals(assigned.size(), 4,
+                "active children of un-drained parent must be filtered after install, got "
+                        + assigned);
+    }
+
     @Test
     public void testEmptyAfterAllConsumersRemoved() throws Exception {
         coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();

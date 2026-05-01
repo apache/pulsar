@@ -90,7 +90,6 @@ public class SubscriptionCoordinator {
     private final ScalableTopicResources resources;
     private final ScheduledExecutorService scheduler;
     private final Duration gracePeriod;
-    private final SegmentDrainChecker drainChecker;
     private final Duration drainInitialDelay;
     private final Duration drainMaxDelay;
 
@@ -116,6 +115,14 @@ public class SubscriptionCoordinator {
     private final Backoff drainBackoff;
     private ScheduledFuture<?> drainPollTask;
     private boolean drainPollInProgress;
+    private boolean closed;
+    /**
+     * Drain checker installed on the coordinator. Mutable: starts null on the
+     * controller-leader-failover restore path (consumer type unknown until reconnect),
+     * upgraded to a real checker on first STREAM register via {@link #installDrainChecker}.
+     * Once non-null it stays non-null (we don't downgrade to no-ordering mid-flight).
+     */
+    private SegmentDrainChecker drainChecker;
 
     public SubscriptionCoordinator(String subscriptionName,
                                    TopicName topicName,
@@ -198,8 +205,7 @@ public class SubscriptionCoordinator {
                         // First consumer (or rejoining one) — kick off drain checks at the
                         // shortest delay rather than whatever long backoff we'd accumulated
                         // while idle.
-                        drainBackoff.reset();
-                        ensureDrainPollerRunning();
+                        resetAndRearmDrainPoll();
                         return result;
                     }
                 });
@@ -283,15 +289,35 @@ public class SubscriptionCoordinator {
         Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
         // New sealed segments may have appeared — restart drain checks from the
         // initial delay rather than continuing whatever long backoff we'd settled into.
-        drainBackoff.reset();
-        ensureDrainPollerRunning();
+        resetAndRearmDrainPoll();
         return CompletableFuture.completedFuture(result);
     }
 
     /**
+     * Install a drain checker on a coordinator that doesn't have one yet. Used on the
+     * first STREAM register against a coordinator that was created on the
+     * controller-failover restore path (where consumer type wasn't known and we
+     * defaulted to "no enforcement"). No-op if a checker is already installed.
+     */
+    synchronized void installDrainChecker(SegmentDrainChecker checker) {
+        if (this.drainChecker != null || checker == null) {
+            return;
+        }
+        this.drainChecker = checker;
+        log.info().log("Drain checker installed on existing coordinator; rebalancing");
+        if (!sessions.isEmpty()) {
+            rebalanceAndNotify();
+        }
+        resetAndRearmDrainPoll();
+    }
+
+    /**
      * Stop the periodic drain-status poller. Called by the controller on close. Idempotent.
+     * Also flips a {@code closed} flag so any {@link #pollDrainStatus()} iteration that's
+     * mid-flight aborts its rearm step instead of leaking a task into the executor.
      */
     public synchronized void close() {
+        closed = true;
         if (drainPollTask != null) {
             drainPollTask.cancel(false);
             drainPollTask = null;
@@ -342,28 +368,42 @@ public class SubscriptionCoordinator {
             }
         }
         if (changed) {
-            // Progress: a sealed segment is now drained. Reset the backoff so the next
-            // poll lands quickly — once one parent drains, others on the same DAG branch
-            // often follow shortly.
-            drainBackoff.reset();
+            // Progress: a sealed segment is now drained. Reset the backoff and re-arm so
+            // the next poll lands at the initial delay — once one parent drains, others
+            // on the same DAG branch often follow shortly.
             if (!sessions.isEmpty()) {
                 log.info().attr("drained", segmentIds).log("Sealed segments drained, rebalancing");
                 rebalanceAndNotify();
             }
+            resetAndRearmDrainPoll();
         }
     }
 
     /**
-     * (Re-)arm the drain poller. No-op when no {@link SegmentDrainChecker} was configured.
-     * Each iteration self-schedules the next via the {@link Backoff} so the cadence grows
-     * exponentially while sealed segments stay undrained — short delays at first (a fresh
-     * EARLIEST consumer typically drains the parent within seconds), capped at
+     * Cancel any pending drain-poll task, reset the backoff, and re-arm the poller. Used
+     * on every progress event (drain detected, layout change, fresh consumer) so the
+     * next check lands at {@link #drainInitialDelay} rather than at whatever long backoff
+     * we'd settled into during a quiet period.
+     */
+    private synchronized void resetAndRearmDrainPoll() {
+        drainBackoff.reset();
+        if (drainPollTask != null) {
+            drainPollTask.cancel(false);
+            drainPollTask = null;
+        }
+        ensureDrainPollerRunning();
+    }
+
+    /**
+     * (Re-)arm the drain poller. No-op when no {@link SegmentDrainChecker} was configured
+     * or when the coordinator has been {@link #close() closed}. Each iteration
+     * self-schedules the next via the {@link Backoff} so the cadence grows exponentially
+     * while sealed segments stay undrained — short delays at first (a fresh EARLIEST
+     * consumer typically drains the parent within seconds), capped at
      * {@link #drainMaxDelay} for long-tail backlogs.
-     *
-     * <p>Cancelled by {@link #close()} or when no sealed-undrained segments remain.
      */
     private void ensureDrainPollerRunning() {
-        if (drainChecker == null) {
+        if (closed || drainChecker == null) {
             return;
         }
         if (drainPollTask != null && !drainPollTask.isCancelled() && !drainPollTask.isDone()) {
@@ -383,7 +423,7 @@ public class SubscriptionCoordinator {
         List<SegmentInfo> toCheck;
         synchronized (this) {
             drainPollTask = null;
-            if (drainPollInProgress || sessions.isEmpty()) {
+            if (closed || drainPollInProgress || sessions.isEmpty()) {
                 return;
             }
             layout = currentLayout;
