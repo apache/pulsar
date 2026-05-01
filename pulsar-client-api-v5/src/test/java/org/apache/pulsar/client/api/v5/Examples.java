@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.v5.config.CompressionType;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
+import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -276,7 +277,7 @@ public class Examples {
         try (var consumer = client.newQueueConsumer(Schema.json(Order.class))
                 .topic("orders")
                 .subscriptionName("order-processor")
-                .ackTimeout(Duration.ofSeconds(30))
+                .processingTimeout(ProcessingTimeoutPolicy.of(Duration.ofSeconds(30)))
                 .negativeAckRedeliveryBackoff(
                         BackoffPolicy.exponential(Duration.ofSeconds(1), Duration.ofMinutes(5)))
                 .deadLetterPolicy(DeadLetterPolicy.of(5))
