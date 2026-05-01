@@ -746,6 +746,13 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
                 NullStatsLogger.INSTANCE, BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
+        // Wait for the async cache load triggered by initialize() to complete; otherwise
+        // getExcludedBookiesWithIsolationGroups returns an empty set when cachedRackConfiguration
+        // is still null. Same pattern used in testBookieInfoChange (#25473).
+        Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                assertNotNull(isolationPolicy.getBookieMappingCache()
+                        .getIfCached(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)));
+
         /* Test common cases */
         MutablePair<Set<String>, Set<String>> groups = new MutablePair<>();
         groups.setLeft(Sets.newHashSet(isolationGroup1));
