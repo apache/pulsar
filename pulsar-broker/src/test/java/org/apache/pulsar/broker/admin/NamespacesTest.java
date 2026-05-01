@@ -186,12 +186,18 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void cleanupAfterMethod() throws Exception{
-        // cleanup.
+    public void cleanupAfterMethod() {
+        // Best-effort cleanup. Transient infra failures (e.g. ZK session expiry from a
+        // long-running test or GC pause) can make the admin call fail here; log and
+        // continue so the test method's actual result is preserved.
         Set<String> existsNsSetAferSetup = Stream.concat(testLocalNamespaces.stream(), testGlobalNamespaces.stream())
                 .map(Objects::toString).collect(Collectors.toSet());
-        cleanupNamespaceByPredicate(this.testTenant, v -> !existsNsSetAferSetup.contains(v));
-        cleanupNamespaceByPredicate(this.testOtherTenant, v -> !existsNsSetAferSetup.contains(v));
+        try {
+            cleanupNamespaceByPredicate(this.testTenant, v -> !existsNsSetAferSetup.contains(v));
+            cleanupNamespaceByPredicate(this.testOtherTenant, v -> !existsNsSetAferSetup.contains(v));
+        } catch (Exception e) {
+            log.warn().exception(e).log("Failed to clean up namespaces after test method");
+        }
     }
 
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
