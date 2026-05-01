@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
@@ -60,7 +59,7 @@ import org.apache.pulsar.metadata.api.NotificationType;
  * <p>Any broker can serve this role: every broker observes the same metadata events
  * via the registered listener, so no coordinator is needed at the namespace level.
  */
-public class ScalableTopicsWatcherSession {
+public class ScalableTopicsWatcherSession implements ScalableTopicResources.NamespaceListener {
 
     private static final Logger LOG = Logger.get(ScalableTopicsWatcherSession.class);
     /**
@@ -89,7 +88,6 @@ public class ScalableTopicsWatcherSession {
 
     /** {@code /topics/<tenant>/<namespace>} — direct children are scalable topic records. */
     private final String basePath;
-    private final Consumer<Notification> notificationListener = this::onNotification;
 
     /**
      * Topics currently in the matching set. Maintained server-side so we can detect
@@ -129,18 +127,24 @@ public class ScalableTopicsWatcherSession {
                 .build();
     }
 
+    @Override
+    public NamespaceName getNamespaceName() {
+        return namespace;
+    }
+
     /**
-     * Start the watch: register the metadata listener first (so events during snapshot
-     * computation are queued, not lost), compute the initial filtered set, then emit
-     * the {@code Snapshot} frame. After that, deltas flow through the listener.
+     * Start the watch: register on the namespace listener registry first (so events
+     * during snapshot computation are queued, not lost), compute the initial filtered
+     * set, then emit the {@code Snapshot} frame. After that, deltas flow through the
+     * listener.
      */
     public CompletableFuture<Void> start() {
-        // Register listener BEFORE computing the initial set: any event that arrives
-        // mid-snapshot is captured by the listener and either (a) already in the
-        // initial set we're about to emit, in which case the redundant Add is a no-op
-        // on the client (set semantics), or (b) genuinely newer than the snapshot, in
-        // which case it correctly flows through as a Diff after the Snapshot frame.
-        resources.getStore().registerListener(notificationListener);
+        // Register BEFORE computing the initial set: any event that arrives mid-snapshot
+        // is captured by the listener and either (a) already in the initial set we're
+        // about to emit, in which case the redundant Add is a no-op on the client
+        // (set semantics), or (b) genuinely newer than the snapshot, in which case it
+        // correctly flows through as a Diff after the Snapshot frame.
+        resources.registerNamespaceListener(this);
 
         return resources.findScalableTopicsByPropertiesAsync(namespace, propertyFilters)
                 .thenAccept(initialTopics -> {
@@ -171,24 +175,21 @@ public class ScalableTopicsWatcherSession {
     }
 
     /**
-     * Visible for testing — invoked by the metadata-store listener registered in
-     * {@link #start()}. Hot-path: filter quickly to events under our namespace's base
-     * path, ignore subtree paths (subscriptions, controller lock, etc.), then evaluate.
+     * Invoked by {@link ScalableTopicResources} for every metadata event whose path
+     * is a direct child of this watcher's namespace base path. The resources-level
+     * fan-out has already done the namespace + direct-child filtering, so we go
+     * straight to evaluating the filter and updating the matching set.
      */
-    void onNotification(Notification notification) {
+    @Override
+    public void onNotification(Notification notification) {
         if (closed.get()) {
             return;
         }
         String path = notification.getPath();
-        // Direct child only: /topics/<tenant>/<ns>/<encodedTopic>. Skip sub-paths
-        // like .../<topic>/subscriptions/... or .../<topic>/controller.
-        if (!path.startsWith(basePath + "/")) {
-            return;
-        }
-        String rest = path.substring(basePath.length() + 1);
-        if (rest.indexOf('/') >= 0) {
-            return;
-        }
+        // Resources-level fan-out guarantees direct-child paths under basePath, but
+        // re-derive the encoded local name defensively.
+        String rest = path.startsWith(basePath + "/")
+                ? path.substring(basePath.length() + 1) : path;
 
         String topicName = TopicName.get("topic", namespace, Codec.decode(rest)).toString();
 
@@ -301,11 +302,14 @@ public class ScalableTopicsWatcherSession {
     }
 
     /**
-     * Drop the session. The metadata-store listener stays registered (the store API
-     * does not expose unregister), but {@link #onNotification} short-circuits on the
-     * closed flag, so further events are inert.
+     * Drop the session. Deregister from the resources' namespace listener registry so
+     * the per-event fan-out skips us — no listener leak, no per-notification dispatch
+     * tax for the broker's lifetime.
      */
     public void close() {
-        closed.set(true);
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
+        resources.deregisterNamespaceListener(this);
     }
 }

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
@@ -35,6 +36,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
  * Metadata store access for scalable topic metadata.
@@ -71,10 +74,98 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     private final MetadataCache<SubscriptionMetadata> subscriptionCache;
     private final MetadataCache<ConsumerRegistration> consumerRegistrationCache;
 
+    /**
+     * Per-namespace listeners for scalable topic create / modify / delete events.
+     * Keyed by listener so each subscriber can deregister cleanly on close. The map
+     * is consulted from the single store-level listener registered at construction
+     * time, eliminating the listener leak that would otherwise occur every time a
+     * watcher session ends (the metadata store API has no
+     * {@code unregisterListener}). Mirrors the {@link TopicResources}
+     * pattern for {@code TopicListener}.
+     */
+    private final Map<NamespaceListener, NamespaceName> namespaceListeners =
+            new ConcurrentHashMap<>();
+
     public ScalableTopicResources(MetadataStore store, int operationTimeoutSec) {
         super(store, ScalableTopicMetadata.class, operationTimeoutSec);
         this.subscriptionCache = store.getMetadataCache(SubscriptionMetadata.class);
         this.consumerRegistrationCache = store.getMetadataCache(ConsumerRegistration.class);
+        // Single shared metadata-store listener fans out to every registered watcher.
+        // Per-watcher registration happens via registerNamespaceListener; close() calls
+        // deregisterNamespaceListener so closed watchers are not on the dispatch list.
+        if (store instanceof MetadataStoreExtended ext) {
+            ext.registerListener(this::handleNotification);
+        } else {
+            store.registerListener(this::handleNotification);
+        }
+    }
+
+    // --- Namespace-level scalable-topics listeners ---
+
+    /**
+     * Listener for scalable-topic create / modify / delete events under a single
+     * namespace. The fan-out in {@link ScalableTopicResources} filters notifications
+     * to the listener's namespace and to direct topic records (skipping subtree paths
+     * like {@code <topic>/subscriptions/...} or {@code <topic>/controller}).
+     */
+    public interface NamespaceListener {
+        /** Namespace this listener is scoped to. */
+        NamespaceName getNamespaceName();
+
+        /** Called for every metadata event affecting a topic record in the namespace. */
+        void onNotification(Notification notification);
+    }
+
+    /**
+     * Register a per-namespace listener. The listener will receive every
+     * Created / Modified / Deleted event whose path is a direct child of
+     * {@code /topics/<tenant>/<ns>}. Idempotent — re-registering the same listener
+     * just updates the namespace mapping.
+     */
+    public void registerNamespaceListener(NamespaceListener listener) {
+        namespaceListeners.put(listener, listener.getNamespaceName());
+    }
+
+    /**
+     * Deregister a previously-registered namespace listener. Safe to call multiple
+     * times or for listeners that were never registered.
+     */
+    public void deregisterNamespaceListener(NamespaceListener listener) {
+        namespaceListeners.remove(listener);
+    }
+
+    /**
+     * Single fan-out path: for each registered listener, emit the notification iff
+     * its path is a direct child of the listener's namespace base path. Filters out
+     * subtree events (subscriptions, controller lock) up front.
+     */
+    void handleNotification(Notification notification) {
+        if (namespaceListeners.isEmpty()) {
+            return;
+        }
+        String path = notification.getPath();
+        if (!path.startsWith(SCALABLE_TOPIC_PATH + "/")) {
+            return;
+        }
+        for (Map.Entry<NamespaceListener, NamespaceName> entry : namespaceListeners.entrySet()) {
+            String basePath = namespacePath(entry.getValue());
+            if (!path.startsWith(basePath + "/")) {
+                continue;
+            }
+            // Direct child only — strip the prefix and check there's no further '/'.
+            String rest = path.substring(basePath.length() + 1);
+            if (rest.indexOf('/') >= 0) {
+                continue;
+            }
+            try {
+                entry.getKey().onNotification(notification);
+            } catch (Exception e) {
+                log.warn().attr("listener", entry.getKey())
+                        .attr("path", path)
+                        .exceptionMessage(e)
+                        .log("Failed to dispatch scalable-topic notification");
+            }
+        }
     }
 
     public CompletableFuture<Void> createScalableTopicAsync(TopicName tn, ScalableTopicMetadata metadata) {

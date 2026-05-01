@@ -291,7 +291,15 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
                                     log.warn().exceptionMessage(writeFuture.cause())
                                             .log("Watcher reconnect write failed");
                                     scheduleReconnect();
+                                    return;
                                 }
+                                // Write reached the broker — connection is healthy.
+                                // Reset the backoff so the next disconnect starts
+                                // fresh. Crucial for the hash-skip path: the broker
+                                // emits no Snapshot, so onSnapshot's reset never
+                                // fires; without this, a chain of short blips keeps
+                                // the backoff at its peak forever.
+                                reconnectBackoff.reset();
                             });
                 })
                 .exceptionally(ex -> {
