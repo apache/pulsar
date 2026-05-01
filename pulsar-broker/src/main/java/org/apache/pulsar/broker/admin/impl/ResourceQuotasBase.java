@@ -69,6 +69,6 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
                     }
                 });
         return ret
-                .thenComposeAsync(__ -> validateNamespaceBundleRangeAsync(namespaceName, bundleRange));
+                .thenCompose(__ -> validateNamespaceBundleRangeAsync(namespaceName, bundleRange));
     }
 }

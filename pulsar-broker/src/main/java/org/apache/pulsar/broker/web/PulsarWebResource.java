@@ -624,8 +624,6 @@ public abstract class PulsarWebResource {
                     .log("Invalid bundle range");
             return CompletableFuture.failedFuture(
                     new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage()));
-        } catch (RestException e) {
-            return CompletableFuture.failedFuture(e);
         } catch (Exception e) {
             log.error()
                     .attr("namespace", fqnn.toString())
