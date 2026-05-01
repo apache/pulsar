@@ -21,6 +21,7 @@ package org.apache.pulsar.common.util.collections;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import com.google.common.collect.Lists;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -306,6 +307,8 @@ public class ConcurrentLongHashMap<V> {
             }
         }
 
+        // Section is Serializable only by inheritance from StampedLock; never actually serialized.
+        @SuppressFBWarnings("SE_BAD_FIELD")
         private volatile Table<V> table;
 
         private volatile int capacity;
