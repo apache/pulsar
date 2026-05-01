@@ -1469,29 +1469,36 @@ public class ClientCnx extends PulsarHandler {
                     .log("Received scalable-topics watch update for unknown watcher");
             return;
         }
-        if (cmd.hasSnapshot()) {
-            var snapshot = cmd.getSnapshot();
-            java.util.List<String> topics = new java.util.ArrayList<>(snapshot.getTopicsCount());
-            for (int i = 0; i < snapshot.getTopicsCount(); i++) {
-                topics.add(snapshot.getTopicAt(i));
+        // Snapshot and diff are mutually exclusive via the proto oneof; switch on the
+        // generated event-case enum and unpack accordingly.
+        switch (cmd.getEventCase()) {
+            case SNAPSHOT -> {
+                var snapshot = cmd.getSnapshot();
+                java.util.List<String> topics = new java.util.ArrayList<>(snapshot.getTopicsCount());
+                for (int i = 0; i < snapshot.getTopicsCount(); i++) {
+                    topics.add(snapshot.getTopicAt(i));
+                }
+                session.onSnapshot(topics);
             }
-            session.onSnapshot(topics);
-        } else if (cmd.hasDiff()) {
-            var diff = cmd.getDiff();
-            // LightProto pluralises count accessors with a trailing 's' on the field name,
-            // hence `getAddedsCount` / `getRemovedsCount`.
-            java.util.List<String> added = new java.util.ArrayList<>(diff.getAddedsCount());
-            for (int i = 0; i < diff.getAddedsCount(); i++) {
-                added.add(diff.getAddedAt(i));
+            case DIFF -> {
+                var diff = cmd.getDiff();
+                // LightProto pluralises count accessors with a trailing 's' on the field name,
+                // hence `getAddedsCount` / `getRemovedsCount`.
+                java.util.List<String> added = new java.util.ArrayList<>(diff.getAddedsCount());
+                for (int i = 0; i < diff.getAddedsCount(); i++) {
+                    added.add(diff.getAddedAt(i));
+                }
+                java.util.List<String> removed = new java.util.ArrayList<>(diff.getRemovedsCount());
+                for (int i = 0; i < diff.getRemovedsCount(); i++) {
+                    removed.add(diff.getRemovedAt(i));
+                }
+                session.onDiff(added, removed);
             }
-            java.util.List<String> removed = new java.util.ArrayList<>(diff.getRemovedsCount());
-            for (int i = 0; i < diff.getRemovedsCount(); i++) {
-                removed.add(diff.getRemovedAt(i));
-            }
-            session.onDiff(added, removed);
-        } else {
-            log.warn().attr("watchId", watchId)
-                    .log("Received scalable-topics watch update with neither snapshot nor diff");
+            case NOT_SET -> log.warn().attr("watchId", watchId)
+                    .log("Received scalable-topics watch update with no event payload");
+            default -> log.warn().attr("watchId", watchId)
+                    .attr("case", cmd.getEventCase())
+                    .log("Received scalable-topics watch update with unknown event case");
         }
     }
 

@@ -74,7 +74,7 @@ public class V5ScalableTopicsWatcherTest extends V5ClientBaseTest {
     public void watcherEmitsCreateAndDeleteEvents() throws Exception {
         NamespaceName ns = NamespaceName.get(getNamespace());
 
-        WatcherHandle handle = openWatcher(ns, Map.of(), null);
+        WatcherHandle handle = openWatcher(ns, Map.of());
         try {
             // Initial snapshot should be empty (or whatever pre-existing topics; the
             // shared cluster gives us a fresh per-test namespace so it should be empty).
@@ -105,7 +105,7 @@ public class V5ScalableTopicsWatcherTest extends V5ClientBaseTest {
     public void watcherFiltersByProperty() throws Exception {
         NamespaceName ns = NamespaceName.get(getNamespace());
 
-        WatcherHandle handle = openWatcher(ns, Map.of("owner", "alice"), null);
+        WatcherHandle handle = openWatcher(ns, Map.of("owner", "alice"));
         try {
             Awaitility.await().atMost(10, TimeUnit.SECONDS)
                     .until(() -> !handle.listener.snapshots.isEmpty());
@@ -137,7 +137,7 @@ public class V5ScalableTopicsWatcherTest extends V5ClientBaseTest {
         String preTopic = ns + "/pre-" + UUID.randomUUID().toString().substring(0, 8);
         admin.scalableTopics().createScalableTopic("topic://" + preTopic, 1);
 
-        WatcherHandle handle = openWatcher(ns, Map.of(), null);
+        WatcherHandle handle = openWatcher(ns, Map.of());
         try {
             Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                     assertEquals(handle.listener.currentSet, Set.of("topic://" + preTopic)));
@@ -175,8 +175,8 @@ public class V5ScalableTopicsWatcherTest extends V5ClientBaseTest {
      * initial snapshot is delivered via the future + {@code onSnapshot} on the
      * listener for uniform handling — see the watcher's javadoc.
      */
-    private WatcherHandle openWatcher(NamespaceName ns, Map<String, String> filters,
-                                       String consumerName) throws Exception {
+    private WatcherHandle openWatcher(NamespaceName ns, Map<String, String> filters)
+            throws Exception {
         // Pull the underlying v4 client out of v5Client so we can construct the
         // (package-private) watcher directly.
         Field v4Field = v5Client.getClass().getDeclaredField("v4Client");
@@ -186,9 +186,9 @@ public class V5ScalableTopicsWatcherTest extends V5ClientBaseTest {
         Class<?> watcherCls = Class.forName(
                 "org.apache.pulsar.client.impl.v5.ScalableTopicsWatcher");
         Constructor<?> ctor = watcherCls.getDeclaredConstructor(
-                PulsarClientImpl.class, NamespaceName.class, Map.class, String.class);
+                PulsarClientImpl.class, NamespaceName.class, Map.class);
         ctor.setAccessible(true);
-        Object watcher = ctor.newInstance(v4, ns, filters, consumerName);
+        Object watcher = ctor.newInstance(v4, ns, filters);
 
         CapturingListener listener = new CapturingListener();
 

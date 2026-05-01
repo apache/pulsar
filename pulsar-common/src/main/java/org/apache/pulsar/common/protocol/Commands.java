@@ -1789,7 +1789,6 @@ public class Commands {
      *                    state hasn't changed; pass {@code null} on first subscribe.
      */
     public static ByteBuf newWatchScalableTopics(long watchId, String namespace,
-                                                  String consumerName,
                                                   java.util.Map<String, String> propertyFilters,
                                                   String currentHash) {
         BaseCommand cmd = localCmd(Type.WATCH_SCALABLE_TOPICS);
@@ -1797,9 +1796,6 @@ public class Commands {
                 cmd.setWatchScalableTopics()
                         .setWatchId(watchId)
                         .setNamespace(namespace);
-        if (consumerName != null) {
-            watch.setConsumerName(consumerName);
-        }
         if (propertyFilters != null) {
             for (var entry : propertyFilters.entrySet()) {
                 watch.addPropertyFilter()

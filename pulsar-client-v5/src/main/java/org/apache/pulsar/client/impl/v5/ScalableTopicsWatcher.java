@@ -72,7 +72,6 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
     private final PulsarClientImpl v4Client;
     private final NamespaceName namespace;
     private final Map<String, String> propertyFilters;
-    private final String consumerName;
     private final long watchId;
     private final Backoff reconnectBackoff;
 
@@ -93,15 +92,12 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
      * @param v4Client        the underlying v4 client used to open broker connections
      * @param namespace       namespace to watch
      * @param propertyFilters AND filters; empty map = match all
-     * @param consumerName    optional caller identity (carried for a future namespace
-     *                        coordinator); pass {@code null} if not yet assigned
      */
     ScalableTopicsWatcher(PulsarClientImpl v4Client, NamespaceName namespace,
-                          Map<String, String> propertyFilters, String consumerName) {
+                          Map<String, String> propertyFilters) {
         this.v4Client = v4Client;
         this.namespace = namespace;
         this.propertyFilters = propertyFilters == null ? Map.of() : propertyFilters;
-        this.consumerName = consumerName;
         this.watchId = WATCH_ID_GENERATOR.incrementAndGet();
         this.reconnectBackoff = Backoff.builder()
                 .initialDelay(Duration.ofMillis(100))
@@ -145,7 +141,7 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
         // First subscribe: send no hash so the broker emits the initial snapshot
         // unconditionally. snapshot is what populates initialSnapshotFuture.
         newCnx.ctx().writeAndFlush(Commands.newWatchScalableTopics(
-                        watchId, namespace.toString(), consumerName, propertyFilters,
+                        watchId, namespace.toString(), propertyFilters,
                         /* currentHash= */ null))
                 .addListener(writeFuture -> {
                     if (!writeFuture.isSuccess()) {
@@ -287,7 +283,7 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
                     // Snapshot which we apply as a full-state replace.
                     String hash = currentSetHash();
                     newCnx.ctx().writeAndFlush(Commands.newWatchScalableTopics(
-                                    watchId, namespace.toString(), consumerName,
+                                    watchId, namespace.toString(),
                                     propertyFilters, hash))
                             .addListener(writeFuture -> {
                                 if (!writeFuture.isSuccess()) {

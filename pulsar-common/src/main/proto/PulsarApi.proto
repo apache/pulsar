@@ -951,15 +951,12 @@ message CommandWatchScalableTopics {
     required string namespace         = 2;   // tenant/namespace
     // Optional AND filters; empty list means "match all topics in the namespace".
     repeated KeyValue property_filters = 3;
-    // Caller identity. Carried so a future namespace-level subscription coordinator
-    // can key per-consumer assignments without a protocol bump.
-    optional string consumer_name      = 4;
     // Hash of the topics the client believes are currently in its set. Sent on
     // reconnect; absent on first subscribe. If it matches the broker's freshly
     // computed hash, the broker skips emitting the initial Snapshot — the client's
     // local state is already correct and future Diffs will flow as usual. Same
     // hash function as CommandGetTopicsOfNamespace (CRC32C over sorted topics).
-    optional string current_hash       = 5;
+    optional string current_hash       = 4;
 }
 
 // Snapshot of the full matching set. Sent on initial subscribe and on every
@@ -974,12 +971,16 @@ message ScalableTopicsDiff {
     repeated string removed = 2;
 }
 
-// Broker -> Client: either Snapshot or Diff; error fields are populated only if the
-// initial subscribe failed (snapshot/diff absent in that case).
+// Broker -> Client: either Snapshot or Diff (mutually exclusive via oneof). When the
+// initial subscribe fails, neither variant is set and `error`/`message` carry the
+// failure reason.
 message CommandWatchScalableTopicsUpdate {
     required uint64 watch_id              = 1;
-    optional ScalableTopicsSnapshot snapshot = 2;
-    optional ScalableTopicsDiff diff         = 3;
+
+    oneof event {
+        ScalableTopicsSnapshot snapshot = 2;
+        ScalableTopicsDiff diff         = 3;
+    }
 
     optional ServerError error            = 4;
     optional string message               = 5;
