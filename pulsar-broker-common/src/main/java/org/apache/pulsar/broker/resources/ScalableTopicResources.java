@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
@@ -35,6 +36,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
 
 /**
  * Metadata store access for scalable topic metadata.
@@ -71,10 +73,81 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     private final MetadataCache<SubscriptionMetadata> subscriptionCache;
     private final MetadataCache<ConsumerRegistration> consumerRegistrationCache;
 
+    /**
+     * Per-path listeners for scalable-topic metadata events. Each listener watches a
+     * single path (typically a topic record); the resources-level fan-out dispatches
+     * notifications whose path matches the listener's registered path.
+     *
+     * <p>Hosted here — rather than letting each subscriber call
+     * {@code store.registerListener} directly — because {@code MetadataStore} has no
+     * {@code unregisterListener}: per-subscriber direct registration would leak a
+     * listener for the broker's lifetime every time a session ends, and every
+     * metadata notification would fan out to all stale listeners. Mirrors
+     * {@link TopicResources} for {@code TopicListener}.
+     */
+    private final Map<MetadataPathListener, String> pathListeners = new ConcurrentHashMap<>();
+
     public ScalableTopicResources(MetadataStore store, int operationTimeoutSec) {
         super(store, ScalableTopicMetadata.class, operationTimeoutSec);
         this.subscriptionCache = store.getMetadataCache(SubscriptionMetadata.class);
         this.consumerRegistrationCache = store.getMetadataCache(ConsumerRegistration.class);
+        // Single shared metadata-store listener fans out to every registered subscriber.
+        // Per-subscriber lifecycle goes through register / deregister below.
+        store.registerListener(this::handleNotification);
+    }
+
+    // --- Per-path metadata listeners ---
+
+    /**
+     * Listener for metadata events on a specific scalable-topic-related path. The
+     * fan-out in {@link ScalableTopicResources} compares each notification's path
+     * against {@link #getMetadataPath()} and dispatches on exact match.
+     */
+    public interface MetadataPathListener {
+        /** Exact path this listener is interested in (no wildcard / prefix). */
+        String getMetadataPath();
+
+        /** Called for every metadata event on the listener's path. */
+        void onNotification(Notification notification);
+    }
+
+    /**
+     * Register a per-path metadata listener. Idempotent — re-registering the same
+     * listener just refreshes its path mapping (e.g. if the listener moved its path).
+     */
+    public void registerPathListener(MetadataPathListener listener) {
+        pathListeners.put(listener, listener.getMetadataPath());
+    }
+
+    /**
+     * Deregister a previously-registered listener. Safe to call multiple times or for
+     * listeners that were never registered.
+     */
+    public void deregisterPathListener(MetadataPathListener listener) {
+        pathListeners.remove(listener);
+    }
+
+    /**
+     * Fan-out from the single store-level listener: for each registered subscriber,
+     * dispatch when the notification's path equals the listener's registered path.
+     */
+    void handleNotification(Notification notification) {
+        if (pathListeners.isEmpty()) {
+            return;
+        }
+        String path = notification.getPath();
+        for (Map.Entry<MetadataPathListener, String> entry : pathListeners.entrySet()) {
+            if (entry.getValue().equals(path)) {
+                try {
+                    entry.getKey().onNotification(notification);
+                } catch (Exception e) {
+                    log.warn().attr("listener", entry.getKey())
+                            .attr("path", path)
+                            .exceptionMessage(e)
+                            .log("Failed to dispatch scalable-topic notification");
+                }
+            }
+        }
     }
 
     public CompletableFuture<Void> createScalableTopicAsync(TopicName tn, ScalableTopicMetadata metadata) {
