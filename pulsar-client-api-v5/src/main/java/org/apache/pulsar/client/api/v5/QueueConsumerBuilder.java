@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 
 /**
@@ -140,13 +141,16 @@ public interface QueueConsumerBuilder<T> {
     // --- Acknowledgment ---
 
     /**
-     * If a message is not acknowledged within this duration, it is automatically redelivered.
-     * Set to zero to disable.
+     * Optional safety net for slow / stalled consumers: see
+     * {@link ProcessingTimeoutPolicy} for the full semantics. The policy bundles the
+     * timeout itself with an optional redelivery backoff. Disabled by default.
      *
-     * @param timeout the ack timeout duration
+     * @param policy timeout + redelivery-backoff configuration
      * @return this builder instance for chaining
+     * @see ProcessingTimeoutPolicy#of(Duration)
+     * @see ProcessingTimeoutPolicy#of(Duration, BackoffPolicy)
      */
-    QueueConsumerBuilder<T> ackTimeout(Duration timeout);
+    QueueConsumerBuilder<T> processingTimeout(ProcessingTimeoutPolicy policy);
 
     /**
      * How frequently acknowledgments are flushed to the broker.
@@ -175,16 +179,6 @@ public interface QueueConsumerBuilder<T> {
      * @see BackoffPolicy#exponential(Duration, Duration)
      */
     QueueConsumerBuilder<T> negativeAckRedeliveryBackoff(BackoffPolicy backoff);
-
-    /**
-     * Backoff strategy for redelivery after ack timeout.
-     *
-     * @param backoff the backoff policy to use for ack timeout redelivery
-     * @return this builder instance for chaining
-     * @see BackoffPolicy#fixed(Duration)
-     * @see BackoffPolicy#exponential(Duration, Duration)
-     */
-    QueueConsumerBuilder<T> ackTimeoutRedeliveryBackoff(BackoffPolicy backoff);
 
     // --- Dead letter queue ---
 

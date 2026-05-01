@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
 import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -149,8 +150,19 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
     }
 
     @Override
-    public QueueConsumerBuilderV5<T> ackTimeout(Duration timeout) {
-        conf.setAckTimeoutMillis(timeout.toMillis());
+    public QueueConsumerBuilderV5<T> processingTimeout(ProcessingTimeoutPolicy policy) {
+        conf.setAckTimeoutMillis(policy.timeout().toMillis());
+        BackoffPolicy backoff = policy.redeliveryBackoff();
+        if (backoff != null) {
+            conf.setAckTimeoutRedeliveryBackoff(
+                    org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(backoff.initialInterval().toMillis())
+                            .maxDelayMs(backoff.maxInterval().toMillis())
+                            .multiplier(backoff.multiplier())
+                            .build());
+        } else {
+            conf.setAckTimeoutRedeliveryBackoff(null);
+        }
         return this;
     }
 
@@ -169,17 +181,6 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
     @Override
     public QueueConsumerBuilderV5<T> negativeAckRedeliveryBackoff(BackoffPolicy backoff) {
         conf.setNegativeAckRedeliveryBackoff(
-                org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff.builder()
-                        .minDelayMs(backoff.initialInterval().toMillis())
-                        .maxDelayMs(backoff.maxInterval().toMillis())
-                        .multiplier(backoff.multiplier())
-                        .build());
-        return this;
-    }
-
-    @Override
-    public QueueConsumerBuilderV5<T> ackTimeoutRedeliveryBackoff(BackoffPolicy backoff) {
-        conf.setAckTimeoutRedeliveryBackoff(
                 org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff.builder()
                         .minDelayMs(backoff.initialInterval().toMillis())
                         .maxDelayMs(backoff.maxInterval().toMillis())
