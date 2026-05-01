@@ -879,6 +879,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final String subscription = commandScalableTopicSubscribe.getSubscription();
         final String consumerName = commandScalableTopicSubscribe.getConsumerName();
         final long consumerId = commandScalableTopicSubscribe.getConsumerId();
+        final org.apache.pulsar.common.api.proto.ScalableConsumerType consumerType =
+                commandScalableTopicSubscribe.getConsumerType();
 
         log.debug().attr("topic", topicStr).attr("subscription", subscription)
                 .attr("consumerName", consumerName).attr("requestId", requestId)
@@ -920,7 +922,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         return;
                     }
                     scalableTopicService.registerConsumer(topicName, subscription, consumerName,
-                                    consumerId, this)
+                                    consumerId, consumerType, this)
                             .whenCompleteAsync((assignment, ex) -> {
                                 if (ex != null) {
                                     Throwable cause = ex.getCause() != null ? ex.getCause() : ex;

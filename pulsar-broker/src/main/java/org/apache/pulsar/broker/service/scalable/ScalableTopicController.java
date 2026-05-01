@@ -31,6 +31,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
@@ -155,7 +156,28 @@ public class ScalableTopicController {
                 });
     }
 
+    /**
+     * Restore-path entry: type unknown, fall back to STREAM (the conservative default —
+     * STREAM is the only mode that needs parent-drain ordering anyway).
+     */
     private SubscriptionCoordinator createCoordinator(String subscription) {
+        return createCoordinator(subscription,
+                ScalableConsumerType.STREAM);
+    }
+
+    private SubscriptionCoordinator createCoordinator(String subscription,
+            ScalableConsumerType consumerType) {
+        // Parent-drain ordering matters only for STREAM consumers (Exclusive per-segment
+        // subscription with broker-tracked cursors → preserving per-key order across a
+        // split requires waiting for the parent to drain before handing out children).
+        // CHECKPOINT consumers track position client-side via Checkpoints and don't even
+        // create per-segment cursors — their parent never reports as drained, so the
+        // ordering machinery would block their children indefinitely. QUEUE consumers
+        // are shared and accept out-of-order delivery by design.
+        boolean enforceParentDrain =
+                consumerType == ScalableConsumerType.STREAM;
+        SegmentDrainChecker checker = enforceParentDrain ? this::isSegmentDrained : null;
+
         // Defensive: PulsarService.getConfig() is null in some unit-test mocks. Fall
         // back to the SubscriptionCoordinator's default grace period in that case.
         var config = brokerService.getPulsar().getConfig();
@@ -176,7 +198,7 @@ public class ScalableTopicController {
                 resources,
                 brokerService.getPulsar().getExecutor(),
                 gracePeriod,
-                this::isSegmentDrained,
+                checker,
                 SubscriptionCoordinator.DEFAULT_DRAIN_INITIAL_DELAY,
                 SubscriptionCoordinator.DEFAULT_DRAIN_MAX_DELAY);
     }
@@ -344,14 +366,35 @@ public class ScalableTopicController {
      * <p>If a session with the same {@code consumerName} already exists (for example
      * because the consumer is reconnecting within the grace period), the existing
      * assignment is reused and no rebalance occurs.
+     *
+     * <p>The {@code consumerType} is used at coordinator creation time to decide whether
+     * to enforce parent-drain ordering on assignments — see
+     * {@link SubscriptionCoordinator}. The coordinator's setting is fixed at first
+     * registration (a subscription's type doesn't change in practice); subsequent
+     * registers with a different type still work but won't change the ordering policy.
      */
+    /**
+     * @deprecated Defaults to {@link ScalableConsumerType#STREAM}
+     *     for backward compatibility. New callers should pass the explicit type.
+     */
+    @Deprecated
     public CompletableFuture<ConsumerAssignment> registerConsumer(String subscription,
                                                                    String consumerName,
                                                                    long consumerId,
                                                                    TransportCnx cnx) {
+        return registerConsumer(subscription, consumerName, consumerId,
+                ScalableConsumerType.STREAM, cnx);
+    }
+
+    public CompletableFuture<ConsumerAssignment> registerConsumer(String subscription,
+                                                                   String consumerName,
+                                                                   long consumerId,
+                                                                   ScalableConsumerType
+                                                                           consumerType,
+                                                                   TransportCnx cnx) {
         checkLeader();
         SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
-                subscription, this::createCoordinator);
+                subscription, sub -> createCoordinator(sub, consumerType));
         return coordinator.registerConsumer(consumerName, consumerId, cnx)
                 .thenApply(assignments -> {
                     // Look up by name since the key may have been an existing session
