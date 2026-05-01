@@ -39,6 +39,7 @@ import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.Backoff;
 
 /**
  * Manages segment-to-consumer assignments within a single subscription of a scalable topic.
@@ -69,10 +70,19 @@ public class SubscriptionCoordinator {
     private static final Duration DEFAULT_GRACE_PERIOD = Duration.ofSeconds(60);
 
     /**
-     * Default cadence at which the coordinator polls the broker for sealed-segment drain
-     * progress. The first drain check after a layout change typically lands within one tick.
+     * First drain-status check fires this long after a sealed segment shows up — fast
+     * enough that a freshly subscribed EARLIEST consumer doesn't wait for backlog
+     * unblocking on a small topic.
      */
-    static final Duration DEFAULT_DRAIN_POLL_INTERVAL = Duration.ofSeconds(2);
+    static final Duration DEFAULT_DRAIN_INITIAL_DELAY = Duration.ofSeconds(2);
+
+    /**
+     * Upper bound on the drain-poll interval. Reached by exponential backoff while a
+     * sealed segment remains undrained — long-tail backlog (consumers stalled for hours)
+     * shouldn't have us hammering the segment owner every couple seconds. Reset on every
+     * progress event (drain detected / layout changed / new consumer).
+     */
+    static final Duration DEFAULT_DRAIN_MAX_DELAY = Duration.ofMinutes(15);
 
     @Getter
     private final String subscriptionName;
@@ -81,7 +91,8 @@ public class SubscriptionCoordinator {
     private final ScheduledExecutorService scheduler;
     private final Duration gracePeriod;
     private final SegmentDrainChecker drainChecker;
-    private final Duration drainPollInterval;
+    private final Duration drainInitialDelay;
+    private final Duration drainMaxDelay;
 
     /** Keyed by consumerName — the stable session identity. */
     private final Map<String, ConsumerSession> sessions = new ConcurrentHashMap<>();
@@ -97,6 +108,12 @@ public class SubscriptionCoordinator {
      */
     private final Set<Long> drainedSegmentIds = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Backoff governing the drain-poll cadence. Starts at {@link #drainInitialDelay},
+     * grows exponentially up to {@link #drainMaxDelay}, and is reset on every progress
+     * event (a segment is observed drained, the layout changes, a new consumer joins).
+     */
+    private final Backoff drainBackoff;
     private ScheduledFuture<?> drainPollTask;
     private boolean drainPollInProgress;
 
@@ -106,7 +123,7 @@ public class SubscriptionCoordinator {
                                    ScalableTopicResources resources,
                                    ScheduledExecutorService scheduler) {
         this(subscriptionName, topicName, initialLayout, resources, scheduler,
-                DEFAULT_GRACE_PERIOD, null, DEFAULT_DRAIN_POLL_INTERVAL);
+                DEFAULT_GRACE_PERIOD, null, DEFAULT_DRAIN_INITIAL_DELAY, DEFAULT_DRAIN_MAX_DELAY);
     }
 
     public SubscriptionCoordinator(String subscriptionName,
@@ -116,7 +133,7 @@ public class SubscriptionCoordinator {
                                    ScheduledExecutorService scheduler,
                                    Duration gracePeriod) {
         this(subscriptionName, topicName, initialLayout, resources, scheduler, gracePeriod,
-                null, DEFAULT_DRAIN_POLL_INTERVAL);
+                null, DEFAULT_DRAIN_INITIAL_DELAY, DEFAULT_DRAIN_MAX_DELAY);
     }
 
     public SubscriptionCoordinator(String subscriptionName,
@@ -126,7 +143,8 @@ public class SubscriptionCoordinator {
                                    ScheduledExecutorService scheduler,
                                    Duration gracePeriod,
                                    SegmentDrainChecker drainChecker,
-                                   Duration drainPollInterval) {
+                                   Duration drainInitialDelay,
+                                   Duration drainMaxDelay) {
         this.subscriptionName = subscriptionName;
         this.topicName = topicName;
         this.currentLayout = initialLayout;
@@ -134,7 +152,12 @@ public class SubscriptionCoordinator {
         this.scheduler = scheduler;
         this.gracePeriod = gracePeriod;
         this.drainChecker = drainChecker;
-        this.drainPollInterval = drainPollInterval;
+        this.drainInitialDelay = drainInitialDelay;
+        this.drainMaxDelay = drainMaxDelay;
+        this.drainBackoff = Backoff.builder()
+                .initialDelay(drainInitialDelay)
+                .maxBackoff(drainMaxDelay)
+                .build();
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
     }
 
@@ -172,6 +195,10 @@ public class SubscriptionCoordinator {
                     synchronized (this) {
                         sessions.put(consumerName, session);
                         Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
+                        // First consumer (or rejoining one) — kick off drain checks at the
+                        // shortest delay rather than whatever long backoff we'd accumulated
+                        // while idle.
+                        drainBackoff.reset();
                         ensureDrainPollerRunning();
                         return result;
                     }
@@ -244,7 +271,7 @@ public class SubscriptionCoordinator {
     /**
      * Handle a layout change (split/merge). Recompute and push assignments to connected
      * consumers, then make sure the drain poller is running so any new sealed segments
-     * get noticed.
+     * get noticed quickly (backoff reset → next check fires at the initial delay).
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> onLayoutChange(
             SegmentLayout newLayout) {
@@ -254,6 +281,9 @@ public class SubscriptionCoordinator {
             return CompletableFuture.completedFuture(Map.of());
         }
         Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
+        // New sealed segments may have appeared — restart drain checks from the
+        // initial delay rather than continuing whatever long backoff we'd settled into.
+        drainBackoff.reset();
         ensureDrainPollerRunning();
         return CompletableFuture.completedFuture(result);
     }
@@ -311,16 +341,26 @@ public class SubscriptionCoordinator {
                 changed = true;
             }
         }
-        if (changed && !sessions.isEmpty()) {
-            log.info().attr("drained", segmentIds).log("Sealed segments drained, rebalancing");
-            rebalanceAndNotify();
+        if (changed) {
+            // Progress: a sealed segment is now drained. Reset the backoff so the next
+            // poll lands quickly — once one parent drains, others on the same DAG branch
+            // often follow shortly.
+            drainBackoff.reset();
+            if (!sessions.isEmpty()) {
+                log.info().attr("drained", segmentIds).log("Sealed segments drained, rebalancing");
+                rebalanceAndNotify();
+            }
         }
     }
 
     /**
-     * Start (idempotent) the periodic drain poller. No-op when no {@link SegmentDrainChecker}
-     * was configured. Cancelled by {@link #close()} or when there are no sealed-undrained
-     * segments left to check.
+     * (Re-)arm the drain poller. No-op when no {@link SegmentDrainChecker} was configured.
+     * Each iteration self-schedules the next via the {@link Backoff} so the cadence grows
+     * exponentially while sealed segments stay undrained — short delays at first (a fresh
+     * EARLIEST consumer typically drains the parent within seconds), capped at
+     * {@link #drainMaxDelay} for long-tail backlogs.
+     *
+     * <p>Cancelled by {@link #close()} or when no sealed-undrained segments remain.
      */
     private void ensureDrainPollerRunning() {
         if (drainChecker == null) {
@@ -329,19 +369,20 @@ public class SubscriptionCoordinator {
         if (drainPollTask != null && !drainPollTask.isCancelled() && !drainPollTask.isDone()) {
             return;
         }
-        long periodMs = drainPollInterval.toMillis();
-        drainPollTask = scheduler.scheduleWithFixedDelay(this::pollDrainStatus,
-                periodMs, periodMs, TimeUnit.MILLISECONDS);
+        long delayMs = drainBackoff.next().toMillis();
+        drainPollTask = scheduler.schedule(this::pollDrainStatus, delayMs, TimeUnit.MILLISECONDS);
     }
 
     /**
      * Single poll iteration: ask the drain checker about every sealed segment that isn't
-     * already known to be drained, collect the newly-drained ones, and rebalance.
+     * already known to be drained, collect the newly-drained ones, and rebalance. Schedule
+     * the next iteration via the backoff (or stop, if there's nothing left to check).
      */
     private void pollDrainStatus() {
         SegmentLayout layout;
         List<SegmentInfo> toCheck;
         synchronized (this) {
+            drainPollTask = null;
             if (drainPollInProgress || sessions.isEmpty()) {
                 return;
             }
@@ -350,11 +391,9 @@ public class SubscriptionCoordinator {
                     .filter(seg -> !seg.isActive() && !drainedSegmentIds.contains(seg.segmentId()))
                     .toList();
             if (toCheck.isEmpty()) {
-                // Every sealed segment is already drained — no need to keep polling.
-                if (drainPollTask != null) {
-                    drainPollTask.cancel(false);
-                    drainPollTask = null;
-                }
+                // Every sealed segment is already drained — no need to keep polling. The
+                // poller re-arms when onLayoutChange / registerConsumer adds new work.
+                drainBackoff.reset();
                 return;
             }
             drainPollInProgress = true;
@@ -384,11 +423,15 @@ public class SubscriptionCoordinator {
         CompletableFuture.allOf(futures).whenComplete((__, ex) -> {
             try {
                 if (!newlyDrained.isEmpty()) {
+                    // markSegmentsDrained resets the backoff for us.
                     markSegmentsDrained(new HashSet<>(newlyDrained));
                 }
             } finally {
                 synchronized (SubscriptionCoordinator.this) {
                     drainPollInProgress = false;
+                    // Re-arm: undrained sealed segments still pending → keep polling, but
+                    // with the next (longer) backoff if no progress was made this round.
+                    ensureDrainPollerRunning();
                 }
             }
         });

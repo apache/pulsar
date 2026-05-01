@@ -280,4 +280,22 @@ public interface ScalableTopics {
      * Delete a segment topic asynchronously.
      */
     CompletableFuture<Void> deleteSegmentAsync(String segmentTopic, boolean force);
+
+    /**
+     * Returns the number of unconsumed entries in the given subscription's cursor on the
+     * segment topic — i.e. the per-subscription backlog. The call routes to the broker
+     * that owns the segment topic, so it works whether the caller is colocated with the
+     * segment or not.
+     *
+     * <p>Used internally by the {@link org.apache.pulsar.broker.service.scalable.SubscriptionCoordinator
+     * SubscriptionCoordinator} to detect when a sealed parent has been drained and its
+     * children can be unblocked. Callers can also use it for diagnostics; a returned
+     * {@code 0} on a sealed segment indicates the subscription has nothing left to
+     * consume there.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     */
+    CompletableFuture<Long> getSegmentSubscriptionBacklogAsync(String segmentTopic,
+                                                                String subscription);
 }

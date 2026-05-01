@@ -177,36 +177,40 @@ public class ScalableTopicController {
                 brokerService.getPulsar().getExecutor(),
                 gracePeriod,
                 this::isSegmentDrained,
-                SubscriptionCoordinator.DEFAULT_DRAIN_POLL_INTERVAL);
+                SubscriptionCoordinator.DEFAULT_DRAIN_INITIAL_DELAY,
+                SubscriptionCoordinator.DEFAULT_DRAIN_MAX_DELAY);
     }
 
     /**
-     * Drain check used by every {@link SubscriptionCoordinator} on this topic. Looks the
-     * segment topic up locally and, if it's owned by this broker, asks the
-     * {@link org.apache.pulsar.broker.service.Subscription} how many entries remain in
-     * the backlog. Returns false if the topic isn't loaded here yet — drain progress will
-     * be observed on a later poll once the owning consumer's subscribe lands. Multi-broker
-     * coverage requires a future segment-aware stats admin endpoint; for now the
-     * controller and the segment topic frequently colocate (typical case) so this is
-     * sufficient for the in-process tests.
+     * Drain check used by every {@link SubscriptionCoordinator} on this topic. Asks the
+     * segment topic's owning broker for the per-subscription backlog via the
+     * {@code /segments/.../subscription/.../backlog} admin endpoint, which redirects to
+     * the topic owner — works whether the controller and the segment colocate or not.
+     *
+     * <p>Returns {@code false} if the segment topic or subscription is not yet loaded
+     * (the admin endpoint replies 404). The next poll will succeed once the consumer's
+     * subscribe lands the topic on its owning broker.
      */
     private CompletableFuture<Boolean> isSegmentDrained(SegmentInfo segment, String subscription) {
         String segmentTopicName = toSegmentPersistentName(segment);
-        return brokerService.getTopicIfExists(segmentTopicName)
-                .thenApply(optTopic -> {
-                    if (optTopic.isEmpty()) {
-                        // Topic not loaded locally — assume not drained yet, retry on the
-                        // next poll. The consumer's subscribe will load it on its owning
-                        // broker; once that broker is colocated with us (or we add a
-                        // cross-broker segment stats path) the next check succeeds.
-                        return false;
-                    }
-                    var sub = optTopic.get().getSubscription(subscription);
-                    if (sub == null) {
-                        return false;
-                    }
-                    return sub.getNumberOfEntriesInBacklog(false) <= 0;
-                });
+        try {
+            return brokerService.getPulsar().getAdminClient()
+                    .scalableTopics()
+                    .getSegmentSubscriptionBacklogAsync(segmentTopicName, subscription)
+                    .thenApply(backlog -> backlog != null && backlog <= 0)
+                    .exceptionally(ex -> {
+                        Throwable cause =
+                                org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException) {
+                            // Topic or subscription not loaded yet — try again on the
+                            // next poll. The consumer's subscribe will materialize it.
+                            return false;
+                        }
+                        throw org.apache.pulsar.common.util.FutureUtil.wrapToCompletionException(cause);
+                    });
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     private CompletableFuture<Void> electLeader() {

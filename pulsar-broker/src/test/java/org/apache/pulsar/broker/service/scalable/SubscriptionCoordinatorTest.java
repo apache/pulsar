@@ -165,7 +165,7 @@ public class SubscriptionCoordinatorTest {
                 CompletableFuture.completedFuture(drained.contains(segment.segmentId()));
         SubscriptionCoordinator orderedCoordinator = new SubscriptionCoordinator("test-sub",
                 topicName, initialLayout, resources, scheduler, Duration.ofMillis(200),
-                checker, Duration.ofMillis(50));
+                checker, Duration.ofMillis(50), Duration.ofSeconds(5));
         try {
             orderedCoordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
 
