@@ -279,6 +279,15 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         return joinPath(SCALABLE_TOPIC_PATH, tn.getNamespace(), tn.getEncodedLocalName());
     }
 
+    /**
+     * Path under which all scalable topic records for a namespace live as direct
+     * children. Used by namespace-wide watchers as the prefix to filter metadata
+     * notifications down to events that touch a topic record.
+     */
+    public String namespacePath(NamespaceName ns) {
+        return joinPath(SCALABLE_TOPIC_PATH, ns.toString());
+    }
+
     public String subscriptionPath(TopicName tn, String subscription) {
         return joinPath(topicPath(tn), SUBSCRIPTIONS_SEGMENT, subscription);
     }
