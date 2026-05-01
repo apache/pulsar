@@ -22,9 +22,11 @@ import java.time.Duration;
 
 /**
  * Optional safety net for slow / stalled queue consumers: if the application doesn't
- * process and acknowledge a delivered message within {@code timeout}, the broker treats
- * the delivery as failed and redelivers it (to this consumer or, on a Shared
- * subscription, to another consumer in the group).
+ * process and acknowledge a delivered message within {@code timeout}, the <em>client</em>
+ * gives up on that delivery and asks the broker to redeliver it (to this consumer or,
+ * on a Shared subscription, to another consumer in the group). The bookkeeping is
+ * client-side — the client tracks pending acks and, on timeout, sends a
+ * {@code redeliverUnacknowledgedMessages} request to the broker.
  *
  * <p>{@code redeliveryBackoff} controls the cadence of those redeliveries — {@code null}
  * means "redeliver immediately on the next sweep", which is the historical default.
@@ -34,8 +36,9 @@ import java.time.Duration;
  * when the application's processing time is bounded and you want stalled deliveries to
  * be reattempted automatically.
  *
- * @param timeout            how long the broker waits for an ack before treating a
- *                           delivery as failed. {@link Duration#ZERO} disables.
+ * @param timeout            how long the client waits for the application to ack a
+ *                           delivery before requesting redelivery. {@link Duration#ZERO}
+ *                           disables.
  * @param redeliveryBackoff  optional backoff applied between redeliveries. May be
  *                           {@code null} for the default (no extra delay).
  */

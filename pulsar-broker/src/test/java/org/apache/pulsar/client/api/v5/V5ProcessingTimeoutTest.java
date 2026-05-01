@@ -29,9 +29,9 @@ import org.testng.annotations.Test;
 /**
  * Coverage for {@link QueueConsumerBuilder#processingTimeout(ProcessingTimeoutPolicy)}:
  * when a consumer receives a message but doesn't ack within the configured processing
- * timeout, the broker treats the delivery as failed and redelivers it.
+ * timeout, the client gives up and asks the broker to redeliver it.
  */
-public class V5AckTimeoutTest extends V5ClientBaseTest {
+public class V5ProcessingTimeoutTest extends V5ClientBaseTest {
 
     @Test
     public void testUnackedMessageIsRedeliveredAfterProcessingTimeout() throws Exception {
@@ -57,8 +57,9 @@ public class V5AckTimeoutTest extends V5ClientBaseTest {
         assertNotNull(first);
         assertEquals(first.value(), "once");
 
-        // The broker's sweeper runs at processingTimeout/2 cadence, so wait generously
-        // past 1s for the redelivery to fire.
+        // The client's ack-timeout sweeper runs at processingTimeout/2 cadence; wait
+        // generously past 1s for the redelivery request to be sent and the redelivery
+        // to land.
         Message<String> redelivered = consumer.receive(Duration.ofSeconds(10));
         assertNotNull(redelivered, "processing-timeout did not trigger redelivery");
         assertEquals(redelivered.value(), "once");
