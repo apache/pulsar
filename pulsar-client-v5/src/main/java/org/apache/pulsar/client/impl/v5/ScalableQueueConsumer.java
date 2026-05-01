@@ -51,7 +51,7 @@ import org.apache.pulsar.common.util.Backoff;
  * Individual acknowledgments and negative acknowledgments are routed to
  * the correct segment consumer via the segment ID in {@link MessageIdV5}.
  */
-final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient.LayoutChangeListener {
+final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchClient.LayoutChangeListener {
 
     private static final Logger LOG = Logger.get(ScalableQueueConsumer.class);
     private final Logger log;
@@ -72,6 +72,13 @@ final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient
     private final ConcurrentHashMap<Long, CompletableFuture<org.apache.pulsar.client.api.Consumer<T>>>
             segmentConsumers = new ConcurrentHashMap<>();
     private final LinkedTransferQueue<MessageV5<T>> messageQueue = new LinkedTransferQueue<>();
+    /**
+     * Where each per-segment receive loop deposits a freshly-arrived message. Defaults
+     * to enqueueing on {@link #messageQueue} for the user's {@link #receive()} to pull;
+     * the multi-topic wrapper overrides this to forward directly into its shared
+     * multiplexed queue, so no per-topic pump thread is needed.
+     */
+    private final java.util.function.Consumer<MessageV5<T>> messageSink;
 
     private volatile boolean closed = false;
     private final AsyncQueueConsumerV5<T> asyncView;
@@ -88,7 +95,8 @@ final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient
     private ScalableQueueConsumer(PulsarClientV5 client,
                                   Schema<T> v5Schema,
                                   ConsumerConfigurationData<T> consumerConf,
-                                  DagWatchClient dagWatch) {
+                                  DagWatchClient dagWatch,
+                                  java.util.function.Consumer<MessageV5<T>> messageSink) {
         this.client = client;
         this.v5Schema = v5Schema;
         this.v4Schema = SchemaAdapter.toV4(v5Schema);
@@ -96,6 +104,10 @@ final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient
         this.dagWatch = dagWatch;
         this.topicName = dagWatch.topicName().toString();
         this.subscriptionName = consumerConf.getSubscriptionName();
+        // Default sink enqueues on the local messageQueue for receive()/receive(timeout).
+        // Multi-topic mode passes a sink that forwards into the shared mux instead — no
+        // per-topic pump thread needed.
+        this.messageSink = messageSink != null ? messageSink : messageQueue::add;
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
         this.asyncView = new AsyncQueueConsumerV5<>(this);
     }
@@ -111,11 +123,29 @@ final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient
                                                                ConsumerConfigurationData<T> consumerConf,
                                                                DagWatchClient dagWatch,
                                                                ClientSegmentLayout initialLayout) {
-        ScalableQueueConsumer<T> consumer = new ScalableQueueConsumer<>(client, v5Schema, consumerConf, dagWatch);
+        return createAsyncImpl(client, v5Schema, consumerConf, dagWatch, initialLayout, null)
+                .thenApply(c -> c);
+    }
+
+    /**
+     * Like {@link #createAsync} but resolves to the concrete impl type and accepts an
+     * optional external message sink. Used by {@link MultiTopicQueueConsumer}: it
+     * passes a sink that forwards into the shared multiplexed queue, so per-segment
+     * v4 receive loops deliver messages to the wrapper without any pump thread.
+     */
+    static <T> CompletableFuture<ScalableQueueConsumer<T>> createAsyncImpl(
+            PulsarClientV5 client,
+            Schema<T> v5Schema,
+            ConsumerConfigurationData<T> consumerConf,
+            DagWatchClient dagWatch,
+            ClientSegmentLayout initialLayout,
+            java.util.function.Consumer<MessageV5<T>> messageSink) {
+        ScalableQueueConsumer<T> consumer = new ScalableQueueConsumer<>(
+                client, v5Schema, consumerConf, dagWatch, messageSink);
         return consumer.subscribeSegments(initialLayout)
                 .thenApply(__ -> {
                     dagWatch.setListener(consumer);
-                    return (QueueConsumer<T>) consumer;
+                    return consumer;
                 })
                 .exceptionallyCompose(ex -> consumer.closeAsync().handle((__, ___) -> {
                     throw ex instanceof CompletionException ce ? ce : new CompletionException(ex);
@@ -209,7 +239,8 @@ final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient
 
     // --- Async internals ---
 
-    CompletableFuture<Message<T>> receiveAsync() {
+    @Override
+    public CompletableFuture<Message<T>> receiveAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 return receive();
@@ -219,7 +250,8 @@ final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient
         });
     }
 
-    CompletableFuture<Void> closeAsync() {
+    @Override
+    public CompletableFuture<Void> closeAsync() {
         closed = true;
         dagWatch.close();
 
@@ -358,7 +390,7 @@ final class ScalableQueueConsumer<T> implements QueueConsumer<T>, DagWatchClient
 
     private void startReceiveLoop(org.apache.pulsar.client.api.Consumer<T> v4Consumer, long segmentId) {
         v4Consumer.receiveAsync().thenAccept(v4Msg -> {
-            messageQueue.add(new MessageV5<>(v4Msg, segmentId));
+            messageSink.accept(new MessageV5<>(v4Msg, segmentId));
             if (!closed) {
                 startReceiveLoop(v4Consumer, segmentId);
             }
