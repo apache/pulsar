@@ -782,7 +782,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         doAnswer(invocationOnMock -> {
             // Simulate that before the rollover is completed, new write requests arrive,
             // and after these write requests are added to pendingAddEntries, the ledger is closed.
-            log.info("before add, ledger state:{}", ledger.state);
+            log.info("before add, ledger state: " + ledger.getState());
             for (int i = 0; i < 10; ++i) {
                 ledger.internalAsyncAddEntry(OpAddEntry.createNoRetainBuffer(ledger,
                         ByteBufAllocator.DEFAULT.buffer(128), null, null, new AtomicBoolean()));
@@ -790,22 +790,22 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.asyncClose(new CloseCallback() {
                 @Override
                 public void closeComplete(Object ctx) {
-                    log.info("closeComplete finished, ledger state:{}", ledger.state);
+                    log.info("closeComplete finished, ledger state: " + ledger.getState());
                     closeLatch.countDown();
                 }
 
                 @Override
                 public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                    log.info("closeFailed, ex:{}, state:{}", exception.getMessage(), ledger.state);
+                    log.info("closeFailed, ex: " + exception.getMessage() + ", state: " + ledger.getState());
                     closeLatch.countDown();
                 }
             }, null);
-            log.info("after add, ledger state:{}", ledger.state);
+            log.info("after add, ledger state: " + ledger.getState());
             return invocationOnMock.callRealMethod();
         }).when(ledger).asyncCreateLedger(any(), any(), any(), any(), any());
         doAnswer(invocationOnMock -> {
             Object o = invocationOnMock.callRealMethod();
-            log.info("createComplete finished, state:{}", ledger.state);
+            log.info("createComplete finished, state: " + ledger.getState());
             ledger.executor.execute(createLatch::countDown);
             return o;
         }).when(ledger).createComplete(anyInt(), any(), any());
