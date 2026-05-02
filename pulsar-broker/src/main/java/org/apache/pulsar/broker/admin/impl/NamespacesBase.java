@@ -1581,10 +1581,8 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> getBundleRangeAsync(bundleName))
                 .thenCompose(bundleRange -> {
-                    return getNamespacePoliciesAsync(namespaceName)
-                            .thenCompose(policies ->
-                                    validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
-                                        authoritative, false))
+                    return validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
+                                        authoritative, false)
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
                                     pulsar().getNamespaceService()
                                             .getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName),
