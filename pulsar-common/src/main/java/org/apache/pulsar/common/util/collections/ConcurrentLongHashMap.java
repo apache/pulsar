@@ -188,7 +188,7 @@ public class ConcurrentLongHashMap<V> {
     public long capacity() {
         long capacity = 0;
         for (Section<V> s : sections) {
-            capacity += s.capacity;
+            capacity += s.table.capacity();
         }
         return capacity;
     }
@@ -295,23 +295,12 @@ public class ConcurrentLongHashMap<V> {
     // previous design had to paper over with Math.min(keys.length, values.length).
     @SuppressWarnings("serial")
     private static final class Section<V> extends StampedLock {
-        private static final class Table<V> {
-            final long[] keys;
-            final V[] values;
-            final int capacity;
-
-            Table(long[] keys, V[] values, int capacity) {
-                this.keys = keys;
-                this.values = values;
-                this.capacity = capacity;
-            }
-        }
+        private record Table<V>(long[] keys, V[] values, int capacity) { }
 
         // Section is Serializable only by inheritance from StampedLock; never actually serialized.
         @SuppressFBWarnings("SE_BAD_FIELD")
         private volatile Table<V> table;
 
-        private volatile int capacity;
         private final int initCapacity;
         @SuppressWarnings("rawtypes") // AtomicIntegerFieldUpdater requires raw type for class parameter
         private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER =
@@ -329,9 +318,9 @@ public class ConcurrentLongHashMap<V> {
 
         Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
                 float expandFactor, float shrinkFactor) {
-            this.capacity = alignToPowerOfTwo(capacity);
-            this.initCapacity = this.capacity;
-            this.table = new Table<>(new long[this.capacity], (V[]) new Object[this.capacity], this.capacity);
+            int initial = alignToPowerOfTwo(capacity);
+            this.initCapacity = initial;
+            this.table = new Table<>(new long[initial], (V[]) new Object[initial], initial);
             this.size = 0;
             this.usedBuckets = 0;
             this.autoShrink = autoShrink;
@@ -339,8 +328,8 @@ public class ConcurrentLongHashMap<V> {
             this.mapIdleFactor = mapIdleFactor;
             this.expandFactor = expandFactor;
             this.shrinkFactor = shrinkFactor;
-            this.resizeThresholdUp = (int) (this.capacity * mapFillFactor);
-            this.resizeThresholdBelow = (int) (this.capacity * mapIdleFactor);
+            this.resizeThresholdUp = (int) (initial * mapFillFactor);
+            this.resizeThresholdBelow = (int) (initial * mapIdleFactor);
         }
 
         V get(long key, int keyHash) {
@@ -348,9 +337,9 @@ public class ConcurrentLongHashMap<V> {
             boolean acquiredLock = false;
 
             Table<V> table = this.table;
-            long[] keys = table.keys;
-            V[] values = table.values;
-            int bucket = signSafeMod(keyHash, table.capacity);
+            long[] keys = table.keys();
+            V[] values = table.values();
+            int bucket = signSafeMod(keyHash, table.capacity());
 
             try {
                 while (true) {
@@ -373,9 +362,9 @@ public class ConcurrentLongHashMap<V> {
                             acquiredLock = true;
 
                             table = this.table;
-                            keys = table.keys;
-                            values = table.values;
-                            bucket = signSafeMod(keyHash, table.capacity);
+                            keys = table.keys();
+                            values = table.values();
+                            bucket = signSafeMod(keyHash, table.capacity());
                             storedKey = keys[bucket];
                             storedValue = values[bucket];
                         }
@@ -387,7 +376,7 @@ public class ConcurrentLongHashMap<V> {
                             return null;
                         }
                     }
-                    bucket = (bucket + 1) & (table.capacity - 1);
+                    bucket = (bucket + 1) & (table.capacity() - 1);
                 }
             } finally {
                 if (acquiredLock) {
@@ -401,9 +390,9 @@ public class ConcurrentLongHashMap<V> {
 
             long stamp = writeLock();
             Table<V> table = this.table;
-            long[] keys = table.keys;
-            V[] values = table.values;
-            int capacity = table.capacity;
+            long[] keys = table.keys();
+            V[] values = table.values();
+            int capacity = table.capacity();
 
             // Remember where we find the first available spot
             int firstDeletedKey = -1;
@@ -472,9 +461,9 @@ public class ConcurrentLongHashMap<V> {
             int bucket = keyHash;
             long stamp = writeLock();
             Table<V> table = this.table;
-            long[] keys = table.keys;
-            V[] values = table.values;
-            int capacity = table.capacity;
+            long[] keys = table.keys();
+            V[] values = table.values();
+            int capacity = table.capacity();
 
             try {
                 while (true) {
@@ -545,12 +534,12 @@ public class ConcurrentLongHashMap<V> {
             long stamp = writeLock();
 
             try {
-                if (autoShrink && capacity > initCapacity) {
+                Table<V> table = this.table;
+                if (autoShrink && table.capacity() > initCapacity) {
                     shrinkToInitCapacity();
                 } else {
-                    Table<V> table = this.table;
-                    Arrays.fill(table.keys, 0);
-                    Arrays.fill(table.values, EmptyValue);
+                    Arrays.fill(table.keys(), 0);
+                    Arrays.fill(table.values(), EmptyValue);
                     this.size = 0;
                     this.usedBuckets = 0;
                 }
@@ -563,9 +552,9 @@ public class ConcurrentLongHashMap<V> {
             long stamp = tryOptimisticRead();
 
             Table<V> table = this.table;
-            int capacity = table.capacity;
-            long[] keys = table.keys;
-            V[] values = table.values;
+            int capacity = table.capacity();
+            long[] keys = table.keys();
+            V[] values = table.values();
 
             // Validate no rehashing
             if (!validate(stamp)) {
@@ -573,9 +562,9 @@ public class ConcurrentLongHashMap<V> {
                 stamp = readLock();
 
                 table = this.table;
-                capacity = table.capacity;
-                keys = table.keys;
-                values = table.values;
+                capacity = table.capacity();
+                keys = table.keys();
+                values = table.values();
                 unlockRead(stamp);
             }
 
@@ -614,8 +603,8 @@ public class ConcurrentLongHashMap<V> {
             long[] newKeys = new long[newCapacity];
             V[] newValues = (V[]) new Object[newCapacity];
             Table<V> table = this.table;
-            long[] keys = table.keys;
-            V[] values = table.values;
+            long[] keys = table.keys();
+            V[] values = table.values();
 
             // Re-hash table
             for (int i = 0; i < keys.length; i++) {
@@ -627,10 +616,9 @@ public class ConcurrentLongHashMap<V> {
             }
 
             this.table = new Table<>(newKeys, newValues, newCapacity);
-            capacity = newCapacity;
             usedBuckets = size;
-            resizeThresholdUp = (int) (capacity * mapFillFactor);
-            resizeThresholdBelow = (int) (capacity * mapIdleFactor);
+            resizeThresholdUp = (int) (newCapacity * mapFillFactor);
+            resizeThresholdBelow = (int) (newCapacity * mapIdleFactor);
         }
 
         private void shrinkToInitCapacity() {
@@ -640,9 +628,8 @@ public class ConcurrentLongHashMap<V> {
             table = new Table<>(newKeys, newValues, initCapacity);
             size = 0;
             usedBuckets = 0;
-            capacity = initCapacity;
-            resizeThresholdUp = (int) (capacity * mapFillFactor);
-            resizeThresholdBelow = (int) (capacity * mapIdleFactor);
+            resizeThresholdUp = (int) (initCapacity * mapFillFactor);
+            resizeThresholdBelow = (int) (initCapacity * mapIdleFactor);
         }
 
         private static <V> void insertKeyValueNoLock(long[] keys, V[] values, long key, V value) {
