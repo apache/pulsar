@@ -169,6 +169,64 @@ public class MessageIdV5Test {
     }
 
     @Test
+    public void testRoundtripWithParentTopic() throws Exception {
+        // Multi-topic queue consumer ids carry a parent-topic tag for ack routing
+        // but no cross-topic vector. Both must survive serialisation.
+        MessageIdV5 original = new MessageIdV5(v4(11, 22, 0), 3L,
+                Map.of(0L, v4(1, 2, 0)),
+                "topic://tenant/ns/my-topic");
+
+        MessageIdV5 decoded = MessageIdV5.fromByteArray(original.toByteArray());
+
+        assertEquals(decoded.segmentId(), 3L);
+        assertEquals(decoded.parentTopic(), "topic://tenant/ns/my-topic");
+        assertEquals(decoded.positionVector().size(), 1);
+        // No multi-topic vector was set; round-trip must preserve null.
+        assertEquals(decoded.multiTopicVector(), null);
+    }
+
+    @Test
+    public void testRoundtripWithMultiTopicVector() throws Exception {
+        // Multi-topic stream consumer ids carry a cross-topic position vector and
+        // the parent topic. Whole tree must survive byte-level round trip so an
+        // application that serialises the id and sends it through can still call
+        // acknowledgeCumulative against the right per-topic / per-segment positions.
+        Map<String, Map<Long, MessageId>> multi = Map.of(
+                "topic://tenant/ns/a", Map.of(0L, v4(1, 1, 0), 1L, v4(2, 2, 0)),
+                "topic://tenant/ns/b", Map.of(0L, v4(3, 3, 0)));
+        MessageIdV5 original = new MessageIdV5(v4(99, 100, 0), 5L,
+                Map.of(0L, v4(1, 1, 0), 1L, v4(2, 2, 0)),
+                "topic://tenant/ns/a",
+                multi);
+
+        MessageIdV5 decoded = MessageIdV5.fromByteArray(original.toByteArray());
+
+        assertEquals(decoded.segmentId(), 5L);
+        assertEquals(decoded.parentTopic(), "topic://tenant/ns/a");
+        assertEquals(decoded.positionVector().size(), 2);
+        assertNotNull(decoded.multiTopicVector());
+        assertEquals(decoded.multiTopicVector().keySet(),
+                java.util.Set.of("topic://tenant/ns/a", "topic://tenant/ns/b"));
+        assertEquals(decoded.multiTopicVector().get("topic://tenant/ns/a"),
+                Map.of(0L, v4(1, 1, 0), 1L, v4(2, 2, 0)));
+        assertEquals(decoded.multiTopicVector().get("topic://tenant/ns/b"),
+                Map.of(0L, v4(3, 3, 0)));
+    }
+
+    @Test
+    public void testRoundtripPreservesNullMultiTopicVector() throws Exception {
+        // Single-topic ids leave both new fields null; we must not accidentally
+        // hydrate them on decode.
+        MessageIdV5 original = new MessageIdV5(v4(7, 8, 0), 1L,
+                Map.of(0L, v4(1, 2, 0)));
+
+        MessageIdV5 decoded = MessageIdV5.fromByteArray(original.toByteArray());
+
+        assertEquals(decoded.parentTopic(), null);
+        assertEquals(decoded.multiTopicVector(), null);
+    }
+
+    @Test
     public void testFromByteArrayRejectsTooShort() {
         assertThrows(java.io.IOException.class, () -> MessageIdV5.fromByteArray(new byte[3]));
     }

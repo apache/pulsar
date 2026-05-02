@@ -86,6 +86,13 @@ final class ScalableStreamConsumer<T>
             new ConcurrentHashMap<>();
 
     private final LinkedTransferQueue<MessageV5<T>> messageQueue = new LinkedTransferQueue<>();
+    /**
+     * Where each per-segment receive loop deposits a freshly-arrived message. Defaults
+     * to enqueueing on {@link #messageQueue} for the user's {@link #receive()} to pull;
+     * the multi-topic wrapper overrides this to forward into its shared multiplexed
+     * queue, applying its own multi-topic position-vector capture in the process.
+     */
+    private final java.util.function.Consumer<MessageV5<T>> messageSink;
 
     private volatile boolean closed = false;
     private final AsyncStreamConsumerV5<T> asyncView;
@@ -94,7 +101,8 @@ final class ScalableStreamConsumer<T>
                                    Schema<T> v5Schema,
                                    ConsumerConfigurationData<T> consumerConf,
                                    ScalableConsumerClient session,
-                                   String topicName) {
+                                   String topicName,
+                                   java.util.function.Consumer<MessageV5<T>> messageSink) {
         this.client = client;
         this.v5Schema = v5Schema;
         this.v4Schema = SchemaAdapter.toV4(v5Schema);
@@ -102,6 +110,7 @@ final class ScalableStreamConsumer<T>
         this.session = session;
         this.topicName = topicName;
         this.subscriptionName = consumerConf.getSubscriptionName();
+        this.messageSink = messageSink != null ? messageSink : messageQueue::add;
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
         this.asyncView = new AsyncStreamConsumerV5<>(this);
     }
@@ -118,16 +127,52 @@ final class ScalableStreamConsumer<T>
                                                                 ScalableConsumerClient session,
                                                                 String topicName,
                                                                 List<ActiveSegment> initialAssignment) {
+        return createAsyncImpl(client, v5Schema, consumerConf, session, topicName, initialAssignment, null)
+                .thenApply(c -> c);
+    }
+
+    /**
+     * Like {@link #createAsync} but resolves to the concrete impl type and accepts an
+     * optional external message sink. Used by {@link MultiTopicStreamConsumer}: it
+     * passes a sink that forwards into the shared multiplexed queue, replacing the
+     * per-topic pump thread with direct delivery.
+     */
+    static <T> CompletableFuture<ScalableStreamConsumer<T>> createAsyncImpl(
+            PulsarClientV5 client,
+            Schema<T> v5Schema,
+            ConsumerConfigurationData<T> consumerConf,
+            ScalableConsumerClient session,
+            String topicName,
+            List<ActiveSegment> initialAssignment,
+            java.util.function.Consumer<MessageV5<T>> messageSink) {
         ScalableStreamConsumer<T> consumer = new ScalableStreamConsumer<>(
-                client, v5Schema, consumerConf, session, topicName);
+                client, v5Schema, consumerConf, session, topicName, messageSink);
         return consumer.subscribeAssigned(initialAssignment)
                 .thenApply(__ -> {
                     session.setListener(consumer);
-                    return (StreamConsumer<T>) consumer;
+                    return consumer;
                 })
                 .exceptionallyCompose(ex -> consumer.closeAsync().handle((__, ___) -> {
                     throw ex instanceof CompletionException ce ? ce : new CompletionException(ex);
                 }));
+    }
+
+    /**
+     * Multi-topic ack hook. Synthesises a {@link MessageIdV5} carrying the supplied
+     * vector and routes it through the regular cumulative-ack path so segments are
+     * acked up to the recorded positions. Used by {@link MultiTopicStreamConsumer}
+     * to fan out a cumulative ack across every per-topic consumer.
+     */
+    void ackUpToVector(java.util.Map<Long, org.apache.pulsar.client.api.MessageId> vector) {
+        if (vector == null || vector.isEmpty()) {
+            return;
+        }
+        // The constructed id only needs the positionVector; v4MessageId / segmentId are
+        // unused on the cumulative-ack path. Pick any value for the non-vector slots —
+        // earliest is convenient and won't accidentally satisfy a peer's check.
+        var synthetic = new MessageIdV5(org.apache.pulsar.client.api.MessageId.earliest,
+                MessageIdV5.NO_SEGMENT, vector);
+        acknowledgeCumulative(synthetic);
     }
 
     @Override
@@ -358,7 +403,7 @@ final class ScalableStreamConsumer<T>
 
             // Create the V5 message with the position vector embedded in the ID
             var msgId = new MessageIdV5(v4Msg.getMessageId(), segmentId, positionVector);
-            messageQueue.add(new MessageV5<>(v4Msg, msgId));
+            messageSink.accept(new MessageV5<>(v4Msg, msgId));
 
             if (!closed) {
                 startReceiveLoop(v4Consumer, segmentId);

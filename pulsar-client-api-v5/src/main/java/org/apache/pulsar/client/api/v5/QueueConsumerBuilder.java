@@ -19,10 +19,8 @@
 package org.apache.pulsar.client.api.v5;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
@@ -52,38 +50,37 @@ public interface QueueConsumerBuilder<T> {
     CompletableFuture<QueueConsumer<T>> subscribeAsync();
 
     // --- Topic selection ---
+    // Either {@link #topic(String)} or {@link #namespace} must be set, not both.
 
     /**
-     * The topic(s) to subscribe to.
+     * Subscribe to a single scalable topic by name.
      *
-     * @param topicNames one or more topic names
+     * @param topicName the fully-qualified topic name (e.g. {@code topic://tenant/ns/name})
      * @return this builder instance for chaining
      */
-    QueueConsumerBuilder<T> topic(String... topicNames);
+    QueueConsumerBuilder<T> topic(String topicName);
 
     /**
-     * The topics to subscribe to.
+     * Subscribe to every scalable topic under a namespace. The matching set follows
+     * live: when topics are created in or deleted from the namespace, the consumer
+     * attaches / detaches automatically.
      *
-     * @param topicNames the list of topic names
+     * @param namespace the namespace in {@code tenant/namespace} form
      * @return this builder instance for chaining
      */
-    QueueConsumerBuilder<T> topics(List<String> topicNames);
+    QueueConsumerBuilder<T> namespace(String namespace);
 
     /**
-     * Subscribe to all topics matching a regex pattern.
+     * Subscribe to scalable topics under a namespace whose properties match every
+     * key/value pair in {@code propertyFilters} (AND semantics). An empty map is
+     * equivalent to {@link #namespace(String)} — every topic in the namespace.
+     * The matching set follows live as topic properties change.
      *
-     * @param pattern the compiled regex pattern to match topic names against
+     * @param namespace       the namespace in {@code tenant/namespace} form
+     * @param propertyFilters property name/value pairs that all must match
      * @return this builder instance for chaining
      */
-    QueueConsumerBuilder<T> topicsPattern(Pattern pattern);
-
-    /**
-     * Subscribe to all topics matching a regex pattern (string form).
-     *
-     * @param regex the regex pattern string to match topic names against
-     * @return this builder instance for chaining
-     */
-    QueueConsumerBuilder<T> topicsPattern(String regex);
+    QueueConsumerBuilder<T> namespace(String namespace, Map<String, String> propertyFilters);
 
     // --- Subscription ---
 
@@ -189,16 +186,6 @@ public interface QueueConsumerBuilder<T> {
      * @return this builder instance for chaining
      */
     QueueConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy policy);
-
-    // --- Pattern subscription ---
-
-    /**
-     * How often to re-discover topics matching the pattern.
-     *
-     * @param interval the auto-discovery interval
-     * @return this builder instance for chaining
-     */
-    QueueConsumerBuilder<T> patternAutoDiscoveryPeriod(Duration interval);
 
     // --- Encryption ---
 

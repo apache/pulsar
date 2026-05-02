@@ -1774,6 +1774,95 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    /**
+     * Client -> Broker: open a scalable-topics watch session.
+     *
+     * @param watchId         client-assigned watch identifier
+     * @param namespace       tenant/namespace to scope the watch to
+     * @param consumerName    optional caller identity (carried for a future namespace
+     *                        coordinator); pass {@code null} if not yet assigned
+     * @param propertyFilters AND filters; empty / null = match all topics in the namespace
+     */
+    /**
+     * @param currentHash optional hash of the client's currently-known topic set.
+     *                    Pass on reconnect to let the broker skip the snapshot when
+     *                    state hasn't changed; pass {@code null} on first subscribe.
+     */
+    public static ByteBuf newWatchScalableTopics(long watchId, String namespace,
+                                                  java.util.Map<String, String> propertyFilters,
+                                                  String currentHash) {
+        BaseCommand cmd = localCmd(Type.WATCH_SCALABLE_TOPICS);
+        org.apache.pulsar.common.api.proto.CommandWatchScalableTopics watch =
+                cmd.setWatchScalableTopics()
+                        .setWatchId(watchId)
+                        .setNamespace(namespace);
+        if (propertyFilters != null) {
+            for (var entry : propertyFilters.entrySet()) {
+                watch.addPropertyFilter()
+                        .setKey(entry.getKey())
+                        .setValue(entry.getValue());
+            }
+        }
+        if (currentHash != null) {
+            watch.setCurrentHash(currentHash);
+        }
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newWatchScalableTopicsClose(long watchId) {
+        BaseCommand cmd = localCmd(Type.WATCH_SCALABLE_TOPICS_CLOSE);
+        cmd.setWatchScalableTopicsClose().setWatchId(watchId);
+        return serializeWithSize(cmd);
+    }
+
+    /**
+     * Broker -> Client: emit a full snapshot of the matching topic set. Sent on initial
+     * subscribe and on every reconnect-resync; the client replaces its local state.
+     */
+    public static ByteBuf newWatchScalableTopicsSnapshot(long watchId,
+                                                          java.util.Collection<String> topics) {
+        BaseCommand cmd = new BaseCommand().setType(Type.WATCH_SCALABLE_TOPICS_UPDATE);
+        var update = cmd.setWatchScalableTopicsUpdate().setWatchId(watchId);
+        var snapshot = update.setSnapshot();
+        for (String t : topics) {
+            snapshot.addTopic(t);
+        }
+        return serializeWithSize(cmd);
+    }
+
+    /**
+     * Broker -> Client: emit an incremental membership change. Either {@code added} or
+     * {@code removed} (or both) may be empty. Apply removed before added when both
+     * appear together.
+     */
+    public static ByteBuf newWatchScalableTopicsDiff(long watchId,
+                                                     java.util.Collection<String> added,
+                                                     java.util.Collection<String> removed) {
+        BaseCommand cmd = new BaseCommand().setType(Type.WATCH_SCALABLE_TOPICS_UPDATE);
+        var update = cmd.setWatchScalableTopicsUpdate().setWatchId(watchId);
+        var diff = update.setDiff();
+        if (added != null) {
+            for (String t : added) {
+                diff.addAdded(t);
+            }
+        }
+        if (removed != null) {
+            for (String t : removed) {
+                diff.addRemoved(t);
+            }
+        }
+        return serializeWithSize(cmd);
+    }
+
+    public static ByteBuf newWatchScalableTopicsError(long watchId, ServerError error, String message) {
+        BaseCommand cmd = new BaseCommand().setType(Type.WATCH_SCALABLE_TOPICS_UPDATE);
+        cmd.setWatchScalableTopicsUpdate()
+                .setWatchId(watchId)
+                .setError(error)
+                .setMessage(message);
+        return serializeWithSize(cmd);
+    }
+
     public static ByteBuf serializeWithSize(BaseCommand cmd) {
         return serializeWithPrecalculatedSerializedSize(cmd, cmd.getSerializedSize());
     }

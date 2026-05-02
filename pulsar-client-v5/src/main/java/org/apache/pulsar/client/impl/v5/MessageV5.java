@@ -31,13 +31,19 @@ final class MessageV5<T> implements Message<T> {
 
     private final org.apache.pulsar.client.api.Message<T> v4Message;
     private final MessageIdV5 messageId;
+    /**
+     * Optional override for {@link #topic()}. Set by multi-topic consumer wrappers to
+     * the parent scalable topic name (the v4 message's own topic is the segment topic,
+     * which is internal). Null for single-topic consumers — {@code topic()} falls back
+     * to the v4 message topic in that case.
+     */
+    private final String topicOverride;
 
     /**
      * Create with a simple segment ID (for queue consumer, checkpoint consumer, producer).
      */
     MessageV5(org.apache.pulsar.client.api.Message<T> v4Message, long segmentId) {
-        this.v4Message = v4Message;
-        this.messageId = new MessageIdV5(v4Message.getMessageId(), segmentId);
+        this(v4Message, new MessageIdV5(v4Message.getMessageId(), segmentId), null);
     }
 
     /**
@@ -45,8 +51,36 @@ final class MessageV5<T> implements Message<T> {
      * (for stream consumer cumulative ack support).
      */
     MessageV5(org.apache.pulsar.client.api.Message<T> v4Message, MessageIdV5 messageId) {
+        this(v4Message, messageId, null);
+    }
+
+    /**
+     * Create with an explicit topic override — used by multi-topic consumer wrappers
+     * to surface the parent scalable topic via {@link #topic()} instead of the
+     * underlying segment topic. {@code topicOverride} may be {@code null}.
+     */
+    MessageV5(org.apache.pulsar.client.api.Message<T> v4Message, MessageIdV5 messageId,
+              String topicOverride) {
         this.v4Message = v4Message;
         this.messageId = messageId;
+        this.topicOverride = topicOverride;
+    }
+
+    /**
+     * Re-brand this message with a parent scalable topic. Used by multi-topic consumer
+     * wrappers when forwarding from a per-topic consumer's queue into the shared
+     * multiplexed queue: the message id picks up the parent for ack routing, and
+     * {@link #topic()} starts returning the parent.
+     */
+    MessageV5<T> withTopicOverride(String parentTopic) {
+        MessageIdV5 newId = new MessageIdV5(messageId.v4MessageId(), messageId.segmentId(),
+                messageId.positionVector(), parentTopic);
+        return new MessageV5<>(v4Message, newId, parentTopic);
+    }
+
+    /** Underlying v4 message — exposed to multi-topic wrappers that re-build with a new id. */
+    org.apache.pulsar.client.api.Message<T> v4Message() {
+        return v4Message;
     }
 
     @Override
@@ -98,7 +132,10 @@ final class MessageV5<T> implements Message<T> {
 
     @Override
     public String topic() {
-        return v4Message.getTopicName();
+        // Multi-topic consumer wrappers set topicOverride to the parent scalable topic
+        // so the user-visible topic() matches the topic they subscribed to (the
+        // v4 message carries the internal segment topic).
+        return topicOverride != null ? topicOverride : v4Message.getTopicName();
     }
 
     @Override

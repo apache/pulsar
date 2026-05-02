@@ -48,7 +48,7 @@ import org.apache.pulsar.metadata.api.NotificationType;
  * <p>The session is tied to a connection. When the connection breaks, the session dies.
  * The client must reinitiate a new session (possibly with another broker).
  */
-public class DagWatchSession {
+public class DagWatchSession implements ScalableTopicResources.MetadataPathListener {
 
     private static final Logger LOG = Logger.get(DagWatchSession.class);
     private final Logger log;
@@ -61,7 +61,6 @@ public class DagWatchSession {
     private final BrokerService brokerService;
 
     private final String metadataPath;
-    private final java.util.function.Consumer<Notification> notificationListener;
     private volatile boolean closed = false;
 
     public DagWatchSession(long sessionId,
@@ -75,8 +74,12 @@ public class DagWatchSession {
         this.resources = resources;
         this.brokerService = brokerService;
         this.metadataPath = resources.topicPath(topicName);
-        this.notificationListener = this::onNotification;
         this.log = LOG.with().attr("topic", topicName).attr("sessionId", sessionId).build();
+    }
+
+    @Override
+    public String getMetadataPath() {
+        return metadataPath;
     }
 
     /**
@@ -84,8 +87,9 @@ public class DagWatchSession {
      * the initial layout response.
      */
     public CompletableFuture<ScalableTopicLayoutResponse> start() {
-        // Register metadata store listener for changes to this topic's metadata
-        resources.getStore().registerListener(notificationListener);
+        // Register through the resources-level fan-out so close() can deregister us
+        // and we don't accumulate stale store-level listeners over time.
+        resources.registerPathListener(this);
 
         return resources.getScalableTopicMetadataAsync(topicName, true)
                 .thenCompose(optMd -> {
@@ -98,8 +102,13 @@ public class DagWatchSession {
                 });
     }
 
-    // Visible for testing — invoked by the metadata-store listener registered in start().
-    void onNotification(Notification notification) {
+    /**
+     * Invoked by the {@link ScalableTopicResources} fan-out for every metadata event
+     * matching this session's topic path. The registry already path-filtered for us;
+     * we re-check defensively so a registry-level bug can't cause a reload storm.
+     */
+    @Override
+    public void onNotification(Notification notification) {
         if (closed) {
             return;
         }
@@ -184,7 +193,10 @@ public class DagWatchSession {
 
     public void close() {
         closed = true;
-        // Listener is guarded by the closed flag; MetadataStore does not support unregister.
+        // Drop ourselves from the resources' fan-out so the per-event dispatch skips
+        // us — no listener leak, no per-notification dispatch tax across the broker's
+        // lifetime.
+        resources.deregisterPathListener(this);
     }
 
     /**

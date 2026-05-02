@@ -29,9 +29,9 @@ import org.apache.pulsar.client.api.v5.async.AsyncQueueConsumer;
  */
 final class AsyncQueueConsumerV5<T> implements AsyncQueueConsumer<T> {
 
-    private final ScalableQueueConsumer<T> consumer;
+    private final QueueConsumerImpl<T> consumer;
 
-    AsyncQueueConsumerV5(ScalableQueueConsumer<T> consumer) {
+    AsyncQueueConsumerV5(QueueConsumerImpl<T> consumer) {
         this.consumer = consumer;
     }
 
