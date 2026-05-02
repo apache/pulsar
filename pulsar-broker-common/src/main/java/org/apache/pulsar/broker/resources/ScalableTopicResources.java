@@ -37,6 +37,7 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
  * Metadata store access for scalable topic metadata.
@@ -75,8 +76,10 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
 
     /**
      * Per-path listeners for scalable-topic metadata events. Each listener watches a
-     * single path (typically a topic record); the resources-level fan-out dispatches
-     * notifications whose path matches the listener's registered path.
+     * single exact path (typically a topic record); the resources-level fan-out
+     * dispatches notifications whose path equals the listener's registered path.
+     * Used by {@link DagWatchSession}-style subscribers that want events for one
+     * specific topic.
      *
      * <p>Hosted here — rather than letting each subscriber call
      * {@code store.registerListener} directly — because {@code MetadataStore} has no
@@ -87,13 +90,27 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
      */
     private final Map<MetadataPathListener, String> pathListeners = new ConcurrentHashMap<>();
 
+    /**
+     * Per-namespace listeners for scalable-topic create / modify / delete events.
+     * Used by namespace-wide watchers (e.g. multi-topic consumer wrappers); the
+     * fan-out matches direct children of the listener's namespace base path. Same
+     * leak-avoidance rationale as {@link #pathListeners}.
+     */
+    private final Map<NamespaceListener, NamespaceName> namespaceListeners =
+            new ConcurrentHashMap<>();
+
     public ScalableTopicResources(MetadataStore store, int operationTimeoutSec) {
         super(store, ScalableTopicMetadata.class, operationTimeoutSec);
         this.subscriptionCache = store.getMetadataCache(SubscriptionMetadata.class);
         this.consumerRegistrationCache = store.getMetadataCache(ConsumerRegistration.class);
-        // Single shared metadata-store listener fans out to every registered subscriber.
-        // Per-subscriber lifecycle goes through register / deregister below.
-        store.registerListener(this::handleNotification);
+        // Single shared metadata-store listener fans out to both per-path and
+        // per-namespace subscribers. Per-subscriber lifecycle goes through the
+        // register / deregister methods below.
+        if (store instanceof MetadataStoreExtended ext) {
+            ext.registerListener(this::handleNotification);
+        } else {
+            store.registerListener(this::handleNotification);
+        }
     }
 
     // --- Per-path metadata listeners ---
@@ -127,24 +144,87 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         pathListeners.remove(listener);
     }
 
+    // --- Namespace-level scalable-topics listeners ---
+
     /**
-     * Fan-out from the single store-level listener: for each registered subscriber,
-     * dispatch when the notification's path equals the listener's registered path.
+     * Listener for scalable-topic create / modify / delete events under a single
+     * namespace. The fan-out in {@link ScalableTopicResources} filters notifications
+     * to the listener's namespace and to direct topic records (skipping subtree paths
+     * like {@code <topic>/subscriptions/...} or {@code <topic>/controller}).
+     */
+    public interface NamespaceListener {
+        /** Namespace this listener is scoped to. */
+        NamespaceName getNamespaceName();
+
+        /** Called for every metadata event affecting a topic record in the namespace. */
+        void onNotification(Notification notification);
+    }
+
+    /**
+     * Register a per-namespace listener. The listener will receive every
+     * Created / Modified / Deleted event whose path is a direct child of
+     * {@code /topics/<tenant>/<ns>}. Idempotent — re-registering the same listener
+     * just updates the namespace mapping.
+     */
+    public void registerNamespaceListener(NamespaceListener listener) {
+        namespaceListeners.put(listener, listener.getNamespaceName());
+    }
+
+    /**
+     * Deregister a previously-registered namespace listener. Safe to call multiple
+     * times or for listeners that were never registered.
+     */
+    public void deregisterNamespaceListener(NamespaceListener listener) {
+        namespaceListeners.remove(listener);
+    }
+
+    /**
+     * Single fan-out path. For each registered subscriber:
+     * <ul>
+     *   <li>Path listener: dispatch when the notification's path equals the listener's
+     *       registered path.</li>
+     *   <li>Namespace listener: dispatch when the notification's path is a direct
+     *       child of {@code /topics/<tenant>/<ns>} (skips subtree events like
+     *       subscriptions / controller lock).</li>
+     * </ul>
      */
     void handleNotification(Notification notification) {
-        if (pathListeners.isEmpty()) {
-            return;
-        }
         String path = notification.getPath();
-        for (Map.Entry<MetadataPathListener, String> entry : pathListeners.entrySet()) {
-            if (entry.getValue().equals(path)) {
+
+        // Path listeners — exact match.
+        if (!pathListeners.isEmpty()) {
+            for (Map.Entry<MetadataPathListener, String> entry : pathListeners.entrySet()) {
+                if (entry.getValue().equals(path)) {
+                    try {
+                        entry.getKey().onNotification(notification);
+                    } catch (Exception e) {
+                        log.warn().attr("listener", entry.getKey())
+                                .attr("path", path)
+                                .exceptionMessage(e)
+                                .log("Failed to dispatch scalable-topic path notification");
+                    }
+                }
+            }
+        }
+
+        // Namespace listeners — direct child of /topics/<ns>.
+        if (!namespaceListeners.isEmpty() && path.startsWith(SCALABLE_TOPIC_PATH + "/")) {
+            for (Map.Entry<NamespaceListener, NamespaceName> entry : namespaceListeners.entrySet()) {
+                String basePath = namespacePath(entry.getValue());
+                if (!path.startsWith(basePath + "/")) {
+                    continue;
+                }
+                String rest = path.substring(basePath.length() + 1);
+                if (rest.indexOf('/') >= 0) {
+                    continue;
+                }
                 try {
                     entry.getKey().onNotification(notification);
                 } catch (Exception e) {
                     log.warn().attr("listener", entry.getKey())
                             .attr("path", path)
                             .exceptionMessage(e)
-                            .log("Failed to dispatch scalable-topic notification");
+                            .log("Failed to dispatch scalable-topic namespace notification");
                 }
             }
         }
@@ -350,6 +430,15 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
 
     public String topicPath(TopicName tn) {
         return joinPath(SCALABLE_TOPIC_PATH, tn.getNamespace(), tn.getEncodedLocalName());
+    }
+
+    /**
+     * Path under which all scalable topic records for a namespace live as direct
+     * children. Used by namespace-wide watchers as the prefix to filter metadata
+     * notifications down to events that touch a topic record.
+     */
+    public String namespacePath(NamespaceName ns) {
+        return joinPath(SCALABLE_TOPIC_PATH, ns.toString());
     }
 
     public String subscriptionPath(TopicName tn, String subscription) {

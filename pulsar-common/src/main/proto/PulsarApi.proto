@@ -940,6 +940,57 @@ message CommandScalableTopicAssignmentUpdate {
     required ScalableConsumerAssignment assignment = 2;
 }
 
+// Multi-topic consumer watcher: subscribes to the union of scalable topics in a
+// namespace that match a (possibly empty) set of property filters. The broker keeps
+// pushing updates as topics enter or leave the matching set. See
+// `multi-topic-consumer-design.md` for the full design.
+
+// Client -> Broker: open a watch session.
+message CommandWatchScalableTopics {
+    required uint64 watch_id          = 1;   // Client-assigned watch ID
+    required string namespace         = 2;   // tenant/namespace
+    // Optional AND filters; empty list means "match all topics in the namespace".
+    repeated KeyValue property_filters = 3;
+    // Hash of the topics the client believes are currently in its set. Sent on
+    // reconnect; absent on first subscribe. If it matches the broker's freshly
+    // computed hash, the broker skips emitting the initial Snapshot — the client's
+    // local state is already correct and future Diffs will flow as usual. Same
+    // hash function as CommandGetTopicsOfNamespace (CRC32C over sorted topics).
+    optional string current_hash       = 4;
+}
+
+// Snapshot of the full matching set. Sent on initial subscribe and on every
+// reconnect-resync. The client replaces its local set with this list.
+message ScalableTopicsSnapshot {
+    repeated string topics = 1;
+}
+
+// Incremental membership change. Apply removed before added when both are present.
+message ScalableTopicsDiff {
+    repeated string added   = 1;
+    repeated string removed = 2;
+}
+
+// Broker -> Client: either Snapshot or Diff (mutually exclusive via oneof). When the
+// initial subscribe fails, neither variant is set and `error`/`message` carry the
+// failure reason.
+message CommandWatchScalableTopicsUpdate {
+    required uint64 watch_id              = 1;
+
+    oneof event {
+        ScalableTopicsSnapshot snapshot = 2;
+        ScalableTopicsDiff diff         = 3;
+    }
+
+    optional ServerError error            = 4;
+    optional string message               = 5;
+}
+
+// Client -> Broker: close the watch session.
+message CommandWatchScalableTopicsClose {
+    required uint64 watch_id = 1;
+}
+
 message CommandGetSchema {
     required uint64 request_id = 1;
     required string topic      = 2;
@@ -1185,6 +1236,10 @@ message BaseCommand {
         SCALABLE_TOPIC_SUBSCRIBE              = 73;
         SCALABLE_TOPIC_SUBSCRIBE_RESPONSE     = 74;
         SCALABLE_TOPIC_ASSIGNMENT_UPDATE      = 75;
+
+        WATCH_SCALABLE_TOPICS                 = 76;
+        WATCH_SCALABLE_TOPICS_UPDATE          = 77;
+        WATCH_SCALABLE_TOPICS_CLOSE           = 78;
     }
 
 
@@ -1276,4 +1331,8 @@ message BaseCommand {
     optional CommandScalableTopicSubscribe scalableTopicSubscribe                     = 73;
     optional CommandScalableTopicSubscribeResponse scalableTopicSubscribeResponse     = 74;
     optional CommandScalableTopicAssignmentUpdate scalableTopicAssignmentUpdate       = 75;
+
+    optional CommandWatchScalableTopics watchScalableTopics                           = 76;
+    optional CommandWatchScalableTopicsUpdate watchScalableTopicsUpdate               = 77;
+    optional CommandWatchScalableTopicsClose watchScalableTopicsClose                 = 78;
 }

@@ -178,6 +178,18 @@ public class ClientCnx extends PulsarHandler {
                     .concurrencyLevel(1)
                     .build();
 
+    /**
+     * Per-watcher namespace scalable-topics watch sessions, keyed by the
+     * {@code watchId} chosen by the client. The broker tags every
+     * {@link org.apache.pulsar.common.api.proto.CommandWatchScalableTopicsUpdate} with
+     * this id.
+     */
+    private final ConcurrentLongHashMap<ScalableTopicsWatcherSession> scalableTopicsWatchers =
+            ConcurrentLongHashMap.<ScalableTopicsWatcherSession>newBuilder()
+                    .expectedItems(4)
+                    .concurrencyLevel(1)
+                    .build();
+
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
 
@@ -375,6 +387,7 @@ public class ClientCnx extends PulsarHandler {
         topicListWatchers.forEach((__, watcher) -> watcher.connectionClosed(this));
         dagWatchSessions.forEach((__, session) -> session.connectionClosed());
         scalableConsumerSessions.forEach((__, session) -> session.connectionClosed());
+        scalableTopicsWatchers.forEach((__, session) -> session.connectionClosed());
 
         waitingLookupRequests.clear();
 
@@ -383,6 +396,7 @@ public class ClientCnx extends PulsarHandler {
         topicListWatchers.clear();
         dagWatchSessions.clear();
         scalableConsumerSessions.clear();
+        scalableTopicsWatchers.clear();
 
         timeoutTask.cancel(true);
     }
@@ -1425,6 +1439,75 @@ public class ClientCnx extends PulsarHandler {
 
     public void removeScalableConsumerSession(long consumerId) {
         scalableConsumerSessions.remove(consumerId);
+    }
+
+    @Override
+    protected void handleCommandWatchScalableTopicsUpdate(
+            org.apache.pulsar.common.api.proto.CommandWatchScalableTopicsUpdate cmd) {
+        checkArgument(state == State.Ready);
+
+        long watchId = cmd.getWatchId();
+        log.debug().attr("watchId", watchId).log("Received WatchScalableTopicsUpdate");
+
+        if (cmd.hasError()) {
+            // Error response — terminal for this watch (subscribe was rejected or the
+            // server failed to compute the initial set). Drop the local registration so
+            // a retry from the caller starts fresh.
+            ScalableTopicsWatcherSession session = scalableTopicsWatchers.remove(watchId);
+            if (session != null) {
+                session.onError(cmd.getError(), cmd.hasMessage() ? cmd.getMessage() : null);
+            } else {
+                log.warn().attr("watchId", watchId)
+                        .log("Received scalable-topics watch error for unknown watcher");
+            }
+            return;
+        }
+
+        ScalableTopicsWatcherSession session = scalableTopicsWatchers.get(watchId);
+        if (session == null) {
+            log.warn().attr("watchId", watchId)
+                    .log("Received scalable-topics watch update for unknown watcher");
+            return;
+        }
+        // Snapshot and diff are mutually exclusive via the proto oneof; switch on the
+        // generated event-case enum and unpack accordingly.
+        switch (cmd.getEventCase()) {
+            case SNAPSHOT -> {
+                var snapshot = cmd.getSnapshot();
+                java.util.List<String> topics = new java.util.ArrayList<>(snapshot.getTopicsCount());
+                for (int i = 0; i < snapshot.getTopicsCount(); i++) {
+                    topics.add(snapshot.getTopicAt(i));
+                }
+                session.onSnapshot(topics);
+            }
+            case DIFF -> {
+                var diff = cmd.getDiff();
+                // LightProto pluralises count accessors with a trailing 's' on the field name,
+                // hence `getAddedsCount` / `getRemovedsCount`.
+                java.util.List<String> added = new java.util.ArrayList<>(diff.getAddedsCount());
+                for (int i = 0; i < diff.getAddedsCount(); i++) {
+                    added.add(diff.getAddedAt(i));
+                }
+                java.util.List<String> removed = new java.util.ArrayList<>(diff.getRemovedsCount());
+                for (int i = 0; i < diff.getRemovedsCount(); i++) {
+                    removed.add(diff.getRemovedAt(i));
+                }
+                session.onDiff(added, removed);
+            }
+            case NOT_SET -> log.warn().attr("watchId", watchId)
+                    .log("Received scalable-topics watch update with no event payload");
+            default -> log.warn().attr("watchId", watchId)
+                    .attr("case", cmd.getEventCase())
+                    .log("Received scalable-topics watch update with unknown event case");
+        }
+    }
+
+    public void registerScalableTopicsWatcher(long watchId, ScalableTopicsWatcherSession watcher) {
+        scalableTopicsWatchers.put(watchId, watcher);
+    }
+
+    public void removeScalableTopicsWatcher(long watchId) {
+        scalableTopicsWatchers.remove(watchId);
     }
 
     /**
