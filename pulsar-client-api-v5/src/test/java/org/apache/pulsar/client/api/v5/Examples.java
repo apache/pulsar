@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api.v5;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.v5.async.AsyncProducer;
 import org.apache.pulsar.client.api.v5.async.AsyncQueueConsumer;
@@ -394,15 +395,21 @@ public class Examples {
     }
 
     // ==================================================================================
-    // 8. Multi-topic queue consumer with pattern
+    // 8. Multi-topic queue consumer over a namespace, optionally filtered by property
     // ==================================================================================
 
-    /** Subscribe to all topics matching a pattern. */
-    void patternSubscription(PulsarClient client) throws Exception {
+    /**
+     * Subscribe to every scalable topic in a namespace whose properties match the
+     * given key/value pairs. The matching set follows live: when topics are created
+     * with matching properties, the consumer attaches automatically; when they're
+     * deleted or change properties out of the filter, it detaches. Pass
+     * {@code Map.of()} (or use the single-arg overload) to subscribe to every
+     * scalable topic in the namespace.
+     */
+    void namespaceSubscription(PulsarClient client) throws Exception {
         try (var consumer = client.newQueueConsumer(Schema.string())
-                .topicsPattern("persistent://public/default/events-.*")
+                .namespace("public/default", Map.of("kind", "events"))
                 .subscriptionName("all-events")
-                .patternAutoDiscoveryPeriod(Duration.ofMinutes(1))
                 .subscribe()) {
 
             while (true) {
