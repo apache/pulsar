@@ -45,6 +45,13 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
     private final Schema<T> v5Schema;
     private final ConsumerConfigurationData<T> conf = new ConsumerConfigurationData<>();
     private String topicName;
+    /**
+     * V5-layer DLQ policy. Held here rather than translated into {@code conf} so the
+     * V5 {@link ScalableQueueConsumer} can own a single DLQ producer (instead of v4's
+     * one-per-segment design, which would also reject {@code topic://} scalable DLQ
+     * targets).
+     */
+    private DeadLetterPolicy dlqPolicy;
 
     QueueConsumerBuilderV5(PulsarClientV5 client, Schema<T> v5Schema) {
         this.client = client;
@@ -79,7 +86,7 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
 
         return dagWatch.start()
                 .thenCompose(initialLayout -> ScalableQueueConsumer.createAsync(
-                        client, v5Schema, conf, dagWatch, initialLayout));
+                        client, v5Schema, conf, dagWatch, initialLayout, dlqPolicy));
     }
 
     @Override
@@ -191,18 +198,10 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
 
     @Override
     public QueueConsumerBuilderV5<T> deadLetterPolicy(DeadLetterPolicy policy) {
-        var builder = org.apache.pulsar.client.api.DeadLetterPolicy.builder()
-                .maxRedeliverCount(policy.maxRedeliverCount());
-        if (policy.retryLetterTopic() != null) {
-            builder.retryLetterTopic(policy.retryLetterTopic());
-        }
-        if (policy.deadLetterTopic() != null) {
-            builder.deadLetterTopic(policy.deadLetterTopic());
-        }
-        if (policy.initialSubscriptionName() != null) {
-            builder.initialSubscriptionName(policy.initialSubscriptionName());
-        }
-        conf.setDeadLetterPolicy(builder.build());
+        // Don't translate into conf — V5 owns DLQ at the consumer layer (see field
+        // javadoc). The v4 per-segment DLQ would (a) duplicate producers, and
+        // (b) reject scalable DLQ topics.
+        this.dlqPolicy = policy;
         return this;
     }
 

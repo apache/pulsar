@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.v5.MessageBuilder;
 import org.apache.pulsar.client.api.v5.Producer;
@@ -54,9 +56,38 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private final SegmentRouter router;
     private final String topicName;
 
-    // Per-segment v4 producers. Key is segmentId.
-    private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.Producer<T>> segmentProducers =
-            new ConcurrentHashMap<>();
+    /**
+     * Per-segment v4 producers. Stored as futures so concurrent send-on-cold-segment
+     * calls share a single creation attempt without blocking, and so callers running
+     * on a netty IO thread can chain on the future asynchronously instead of forcing
+     * a blocking {@code .get()} (which would deadlock against the segment producer's
+     * own lookup response, processed on the same IO thread).
+     */
+    private final ConcurrentHashMap<Long, CompletableFuture<org.apache.pulsar.client.api.Producer<T>>>
+            segmentProducers = new ConcurrentHashMap<>();
+
+    /**
+     * Per-segment dispatch chain. Each async send appends a link whose sole job
+     * is to call {@code v4Producer.sendAsync(...)} (fast, synchronous queue insert)
+     * once the previous link completes. This serializes the v4-side dispatch in
+     * user-call order, side-stepping JDK CompletableFuture's undefined dependent
+     * fire-order — which would otherwise let send N enter the v4 queue before
+     * send N-1 when both are dependents of the same not-yet-ready producer
+     * future. The chain head completes when the producer is ready; subsequent
+     * links complete as soon as their {@code sendAsync} call has returned (they
+     * do not wait for broker ack — that's the user-visible future).
+     */
+    private final ConcurrentHashMap<Long, CompletableFuture<org.apache.pulsar.client.api.Producer<T>>>
+            dispatchChains = new ConcurrentHashMap<>();
+    private final Object dispatchLock = new Object();
+
+    /**
+     * Currently in-flight async sends. {@link #flushAsync()} snapshots and
+     * awaits these (each user-visible send future completes on broker ack —
+     * exactly the flush guarantee).
+     */
+    private final Set<CompletableFuture<MessageIdV5>> inFlightSends =
+            ConcurrentHashMap.newKeySet();
 
     // Current active segments (volatile for visibility across threads)
     private volatile List<ActiveSegment> activeSegments = List.of();
@@ -108,8 +139,11 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         // that sets initialSequenceId(N) and immediately reads lastSequenceId() sees N.
         long max = producerConf.getInitialSequenceId() == null
                 ? -1L : producerConf.getInitialSequenceId();
-        for (var producer : segmentProducers.values()) {
-            max = Math.max(max, producer.getLastSequenceId());
+        for (var future : segmentProducers.values()) {
+            // Best-effort: only consult producers that have finished initializing.
+            if (future.isDone() && !future.isCompletedExceptionally()) {
+                max = Math.max(max, future.join().getLastSequenceId());
+            }
         }
         return max;
     }
@@ -121,23 +155,17 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
 
     @Override
     public void close() throws PulsarClientException {
-        closed = true;
-        dagWatch.close();
-
-        List<Exception> errors = new ArrayList<>();
-        for (var producer : segmentProducers.values()) {
-            try {
-                producer.close();
-            } catch (Exception e) {
-                errors.add(e);
+        try {
+            closeAsync().get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException("Close interrupted", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof PulsarClientException pce) {
+                throw pce;
             }
-        }
-        segmentProducers.clear();
-
-        if (!errors.isEmpty()) {
-            PulsarClientException ex = new PulsarClientException("Failed to close some segment producers");
-            errors.forEach(ex::addSuppressed);
-            throw ex;
+            throw new PulsarClientException(cause);
         }
     }
 
@@ -197,11 +225,16 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             java.util.List<String> replicationClusters,
             org.apache.pulsar.client.api.v5.Transaction txn) {
 
-        return sendInternalAsyncWithRetry(key, value, properties,
-                eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn, 0);
+        CompletableFuture<MessageIdV5> userFuture = new CompletableFuture<>();
+        inFlightSends.add(userFuture);
+        userFuture.whenComplete((__, ___) -> inFlightSends.remove(userFuture));
+        dispatchSendAttempt(userFuture, key, value, properties, eventTime, sequenceId,
+                deliverAfter, deliverAt, replicationClusters, txn, 0);
+        return userFuture;
     }
 
-    private CompletableFuture<MessageIdV5> sendInternalAsyncWithRetry(
+    private void dispatchSendAttempt(
+            CompletableFuture<MessageIdV5> userFuture,
             String key, T value, java.util.Map<String, String> properties,
             java.time.Instant eventTime, Long sequenceId,
             java.time.Duration deliverAfter, java.time.Instant deliverAt,
@@ -212,43 +245,70 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         try {
             segmentId = routeMessage(key);
         } catch (Exception e) {
-            return CompletableFuture.failedFuture(e);
+            userFuture.completeExceptionally(e);
+            return;
         }
+        final long routedSegmentId = segmentId;
 
-        org.apache.pulsar.client.api.Producer<T> producer;
-        try {
-            producer = getOrCreateSegmentProducer(segmentId);
-        } catch (PulsarClientException e) {
-            return CompletableFuture.failedFuture(e);
+        appendToDispatchChain(routedSegmentId, producer -> {
+            var ackFuture = buildV4Message(producer, key, value, properties,
+                    eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn)
+                    .sendAsync();
+            ackFuture.whenComplete((v4MsgId, ex) -> {
+                if (ex == null) {
+                    userFuture.complete(new MessageIdV5(v4MsgId, routedSegmentId));
+                    return;
+                }
+                Throwable cause = ex instanceof java.util.concurrent.CompletionException
+                        ? ex.getCause() : ex;
+                boolean segmentSealed = cause
+                        instanceof org.apache.pulsar.client.api.PulsarClientException
+                                .TopicTerminatedException
+                        || cause instanceof org.apache.pulsar.client.api.PulsarClientException
+                                .AlreadyClosedException;
+                if (segmentSealed && attempt < 3) {
+                    log.info().attr("segmentId", routedSegmentId)
+                            .attr("attempt", attempt + 1).log("Segment sealed, retrying");
+                    segmentProducers.remove(routedSegmentId);
+                    dispatchChains.remove(routedSegmentId);
+                    CompletableFuture.delayedExecutor(
+                                    100L * (attempt + 1),
+                                    java.util.concurrent.TimeUnit.MILLISECONDS)
+                            .execute(() -> dispatchSendAttempt(userFuture, key, value, properties,
+                                    eventTime, sequenceId, deliverAfter, deliverAt,
+                                    replicationClusters, txn, attempt + 1));
+                } else {
+                    userFuture.completeExceptionally(ex);
+                }
+            });
+        }, userFuture);
+    }
+
+    /**
+     * Append a dispatch step to the per-segment chain. The chain head is the
+     * segment-producer-creation future; subsequent links complete as soon as
+     * their {@code dispatchOp} returns (which calls v4 {@code sendAsync} — a
+     * fast queue insert), so dispatch order strictly mirrors call order.
+     * If the chain itself fails (e.g., segment producer creation failed), the
+     * user-visible future is failed too.
+     */
+    private void appendToDispatchChain(long segmentId,
+                                       Consumer<org.apache.pulsar.client.api.Producer<T>> dispatchOp,
+                                       CompletableFuture<MessageIdV5> userFuture) {
+        synchronized (dispatchLock) {
+            var prev = dispatchChains.computeIfAbsent(segmentId,
+                    id -> getOrCreateSegmentProducerAsync(id));
+            var next = prev.thenApply(producer -> {
+                dispatchOp.accept(producer);
+                return producer;
+            });
+            // If the chain link itself faults (creation failure), surface it.
+            next.exceptionally(ex -> {
+                userFuture.completeExceptionally(ex);
+                return null;
+            });
+            dispatchChains.put(segmentId, next);
         }
-
-        return buildV4Message(producer, key, value, properties,
-                eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn)
-                .sendAsync()
-                .thenApply(v4MsgId -> new MessageIdV5(v4MsgId, segmentId))
-                .exceptionallyCompose(ex -> {
-                    Throwable cause = ex instanceof java.util.concurrent.CompletionException
-                            ? ex.getCause() : ex;
-                    boolean segmentSealed = cause
-                            instanceof org.apache.pulsar.client.api.PulsarClientException
-                                    .TopicTerminatedException
-                            || cause instanceof org.apache.pulsar.client.api.PulsarClientException
-                                    .AlreadyClosedException;
-                    if (segmentSealed && attempt < 3) {
-                        log.info().attr("segmentId", segmentId)
-                                .attr("attempt", attempt + 1).log("Segment sealed, retrying");
-                        segmentProducers.remove(segmentId);
-                        return CompletableFuture.supplyAsync(() -> null,
-                                CompletableFuture.delayedExecutor(
-                                        100L * (attempt + 1),
-                                        java.util.concurrent.TimeUnit.MILLISECONDS))
-                                .thenCompose(__ -> sendInternalAsyncWithRetry(
-                                        key, value, properties, eventTime, sequenceId,
-                                        deliverAfter, deliverAt, replicationClusters,
-                                        txn, attempt + 1));
-                    }
-                    return CompletableFuture.failedFuture(ex);
-                });
     }
 
     private org.apache.pulsar.client.api.TypedMessageBuilder<T> buildV4Message(
@@ -289,14 +349,14 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     }
 
     /**
-     * Flush all segment producers asynchronously.
+     * Flush all in-flight async sends. Each user-visible send future completes
+     * on broker ack, so awaiting them is exactly the "all sends so far have
+     * landed" guarantee flush() owes the caller. Snapshotting the set means
+     * sends issued *after* this call aren't waited on (matches v4 contract).
      */
     CompletableFuture<Void> flushAsync() {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (var producer : segmentProducers.values()) {
-            futures.add(producer.flushAsync());
-        }
-        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
+        var pending = inFlightSends.toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(pending);
     }
 
     CompletableFuture<Void> closeAsync() {
@@ -304,11 +364,17 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         dagWatch.close();
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (var producer : segmentProducers.values()) {
-            futures.add(producer.closeAsync());
+        for (var future : segmentProducers.values()) {
+            // If creation failed, there's nothing to close — swallow so a single bad
+            // segment doesn't fail the overall close.
+            futures.add(future.thenCompose(p -> p.closeAsync())
+                    .exceptionally(__ -> null));
         }
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
-                .whenComplete((__, ___) -> segmentProducers.clear());
+                .whenComplete((__, ___) -> {
+                    segmentProducers.clear();
+                    dispatchChains.clear();
+                });
     }
 
     // --- Layout change handling ---
@@ -355,13 +421,16 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             if (!newSegmentIds.contains(entry.getKey())) {
                 log.info().attr("segmentId", entry.getKey())
                         .log("Closing producer for sealed segment");
-                entry.getValue().closeAsync().whenComplete((__, ex) -> {
-                    if (ex != null) {
-                        log.warn().attr("segmentId", entry.getKey())
-                                .exceptionMessage(ex).log("Error closing producer for segment");
-                    }
-                });
+                entry.getValue()
+                        .thenCompose(p -> p.closeAsync())
+                        .whenComplete((__, ex) -> {
+                            if (ex != null) {
+                                log.warn().attr("segmentId", entry.getKey())
+                                        .exceptionMessage(ex).log("Error closing producer for segment");
+                            }
+                        });
                 segmentProducers.remove(entry.getKey());
+                dispatchChains.remove(entry.getKey());
             }
         }
 
@@ -410,57 +479,66 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         }
     }
 
+    /**
+     * Async accessor for the per-segment v4 producer. Returns a shared future so
+     * concurrent send-on-cold-segment callers race-free funnel through a single
+     * creation attempt — and so callers running on a netty IO thread (e.g. the
+     * V5 DLQ dispatch off a v4 receive callback) can chain via {@code thenCompose}
+     * instead of blocking on {@code .get()} (which would deadlock against the
+     * segment producer's own lookup response, processed on the same IO thread).
+     */
+    private CompletableFuture<org.apache.pulsar.client.api.Producer<T>> getOrCreateSegmentProducerAsync(
+            long segmentId) {
+        return segmentProducers.computeIfAbsent(segmentId, id -> {
+            // Find the segment topic name
+            String segmentTopicName = null;
+            for (var seg : activeSegments) {
+                if (seg.segmentId() == id) {
+                    segmentTopicName = seg.segmentTopicName();
+                    break;
+                }
+            }
+            if (segmentTopicName == null) {
+                return CompletableFuture.failedFuture(
+                        new PulsarClientException("Segment " + id + " not found in active segments"));
+            }
+
+            PulsarClientImpl v4Client = client.v4Client();
+            // Clone the user-facing producer config so per-segment producers inherit
+            // every builder knob (compression, batching, chunking, encryption,
+            // initialSequenceId, accessMode, properties, ...) and not just the few
+            // fields explicitly carried over.
+            var segConf = producerConf.clone();
+            segConf.setTopicName(segmentTopicName);
+            if (producerConf.getProducerName() != null
+                    && !producerConf.getProducerName().isEmpty()) {
+                segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);
+            }
+            return v4Client.createSegmentProducerAsync(segConf, v4Schema);
+        });
+    }
+
+    /**
+     * Sync wrapper around {@link #getOrCreateSegmentProducerAsync}. Only safe to
+     * call from user threads (never from a netty IO thread) since it blocks until
+     * the segment producer is ready.
+     */
     private org.apache.pulsar.client.api.Producer<T> getOrCreateSegmentProducer(long segmentId)
             throws PulsarClientException {
-        var existing = segmentProducers.get(segmentId);
-        if (existing != null) {
-            return existing;
-        }
-
         try {
-            return segmentProducers.computeIfAbsent(segmentId, id -> {
-                // Find the segment topic name
-                String segmentTopicName = null;
-                for (var seg : activeSegments) {
-                    if (seg.segmentId() == id) {
-                        segmentTopicName = seg.segmentTopicName();
-                        break;
-                    }
-                }
-                if (segmentTopicName == null) {
-                    throw new RuntimeException("Segment " + id + " not found in active segments");
-                }
-
-                try {
-                    PulsarClientImpl v4Client = client.v4Client();
-                    // Clone the user-facing producer config so per-segment producers inherit
-                    // every builder knob (compression, batching, chunking, encryption,
-                    // initialSequenceId, accessMode, properties, ...) and not just the few
-                    // fields explicitly carried over.
-                    var segConf = producerConf.clone();
-                    segConf.setTopicName(segmentTopicName);
-                    if (producerConf.getProducerName() != null
-                            && !producerConf.getProducerName().isEmpty()) {
-                        segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);
-                    }
-                    return v4Client.createSegmentProducerAsync(segConf, v4Schema)
-                            .get();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        } catch (RuntimeException re) {
-            // computeIfAbsent can't throw checked exceptions; unwrap a v4 PulsarClientException
-            // and rethrow as the V5 type so callers see the contract they expect (and don't
-            // get a misleading bare RuntimeException for a producer-fenced / busy segment).
-            Throwable cause = re.getCause();
-            while (cause instanceof java.util.concurrent.ExecutionException && cause.getCause() != null) {
-                cause = cause.getCause();
-            }
+            return getOrCreateSegmentProducerAsync(segmentId).get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException("Interrupted while creating segment producer", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
             if (cause instanceof org.apache.pulsar.client.api.PulsarClientException v4Exc) {
                 throw new PulsarClientException(v4Exc.getMessage(), v4Exc);
             }
-            throw re;
+            if (cause instanceof PulsarClientException v5Exc) {
+                throw v5Exc;
+            }
+            throw new PulsarClientException(cause != null ? cause : e);
         }
     }
 }
