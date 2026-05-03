@@ -20,27 +20,55 @@ package org.apache.pulsar.client.api.v5.config;
 
 import java.time.Duration;
 import java.util.Objects;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Backoff configuration for broker reconnection attempts.
  *
  * <p>The delay for attempt {@code n} is {@code min(initialInterval * multiplier^(n-1), maxInterval)}.
  *
- * @param initialInterval the delay before the first reconnection attempt
- * @param maxInterval     the maximum delay between reconnection attempts
- * @param multiplier      the multiplier applied after each attempt
+ * <p>Use {@link #fixed(Duration, Duration)} or {@link #exponential(Duration, Duration)} for
+ * the common cases, or {@link #builder()} to configure all knobs explicitly.
  */
-public record BackoffPolicy(
-        Duration initialInterval,
-        Duration maxInterval,
-        double multiplier
-) {
-    public BackoffPolicy {
+@EqualsAndHashCode
+@ToString
+public final class BackoffPolicy {
+
+    private final Duration initialInterval;
+    private final Duration maxInterval;
+    private final double multiplier;
+
+    private BackoffPolicy(Duration initialInterval, Duration maxInterval, double multiplier) {
         Objects.requireNonNull(initialInterval, "initialInterval must not be null");
         Objects.requireNonNull(maxInterval, "maxInterval must not be null");
         if (multiplier < 1.0) {
             throw new IllegalArgumentException("multiplier must be >= 1.0");
         }
+        this.initialInterval = initialInterval;
+        this.maxInterval = maxInterval;
+        this.multiplier = multiplier;
+    }
+
+    /**
+     * @return the delay before the first reconnection attempt
+     */
+    public Duration initialInterval() {
+        return initialInterval;
+    }
+
+    /**
+     * @return the maximum delay between reconnection attempts
+     */
+    public Duration maxInterval() {
+        return maxInterval;
+    }
+
+    /**
+     * @return the multiplier applied after each attempt
+     */
+    public double multiplier() {
+        return multiplier;
     }
 
     /**
@@ -66,14 +94,62 @@ public record BackoffPolicy(
     }
 
     /**
-     * Create an exponential backoff with a custom multiplier.
-     *
-     * @param initialInterval the delay before the first reconnection attempt
-     * @param maxInterval     the maximum delay between reconnection attempts
-     * @param multiplier      the multiplier applied after each attempt, must be &gt;= 1.0
-     * @return a {@link BackoffPolicy} with the specified parameters
+     * @return a new builder for constructing a {@link BackoffPolicy}
      */
-    public static BackoffPolicy exponential(Duration initialInterval, Duration maxInterval, double multiplier) {
-        return new BackoffPolicy(initialInterval, maxInterval, multiplier);
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Builder for {@link BackoffPolicy}.
+     */
+    public static final class Builder {
+        private Duration initialInterval;
+        private Duration maxInterval;
+        private double multiplier = 2.0;
+
+        private Builder() {
+        }
+
+        /**
+         * Delay before the first reconnection attempt. Required.
+         *
+         * @param initialInterval the initial backoff delay
+         * @return this builder
+         */
+        public Builder initialInterval(Duration initialInterval) {
+            this.initialInterval = initialInterval;
+            return this;
+        }
+
+        /**
+         * Upper bound on the backoff delay. Required.
+         *
+         * @param maxInterval the maximum backoff delay
+         * @return this builder
+         */
+        public Builder maxInterval(Duration maxInterval) {
+            this.maxInterval = maxInterval;
+            return this;
+        }
+
+        /**
+         * Multiplier applied to the previous delay on each retry. Must be {@code >= 1.0}.
+         * Default is {@code 2.0} (exponential backoff). Use {@code 1.0} for fixed backoff.
+         *
+         * @param multiplier the per-attempt multiplier
+         * @return this builder
+         */
+        public Builder multiplier(double multiplier) {
+            this.multiplier = multiplier;
+            return this;
+        }
+
+        /**
+         * @return a new {@link BackoffPolicy} instance
+         */
+        public BackoffPolicy build() {
+            return new BackoffPolicy(initialInterval, maxInterval, multiplier);
+        }
     }
 }

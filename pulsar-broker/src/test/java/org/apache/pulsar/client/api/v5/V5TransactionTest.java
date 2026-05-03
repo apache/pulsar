@@ -44,7 +44,7 @@ public class V5TransactionTest extends V5ClientBaseTest {
     private PulsarClient newTxnClient() throws Exception {
         return track(PulsarClient.builder()
                 .serviceUrl(getBrokerServiceUrl())
-                .transactionPolicy(new TransactionPolicy(Duration.ofMinutes(1)))
+                .transactionPolicy(TransactionPolicy.builder().timeout(Duration.ofMinutes(1)).build())
                 .build());
     }
 

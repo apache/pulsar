@@ -56,7 +56,10 @@ public class V5DeadLetterPolicyTest extends V5ClientBaseTest {
                 .subscriptionName("dlq-sub")
                 .negativeAckRedeliveryBackoff(BackoffPolicy.exponential(
                         Duration.ofMillis(200), Duration.ofMillis(200)))
-                .deadLetterPolicy(new DeadLetterPolicy(2, null, dlqTopic, null))
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(2)
+                        .deadLetterTopic(dlqTopic)
+                        .build())
                 .subscribe();
 
         // Subscribe to the DLQ via the V4 client (DLQ is a regular persistent topic).

@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api.v5.config;
 
 import java.time.Duration;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * Optional safety net for slow / stalled queue consumers: if the application doesn't
@@ -36,37 +38,101 @@ import java.time.Duration;
  * when the application's processing time is bounded and you want stalled deliveries to
  * be reattempted automatically.
  *
- * @param timeout            how long the client waits for the application to ack a
- *                           delivery before requesting redelivery. {@link Duration#ZERO}
- *                           disables.
- * @param redeliveryBackoff  optional backoff applied between redeliveries. May be
- *                           {@code null} for the default (no extra delay).
+ * <p>Use {@link #of(Duration)} for the common case (no extra backoff), or
+ * {@link #builder()} to also configure {@code redeliveryBackoff}.
  */
-public record ProcessingTimeoutPolicy(
-        Duration timeout,
-        BackoffPolicy redeliveryBackoff
-) {
-    public ProcessingTimeoutPolicy {
+@EqualsAndHashCode
+@ToString
+public final class ProcessingTimeoutPolicy {
+
+    private final Duration timeout;
+    private final BackoffPolicy redeliveryBackoff;
+
+    private ProcessingTimeoutPolicy(Duration timeout, BackoffPolicy redeliveryBackoff) {
         if (timeout == null) {
             throw new IllegalArgumentException("timeout must not be null");
         }
         if (timeout.isNegative()) {
             throw new IllegalArgumentException("timeout must not be negative");
         }
+        this.timeout = timeout;
+        this.redeliveryBackoff = redeliveryBackoff;
+    }
+
+    /**
+     * @return how long the client waits for the application to ack a delivery before
+     *         requesting redelivery; {@link Duration#ZERO} disables
+     */
+    public Duration timeout() {
+        return timeout;
+    }
+
+    /**
+     * @return optional backoff applied between redeliveries, or {@code null} for the
+     *         default (no extra delay)
+     */
+    public BackoffPolicy redeliveryBackoff() {
+        return redeliveryBackoff;
     }
 
     /**
      * Create a policy with just a timeout — the broker uses its default redelivery
      * cadence (no extra backoff between retries).
+     *
+     * @param timeout the processing-timeout duration
+     * @return a {@link ProcessingTimeoutPolicy} with no extra redelivery backoff
      */
     public static ProcessingTimeoutPolicy of(Duration timeout) {
         return new ProcessingTimeoutPolicy(timeout, null);
     }
 
     /**
-     * Create a policy with a timeout and an explicit redelivery backoff.
+     * @return a new builder for constructing a {@link ProcessingTimeoutPolicy}
      */
-    public static ProcessingTimeoutPolicy of(Duration timeout, BackoffPolicy redeliveryBackoff) {
-        return new ProcessingTimeoutPolicy(timeout, redeliveryBackoff);
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Builder for {@link ProcessingTimeoutPolicy}.
+     */
+    public static final class Builder {
+        private Duration timeout;
+        private BackoffPolicy redeliveryBackoff;
+
+        private Builder() {
+        }
+
+        /**
+         * Processing-timeout duration — how long the client waits for the application
+         * to ack before asking the broker to redeliver. {@link Duration#ZERO} disables.
+         * Required.
+         *
+         * @param timeout the processing timeout
+         * @return this builder
+         */
+        public Builder timeout(Duration timeout) {
+            this.timeout = timeout;
+            return this;
+        }
+
+        /**
+         * Optional backoff applied between redeliveries. {@code null} (default) means
+         * "redeliver immediately on the next sweep".
+         *
+         * @param redeliveryBackoff the backoff policy
+         * @return this builder
+         */
+        public Builder redeliveryBackoff(BackoffPolicy redeliveryBackoff) {
+            this.redeliveryBackoff = redeliveryBackoff;
+            return this;
+        }
+
+        /**
+         * @return a new {@link ProcessingTimeoutPolicy} instance
+         */
+        public ProcessingTimeoutPolicy build() {
+            return new ProcessingTimeoutPolicy(timeout, redeliveryBackoff);
+        }
     }
 }

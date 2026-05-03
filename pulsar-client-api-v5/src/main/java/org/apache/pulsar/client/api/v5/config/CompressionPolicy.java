@@ -18,12 +18,34 @@
  */
 package org.apache.pulsar.client.api.v5.config;
 
+import java.util.Objects;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+
 /**
  * Compression configuration for producer message payloads.
  *
- * @param type the compression codec to use
+ * <p>The dominant configuration is the codec, so {@link #of(CompressionType)} is the
+ * primary entry point. Use {@link #builder()} if you need to set additional knobs in
+ * the future.
  */
-public record CompressionPolicy(CompressionType type) {
+@EqualsAndHashCode
+@ToString
+public final class CompressionPolicy {
+
+    private final CompressionType type;
+
+    private CompressionPolicy(CompressionType type) {
+        Objects.requireNonNull(type, "type must not be null");
+        this.type = type;
+    }
+
+    /**
+     * @return the compression codec
+     */
+    public CompressionType type() {
+        return type;
+    }
 
     /**
      * No compression.
@@ -42,5 +64,40 @@ public record CompressionPolicy(CompressionType type) {
      */
     public static CompressionPolicy of(CompressionType type) {
         return new CompressionPolicy(type);
+    }
+
+    /**
+     * @return a new builder for constructing a {@link CompressionPolicy}
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Builder for {@link CompressionPolicy}.
+     */
+    public static final class Builder {
+        private CompressionType type = CompressionType.NONE;
+
+        private Builder() {
+        }
+
+        /**
+         * Compression codec to use for message payloads.
+         *
+         * @param type the compression codec
+         * @return this builder
+         */
+        public Builder type(CompressionType type) {
+            this.type = type;
+            return this;
+        }
+
+        /**
+         * @return a new {@link CompressionPolicy} instance
+         */
+        public CompressionPolicy build() {
+            return new CompressionPolicy(type);
+        }
     }
 }

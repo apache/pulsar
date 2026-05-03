@@ -65,7 +65,7 @@ public class Examples {
         try (var client = PulsarClient.builder()
                 .serviceUrl("pulsar+ssl://pulsar.example.com:6651")
                 .authentication(AuthenticationFactory.token("eyJhbGci..."))
-                .tlsPolicy(TlsPolicy.of("/etc/pulsar/ca.pem"))
+                .tlsPolicy(TlsPolicy.builder().trustCertsFilePath("/etc/pulsar/ca.pem").build())
                 .operationTimeout(Duration.ofSeconds(30))
                 .connectionPolicy(ConnectionPolicy.builder()
                         .connectionTimeout(Duration.ofSeconds(10))
@@ -107,8 +107,11 @@ public class Examples {
         try (var producer = client.newProducer(Schema.json(SensorReading.class))
                 .topic("sensor-data")
                 .compressionPolicy(CompressionPolicy.of(CompressionType.ZSTD))
-                .batchingPolicy(BatchingPolicy.of(
-                        Duration.ofMillis(10), 5000, MemorySize.ofMegabytes(1)))
+                .batchingPolicy(BatchingPolicy.builder()
+                        .maxPublishDelay(Duration.ofMillis(10))
+                        .maxMessages(5000)
+                        .maxSize(MemorySize.ofMegabytes(1))
+                        .build())
                 .create()) {
 
             for (int i = 0; i < 100_000; i++) {
@@ -281,7 +284,7 @@ public class Examples {
                 .processingTimeout(ProcessingTimeoutPolicy.of(Duration.ofSeconds(30)))
                 .negativeAckRedeliveryBackoff(
                         BackoffPolicy.exponential(Duration.ofSeconds(1), Duration.ofMinutes(5)))
-                .deadLetterPolicy(DeadLetterPolicy.of(5))
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(5).build())
                 .subscribe()) {
 
             while (true) {
