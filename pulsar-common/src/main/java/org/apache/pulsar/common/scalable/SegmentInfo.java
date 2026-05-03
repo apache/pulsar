@@ -27,13 +27,23 @@ import java.util.List;
  * Segments are linked by parent/child edges that form a DAG representing the split/merge history.
  * Active segments are the leaves (no children); sealed segments are internal nodes.
  *
+ * <p>Two timestamps are recorded:
+ * <ul>
+ *   <li>{@code createdAtEpoch}/{@code sealedAtEpoch} — DAG generation numbers, used for
+ *       layout-versioning. They are not wall-clock values.</li>
+ *   <li>{@code createdAtMs}/{@code sealedAtMs} — wall-clock millis since the unix epoch.
+ *       Used for retention-based segment GC and for timestamp-based seek.</li>
+ * </ul>
+ *
  * @param segmentId      monotonically increasing, unique within the topic
  * @param hashRange      inclusive hash range [start, end]
  * @param state          ACTIVE or SEALED
  * @param parentIds      parent segment IDs in the DAG (empty for initial/root segments)
  * @param childIds       child segment IDs in the DAG (empty for active leaf segments)
- * @param createdAtEpoch epoch when this segment was created
- * @param sealedAtEpoch  epoch when sealed (-1 if still active)
+ * @param createdAtEpoch DAG epoch when this segment was created
+ * @param sealedAtEpoch  DAG epoch when sealed (-1 if still active)
+ * @param createdAtMs    wall-clock millis at creation time
+ * @param sealedAtMs     wall-clock millis at seal time (-1 if still active)
  */
 public record SegmentInfo(
         long segmentId,
@@ -42,7 +52,9 @@ public record SegmentInfo(
         List<Long> parentIds,
         List<Long> childIds,
         long createdAtEpoch,
-        long sealedAtEpoch
+        long sealedAtEpoch,
+        long createdAtMs,
+        long sealedAtMs
 ) {
     public SegmentInfo {
         parentIds = parentIds != null ? List.copyOf(parentIds) : List.of();
@@ -50,34 +62,35 @@ public record SegmentInfo(
     }
 
     /** Create a new active segment with no parents. */
-    public static SegmentInfo active(long segmentId, HashRange hashRange, long createdAtEpoch) {
+    public static SegmentInfo active(long segmentId, HashRange hashRange,
+                                     long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                List.of(), List.of(), createdAtEpoch, -1);
+                List.of(), List.of(), createdAtEpoch, -1, createdAtMs, -1);
     }
 
     /** Create a new active segment with the given parent IDs. */
     public static SegmentInfo active(long segmentId, HashRange hashRange,
-                                     List<Long> parentIds, long createdAtEpoch) {
+                                     List<Long> parentIds, long createdAtEpoch, long createdAtMs) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.ACTIVE,
-                parentIds, List.of(), createdAtEpoch, -1);
+                parentIds, List.of(), createdAtEpoch, -1, createdAtMs, -1);
     }
 
     /** Return a sealed copy of this segment with the given child IDs. */
-    public SegmentInfo sealed(long sealedAtEpoch, List<Long> childIds) {
+    public SegmentInfo sealed(long sealedAtEpoch, long sealedAtMs, List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, SegmentState.SEALED,
-                parentIds, childIds, createdAtEpoch, sealedAtEpoch);
+                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs);
     }
 
     /** Return a copy with different parent IDs. */
     public SegmentInfo withParentIds(List<Long> parentIds) {
         return new SegmentInfo(segmentId, hashRange, state,
-                parentIds, childIds, createdAtEpoch, sealedAtEpoch);
+                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs);
     }
 
     /** Return a copy with different child IDs. */
     public SegmentInfo withChildIds(List<Long> childIds) {
         return new SegmentInfo(segmentId, hashRange, state,
-                parentIds, childIds, createdAtEpoch, sealedAtEpoch);
+                parentIds, childIds, createdAtEpoch, sealedAtEpoch, createdAtMs, sealedAtMs);
     }
 
     public boolean isActive() {

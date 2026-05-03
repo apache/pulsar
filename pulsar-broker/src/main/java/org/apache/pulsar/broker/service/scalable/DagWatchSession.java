@@ -166,6 +166,10 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
             if (seg.sealedAtEpoch() >= 0) {
                 segProto.setSealedAtEpoch(seg.sealedAtEpoch());
             }
+            segProto.setCreatedAtMs(seg.createdAtMs());
+            if (seg.sealedAtMs() >= 0) {
+                segProto.setSealedAtMs(seg.sealedAtMs());
+            }
         }
 
         // Add broker addresses for active segments

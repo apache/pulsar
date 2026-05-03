@@ -138,7 +138,7 @@ public class SubscriptionCoordinatorTest {
     public void testLayoutChangeRebalances() throws Exception {
         coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
 
-        SegmentLayout newLayout = initialLayout.splitSegment(0);
+        SegmentLayout newLayout = initialLayout.splitSegment(0, 0L);
         Map<ConsumerSession, ConsumerAssignment> result =
                 coordinator.onLayoutChange(newLayout).get();
 
@@ -169,7 +169,7 @@ public class SubscriptionCoordinatorTest {
         try {
             orderedCoordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
 
-            SegmentLayout afterSplit = initialLayout.splitSegment(0);
+            SegmentLayout afterSplit = initialLayout.splitSegment(0, 0L);
             Map<ConsumerSession, ConsumerAssignment> result =
                     orderedCoordinator.onLayoutChange(afterSplit).get();
 
@@ -214,7 +214,7 @@ public class SubscriptionCoordinatorTest {
         };
         // Initial 50ms, max 5s — exponential, several polls happen quickly.
         SubscriptionCoordinator c = new SubscriptionCoordinator("test-sub",
-                topicName, initialLayout.splitSegment(0), resources, scheduler,
+                topicName, initialLayout.splitSegment(0, 0L), resources, scheduler,
                 Duration.ofMillis(200), checker, Duration.ofMillis(50), Duration.ofSeconds(5));
         try {
             c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
@@ -252,7 +252,7 @@ public class SubscriptionCoordinatorTest {
             return blocking;
         };
         SubscriptionCoordinator c = new SubscriptionCoordinator("test-sub",
-                topicName, initialLayout.splitSegment(0), resources, scheduler,
+                topicName, initialLayout.splitSegment(0, 0L), resources, scheduler,
                 Duration.ofMillis(200), checker, Duration.ofMillis(20), Duration.ofSeconds(1));
         c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
         // Wait until at least one poll has started.
@@ -281,7 +281,7 @@ public class SubscriptionCoordinatorTest {
         // no drain checker the active children of the (sealed) split parent are eligible
         // right away.
         coordinator.restoreConsumers(java.util.List.of("consumer-1"));
-        SegmentLayout afterSplit = initialLayout.splitSegment(0);
+        SegmentLayout afterSplit = initialLayout.splitSegment(0, 0L);
         Map<ConsumerSession, ConsumerAssignment> result =
                 coordinator.onLayoutChange(afterSplit).get();
         ConsumerAssignment a = findByName(result, "consumer-1");
@@ -305,7 +305,7 @@ public class SubscriptionCoordinatorTest {
     @Test
     public void testInstallDrainCheckerAfterRestoreEnablesOrdering() throws Exception {
         coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
-        SegmentLayout afterSplit = initialLayout.splitSegment(0);
+        SegmentLayout afterSplit = initialLayout.splitSegment(0, 0L);
         coordinator.onLayoutChange(afterSplit).get();
         // No checker yet → all 6 segments assigned.
         assertEquals(segmentIds(findByName(coordinator.currentAssignment(), "consumer-1")).size(),

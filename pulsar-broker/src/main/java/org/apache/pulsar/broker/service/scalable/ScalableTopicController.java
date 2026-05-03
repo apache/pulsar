@@ -285,8 +285,13 @@ public class ScalableTopicController {
     public CompletableFuture<SegmentLayout> splitSegment(long segmentId) {
         checkLeader();
 
+        // Single timestamp shared by the local preview and the CAS-retried metadata update,
+        // so the children's createdAtMs and the parent's sealedAtMs always agree even if the
+        // CAS retries due to concurrent writers.
+        final long nowMs = System.currentTimeMillis();
+
         // Compute the new layout locally to derive child segment info
-        SegmentLayout newLayout = currentLayout.splitSegment(segmentId);
+        SegmentLayout newLayout = currentLayout.splitSegment(segmentId, nowMs);
         SegmentInfo child1 = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 2);
         SegmentInfo child2 = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 1);
         SegmentInfo parent = currentLayout.getAllSegments().get(segmentId);
@@ -309,7 +314,7 @@ public class ScalableTopicController {
           // Step 4: Atomic metadata update (only after topics + cursors are ready + parent terminated)
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
-              SegmentLayout updated = latest.splitSegment(segmentId);
+              SegmentLayout updated = latest.splitSegment(segmentId, nowMs);
               return updated.toMetadata(md.getProperties());
           }))
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
@@ -330,8 +335,12 @@ public class ScalableTopicController {
     public CompletableFuture<SegmentLayout> mergeSegments(long segmentId1, long segmentId2) {
         checkLeader();
 
+        // Single timestamp shared by the local preview and the CAS-retried metadata
+        // update — see splitSegment for the rationale.
+        final long nowMs = System.currentTimeMillis();
+
         // Compute the new layout locally to derive merged segment info
-        SegmentLayout newLayout = currentLayout.mergeSegments(segmentId1, segmentId2);
+        SegmentLayout newLayout = currentLayout.mergeSegments(segmentId1, segmentId2, nowMs);
         SegmentInfo merged = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 1);
         SegmentInfo parent1 = currentLayout.getAllSegments().get(segmentId1);
         SegmentInfo parent2 = currentLayout.getAllSegments().get(segmentId2);
@@ -351,7 +360,7 @@ public class ScalableTopicController {
           // Step 3: Atomic metadata update (only after topic + cursors are ready + parents terminated)
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
-              SegmentLayout updated = latest.mergeSegments(segmentId1, segmentId2);
+              SegmentLayout updated = latest.mergeSegments(segmentId1, segmentId2, nowMs);
               return updated.toMetadata(md.getProperties());
           }))
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
@@ -690,11 +699,12 @@ public class ScalableTopicController {
         int rangeSize = (HashRange.MAX_HASH + 1) / numInitialSegments;
         Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
 
+        long nowMs = System.currentTimeMillis();
         for (int i = 0; i < numInitialSegments; i++) {
             int start = i * rangeSize;
             int end = (i == numInitialSegments - 1) ? HashRange.MAX_HASH : (start + rangeSize - 1);
             HashRange range = HashRange.of(start, end);
-            SegmentInfo segment = SegmentInfo.active(i, range, 0);
+            SegmentInfo segment = SegmentInfo.active(i, range, 0, nowMs);
             segments.put((long) i, segment);
         }
 

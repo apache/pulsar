@@ -851,6 +851,10 @@ message SegmentInfoProto {
     repeated uint64 child_ids        = 6;
     required uint64 created_at_epoch = 7;
     optional uint64 sealed_at_epoch  = 8;
+    // Wall-clock millis at create / seal time. Used for retention-based segment GC
+    // and timestamp-based seek; epoch above is a DAG generation number, not a clock.
+    required uint64 created_at_ms    = 9;
+    optional uint64 sealed_at_ms     = 10;
 }
 
 message SegmentBrokerAddress {
