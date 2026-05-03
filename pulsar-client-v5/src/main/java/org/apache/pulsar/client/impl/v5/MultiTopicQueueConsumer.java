@@ -171,7 +171,7 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
         };
         return dagWatch.start()
                 .thenCompose(layout -> ScalableQueueConsumer.createAsyncImpl(
-                        client, v5Schema, perTopicConf(topicName), dagWatch, layout, sink))
+                        client, v5Schema, perTopicConf(topicName), dagWatch, layout, sink, null))
                 .thenAccept(qc -> {
                     if (closed) {
                         qc.closeAsync();

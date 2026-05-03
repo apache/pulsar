@@ -20,8 +20,11 @@ package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,14 +36,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
+import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.QueueConsumer;
 import org.apache.pulsar.client.api.v5.Transaction;
 import org.apache.pulsar.client.api.v5.async.AsyncQueueConsumer;
+import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
+import org.apache.pulsar.client.util.RetryMessageUtil;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Backoff;
 
 /**
@@ -80,6 +87,18 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
      */
     private final java.util.function.Consumer<MessageV5<T>> messageSink;
 
+    /**
+     * V5-layer DLQ. Owned at the V5 consumer (not per-segment) so a single producer
+     * can target a scalable DLQ topic — v4's per-segment DLQ producer rejects
+     * {@code topic://} (scalable) names. {@code null} when DLQ is not configured.
+     */
+    private final DeadLetterPolicy dlqPolicy;
+    /** Resolved DLQ topic name (defaulted if the policy didn't provide one). */
+    private final String dlqTopic;
+    /** Lazily created on first send-to-DLQ; shared by all segments. */
+    private volatile CompletableFuture<Producer<byte[]>> dlqProducerFuture;
+    private final Object dlqProducerLock = new Object();
+
     private volatile boolean closed = false;
     private final AsyncQueueConsumerV5<T> asyncView;
 
@@ -96,7 +115,8 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
                                   Schema<T> v5Schema,
                                   ConsumerConfigurationData<T> consumerConf,
                                   DagWatchClient dagWatch,
-                                  java.util.function.Consumer<MessageV5<T>> messageSink) {
+                                  java.util.function.Consumer<MessageV5<T>> messageSink,
+                                  DeadLetterPolicy dlqPolicy) {
         this.client = client;
         this.v5Schema = v5Schema;
         this.v4Schema = SchemaAdapter.toV4(v5Schema);
@@ -104,12 +124,29 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
         this.dagWatch = dagWatch;
         this.topicName = dagWatch.topicName().toString();
         this.subscriptionName = consumerConf.getSubscriptionName();
+        this.dlqPolicy = dlqPolicy;
+        this.dlqTopic = dlqPolicy == null ? null : resolveDlqTopic(dlqPolicy);
         // Default sink enqueues on the local messageQueue for receive()/receive(timeout).
         // Multi-topic mode passes a sink that forwards into the shared mux instead — no
         // per-topic pump thread needed.
         this.messageSink = messageSink != null ? messageSink : messageQueue::add;
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
         this.asyncView = new AsyncQueueConsumerV5<>(this);
+    }
+
+    /**
+     * Default DLQ topic name when {@code policy.deadLetterTopic()} is null:
+     * {@code topic://{tenant}/{ns}/{source-local}-DLQ}. The {@code topic://}
+     * domain makes it a scalable topic; the user is expected to pre-create it via
+     * the admin API (the V5 client itself doesn't auto-create scalable topics).
+     */
+    private String resolveDlqTopic(DeadLetterPolicy policy) {
+        if (policy.deadLetterTopic() != null) {
+            return policy.deadLetterTopic();
+        }
+        TopicName source = TopicName.get(topicName);
+        return "topic://" + source.getTenant() + "/" + source.getNamespacePortion() + "/"
+                + source.getLocalName() + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
     }
 
     /**
@@ -122,8 +159,9 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
                                                                Schema<T> v5Schema,
                                                                ConsumerConfigurationData<T> consumerConf,
                                                                DagWatchClient dagWatch,
-                                                               ClientSegmentLayout initialLayout) {
-        return createAsyncImpl(client, v5Schema, consumerConf, dagWatch, initialLayout, null)
+                                                               ClientSegmentLayout initialLayout,
+                                                               DeadLetterPolicy dlqPolicy) {
+        return createAsyncImpl(client, v5Schema, consumerConf, dagWatch, initialLayout, null, dlqPolicy)
                 .thenApply(c -> c);
     }
 
@@ -139,9 +177,10 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
             ConsumerConfigurationData<T> consumerConf,
             DagWatchClient dagWatch,
             ClientSegmentLayout initialLayout,
-            java.util.function.Consumer<MessageV5<T>> messageSink) {
+            java.util.function.Consumer<MessageV5<T>> messageSink,
+            DeadLetterPolicy dlqPolicy) {
         ScalableQueueConsumer<T> consumer = new ScalableQueueConsumer<>(
-                client, v5Schema, consumerConf, dagWatch, messageSink);
+                client, v5Schema, consumerConf, dagWatch, messageSink, dlqPolicy);
         return consumer.subscribeSegments(initialLayout)
                 .thenApply(__ -> {
                     dagWatch.setListener(consumer);
@@ -260,6 +299,13 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
             futures.add(future
                     .handle((consumer, ex) -> consumer)
                     .thenCompose(consumer -> consumer != null ? consumer.closeAsync()
+                            : CompletableFuture.completedFuture(null)));
+        }
+        var dlqFuture = dlqProducerFuture;
+        if (dlqFuture != null) {
+            futures.add(dlqFuture
+                    .handle((p, ex) -> p)
+                    .thenCompose(p -> p != null ? p.async().close()
                             : CompletableFuture.completedFuture(null)));
         }
         return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
@@ -390,7 +436,11 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
 
     private void startReceiveLoop(org.apache.pulsar.client.api.Consumer<T> v4Consumer, long segmentId) {
         v4Consumer.receiveAsync().thenAccept(v4Msg -> {
-            messageSink.accept(new MessageV5<>(v4Msg, segmentId));
+            if (shouldGoToDlq(v4Msg)) {
+                forwardToDlq(v4Msg, v4Consumer);
+            } else {
+                messageSink.accept(new MessageV5<>(v4Msg, segmentId));
+            }
             if (!closed) {
                 startReceiveLoop(v4Consumer, segmentId);
             }
@@ -421,5 +471,67 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
                     .execute(() -> startReceiveLoop(v4Consumer, segmentId));
             return null;
         });
+    }
+
+    // --- DLQ ---
+
+    /**
+     * V5 DLQ handling lives at the consumer level (not per-segment) so a single
+     * producer can target a scalable DLQ topic. v4 DLQ semantics: a message is
+     * forwarded to DLQ when {@code redeliveryCount > maxRedeliverCount} (strictly
+     * greater) — i.e. after maxRedeliverCount+1 deliveries, the next delivery is
+     * intercepted.
+     */
+    private boolean shouldGoToDlq(org.apache.pulsar.client.api.Message<T> v4Msg) {
+        return dlqPolicy != null && v4Msg.getRedeliveryCount() > dlqPolicy.maxRedeliverCount();
+    }
+
+    private void forwardToDlq(org.apache.pulsar.client.api.Message<T> v4Msg,
+                              org.apache.pulsar.client.api.Consumer<T> v4Consumer) {
+        getOrCreateDlqProducer().thenCompose(dlq -> {
+            var msgBuilder = dlq.async().newMessage()
+                    .value(v4Msg.getData());
+            if (v4Msg.hasKey()) {
+                msgBuilder.key(v4Msg.getKey());
+            }
+            if (v4Msg.getEventTime() > 0) {
+                msgBuilder.eventTime(Instant.ofEpochMilli(v4Msg.getEventTime()));
+            }
+            // Preserve original properties + attach origin metadata so consumers of the
+            // DLQ topic can correlate back to the source.
+            Map<String, String> props = new HashMap<>();
+            if (v4Msg.getProperties() != null) {
+                props.putAll(v4Msg.getProperties());
+            }
+            props.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_TOPIC, topicName);
+            props.put(RetryMessageUtil.SYSTEM_PROPERTY_REAL_SUBSCRIPTION, subscriptionName);
+            props.put(RetryMessageUtil.PROPERTY_ORIGIN_MESSAGE_ID, v4Msg.getMessageId().toString());
+            msgBuilder.properties(props);
+            return msgBuilder.send();
+        }).whenComplete((msgId, ex) -> {
+            if (ex != null) {
+                // Leave the source message un-acked: it'll be redelivered and we'll
+                // try again. (Mirrors v4 ConsumerImpl behavior.)
+                log.warn().attr("messageId", v4Msg.getMessageId()).exception(ex)
+                        .log("Failed to forward message to DLQ; will retry on redelivery");
+            } else {
+                v4Consumer.acknowledgeAsync(v4Msg.getMessageId());
+            }
+        });
+    }
+
+    private CompletableFuture<Producer<byte[]>> getOrCreateDlqProducer() {
+        var existing = dlqProducerFuture;
+        if (existing != null) {
+            return existing;
+        }
+        synchronized (dlqProducerLock) {
+            if (dlqProducerFuture == null) {
+                dlqProducerFuture = client.newProducer(Schema.bytes())
+                        .topic(dlqTopic)
+                        .createAsync();
+            }
+            return dlqProducerFuture;
+        }
     }
 }

@@ -278,7 +278,7 @@ public class PulsarClusterMetadataSetup {
         }
 
         if (arguments.numTransactionCoordinators <= 0) {
-            System.err.println("Number of transaction coordinators must greater than 0");
+            System.err.println("Number of transaction coordinators must be greater than 0");
             System.exit(1);
         }
         int bundleNumberForDefaultNamespace =
