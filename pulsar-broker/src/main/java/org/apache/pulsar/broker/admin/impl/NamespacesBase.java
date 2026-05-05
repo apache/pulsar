@@ -1598,8 +1598,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .log("Getting hash position for topic list , bundle");
                 return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.PERSISTENCE,
                         PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(policies -> {
+                .thenCompose(__ -> {
                     return validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
                             false, true)
                             .thenCompose(nsBundle ->
