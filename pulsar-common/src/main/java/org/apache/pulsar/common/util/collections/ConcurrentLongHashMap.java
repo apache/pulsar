@@ -293,7 +293,29 @@ public class ConcurrentLongHashMap<V> {
     // previous design had to paper over with Math.min(keys.length, values.length).
     @SuppressWarnings("serial")
     private static final class Section<V> extends StampedLock {
-        private record Table<V>(long[] keys, V[] values, int capacity) { }
+        private static final class Table<V> {
+            private final long[] keys;
+            private final V[] values;
+            private final int capacity;
+
+            Table(long[] keys, V[] values, int capacity) {
+                this.keys = keys;
+                this.values = values;
+                this.capacity = capacity;
+            }
+
+            long[] keys() {
+                return keys;
+            }
+
+            V[] values() {
+                return values;
+            }
+
+            int capacity() {
+                return capacity;
+            }
+        }
 
         // Section is Serializable only by inheritance from StampedLock; never actually serialized.
         @SuppressFBWarnings("SE_BAD_FIELD")
