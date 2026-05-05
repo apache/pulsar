@@ -166,9 +166,13 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         // fail first time
         promise.completeExceptionally(new Exception("Some random failure"));
 
-        assertEquals(admin.topics().offloadStatus(topicName).getStatus(),
-                            LongRunningProcessStatus.Status.ERROR);
-        Assert.assertTrue(admin.topics().offloadStatus(topicName).getLastError().contains("Some random failure"));
+        // The failure handler runs asynchronously after the promise completes, so the
+        // offloadStatus may briefly still report RUNNING before transitioning to ERROR.
+        Awaitility.await().untilAsserted(() -> {
+            var status = admin.topics().offloadStatus(topicName);
+            assertEquals(status.getStatus(), LongRunningProcessStatus.Status.ERROR);
+            Assert.assertTrue(status.getLastError().contains("Some random failure"));
+        });
 
         // Try again
         doReturn(CompletableFuture.completedFuture(null))
