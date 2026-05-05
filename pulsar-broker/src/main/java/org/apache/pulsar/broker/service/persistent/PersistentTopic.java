@@ -3536,7 +3536,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkGC() {
-        if (!isDeleteWhileInactive()) {
+        boolean deleteEnabled = isDeleteWhileInactive();
+        boolean closeEnabled = !deleteEnabled && isCloseWhileInactive();
+        if (!deleteEnabled && !closeEnabled) {
             // This topic is not included in GC
             return;
         }
@@ -3548,14 +3550,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else if (System.nanoTime() - lastActive < SECONDS.toNanos(maxInactiveDurationInSec)) {
             // Gc interval did not expire yet
             return;
-        } else if (shouldTopicBeRetained()) {
+        } else if (deleteEnabled && shouldTopicBeRetained()) {
             // Topic activity is still within the retention period
             return;
         } else {
             CompletableFuture<Void> replCloseFuture = new CompletableFuture<>();
 
             // Close repl producers first.
-            // Once all repl producers are closed, we can delete the topic,
+            // Once all repl producers are closed, we can delete/close the topic,
             // provided no remote producers connected to the broker.
             log.debug()
                     .attr("maxInactiveDurationInSec", maxInactiveDurationInSec)
@@ -3585,6 +3587,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 replCloseFuture.completeExceptionally(e.getCause());
                 return null;
             });
+
+            if (closeEnabled) {
+                replCloseFuture.thenCompose(v -> close(true, false))
+                        .thenRun(() -> log.info("[{}] Topic closed successfully due to inactivity", topic))
+                        .exceptionally(e -> {
+                            if (e.getCause() instanceof TopicBusyException) {
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}] Did not close busy topic: {}", topic, e.getCause().getMessage());
+                                }
+                            } else {
+                                log.warn("[{}] Inactive topic close failed", topic, e);
+                            }
+                            return null;
+                        });
+                return;
+            }
 
             replCloseFuture.thenCompose(v -> delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
                 deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, false))

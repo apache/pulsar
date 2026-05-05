@@ -764,6 +764,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;
 
     @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
+        doc = "Enable closing (unloading from broker memory) of inactive topics without deleting their data.\n"
+        + "When a topic is deemed inactive (no producers, no subscriptions, or subscriptions caught up based on\n"
+        + "the configured mode), the broker will close the topic instance, releasing in-memory resources such as\n"
+        + "the managed ledger cache, subscription state, and per-topic metrics. The topic data in BookKeeper is\n"
+        + "preserved; clients will transparently reload the topic on the next produce/consume.\n"
+        + "This option is mutually exclusive with 'brokerDeleteInactiveTopicsEnabled': only one of the two may\n"
+        + "be enabled at a time. The inactivity detection reuses 'brokerDeleteInactiveTopicsMode',\n"
+        + "'brokerDeleteInactiveTopicsFrequencySeconds', and\n"
+        + "'brokerDeleteInactiveTopicsMaxInactiveDurationSeconds'."
+    )
+    private boolean brokerCloseInactiveTopicsEnabled = false;
+
+    @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Allow forced deletion of tenants. Default is false."
