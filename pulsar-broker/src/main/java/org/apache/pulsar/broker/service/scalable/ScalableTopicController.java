@@ -19,20 +19,30 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import io.github.merlimat.slog.Logger;
+import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
@@ -53,16 +63,26 @@ public class ScalableTopicController {
     private static final Logger LOG = Logger.get(ScalableTopicController.class);
     private final Logger log;
 
+    /** Default cadence for the sealed-segment GC tick on the leader. */
+    static final Duration DEFAULT_GC_INTERVAL = Duration.ofSeconds(60);
+
     @Getter
     private final TopicName topicName;
     private final ScalableTopicResources resources;
     private final BrokerService brokerService;
     private final LeaderElection<String> leaderElection;
+    /** Wall-clock source used for sealed-segment retention math. Tests override. */
+    private final Clock clock;
+    /** Cadence of the GC tick. Tests override to a small value. */
+    private final Duration gcInterval;
 
     private volatile SegmentLayout currentLayout;
 
     /** Per-subscription consumer tracking. */
     private final ConcurrentHashMap<String, SubscriptionCoordinator> subscriptions = new ConcurrentHashMap<>();
+
+    /** Sealed-segment GC scheduled task. Non-null only while this broker is leader. */
+    private volatile ScheduledFuture<?> gcTask;
 
     @Getter
     private volatile LeaderElectionState leaderState = LeaderElectionState.NoLeader;
@@ -73,9 +93,24 @@ public class ScalableTopicController {
                             ScalableTopicResources resources,
                             BrokerService brokerService,
                             CoordinationService coordinationService) {
+        this(topicName, resources, brokerService, coordinationService,
+                Clock.systemUTC(), DEFAULT_GC_INTERVAL);
+    }
+
+    /**
+     * Test constructor: overrides the wall-clock source and the GC tick cadence.
+     */
+    ScalableTopicController(TopicName topicName,
+                            ScalableTopicResources resources,
+                            BrokerService brokerService,
+                            CoordinationService coordinationService,
+                            Clock clock,
+                            Duration gcInterval) {
         this.topicName = topicName;
         this.resources = resources;
         this.brokerService = brokerService;
+        this.clock = clock;
+        this.gcInterval = gcInterval;
         this.log = LOG.with().attr("topic", topicName).build();
         this.leaderElection = coordinationService.getLeaderElection(
                 String.class,
@@ -90,6 +125,12 @@ public class ScalableTopicController {
      */
     private void onLeaderStateChange(LeaderElectionState state) {
         log.info().attr("state", state).log("Leader state change for scalable topic");
+        if (state != LeaderElectionState.Leading) {
+            // Stepped down (or never was leader). Stop the GC tick so the deposed leader
+            // doesn't race the new one on layout writes / backing-topic deletes. The new
+            // leader's initialize() will reschedule.
+            cancelGcTask();
+        }
         if (state == LeaderElectionState.NoLeader && !closed) {
             initialize().exceptionally(ex -> {
                 log.warn().exceptionMessage(ex).log("Failed to re-elect after NoLeader");
@@ -119,10 +160,50 @@ public class ScalableTopicController {
                 })
                 .thenCompose(__ -> {
                     if (isLeader()) {
+                        scheduleGcTask();
                         return restoreSessionsFromStore();
                     }
                     return CompletableFuture.completedFuture(null);
                 });
+    }
+
+    /**
+     * Schedule the periodic sealed-segment GC tick. Only fires on the controller leader;
+     * idempotent (re-entry just no-ops). Cancelled on close / leader-loss.
+     */
+    private synchronized void scheduleGcTask() {
+        if (closed || gcTask != null) {
+            return;
+        }
+        gcTask = scheduler().scheduleAtFixedRate(this::runGcTickSafely,
+                gcInterval.toMillis(), gcInterval.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    private synchronized void cancelGcTask() {
+        if (gcTask != null) {
+            gcTask.cancel(false);
+            gcTask = null;
+        }
+    }
+
+    private ScheduledExecutorService scheduler() {
+        return brokerService.getPulsar().getExecutor();
+    }
+
+    private void runGcTickSafely() {
+        if (!isLeader() || closed) {
+            return;
+        }
+        try {
+            runGcTickAsync().exceptionally(ex -> {
+                log.warn().exceptionMessage(ex).log("Scalable-topic GC tick failed");
+                return null;
+            });
+        } catch (Throwable t) {
+            // Defensive: scheduleAtFixedRate would suppress the next firing if a tick
+            // throws synchronously, so log and swallow here.
+            log.warn().exception(t).log("Scalable-topic GC tick threw");
+        }
     }
 
     /**
@@ -288,7 +369,7 @@ public class ScalableTopicController {
         // Single timestamp shared by the local preview and the CAS-retried metadata update,
         // so the children's createdAtMs and the parent's sealedAtMs always agree even if the
         // CAS retries due to concurrent writers.
-        final long nowMs = System.currentTimeMillis();
+        final long nowMs = clock.millis();
 
         // Compute the new layout locally to derive child segment info
         SegmentLayout newLayout = currentLayout.splitSegment(segmentId, nowMs);
@@ -337,7 +418,7 @@ public class ScalableTopicController {
 
         // Single timestamp shared by the local preview and the CAS-retried metadata
         // update — see splitSegment for the rationale.
-        final long nowMs = System.currentTimeMillis();
+        final long nowMs = clock.millis();
 
         // Compute the new layout locally to derive merged segment info
         SegmentLayout newLayout = currentLayout.mergeSegments(segmentId1, segmentId2, nowMs);
@@ -619,10 +700,225 @@ public class ScalableTopicController {
                 });
     }
 
+    // --- Sealed-segment GC ---
+
+    /**
+     * One iteration of the sealed-segment GC. For every sealed segment in the current
+     * layout whose retention window has expired, polls every known subscription's
+     * backlog on that segment; if all subscriptions are drained, prunes the segment
+     * from the DAG (CAS) and deletes its backing managed-ledger topic.
+     *
+     * <p>The retention window is resolved from topic-policies on the parent
+     * {@code topic://...} → namespace policy → broker default, the same precedence
+     * Pulsar uses for regular topics.
+     *
+     * <p>Visible for tests; in production it's invoked by the scheduled task.
+     */
+    CompletableFuture<Void> runGcTickAsync() {
+        if (!isLeader() || closed) {
+            return CompletableFuture.completedFuture(null);
+        }
+        final SegmentLayout layout = currentLayout;
+        if (layout == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        // Candidates: sealed segments past their retention horizon. We resolve
+        // retention once per tick — cheap, and avoids per-segment policy lookups.
+        return resolveRetentionMillisAsync()
+                .thenCompose(retentionMs -> {
+                    if (retentionMs == null) {
+                        // Negative / unset → retain forever. No GC this tick.
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    long now = clock.millis();
+                    List<SegmentInfo> candidates = new ArrayList<>();
+                    for (SegmentInfo seg : layout.getAllSegments().values()) {
+                        if (seg.isSealed() && seg.sealedAtMs() > 0
+                                && (now - seg.sealedAtMs()) >= retentionMs) {
+                            candidates.add(seg);
+                        }
+                    }
+                    if (candidates.isEmpty()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return pruneEligibleAsync(candidates);
+                });
+    }
+
+    /**
+     * For each candidate sealed segment, check that every existing subscription has
+     * drained it (backlog == 0); prune the ones that pass. Failures on individual
+     * segments are logged and skipped — the next tick retries.
+     */
+    private CompletableFuture<Void> pruneEligibleAsync(List<SegmentInfo> candidates) {
+        return resources.listSubscriptionsAsync(topicName)
+                .thenCompose(subs -> {
+                    List<CompletableFuture<Void>> perSegment = new ArrayList<>();
+                    for (SegmentInfo seg : candidates) {
+                        perSegment.add(prunable(seg, subs)
+                                .thenCompose(prunable -> prunable
+                                        ? pruneSegmentAsync(seg)
+                                        : CompletableFuture.completedFuture(null))
+                                .exceptionally(ex -> {
+                                    log.warn().attr("segmentId", seg.segmentId())
+                                            .exceptionMessage(ex)
+                                            .log("GC: failed to evaluate / prune segment;"
+                                                    + " will retry on next tick");
+                                    return null;
+                                }));
+                    }
+                    return CompletableFuture.allOf(
+                            perSegment.toArray(CompletableFuture[]::new));
+                });
+    }
+
+    private CompletableFuture<Boolean> prunable(SegmentInfo seg, List<String> subs) {
+        if (subs.isEmpty()) {
+            // No subscribers ever attached / all unsubscribed → nothing left to drain.
+            return CompletableFuture.completedFuture(true);
+        }
+        CompletableFuture<Boolean>[] checks = subs.stream()
+                .map(sub -> isSegmentDrained(seg, sub))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(checks)
+                .thenApply(__ -> {
+                    for (CompletableFuture<Boolean> c : checks) {
+                        if (!c.join()) {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+    }
+
+    /**
+     * Apply a single segment's prune: CAS the layout to drop it, then delete the
+     * backing managed-ledger topic. Layout-prune is the point of no return — once it
+     * lands, no consumer will ever subscribe to the segment again. Backing-topic
+     * delete failures are logged and retried on subsequent ticks.
+     */
+    private CompletableFuture<Void> pruneSegmentAsync(SegmentInfo seg) {
+        long segmentId = seg.segmentId();
+        log.info().attr("segmentId", segmentId)
+                .attr("sealedAtMs", seg.sealedAtMs())
+                .log("GC: pruning sealed segment past retention");
+
+        return resources.updateScalableTopicAsync(topicName, md -> {
+            SegmentLayout latest = SegmentLayout.fromMetadata(md);
+            // Re-validate against the latest layout: another writer may have already
+            // pruned this segment, or replaced it via a follow-up split / merge. If
+            // it's gone, leave the metadata untouched (no-op CAS).
+            if (!latest.getAllSegments().containsKey(segmentId)) {
+                return md;
+            }
+            SegmentLayout updated = latest.pruneSegment(segmentId);
+            return updated.toMetadata(md.getProperties());
+        }).thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
+          .thenCompose(optMd -> {
+              currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+              return notifySubscriptions(currentLayout);
+          })
+          .thenCompose(__ -> deleteSegmentBackingTopic(seg))
+          .thenAccept(__ -> log.info().attr("segmentId", segmentId)
+                  .log("GC: segment pruned + backing topic deleted"));
+    }
+
+    private CompletableFuture<Void> deleteSegmentBackingTopic(SegmentInfo seg) {
+        String name = toSegmentUnderlyingPersistentName(seg);
+        try {
+            return brokerService.getPulsar().getAdminClient()
+                    .topics().deleteAsync(name, /* force */ true)
+                    .exceptionally(ex -> {
+                        Throwable cause =
+                                org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException
+                                .NotFoundException) {
+                            // Already gone — fine.
+                            return null;
+                        }
+                        log.warn().attr("segment", name).exceptionMessage(cause)
+                                .log("GC: failed to delete backing segment topic;"
+                                        + " will retry on next tick");
+                        return null;
+                    });
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    /**
+     * Resolve the effective retention-time-in-millis for this scalable topic by
+     * layering: topic-policy on the parent {@code topic://...} → namespace policy →
+     * broker config default. Returns {@code null} if retention is unset or negative
+     * (= keep forever) — the GC tick treats that as "skip".
+     */
+    private CompletableFuture<Long> resolveRetentionMillisAsync() {
+        TopicPoliciesService topicPoliciesService =
+                brokerService.getPulsar().getTopicPoliciesService();
+        // Topic-level (override) layer.
+        return topicPoliciesService.getTopicPoliciesAsync(topicName,
+                        TopicPoliciesService.GetType.LOCAL_ONLY)
+                .thenCompose(localOpt -> {
+                    Optional<RetentionPolicies> rp = localOpt
+                            .map(TopicPolicies::getRetentionPolicies)
+                            .filter(java.util.Objects::nonNull);
+                    if (rp.isPresent()) {
+                        return CompletableFuture.completedFuture(toRetentionMillis(rp.get()));
+                    }
+                    // Namespace layer.
+                    NamespaceName ns = topicName.getNamespaceObject();
+                    return brokerService.getPulsar().getPulsarResources()
+                            .getNamespaceResources()
+                            .getPoliciesAsync(ns)
+                            .thenApply(nsOpt -> {
+                                RetentionPolicies nsRp = nsOpt
+                                        .map(p -> p.retention_policies)
+                                        .orElse(null);
+                                if (nsRp != null) {
+                                    return toRetentionMillis(nsRp);
+                                }
+                                return defaultRetentionMillisFromBrokerConfig();
+                            });
+                });
+    }
+
+    private static Long toRetentionMillis(RetentionPolicies rp) {
+        if (rp.getRetentionTimeInMinutes() < 0) {
+            return null; // keep forever
+        }
+        return TimeUnit.MINUTES.toMillis(rp.getRetentionTimeInMinutes());
+    }
+
+    private Long defaultRetentionMillisFromBrokerConfig() {
+        var conf = brokerService.getPulsar().getConfig();
+        if (conf == null) {
+            return null;
+        }
+        int min = conf.getDefaultRetentionTimeInMinutes();
+        return min < 0 ? null : TimeUnit.MINUTES.toMillis(min);
+    }
+
+    /** Test hook: count of sealed segments currently in the layout. */
+    int sealedSegmentCount() {
+        SegmentLayout layout = currentLayout;
+        if (layout == null) {
+            return 0;
+        }
+        int n = 0;
+        for (SegmentInfo s : layout.getAllSegments().values()) {
+            if (s.isSealed()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     // --- Lifecycle ---
 
     public CompletableFuture<Void> close() {
         closed = true;
+        cancelGcTask();
         // Stop each coordinator's drain poller before clearing — otherwise the scheduler
         // task keeps running after the controller goes away.
         subscriptions.values().forEach(SubscriptionCoordinator::close);
