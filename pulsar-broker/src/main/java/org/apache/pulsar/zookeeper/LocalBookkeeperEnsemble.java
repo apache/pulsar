@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
@@ -200,24 +201,58 @@ public class LocalBookkeeperEnsemble {
             cleanDirectory(zkDataDir);
         }
 
-        try {
-            // Allow all commands on ZK control port
-            System.setProperty("zookeeper.4lw.commands.whitelist", "*");
-            zks = new ZooKeeperServer(zkDataDir, zkDataDir, ZooKeeperServer.DEFAULT_TICK_TIME);
+        // The requested zkPort may have been grabbed by another process between port allocation
+        // and bind (PortManager only locks the port at the JVM level, not the OS level). Retry
+        // a few times to avoid spurious test failures, then fall back to a kernel-assigned port.
+        // Callers should read back the actual bound port via getZookeeperPort().
+        int maxAttempts = 5;
+        BindException lastBindException = null;
+        for (int attempt = 0; attempt < maxAttempts; attempt++) {
+            int attemptPort = (attempt == maxAttempts - 1) ? 0 : zkPort;
+            try {
+                // Allow all commands on ZK control port
+                System.setProperty("zookeeper.4lw.commands.whitelist", "*");
+                zks = new ZooKeeperServer(zkDataDir, zkDataDir, ZooKeeperServer.DEFAULT_TICK_TIME);
 
-            serverFactory = new NIOServerCnxnFactory();
-            serverFactory.configure(new InetSocketAddress(zkPort), maxCC);
-            serverFactory.startup(zks);
+                serverFactory = new NIOServerCnxnFactory();
+                serverFactory.configure(new InetSocketAddress(attemptPort), maxCC);
+                serverFactory.startup(zks);
 
-            zkDataCleanupManager = new DatadirCleanupManager(zkDataDir, zkDataDir, 3, 1 /* hour */);
-            zkDataCleanupManager.start();
-        } catch (Exception e) {
-            log.error().exception(e).log("Exception while instantiating ZooKeeper");
+                zkDataCleanupManager = new DatadirCleanupManager(zkDataDir, zkDataDir, 3, 1 /* hour */);
+                zkDataCleanupManager.start();
+                lastBindException = null;
+                break;
+            } catch (BindException be) {
+                lastBindException = be;
+                log.warn().attr("port", attemptPort).attr("attempt", attempt + 1)
+                        .exception(be).log("ZooKeeper bind failed, will retry");
+                if (serverFactory != null) {
+                    try {
+                        serverFactory.shutdown();
+                    } catch (Exception ignored) {
+                        // best effort
+                    }
+                    serverFactory = null;
+                }
+                if (zks != null) {
+                    try {
+                        zks.shutdown();
+                    } catch (Exception ignored) {
+                        // best effort
+                    }
+                    zks = null;
+                }
+            } catch (Exception e) {
+                log.error().exception(e).log("Exception while instantiating ZooKeeper");
 
-            if (serverFactory != null) {
-                serverFactory.shutdown();
+                if (serverFactory != null) {
+                    serverFactory.shutdown();
+                }
+                throw new IOException(e);
             }
-            throw new IOException(e);
+        }
+        if (lastBindException != null) {
+            throw new IOException("Unable to bind ZooKeeper after " + maxAttempts + " attempts", lastBindException);
         }
 
         this.zkPort = serverFactory.getLocalPort();
@@ -506,23 +541,47 @@ public class LocalBookkeeperEnsemble {
     public void stop() throws Exception {
         if (null != streamStorage) {
             log.debug("Local bk stream storage stopping ...");
-            streamStorage.close();
-        }
-
-        log.debug("Local ZK/BK stopping ...");
-        for (LifecycleComponent bookie : bookieComponents) {
             try {
-                if (bookie != null) {
-                    bookie.close();
-                }
+                streamStorage.close();
             } catch (Exception e) {
-                log.warn().exception(e).log("failed to shutdown bookie");
+                log.warn().exception(e).log("failed to shutdown stream storage");
             }
         }
 
-        zkc.close();
-        zks.shutdown();
-        serverFactory.shutdown();
+        log.debug("Local ZK/BK stopping ...");
+        if (bookieComponents != null) {
+            for (LifecycleComponent bookie : bookieComponents) {
+                try {
+                    if (bookie != null) {
+                        bookie.close();
+                    }
+                } catch (Exception e) {
+                    log.warn().exception(e).log("failed to shutdown bookie");
+                }
+            }
+        }
+
+        if (zkc != null) {
+            try {
+                zkc.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("failed to close zk client");
+            }
+        }
+        if (zks != null) {
+            try {
+                zks.shutdown();
+            } catch (Exception e) {
+                log.warn().exception(e).log("failed to shutdown zk server");
+            }
+        }
+        if (serverFactory != null) {
+            try {
+                serverFactory.shutdown();
+            } catch (Exception e) {
+                log.warn().exception(e).log("failed to shutdown zk server factory");
+            }
+        }
 
         if (zkDataCleanupManager != null) {
             zkDataCleanupManager.shutdown();
@@ -530,7 +589,11 @@ public class LocalBookkeeperEnsemble {
         log.debug("Local ZK/BK stopped");
         for (File managedDir : temporaryDirectories) {
             log.info().attr("directory", managedDir).log("deleting test directory");
-            FileUtils.deleteDirectory(managedDir);
+            try {
+                FileUtils.deleteDirectory(managedDir);
+            } catch (Exception e) {
+                log.warn().attr("directory", managedDir).exception(e).log("failed to delete test directory");
+            }
         }
         temporaryDirectories.clear();
     }

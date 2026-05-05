@@ -42,14 +42,17 @@ import org.testng.annotations.Test;
 public class ShadowTopicRealBkTest {
 
     private static final String cluster = "test";
-    private final int zkPort = PortManager.nextLockedFreePort();
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextLockedFreePort);
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2,
+            PortManager.nextLockedFreePort(), PortManager::nextLockedFreePort);
     private PulsarService pulsar;
     private PulsarAdmin admin;
 
     @BeforeClass
     public void setup() throws Exception {
         bk.start();
+        // Read the actual bound ZK port: LocalBookkeeperEnsemble may have retried with a different port
+        // if the original one was grabbed by another process between allocation and bind.
+        final int zkPort = bk.getZookeeperPort();
         final var config = new ServiceConfiguration();
         config.setClusterName(cluster);
         config.setAdvertisedAddress("localhost");
@@ -68,7 +71,11 @@ public class ShadowTopicRealBkTest {
     @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         if (pulsar != null) {
-            pulsar.close();
+            try {
+                pulsar.close();
+            } catch (Exception e) {
+                // best effort cleanup; setup may have failed before pulsar was fully initialized
+            }
         }
         bk.stop();
     }
