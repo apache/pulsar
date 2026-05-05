@@ -237,4 +237,9 @@ public class BackoffTest {
         Backoff.builder().jitterPercent(-1);
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void jitterAboveHundredIsRejected() {
+        Backoff.builder().jitterPercent(101);
+    }
+
 }

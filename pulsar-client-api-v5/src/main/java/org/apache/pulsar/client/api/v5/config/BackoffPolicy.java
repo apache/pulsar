@@ -48,8 +48,8 @@ public record BackoffPolicy(
         if (multiplier < 1.0) {
             throw new IllegalArgumentException("multiplier must be >= 1.0");
         }
-        if (jitterPercent < 0) {
-            throw new IllegalArgumentException("jitterPercent must be >= 0");
+        if (jitterPercent < 0 || jitterPercent > 100) {
+            throw new IllegalArgumentException("jitterPercent must be in [0, 100]");
         }
     }
 
@@ -93,9 +93,9 @@ public record BackoffPolicy(
      * each returned delay is symmetric around the base value: a uniform random factor in
      * {@code [1 - jitterPercent/200, 1 + jitterPercent/200)}.
      *
-     * @param jitterPercent the jitter percentage to apply, must be {@code >= 0}; {@code 0} disables jitter
+     * @param jitterPercent the jitter percentage to apply, must be in {@code [0, 100]}; {@code 0} disables jitter
      * @return a new {@link BackoffPolicy} with the configured jitter
-     * @throws IllegalArgumentException if {@code jitterPercent} is negative
+     * @throws IllegalArgumentException if {@code jitterPercent} is outside {@code [0, 100]}
      */
     public BackoffPolicy withJitter(double jitterPercent) {
         return new BackoffPolicy(initialInterval, maxInterval, multiplier, jitterPercent);

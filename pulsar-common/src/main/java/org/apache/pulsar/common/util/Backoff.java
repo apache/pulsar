@@ -219,13 +219,13 @@ public class Backoff {
          * {@code [1 - jitterPercent/200, 1 + jitterPercent/200)}. Defaults to 10. Set to 0 to disable
          * jitter.
          *
-         * @param jitterPercent the jitter percentage, must be {@code >= 0}
+         * @param jitterPercent the jitter percentage, must be in {@code [0, 100]}
          * @return this builder
-         * @throws IllegalArgumentException if {@code jitterPercent} is negative
+         * @throws IllegalArgumentException if {@code jitterPercent} is outside {@code [0, 100]}
          */
         public Builder jitterPercent(double jitterPercent) {
-            if (jitterPercent < 0) {
-                throw new IllegalArgumentException("jitterPercent must be >= 0");
+            if (jitterPercent < 0 || jitterPercent > 100) {
+                throw new IllegalArgumentException("jitterPercent must be in [0, 100]");
             }
             this.jitterPercent = jitterPercent;
             return this;
