@@ -21,32 +21,63 @@ package org.apache.pulsar.client.impl.v5;
 import java.util.Map;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
+import org.apache.pulsar.client.api.v5.auth.PrivateKeyProvider;
+import org.apache.pulsar.client.api.v5.auth.PublicKeyProvider;
 
 /**
- * Adapts a V5 {@link org.apache.pulsar.client.api.v5.auth.CryptoKeyReader} to the V4
- * {@link CryptoKeyReader} interface used by the underlying client implementation.
+ * Bridges the V5 split-by-role key SPIs ({@link PublicKeyProvider},
+ * {@link PrivateKeyProvider}) to the v4 {@link CryptoKeyReader}, which has both
+ * methods on a single interface.
+ *
+ * <p>v4's {@code CryptoKeyReader} is synchronous, so the adapter blocks on the V5
+ * provider's {@link java.util.concurrent.CompletableFuture future} via {@code join()}.
+ * For local providers (e.g. {@code PemFileKeyProvider}) the future is already
+ * complete; for remote providers (e.g. KMS-backed) this blocks the v4 thread that
+ * called {@code getXxxKey} — same constraint v4 already imposes today. Async
+ * end-to-end requires deeper plumbing into {@code MessageCrypto}; out of scope here.
  */
 final class CryptoKeyReaderAdapter implements CryptoKeyReader {
 
-    private final org.apache.pulsar.client.api.v5.auth.CryptoKeyReader v5Reader;
+    private final PublicKeyProvider publicKeyProvider;
+    private final PrivateKeyProvider privateKeyProvider;
 
-    private CryptoKeyReaderAdapter(org.apache.pulsar.client.api.v5.auth.CryptoKeyReader v5Reader) {
-        this.v5Reader = v5Reader;
+    private CryptoKeyReaderAdapter(PublicKeyProvider publicKeyProvider,
+                                   PrivateKeyProvider privateKeyProvider) {
+        this.publicKeyProvider = publicKeyProvider;
+        this.privateKeyProvider = privateKeyProvider;
     }
 
-    static CryptoKeyReader wrap(org.apache.pulsar.client.api.v5.auth.CryptoKeyReader v5Reader) {
-        return new CryptoKeyReaderAdapter(v5Reader);
+    /**
+     * Producer-side adapter: only {@link CryptoKeyReader#getPublicKey} is supported.
+     */
+    static CryptoKeyReader forProducer(PublicKeyProvider provider) {
+        return new CryptoKeyReaderAdapter(provider, null);
+    }
+
+    /**
+     * Consumer-side adapter: only {@link CryptoKeyReader#getPrivateKey} is supported.
+     */
+    static CryptoKeyReader forConsumer(PrivateKeyProvider provider) {
+        return new CryptoKeyReaderAdapter(null, provider);
     }
 
     @Override
     public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> metadata) {
-        var v5Key = v5Reader.getPublicKey(keyName, metadata);
+        if (publicKeyProvider == null) {
+            throw new UnsupportedOperationException(
+                    "getPublicKey called on a consumer-side CryptoKeyReaderAdapter");
+        }
+        var v5Key = publicKeyProvider.getPublicKey(keyName).join();
         return new EncryptionKeyInfo(v5Key.key(), v5Key.metadata());
     }
 
     @Override
     public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata) {
-        var v5Key = v5Reader.getPrivateKey(keyName, metadata);
+        if (privateKeyProvider == null) {
+            throw new UnsupportedOperationException(
+                    "getPrivateKey called on a producer-side CryptoKeyReaderAdapter");
+        }
+        var v5Key = privateKeyProvider.getPrivateKey(keyName, metadata).join();
         return new EncryptionKeyInfo(v5Key.key(), v5Key.metadata());
     }
 }
