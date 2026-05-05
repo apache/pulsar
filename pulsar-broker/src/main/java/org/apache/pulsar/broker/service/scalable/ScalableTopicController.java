@@ -21,10 +21,8 @@ package org.apache.pulsar.broker.service.scalable;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
@@ -33,6 +31,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
@@ -157,7 +156,32 @@ public class ScalableTopicController {
                 });
     }
 
+    /**
+     * Restore-path entry: consumer type isn't persisted in metadata yet, so we don't
+     * know whether the original subscription was STREAM (needs parent-drain ordering)
+     * or CHECKPOINT / QUEUE (mustn't have it — CHECKPOINT never drains parents because
+     * it doesn't create per-segment cursors). Default to <em>no enforcement</em>; on the
+     * first register-after-restore the controller calls
+     * {@link SubscriptionCoordinator#installDrainChecker} if the type is STREAM.
+     */
     private SubscriptionCoordinator createCoordinator(String subscription) {
+        return createCoordinator(subscription, null);
+    }
+
+    private SubscriptionCoordinator createCoordinator(String subscription,
+            ScalableConsumerType consumerType) {
+        // Parent-drain ordering matters only for STREAM consumers (Exclusive per-segment
+        // subscription with broker-tracked cursors → preserving per-key order across a
+        // split requires waiting for the parent to drain before handing out children).
+        // CHECKPOINT consumers track position client-side via Checkpoints and don't even
+        // create per-segment cursors — their parent never reports as drained, so the
+        // ordering machinery would block their children indefinitely. QUEUE consumers
+        // are shared and accept out-of-order delivery by design. Null type (restore
+        // path) starts without a checker; it's installed lazily on first STREAM
+        // register.
+        SegmentDrainChecker checker =
+                consumerType == ScalableConsumerType.STREAM ? this::isSegmentDrained : null;
+
         // Defensive: PulsarService.getConfig() is null in some unit-test mocks. Fall
         // back to the SubscriptionCoordinator's default grace period in that case.
         var config = brokerService.getPulsar().getConfig();
@@ -177,7 +201,42 @@ public class ScalableTopicController {
                 currentLayout,
                 resources,
                 brokerService.getPulsar().getExecutor(),
-                gracePeriod);
+                gracePeriod,
+                checker,
+                SubscriptionCoordinator.DEFAULT_DRAIN_INITIAL_DELAY,
+                SubscriptionCoordinator.DEFAULT_DRAIN_MAX_DELAY);
+    }
+
+    /**
+     * Drain check used by every {@link SubscriptionCoordinator} on this topic. Asks the
+     * segment topic's owning broker for the per-subscription backlog via the
+     * {@code /segments/.../subscription/.../backlog} admin endpoint, which redirects to
+     * the topic owner — works whether the controller and the segment colocate or not.
+     *
+     * <p>Returns {@code false} if the segment topic or subscription is not yet loaded
+     * (the admin endpoint replies 404). The next poll will succeed once the consumer's
+     * subscribe lands the topic on its owning broker.
+     */
+    private CompletableFuture<Boolean> isSegmentDrained(SegmentInfo segment, String subscription) {
+        String segmentTopicName = toSegmentPersistentName(segment);
+        try {
+            return brokerService.getPulsar().getAdminClient()
+                    .scalableTopics()
+                    .getSegmentSubscriptionBacklogAsync(segmentTopicName, subscription)
+                    .thenApply(backlog -> backlog != null && backlog <= 0)
+                    .exceptionally(ex -> {
+                        Throwable cause =
+                                org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException) {
+                            // Topic or subscription not loaded yet — try again on the
+                            // next poll. The consumer's subscribe will materialize it.
+                            return false;
+                        }
+                        throw org.apache.pulsar.common.util.FutureUtil.wrapToCompletionException(cause);
+                    });
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     private CompletableFuture<Void> electLeader() {
@@ -226,16 +285,23 @@ public class ScalableTopicController {
     public CompletableFuture<SegmentLayout> splitSegment(long segmentId) {
         checkLeader();
 
+        // Single timestamp shared by the local preview and the CAS-retried metadata update,
+        // so the children's createdAtMs and the parent's sealedAtMs always agree even if the
+        // CAS retries due to concurrent writers.
+        final long nowMs = System.currentTimeMillis();
+
         // Compute the new layout locally to derive child segment info
-        SegmentLayout newLayout = currentLayout.splitSegment(segmentId);
+        SegmentLayout newLayout = currentLayout.splitSegment(segmentId, nowMs);
         SegmentInfo child1 = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 2);
         SegmentInfo child2 = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 1);
         SegmentInfo parent = currentLayout.getAllSegments().get(segmentId);
         String parentTopicName = toSegmentPersistentName(parent);
 
-        // Step 1: Discover subscriptions on the parent segment, then create child
-        // segment topics with those subscriptions (routed to owning brokers via admin API)
-        return discoverSubscriptions(parentTopicName)
+        // Step 1: Read the scalable topic's subscriptions from metadata (the single source
+        // of truth — segment topics may live on different brokers, but the subscription set
+        // is tracked here), then create child segment topics with those subscriptions
+        // already provisioned (the create call routes to each segment's owning broker).
+        return resources.listSubscriptionsAsync(topicName)
           .thenCompose(parentSubs -> {
               var subList = new java.util.ArrayList<>(parentSubs);
               return createSegmentTopic(child1, subList)
@@ -248,7 +314,7 @@ public class ScalableTopicController {
           // Step 4: Atomic metadata update (only after topics + cursors are ready + parent terminated)
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
-              SegmentLayout updated = latest.splitSegment(segmentId);
+              SegmentLayout updated = latest.splitSegment(segmentId, nowMs);
               return updated.toMetadata(md.getProperties());
           }))
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
@@ -269,21 +335,22 @@ public class ScalableTopicController {
     public CompletableFuture<SegmentLayout> mergeSegments(long segmentId1, long segmentId2) {
         checkLeader();
 
+        // Single timestamp shared by the local preview and the CAS-retried metadata
+        // update — see splitSegment for the rationale.
+        final long nowMs = System.currentTimeMillis();
+
         // Compute the new layout locally to derive merged segment info
-        SegmentLayout newLayout = currentLayout.mergeSegments(segmentId1, segmentId2);
+        SegmentLayout newLayout = currentLayout.mergeSegments(segmentId1, segmentId2, nowMs);
         SegmentInfo merged = newLayout.getAllSegments().get(newLayout.getNextSegmentId() - 1);
         SegmentInfo parent1 = currentLayout.getAllSegments().get(segmentId1);
         SegmentInfo parent2 = currentLayout.getAllSegments().get(segmentId2);
         String parent1Topic = toSegmentPersistentName(parent1);
         String parent2Topic = toSegmentPersistentName(parent2);
 
-        // Step 1: Discover subscriptions from both parents (union), then create merged segment
-        return discoverSubscriptions(parent1Topic)
-          .thenCombine(discoverSubscriptions(parent2Topic), (subs1, subs2) -> {
-              Set<String> allSubs = new LinkedHashSet<>(subs1);
-              allSubs.addAll(subs2);
-              return allSubs;
-          })
+        // Step 1: Read the scalable topic's subscriptions from metadata (single source of
+        // truth, see splitSegment), then create the merged segment topic with those
+        // subscriptions provisioned.
+        return resources.listSubscriptionsAsync(topicName)
           .thenCompose(parentSubs -> createSegmentTopic(merged, new java.util.ArrayList<>(parentSubs)))
 
           // Step 2: Terminate both parent segment topics
@@ -293,7 +360,7 @@ public class ScalableTopicController {
           // Step 3: Atomic metadata update (only after topic + cursors are ready + parents terminated)
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
-              SegmentLayout updated = latest.mergeSegments(segmentId1, segmentId2);
+              SegmentLayout updated = latest.mergeSegments(segmentId1, segmentId2, nowMs);
               return updated.toMetadata(md.getProperties());
           }))
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
@@ -312,14 +379,42 @@ public class ScalableTopicController {
      * <p>If a session with the same {@code consumerName} already exists (for example
      * because the consumer is reconnecting within the grace period), the existing
      * assignment is reused and no rebalance occurs.
+     *
+     * <p>The {@code consumerType} is used at coordinator creation time to decide whether
+     * to enforce parent-drain ordering on assignments — see
+     * {@link SubscriptionCoordinator}. The coordinator's setting is fixed at first
+     * registration (a subscription's type doesn't change in practice); subsequent
+     * registers with a different type still work but won't change the ordering policy.
      */
+    /**
+     * @deprecated Defaults to {@link ScalableConsumerType#STREAM}
+     *     for backward compatibility. New callers should pass the explicit type.
+     */
+    @Deprecated
     public CompletableFuture<ConsumerAssignment> registerConsumer(String subscription,
                                                                    String consumerName,
                                                                    long consumerId,
                                                                    TransportCnx cnx) {
+        return registerConsumer(subscription, consumerName, consumerId,
+                ScalableConsumerType.STREAM, cnx);
+    }
+
+    public CompletableFuture<ConsumerAssignment> registerConsumer(String subscription,
+                                                                   String consumerName,
+                                                                   long consumerId,
+                                                                   ScalableConsumerType
+                                                                           consumerType,
+                                                                   TransportCnx cnx) {
         checkLeader();
         SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
-                subscription, this::createCoordinator);
+                subscription, sub -> createCoordinator(sub, consumerType));
+        // The coordinator may have been created on the failover-restore path (consumer
+        // type unknown then; we defaulted to "no parent-drain enforcement"). Now that we
+        // know the type, upgrade if it's STREAM. installDrainChecker is a no-op if the
+        // coordinator already has a checker, so safe to call unconditionally.
+        if (consumerType == ScalableConsumerType.STREAM) {
+            coordinator.installDrainChecker(this::isSegmentDrained);
+        }
         return coordinator.registerConsumer(consumerName, consumerId, cnx)
                 .thenApply(assignments -> {
                     // Look up by name since the key may have been an existing session
@@ -528,6 +623,9 @@ public class ScalableTopicController {
 
     public CompletableFuture<Void> close() {
         closed = true;
+        // Stop each coordinator's drain poller before clearing — otherwise the scheduler
+        // task keeps running after the controller goes away.
+        subscriptions.values().forEach(SubscriptionCoordinator::close);
         subscriptions.clear();
         return leaderElection.asyncClose();
     }
@@ -582,29 +680,6 @@ public class ScalableTopicController {
         }
     }
 
-    /**
-     * Discover all subscription names on a segment topic. Works whether the topic is
-     * on this broker or a remote one by using the admin client.
-     */
-    private CompletableFuture<Set<String>> discoverSubscriptions(String segmentTopicName) {
-        // Try local first (avoids RPC if the segment is on this broker)
-        return brokerService.getTopicIfExists(segmentTopicName)
-                .thenCompose(optTopic -> {
-                    if (optTopic.isPresent()) {
-                        return CompletableFuture.completedFuture(
-                                new LinkedHashSet<>(optTopic.get().getSubscriptions().keySet()));
-                    }
-                    // Topic is on a remote broker — use admin client
-                    try {
-                        return brokerService.getPulsar().getAdminClient()
-                                .topics().getSubscriptionsAsync(segmentTopicName)
-                                .thenApply(LinkedHashSet::new);
-                    } catch (PulsarServerException e) {
-                        return CompletableFuture.failedFuture(e);
-                    }
-                });
-    }
-
     private CompletableFuture<Void> notifySubscriptions(SegmentLayout layout) {
         CompletableFuture<?>[] futures = subscriptions.values().stream()
                 .map(coordinator -> coordinator.onLayoutChange(layout))
@@ -624,11 +699,12 @@ public class ScalableTopicController {
         int rangeSize = (HashRange.MAX_HASH + 1) / numInitialSegments;
         Map<Long, SegmentInfo> segments = new LinkedHashMap<>();
 
+        long nowMs = System.currentTimeMillis();
         for (int i = 0; i < numInitialSegments; i++) {
             int start = i * rangeSize;
             int end = (i == numInitialSegments - 1) ? HashRange.MAX_HASH : (start + rangeSize - 1);
             HashRange range = HashRange.of(start, end);
-            SegmentInfo segment = SegmentInfo.active(i, range, 0);
+            SegmentInfo segment = SegmentInfo.active(i, range, 0, nowMs);
             segments.put((long) i, segment);
         }
 

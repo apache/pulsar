@@ -87,7 +87,8 @@ public class CommandsScalableTopicTest {
                 .setHashStart(0x0000)
                 .setHashEnd(0x7FFF)
                 .setState(SegmentState.ACTIVE)
-                .setCreatedAtEpoch(0L);
+                .setCreatedAtEpoch(0L)
+                .setCreatedAtMs(System.currentTimeMillis());
         active.addChildId(2L);
         active.addChildId(3L);
         dag.addSegment()
@@ -96,6 +97,7 @@ public class CommandsScalableTopicTest {
                 .setHashEnd(0x3FFF)
                 .setState(SegmentState.ACTIVE)
                 .setCreatedAtEpoch(7L)
+                .setCreatedAtMs(System.currentTimeMillis())
                 .addParentId(0L);
         dag.addSegmentBroker().setSegmentId(2L).setBrokerUrl("pulsar://broker-a:6650");
 

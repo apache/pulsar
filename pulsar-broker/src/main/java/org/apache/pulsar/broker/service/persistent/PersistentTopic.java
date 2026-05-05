@@ -27,6 +27,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopi
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
+import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.github.merlimat.slog.Logger;
@@ -57,6 +58,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import lombok.Getter;
 import lombok.Value;
@@ -2978,23 +2980,35 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
         stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
 
-        replicators.forEach((cluster, replicator) -> {
-            ReplicatorStatsImpl replicatorStats = replicator.computeStats();
-
-            // Add incoming msg rates
-            PublisherStatsImpl pubStats = remotePublishersStats.get(replicator.getRemoteCluster());
-            if (pubStats != null) {
+        BiConsumer<ReplicatorStatsImpl, PublisherStatsImpl> replicationInboundSetter =
+            (ReplicatorStatsImpl replicatorStats, PublisherStatsImpl pubStats) -> {
+                if (replicatorStats == null ||  pubStats == null) {
+                    return;
+                }
                 replicatorStats.msgRateIn = pubStats.msgRateIn;
                 replicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
                 replicatorStats.inboundConnection = pubStats.getAddress();
                 replicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
-            }
+            };
 
+        replicators.forEach((cluster, replicator) -> {
+            ReplicatorStatsImpl replicatorStats = replicator.computeStats();
+
+            // Add incoming msg rates
+            PublisherStatsImpl pubStats = remotePublishersStats.remove(replicator.getRemoteCluster());
+            replicationInboundSetter.accept(replicatorStats, pubStats);
             stats.msgRateOut += replicatorStats.msgRateOut;
             stats.msgThroughputOut += replicatorStats.msgThroughputOut;
 
             stats.replication.put(replicator.getRemoteCluster(), replicatorStats);
         });
+
+        for (ObjectObjectCursor<String, PublisherStatsImpl> inboundReplication : remotePublishersStats) {
+            PublisherStatsImpl pubStats = inboundReplication.value;
+            ReplicatorStatsImpl replicatorStats = new ReplicatorStatsImpl();
+            replicationInboundSetter.accept(replicatorStats, pubStats);
+            stats.replication.put(inboundReplication.key, replicatorStats);
+        }
 
         stats.storageSize = ledger.getTotalSize();
         stats.backlogSize = ledger.getEstimatedBacklogSize();

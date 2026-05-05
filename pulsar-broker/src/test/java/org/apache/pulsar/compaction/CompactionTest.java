@@ -56,6 +56,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
@@ -91,6 +92,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -161,6 +163,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
     public void beforeMethod() throws Exception {
         admin.namespaces().removeRetention("my-tenant/my-ns");
         AbstractTwoPhaseCompactor.injectionAfterSeekInPhaseTwo = () -> {};
+        AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = RawReader::seekAsync;
     }
 
     protected long compact(String topic) throws ExecutionException, InterruptedException {
@@ -2521,6 +2524,35 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         // The original ledger still exists so old values of "key-1" can be read
         verifyReadKeyValues(topic, false, List.of("key-0", "value", "key-1", "value-0", "key-1", "value-1", "key-1",
                 "value-2", "key-2", "value-0", "key-2", "value-1"));
+    }
+
+    @Test
+    public void testPhaseTwoSeekRetriesOnConnectException() throws Exception {
+        final var topic = "persistent://my-tenant/my-ns/phase-two-seek-retry";
+        @Cleanup final var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        producer.newMessage().key("k").value("v0").send();
+        producer.newMessage().key("k").value("v1").send();
+
+        // Simulate the production race: PersistentSubscription.resetCursorInternal disconnects the
+        // consumer before responding to the seek, which fails the client's in-flight seek future
+        // with ConnectException. The first attempt here returns a synthetic failure without invoking
+        // the real seek (so nothing is in flight on the underlying ConsumerImpl); the retry calls
+        // seekAsync for real and the compaction proceeds.
+        final var attempts = new AtomicInteger(0);
+        AbstractTwoPhaseCompactor.injectionPhaseTwoSeek = (reader, msgId) -> {
+            if (attempts.getAndIncrement() == 0) {
+                return FutureUtil.failedFuture(
+                        new PulsarClientException.ConnectException("simulated disconnect during seek"));
+            }
+            return reader.seekAsync(msgId);
+        };
+
+        final long compactedLedgerId = compact(topic);
+        assertNotEquals(compactedLedgerId, -1L);
+        assertTrue(attempts.get() >= 2,
+                "Seek should have been retried at least once, attempts=" + attempts.get());
+
+        verifyReadKeyValues(topic, true, List.of("k", "v1"));
     }
 
     private void verifyReadKeyValues(String topic, boolean readCompacted, List<String> expectedKeyValues)

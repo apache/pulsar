@@ -39,6 +39,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
 
     private final ClientConfigurationData conf = new ClientConfigurationData();
     private String description;
+    private Duration transactionTimeout;
 
     PulsarClientBuilderV5() {
         conf.setStatsIntervalSeconds(0);
@@ -48,7 +49,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
     public PulsarClient build() throws PulsarClientException {
         try {
             var v4Client = new PulsarClientImpl(conf);
-            return new PulsarClientV5(v4Client, description);
+            return new PulsarClientV5(v4Client, description, transactionTimeout);
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
             throw new PulsarClientException(e.getMessage(), e);
         }
@@ -103,8 +104,8 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
 
     @Override
     public PulsarClientBuilder transactionPolicy(TransactionPolicy policy) {
-        // TransactionPolicy enables transactions with a default timeout
         conf.setEnableTransaction(true);
+        this.transactionTimeout = policy.timeout();
         return this;
     }
 

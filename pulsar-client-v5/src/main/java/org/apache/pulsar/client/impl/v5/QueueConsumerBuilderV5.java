@@ -19,20 +19,20 @@
 package org.apache.pulsar.client.impl.v5;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.QueueConsumer;
 import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
 import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 
 /**
@@ -43,7 +43,18 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
     private final PulsarClientV5 client;
     private final Schema<T> v5Schema;
     private final ConsumerConfigurationData<T> conf = new ConsumerConfigurationData<>();
+    // Exactly one of {topicName, namespaceName} must be set at subscribe() time —
+    // single-topic vs multi-topic mode.
     private String topicName;
+    private NamespaceName namespaceName;
+    private Map<String, String> propertyFilters;
+    /**
+     * V5-layer DLQ policy. Held here rather than translated into {@code conf} so the
+     * V5 {@link ScalableQueueConsumer} can own a single DLQ producer (instead of v4's
+     * one-per-segment design, which would also reject {@code topic://} scalable DLQ
+     * targets).
+     */
+    private DeadLetterPolicy dlqPolicy;
 
     QueueConsumerBuilderV5(PulsarClientV5 client, Schema<T> v5Schema) {
         this.client = client;
@@ -64,48 +75,44 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
 
     @Override
     public CompletableFuture<QueueConsumer<T>> subscribeAsync() {
-        if (topicName == null || topicName.isEmpty()) {
+        boolean topicSet = topicName != null && !topicName.isEmpty();
+        boolean namespaceSet = namespaceName != null;
+        if (topicSet == namespaceSet) {
             return CompletableFuture.failedFuture(
-                    new PulsarClientException.InvalidConfigurationException("Topic name is required"));
+                    new PulsarClientException.InvalidConfigurationException(
+                            "Exactly one of .topic(name) or .namespace(...) must be set"));
         }
         if (conf.getSubscriptionName() == null || conf.getSubscriptionName().isEmpty()) {
             return CompletableFuture.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Subscription name is required"));
         }
 
+        if (namespaceSet) {
+            return MultiTopicQueueConsumer.createAsync(
+                    client, v5Schema, conf, namespaceName, propertyFilters);
+        }
         TopicName topic = V5Utils.asScalableTopicName(topicName);
         DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topic);
-
         return dagWatch.start()
                 .thenCompose(initialLayout -> ScalableQueueConsumer.createAsync(
-                        client, v5Schema, conf, dagWatch, initialLayout));
+                        client, v5Schema, conf, dagWatch, initialLayout, dlqPolicy));
     }
 
     @Override
-    public QueueConsumerBuilderV5<T> topic(String... topicNames) {
-        if (topicNames.length > 0) {
-            this.topicName = topicNames[0];
-        }
+    public QueueConsumerBuilderV5<T> topic(String topicName) {
+        this.topicName = topicName;
         return this;
     }
 
     @Override
-    public QueueConsumerBuilderV5<T> topics(List<String> topicNames) {
-        if (!topicNames.isEmpty()) {
-            this.topicName = topicNames.get(0);
-        }
-        return this;
+    public QueueConsumerBuilderV5<T> namespace(String namespace) {
+        return namespace(namespace, Map.of());
     }
 
     @Override
-    public QueueConsumerBuilderV5<T> topicsPattern(Pattern pattern) {
-        conf.setTopicsPattern(pattern);
-        return this;
-    }
-
-    @Override
-    public QueueConsumerBuilderV5<T> topicsPattern(String regex) {
-        conf.setTopicsPattern(Pattern.compile(regex));
+    public QueueConsumerBuilderV5<T> namespace(String namespace, Map<String, String> propertyFilters) {
+        this.namespaceName = NamespaceName.get(namespace);
+        this.propertyFilters = propertyFilters == null ? Map.of() : Map.copyOf(propertyFilters);
         return this;
     }
 
@@ -149,8 +156,19 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
     }
 
     @Override
-    public QueueConsumerBuilderV5<T> ackTimeout(Duration timeout) {
-        conf.setAckTimeoutMillis(timeout.toMillis());
+    public QueueConsumerBuilderV5<T> processingTimeout(ProcessingTimeoutPolicy policy) {
+        conf.setAckTimeoutMillis(policy.timeout().toMillis());
+        BackoffPolicy backoff = policy.redeliveryBackoff();
+        if (backoff != null) {
+            conf.setAckTimeoutRedeliveryBackoff(
+                    org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff.builder()
+                            .minDelayMs(backoff.initialInterval().toMillis())
+                            .maxDelayMs(backoff.maxInterval().toMillis())
+                            .multiplier(backoff.multiplier())
+                            .build());
+        } else {
+            conf.setAckTimeoutRedeliveryBackoff(null);
+        }
         return this;
     }
 
@@ -178,36 +196,11 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
     }
 
     @Override
-    public QueueConsumerBuilderV5<T> ackTimeoutRedeliveryBackoff(BackoffPolicy backoff) {
-        conf.setAckTimeoutRedeliveryBackoff(
-                org.apache.pulsar.client.impl.MultiplierRedeliveryBackoff.builder()
-                        .minDelayMs(backoff.initialInterval().toMillis())
-                        .maxDelayMs(backoff.maxInterval().toMillis())
-                        .multiplier(backoff.multiplier())
-                        .build());
-        return this;
-    }
-
-    @Override
     public QueueConsumerBuilderV5<T> deadLetterPolicy(DeadLetterPolicy policy) {
-        var builder = org.apache.pulsar.client.api.DeadLetterPolicy.builder()
-                .maxRedeliverCount(policy.maxRedeliverCount());
-        if (policy.retryLetterTopic() != null) {
-            builder.retryLetterTopic(policy.retryLetterTopic());
-        }
-        if (policy.deadLetterTopic() != null) {
-            builder.deadLetterTopic(policy.deadLetterTopic());
-        }
-        if (policy.initialSubscriptionName() != null) {
-            builder.initialSubscriptionName(policy.initialSubscriptionName());
-        }
-        conf.setDeadLetterPolicy(builder.build());
-        return this;
-    }
-
-    @Override
-    public QueueConsumerBuilderV5<T> patternAutoDiscoveryPeriod(Duration interval) {
-        conf.setPatternAutoDiscoveryPeriod((int) interval.getSeconds());
+        // Don't translate into conf — V5 owns DLQ at the consumer layer (see field
+        // javadoc). The v4 per-segment DLQ would (a) duplicate producers, and
+        // (b) reject scalable DLQ topics.
+        this.dlqPolicy = policy;
         return this;
     }
 

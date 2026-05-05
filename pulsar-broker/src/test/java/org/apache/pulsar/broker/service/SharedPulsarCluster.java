@@ -28,6 +28,9 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
@@ -113,6 +116,8 @@ public class SharedPulsarCluster {
         bkConf.setNumLongPollWorkerThreads(1);
         bkConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
         bkConf.setLedgerStorageClass("org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage");
+        bkConf.setDiskUsageThreshold(0.999F);
+        bkConf.setDiskUsageWarnThreshold(0.99F);
 
         bkCluster = BKCluster.builder()
                 .baseServerConfiguration(bkConf)
@@ -166,6 +171,13 @@ public class SharedPulsarCluster {
         // Disable the load balancer — single-broker cluster doesn't need it
         config.setLoadBalancerEnabled(false);
 
+        // Enable the transaction coordinator so V5 transaction tests can run on the
+        // shared cluster. Other tests don't pay any meaningful cost — the coordinator
+        // only does work when a client opts in via enableTransaction=true.
+        config.setTransactionCoordinatorEnabled(true);
+        config.setTransactionBufferSnapshotMaxTransactionCount(2);
+        config.setTransactionBufferSnapshotMinTimeInMillis(2000);
+
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
@@ -189,6 +201,22 @@ public class SharedPulsarCluster {
                 TenantInfo.builder()
                         .allowedClusters(Set.of(CLUSTER_NAME))
                         .build());
+
+        // Set up the system namespace + transaction-coordinator partitioned topic so
+        // the broker can serve transaction requests from V5 (and v4) clients. The
+        // coordinator topic lives in pulsar/system, which the public admin API rejects
+        // (system-topic format), so we go through pulsarResources directly — same path
+        // TransactionTestBase uses.
+        admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                TenantInfo.builder()
+                        .allowedClusters(Set.of(CLUSTER_NAME))
+                        .build());
+        admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
+        pulsarService.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(1));
 
         log.info().attr("startedBroker", pulsarService.getBrokerServiceUrl())
                 .attr("web", pulsarService.getWebServiceAddress()).log("SharedPulsarCluster started. broker= web");

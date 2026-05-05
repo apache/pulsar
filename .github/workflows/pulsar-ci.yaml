@@ -176,8 +176,7 @@ jobs:
           --no-configuration-cache
 
       - name: Check binary licenses
-        run: |
-          src/check-binary-license.sh ./distribution/server/build/distributions/apache-pulsar-*-bin.tar.gz
+        run: ./gradlew checkBinaryLicense --no-configuration-cache
 
       - name: Upload Gradle reports
         uses: actions/upload-artifact@v4
@@ -656,11 +655,6 @@ jobs:
 
       - name: Build pulsar-test-latest-version Docker image
         run: ./gradlew :tests:latest-version-image:dockerBuild${{ env.CI_JDK_MAJOR_VERSION != '21' && format(' -PdockerJavaVersion={0}', env.CI_JDK_MAJOR_VERSION) || '' }}
-
-      - name: Check binary licenses
-        run: |
-          src/check-binary-license.sh ./distribution/server/build/distributions/apache-pulsar-*-bin.tar.gz
-          src/check-binary-license.sh ./distribution/shell/build/distributions/apache-pulsar-shell-*-bin.tar.gz
 
       - name: Run Trivy container scan
         id: trivy_scan

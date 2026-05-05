@@ -494,6 +494,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+        InFlightTask inFlightTask = (InFlightTask) ctx;
         if (state != Started) {
             log.info("Replicator was disconnected while reading entries, stopping reads");
             return;
@@ -514,12 +515,14 @@ public abstract class PersistentReplicator extends AbstractReplicator
             terminate();
             return;
         } else if (!(exception instanceof TooManyRequestsException)) {
+            inFlightTask.setEntries(Collections.emptyList());
             log.error()
                     .attr("ctx", ctx)
                     .attr("waitTimeSec", waitTimeMillis / 1000.0)
                     .exception(exception)
                     .log("Error reading entries, retrying");
         } else {
+            inFlightTask.setEntries(Collections.emptyList());
             log.debug()
                     .attr("ctx", ctx)
                     .attr("waitTimeSec", waitTimeMillis / 1000.0)

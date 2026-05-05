@@ -94,6 +94,15 @@ tasks.register("serverDistTar") {
     dependsOn(":distribution:pulsar-server-distribution:serverDistTar")
 }
 
+tasks.register("checkBinaryLicense") {
+    group = "verification"
+    description = "Check LICENSE/NOTICE coverage of bundled jars in all binary distributions"
+    dependsOn(
+        ":distribution:pulsar-server-distribution:checkBinaryLicense",
+        ":distribution:pulsar-shell-distribution:checkBinaryLicense",
+    )
+}
+
 tasks.register("docker") {
     description = "Build the Pulsar Docker image"
     group = "docker"

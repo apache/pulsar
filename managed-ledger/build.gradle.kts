@@ -29,7 +29,7 @@ dependencies {
     implementation(libs.bookkeeper.server)
     implementation(libs.guava)
     implementation(libs.roaringbitmap)
-    implementation(libs.jctools.core)
+    implementation(libs.jctools.core.jdk11)
     implementation(libs.slog)
     implementation(libs.simpleclient)
     implementation(libs.commons.lang3)

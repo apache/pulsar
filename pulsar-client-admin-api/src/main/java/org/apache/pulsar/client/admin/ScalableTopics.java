@@ -51,26 +51,26 @@ public interface ScalableTopics {
 
     /**
      * Get the list of scalable topics under a namespace whose properties contain
-     * the given key/value pair.
+     * every key/value pair in {@code propertyFilters} (AND semantics).
      *
-     * <p>Backed by a secondary index registered on the topic property at create/update
-     * time, so the lookup is efficient and does not scan every topic in the namespace.
+     * <p>Backed by the secondary index registered on the topic properties at
+     * create/update time. On stores with native index support the lookup uses one
+     * filter to narrow the candidate set and verifies the rest on the loaded record;
+     * stores without index support fall back to a per-record check.
      *
-     * @param namespace     Namespace name in the format "tenant/namespace"
-     * @param propertyKey   Property name to filter on
-     * @param propertyValue Exact property value to match
-     * @return list of matching scalable topic names
+     * @param namespace       Namespace name in the format "tenant/namespace"
+     * @param propertyFilters Property names and exact values that all must match
+     * @return list of matching scalable topic names; an empty filter returns the full
+     *         namespace listing
      */
-    List<String> listScalableTopicsByProperty(String namespace, String propertyKey, String propertyValue)
+    List<String> listScalableTopicsByProperties(String namespace, Map<String, String> propertyFilters)
             throws PulsarAdminException;
 
     /**
-     * Get the list of scalable topics under a namespace whose properties contain
-     * the given key/value pair, asynchronously.
+     * Async variant of {@link #listScalableTopicsByProperties(String, Map)}.
      */
-    CompletableFuture<List<String>> listScalableTopicsByPropertyAsync(String namespace,
-                                                                      String propertyKey,
-                                                                      String propertyValue);
+    CompletableFuture<List<String>> listScalableTopicsByPropertiesAsync(String namespace,
+                                                                         Map<String, String> propertyFilters);
 
     /**
      * Create a new scalable topic.
@@ -280,4 +280,22 @@ public interface ScalableTopics {
      * Delete a segment topic asynchronously.
      */
     CompletableFuture<Void> deleteSegmentAsync(String segmentTopic, boolean force);
+
+    /**
+     * Returns the number of unconsumed entries in the given subscription's cursor on the
+     * segment topic — i.e. the per-subscription backlog. The call routes to the broker
+     * that owns the segment topic, so it works whether the caller is colocated with the
+     * segment or not.
+     *
+     * <p>Used internally by the {@link org.apache.pulsar.broker.service.scalable.SubscriptionCoordinator
+     * SubscriptionCoordinator} to detect when a sealed parent has been drained and its
+     * children can be unblocked. Callers can also use it for diagnostics; a returned
+     * {@code 0} on a sealed segment indicates the subscription has nothing left to
+     * consume there.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     */
+    CompletableFuture<Long> getSegmentSubscriptionBacklogAsync(String segmentTopic,
+                                                                String subscription);
 }

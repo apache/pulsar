@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api.v5;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.v5.async.AsyncProducer;
 import org.apache.pulsar.client.api.v5.async.AsyncQueueConsumer;
@@ -32,6 +33,7 @@ import org.apache.pulsar.client.api.v5.config.CompressionType;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
+import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -63,7 +65,7 @@ public class Examples {
         try (var client = PulsarClient.builder()
                 .serviceUrl("pulsar+ssl://pulsar.example.com:6651")
                 .authentication(AuthenticationFactory.token("eyJhbGci..."))
-                .tlsPolicy(TlsPolicy.of("/etc/pulsar/ca.pem"))
+                .tlsPolicy(TlsPolicy.builder().trustCertsFilePath("/etc/pulsar/ca.pem").build())
                 .operationTimeout(Duration.ofSeconds(30))
                 .connectionPolicy(ConnectionPolicy.builder()
                         .connectionTimeout(Duration.ofSeconds(10))
@@ -105,8 +107,11 @@ public class Examples {
         try (var producer = client.newProducer(Schema.json(SensorReading.class))
                 .topic("sensor-data")
                 .compressionPolicy(CompressionPolicy.of(CompressionType.ZSTD))
-                .batchingPolicy(BatchingPolicy.of(
-                        Duration.ofMillis(10), 5000, MemorySize.ofMegabytes(1)))
+                .batchingPolicy(BatchingPolicy.builder()
+                        .maxPublishDelay(Duration.ofMillis(10))
+                        .maxMessages(5000)
+                        .maxSize(MemorySize.ofMegabytes(1))
+                        .build())
                 .create()) {
 
             for (int i = 0; i < 100_000; i++) {
@@ -276,10 +281,10 @@ public class Examples {
         try (var consumer = client.newQueueConsumer(Schema.json(Order.class))
                 .topic("orders")
                 .subscriptionName("order-processor")
-                .ackTimeout(Duration.ofSeconds(30))
+                .processingTimeout(ProcessingTimeoutPolicy.of(Duration.ofSeconds(30)))
                 .negativeAckRedeliveryBackoff(
                         BackoffPolicy.exponential(Duration.ofSeconds(1), Duration.ofMinutes(5)))
-                .deadLetterPolicy(DeadLetterPolicy.of(5))
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(5).build())
                 .subscribe()) {
 
             while (true) {
@@ -393,15 +398,21 @@ public class Examples {
     }
 
     // ==================================================================================
-    // 8. Multi-topic queue consumer with pattern
+    // 8. Multi-topic queue consumer over a namespace, optionally filtered by property
     // ==================================================================================
 
-    /** Subscribe to all topics matching a pattern. */
-    void patternSubscription(PulsarClient client) throws Exception {
+    /**
+     * Subscribe to every scalable topic in a namespace whose properties match the
+     * given key/value pairs. The matching set follows live: when topics are created
+     * with matching properties, the consumer attaches automatically; when they're
+     * deleted or change properties out of the filter, it detaches. Pass
+     * {@code Map.of()} (or use the single-arg overload) to subscribe to every
+     * scalable topic in the namespace.
+     */
+    void namespaceSubscription(PulsarClient client) throws Exception {
         try (var consumer = client.newQueueConsumer(Schema.string())
-                .topicsPattern("persistent://public/default/events-.*")
+                .namespace("public/default", Map.of("kind", "events"))
                 .subscriptionName("all-events")
-                .patternAutoDiscoveryPeriod(Duration.ofMinutes(1))
                 .subscribe()) {
 
             while (true) {

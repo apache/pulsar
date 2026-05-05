@@ -523,7 +523,18 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {
-        return TopicName.get(originTopicName) + "-" + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
+        TopicName origin = TopicName.get(originTopicName);
+        // Segment topics ("segment://tenant/ns/topic/<hexStart>-<hexEnd>-<segmentId>") cannot
+        // host a derived pending-ack topic in the segment domain — the descriptor parser would
+        // reject any name with extra dashes appended. Map to a flat persistent topic in the same
+        // namespace, encoding the segment descriptor into the local name.
+        if (origin.isSegment()) {
+            return String.format("persistent://%s/%s/%s-%s-%s%s",
+                    origin.getTenant(), origin.getNamespacePortion(),
+                    origin.getLocalName(), origin.getSegmentDescriptor(),
+                    subName, SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
+        }
+        return origin + "-" + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
     }
 
     public static String getTransactionPendingAckStoreCursorName() {

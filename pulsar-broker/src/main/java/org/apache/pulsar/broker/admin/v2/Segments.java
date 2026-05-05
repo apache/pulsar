@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -169,6 +170,59 @@ public class Segments extends AdminResource {
                 .exceptionally(ex -> {
                     log.error().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
                             .exception(ex).log("Failed to terminate segment topic");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}/backlog")
+    @ApiOperation(value = "Number of unconsumed entries in the segment topic for the "
+            + "given subscription. Super-user only.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 403, message = "This operation requires super-user access"),
+            @ApiResponse(code = 404, message = "Segment topic or subscription not found"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void getSubscriptionBacklog(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify the parent topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @PathParam("descriptor") String descriptor,
+            @ApiParam(value = "Subscription name", required = true)
+            @PathParam("subscription") String subscription,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
+
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateTopicOwnershipAsync(segmentTopic, authoritative))
+                .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(segmentTopic.toString()))
+                .thenAccept(optTopic -> {
+                    if (optTopic.isEmpty()) {
+                        // No topic loaded → no subscription cursor → no backlog. Returning
+                        // 0 here would be wrong (caller might mark the segment drained on
+                        // a topic that simply hasn't loaded yet); a 404 forces the caller
+                        // to retry, which matches our drain-poll contract.
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Segment topic not loaded: " + segmentTopic);
+                    }
+                    var sub = optTopic.get().getSubscription(subscription);
+                    if (sub == null) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Subscription not found on segment: " + subscription);
+                    }
+                    asyncResponse.resume(sub.getNumberOfEntriesInBacklog(false));
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
+                            .exception(ex).log("Failed to get segment subscription backlog");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });

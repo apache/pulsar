@@ -51,28 +51,37 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
         String bobTopic = topicName("bob");
         String carolTopic = topicName("carol");
 
-        // Each topic gets a different owner; alice and bob share a team. The filter
-        // should be able to surface either subset on demand.
+        // alice and bob share team=platform; alice and carol share owner=alice. We
+        // can hit each consumer-driven slice via different filter combinations below.
         admin.scalableTopics().createScalableTopic(aliceTopic, 1,
                 Map.of("owner", "alice", "team", "platform"));
         admin.scalableTopics().createScalableTopic(bobTopic, 1,
                 Map.of("owner", "bob", "team", "platform"));
         admin.scalableTopics().createScalableTopic(carolTopic, 1,
-                Map.of("owner", "carol", "team", "data"));
+                Map.of("owner", "alice", "team", "data"));
 
-        // Filter by owner=alice — single match.
-        List<String> alice = admin.scalableTopics()
-                .listScalableTopicsByProperty(namespace(), "owner", "alice");
-        assertEquals(alice, List.of(aliceTopic));
+        // Single-property filter: owner=bob — single match.
+        List<String> bob = admin.scalableTopics()
+                .listScalableTopicsByProperties(namespace(), Map.of("owner", "bob"));
+        assertEquals(bob, List.of(bobTopic));
 
-        // Filter by team=platform — alice + bob.
+        // Single-property filter: team=platform — alice + bob.
         Set<String> platform = new HashSet<>(admin.scalableTopics()
-                .listScalableTopicsByProperty(namespace(), "team", "platform"));
+                .listScalableTopicsByProperties(namespace(), Map.of("team", "platform")));
         assertEquals(platform, Set.of(aliceTopic, bobTopic));
 
-        // Unmatched value — empty result.
+        // Multi-property AND filter: owner=alice AND team=platform — narrows to
+        // exactly aliceTopic, even though carol also has owner=alice and bob also
+        // has team=platform.
+        List<String> aliceOnPlatform = admin.scalableTopics()
+                .listScalableTopicsByProperties(namespace(),
+                        Map.of("owner", "alice", "team", "platform"));
+        assertEquals(aliceOnPlatform, List.of(aliceTopic));
+
+        // Unmatched combination — empty result.
         assertTrue(admin.scalableTopics()
-                .listScalableTopicsByProperty(namespace(), "owner", "nonexistent")
+                .listScalableTopicsByProperties(namespace(),
+                        Map.of("owner", "alice", "team", "ops"))
                 .isEmpty());
 
         // Sanity-check: the un-filtered listing still returns every topic in the namespace.

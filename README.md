@@ -200,6 +200,12 @@ Check source code license headers and formatting:
 ./gradlew rat spotlessCheck checkstyleMain checkstyleTest
 ```
 
+Check that bundled dependencies are properly recorded in the binary distribution `LICENSE` and `NOTICE` files. Run this after adding, removing, or upgrading a runtime dependency to confirm the corresponding entry has been added to (or removed from) the LICENSE file. The task builds the binary distribution tarballs as needed:
+
+```bash
+./gradlew checkBinaryLicense
+```
+
 Compile and assemble individual module:
 
 ```bash

@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -87,6 +88,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
@@ -167,7 +169,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    private void makeAddEntryTimeout(ManagedLedgerImpl ml, AtomicBoolean addEntryFinished) throws Exception {
+    public static void makeAddEntryTimeout(ManagedLedgerImpl ml, AtomicBoolean addEntryFinished) throws Exception {
         LedgerHandle currentLedger = ml.currentLedger;
         final LedgerHandle spyLedgerHandle = spy(currentLedger);
         doAnswer(invocation -> {
@@ -180,6 +182,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }, originalContext);
             return null;
         }).when(spyLedgerHandle).asyncAddEntry(any(ByteBuf.class), any(AddCallback.class), any());
+        ml.currentLedger = spyLedgerHandle;
+    }
+
+    public static void makeReadEntryProbFail(ManagedLedgerImpl ml, Supplier<ManagedLedgerException> errorOrNot)
+            throws Exception {
+        ml.entryCache.clear();
+        LedgerHandle currentLedger = ml.currentLedger;
+        final LedgerHandle spyLedgerHandle = spy(currentLedger);
+        doAnswer(invocation -> {
+            long ledgerId = (long) invocation.getArguments()[0];
+            long entryId = (long) invocation.getArguments()[1];
+            ManagedLedgerException mightError = errorOrNot.get();
+            if (mightError != null) {
+                return CompletableFuture.failedFuture(mightError);
+            }
+            return currentLedger.readUnconfirmedAsync(ledgerId, entryId);
+        }).when(spyLedgerHandle).readUnconfirmedAsync(anyLong(), anyLong());
         ml.currentLedger = spyLedgerHandle;
     }
 

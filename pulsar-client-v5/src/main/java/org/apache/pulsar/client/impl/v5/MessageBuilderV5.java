@@ -43,6 +43,7 @@ final class MessageBuilderV5<T> implements MessageBuilder<T> {
     private Duration deliverAfter;
     private Instant deliverAt;
     private List<String> replicationClusters;
+    private Transaction txn;
 
     MessageBuilderV5(ScalableTopicProducer<T> producer) {
         this.producer = producer;
@@ -52,7 +53,7 @@ final class MessageBuilderV5<T> implements MessageBuilder<T> {
     public MessageId send() throws PulsarClientException {
         return producer.sendInternal(
                 key, value, properties, eventTime, sequenceId,
-                deliverAfter, deliverAt, replicationClusters);
+                deliverAfter, deliverAt, replicationClusters, txn);
     }
 
     @Override
@@ -69,7 +70,7 @@ final class MessageBuilderV5<T> implements MessageBuilder<T> {
 
     @Override
     public MessageBuilderV5<T> transaction(Transaction txn) {
-        // TODO: Wire up transaction support
+        this.txn = txn;
         return this;
     }
 

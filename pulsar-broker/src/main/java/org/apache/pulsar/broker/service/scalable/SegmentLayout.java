@@ -116,9 +116,12 @@ public class SegmentLayout {
      * Produce a new layout by splitting a segment at its midpoint.
      *
      * @param segmentId the active segment to split
+     * @param nowMs     wall-clock millis used as the parent's seal time and the
+     *                  children's create time. Caller passes a single value so
+     *                  CAS retries and follow-up reads agree.
      * @return a new SegmentLayout with the split applied
      */
-    public SegmentLayout splitSegment(long segmentId) {
+    public SegmentLayout splitSegment(long segmentId, long nowMs) {
         SegmentInfo segment = allSegments.get(segmentId);
         if (segment == null) {
             throw new IllegalArgumentException("Segment not found: " + segmentId);
@@ -132,9 +135,11 @@ public class SegmentLayout {
         long childId1 = nextSegmentId;
         long childId2 = nextSegmentId + 1;
 
-        SegmentInfo sealedParent = segment.sealed(newEpoch, List.of(childId1, childId2));
-        SegmentInfo child1 = SegmentInfo.active(childId1, splitRanges[0], List.of(segmentId), newEpoch);
-        SegmentInfo child2 = SegmentInfo.active(childId2, splitRanges[1], List.of(segmentId), newEpoch);
+        SegmentInfo sealedParent = segment.sealed(newEpoch, nowMs, List.of(childId1, childId2));
+        SegmentInfo child1 = SegmentInfo.active(childId1, splitRanges[0],
+                List.of(segmentId), newEpoch, nowMs);
+        SegmentInfo child2 = SegmentInfo.active(childId2, splitRanges[1],
+                List.of(segmentId), newEpoch, nowMs);
 
         Map<Long, SegmentInfo> newSegments = new LinkedHashMap<>(allSegments);
         newSegments.put(segmentId, sealedParent);
@@ -149,9 +154,11 @@ public class SegmentLayout {
      *
      * @param segmentId1 the first segment (must be active and adjacent to segmentId2)
      * @param segmentId2 the second segment (must be active and adjacent to segmentId1)
+     * @param nowMs      wall-clock millis used as the parents' seal time and the
+     *                   merged child's create time
      * @return a new SegmentLayout with the merge applied
      */
-    public SegmentLayout mergeSegments(long segmentId1, long segmentId2) {
+    public SegmentLayout mergeSegments(long segmentId1, long segmentId2, long nowMs) {
         SegmentInfo seg1 = allSegments.get(segmentId1);
         SegmentInfo seg2 = allSegments.get(segmentId2);
         if (seg1 == null || seg2 == null) {
@@ -169,10 +176,10 @@ public class SegmentLayout {
         long mergedId = nextSegmentId;
         HashRange mergedRange = seg1.hashRange().merge(seg2.hashRange());
 
-        SegmentInfo sealed1 = seg1.sealed(newEpoch, List.of(mergedId));
-        SegmentInfo sealed2 = seg2.sealed(newEpoch, List.of(mergedId));
+        SegmentInfo sealed1 = seg1.sealed(newEpoch, nowMs, List.of(mergedId));
+        SegmentInfo sealed2 = seg2.sealed(newEpoch, nowMs, List.of(mergedId));
         SegmentInfo merged = SegmentInfo.active(mergedId, mergedRange,
-                List.of(segmentId1, segmentId2), newEpoch);
+                List.of(segmentId1, segmentId2), newEpoch, nowMs);
 
         Map<Long, SegmentInfo> newSegments = new LinkedHashMap<>(allSegments);
         newSegments.put(segmentId1, sealed1);

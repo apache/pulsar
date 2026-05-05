@@ -78,7 +78,7 @@ public class V5ProducerBatchingTest extends V5ClientBaseTest {
 
     @Test
     public void testDefaultBatchingDeliversAllMessages() throws Exception {
-        produceAndVerify(BatchingPolicy.ofDefault(), 100, "default");
+        produceAndVerify(BatchingPolicy.builder().build(), 100, "default");
     }
 
     @Test
@@ -90,8 +90,11 @@ public class V5ProducerBatchingTest extends V5ClientBaseTest {
     public void testTightBatchingByDelay() throws Exception {
         // Small max-publish-delay forces batches to flush quickly; both ends still see
         // every message in order.
-        BatchingPolicy tight = BatchingPolicy.of(
-                Duration.ofMillis(5), 100, MemorySize.ofMegabytes(1));
+        BatchingPolicy tight = BatchingPolicy.builder()
+                .maxPublishDelay(Duration.ofMillis(5))
+                .maxMessages(100)
+                .maxSize(MemorySize.ofMegabytes(1))
+                .build();
         produceAndVerify(tight, 50, "tight-delay");
     }
 
@@ -99,8 +102,11 @@ public class V5ProducerBatchingTest extends V5ClientBaseTest {
     public void testBatchingWithSmallBatchSize() throws Exception {
         // Cap the batch at 5 messages — exercises the maxMessages branch of the batching
         // packer so a 50-message stream gets cut into 10 batches.
-        BatchingPolicy small = BatchingPolicy.of(
-                Duration.ofSeconds(1), 5, MemorySize.ofMegabytes(1));
+        BatchingPolicy small = BatchingPolicy.builder()
+                .maxPublishDelay(Duration.ofSeconds(1))
+                .maxMessages(5)
+                .maxSize(MemorySize.ofMegabytes(1))
+                .build();
         produceAndVerify(small, 50, "small-batch");
     }
 }

@@ -134,7 +134,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     }
 
     @BeforeMethod(alwaysRun = true)
-    public void startBroker() {
+    public void startBroker() throws Exception {
         if (pulsarCluster == null) {
             return;
         }
@@ -144,35 +144,49 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             }
         });
         String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
-        Awaitility.await().atMost(180, TimeUnit.SECONDS).until(
-                () -> {
-                    for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
-                        try (PulsarAdmin brokerAdmin = PulsarAdmin.builder().serviceHttpUrl(
-                                brokerContainer.getHttpServiceUrl()).build()) {
-                            if (brokerAdmin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
-                                log.info()
+        // Build admin clients once and reuse across poll iterations to avoid the per-tick
+        // connection churn (3 brokers x N polls of admin builder/close). Connection setup
+        // contends with brokers that are still warming up after a stop/restart.
+        List<BrokerContainer> brokers = new ArrayList<>(pulsarCluster.getBrokers());
+        List<PulsarAdmin> brokerAdmins = new ArrayList<>(brokers.size());
+        try {
+            for (BrokerContainer brokerContainer : brokers) {
+                brokerAdmins.add(PulsarAdmin.builder()
+                        .serviceHttpUrl(brokerContainer.getHttpServiceUrl()).build());
+            }
+            Awaitility.await().atMost(180, TimeUnit.SECONDS).until(
+                    () -> {
+                        for (int i = 0; i < brokers.size(); i++) {
+                            BrokerContainer brokerContainer = brokers.get(i);
+                            PulsarAdmin brokerAdmin = brokerAdmins.get(i);
+                            try {
+                                if (brokerAdmin.brokers().getActiveBrokers(clusterName).size() != NUM_BROKERS) {
+                                    log.info()
+                                            .attr("broker", brokerContainer.getHostName())
+                                            .attr("see", NUM_BROKERS)
+                                            .log("Broker does not see active brokers yet");
+                                    return false;
+                                }
+                                try {
+                                    brokerAdmin.topics().createPartitionedTopic(topicName, 10);
+                                } catch (PulsarAdminException.ConflictException e) {
+                                    // expected - topic already exists
+                                }
+                                brokerAdmin.lookups().lookupPartitionedTopic(topicName);
+                            } catch (Exception e) {
+                                log.warn()
                                         .attr("broker", brokerContainer.getHostName())
-                                        .attr("see", NUM_BROKERS)
-                                        .log("Broker does not see active brokers yet");
+                                        .attr("yet", e.getMessage())
+                                        .log("Broker is not ready yet");
                                 return false;
                             }
-                            try {
-                                brokerAdmin.topics().createPartitionedTopic(topicName, 10);
-                            } catch (PulsarAdminException.ConflictException e) {
-                                // expected - topic already exists
-                            }
-                            brokerAdmin.lookups().lookupPartitionedTopic(topicName);
-                        } catch (Exception e) {
-                            log.warn()
-                                    .attr("broker", brokerContainer.getHostName())
-                                    .attr("yet", e.getMessage())
-                                    .log("Broker is not ready yet");
-                            return false;
                         }
+                        return true;
                     }
-                    return true;
-                }
-        );
+            );
+        } finally {
+            brokerAdmins.forEach(PulsarAdmin::close);
+        }
     }
 
     @Test(timeOut = 40 * 1000)

@@ -42,7 +42,11 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     private final PulsarClientV5 client;
     private final Schema<T> v5Schema;
     private final ConsumerConfigurationData<T> conf = new ConsumerConfigurationData<>();
+    // Exactly one of {topicName, namespaceName} must be set at subscribe() time —
+    // single-topic vs multi-topic mode.
     private String topicName;
+    private org.apache.pulsar.common.naming.NamespaceName namespaceName;
+    private Map<String, String> propertyFilters;
 
     StreamConsumerBuilderV5(PulsarClientV5 client, Schema<T> v5Schema) {
         this.client = client;
@@ -63,21 +67,29 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
 
     @Override
     public CompletableFuture<StreamConsumer<T>> subscribeAsync() {
-        if (topicName == null || topicName.isEmpty()) {
+        boolean topicSet = topicName != null && !topicName.isEmpty();
+        boolean namespaceSet = namespaceName != null;
+        if (topicSet == namespaceSet) {
             return CompletableFuture.failedFuture(
-                    new PulsarClientException.InvalidConfigurationException("Topic name is required"));
+                    new PulsarClientException.InvalidConfigurationException(
+                            "Exactly one of .topic(name) or .namespace(...) must be set"));
         }
         if (conf.getSubscriptionName() == null || conf.getSubscriptionName().isEmpty()) {
             return CompletableFuture.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Subscription name is required"));
         }
-
-        TopicName topic = V5Utils.asScalableTopicName(topicName);
         // Default the consumer name to a stable random when the user didn't set one —
         // ScalableConsumerClient uses it as the registration key with the controller.
         if (conf.getConsumerName() == null || conf.getConsumerName().isEmpty()) {
             conf.setConsumerName("v5-stream-" + V5RandomIds.randomAlphanumeric(8));
         }
+
+        if (namespaceSet) {
+            return MultiTopicStreamConsumer.createAsync(
+                    client, v5Schema, conf, namespaceName, propertyFilters);
+        }
+
+        TopicName topic = V5Utils.asScalableTopicName(topicName);
         ScalableConsumerClient session = new ScalableConsumerClient(
                 client.v4Client(),
                 topic,
@@ -91,10 +103,20 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     }
 
     @Override
-    public StreamConsumerBuilderV5<T> topic(String... topicNames) {
-        if (topicNames.length > 0) {
-            this.topicName = topicNames[0];
-        }
+    public StreamConsumerBuilderV5<T> topic(String topicName) {
+        this.topicName = topicName;
+        return this;
+    }
+
+    @Override
+    public StreamConsumerBuilderV5<T> namespace(String namespace) {
+        return namespace(namespace, Map.of());
+    }
+
+    @Override
+    public StreamConsumerBuilderV5<T> namespace(String namespace, Map<String, String> propertyFilters) {
+        this.namespaceName = org.apache.pulsar.common.naming.NamespaceName.get(namespace);
+        this.propertyFilters = propertyFilters == null ? Map.of() : Map.copyOf(propertyFilters);
         return this;
     }
 

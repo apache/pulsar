@@ -25,11 +25,11 @@ checkstyle = "13.3.0"
 # Major frameworks
 bookkeeper = "4.17.3"
 zookeeper = "3.9.5"
-netty = "4.1.132.Final"
+netty = "4.1.133.Final"
 netty-iouring = "0.0.26.Final"
 jetty = "12.1.8"
 jersey = "2.42"
-jackson = "2.21.2"
+jackson = "2.21.3"
 jackson-annotations = "2.21"
 protobuf = "3.25.5"
 grpc = "1.75.0"
@@ -38,11 +38,11 @@ slog = "0.9.7"
 log4j2 = "2.25.4"
 lombok = "1.18.42"
 # OpenTelemetry
-opentelemetry = "1.56.0"
-opentelemetry-alpha = "1.56.0-alpha"
-opentelemetry-instrumentation = "2.21.0"
-opentelemetry-instrumentation-alpha = "2.21.0-alpha"
-opentelemetry-semconv = "1.37.0"
+opentelemetry = "1.61.0"
+opentelemetry-alpha = "1.61.0-alpha"
+opentelemetry-instrumentation = "2.27.0"
+opentelemetry-instrumentation-alpha = "2.27.0-alpha"
+opentelemetry-semconv = "1.41.0"
 # Apache Commons
 commons-lang3 = "3.20.0"
 commons-io = "2.21.0"
@@ -71,7 +71,7 @@ asynchttpclient = "2.14.5"
 conscrypt = "2.5.2"
 okhttp3 = "5.3.1"
 okio = "3.16.3"
-netty-tcnative = "2.0.75.Final"
+netty-tcnative = "2.0.77.Final"
 httpcomponents-httpclient = "4.5.13"
 httpcomponents-httpcore = "4.4.15"
 # Google libraries (transitive deps, versions managed to match Maven)
@@ -82,8 +82,8 @@ opencensus = "0.28.0"
 opentelemetry-gcp-resources = "1.48.0-alpha"
 # Data structures / Utils
 guava = "33.4.8-jre"
-caffeine = "3.2.3"
-jctools = "4.0.5"
+caffeine = "3.2.4"
+jctools = "4.0.6"
 roaringbitmap = "1.6.9"
 hppc = "0.9.1"
 aircompressor = "2.0.3"
@@ -100,8 +100,8 @@ jsonwebtoken = "0.13.0"
 athenz = "1.10.62"
 jose4j = "0.9.6"
 nimbus-jose-jwt = "9.37.4"
-auth0-java-jwt = "4.3.0"
-auth0-jwks-rsa = "0.22.0"
+auth0-java-jwt = "4.5.2"
+auth0-jwks-rsa = "0.23.1"
 # CLI
 picocli = "4.7.5"
 jline3 = "3.21.0"
@@ -145,8 +145,8 @@ spotbugs = "4.9.6"
 checkerframework = "3.33.0"
 jsr305 = "3.0.2"
 # Test
-testng = "7.7.1"
-mockito = "5.19.0"
+testng = "7.12.0"
+mockito = "5.23.0"
 awaitility = "4.2.0"
 assertj = "3.27.7"
 hamcrest = "2.2"
@@ -301,7 +301,7 @@ opentelemetry-sdk-testing = { module = "io.opentelemetry:opentelemetry-sdk-testi
 opentelemetry-exporter-otlp = { module = "io.opentelemetry:opentelemetry-exporter-otlp", version.ref = "opentelemetry" }
 opentelemetry-exporter-prometheus = { module = "io.opentelemetry:opentelemetry-exporter-prometheus", version.ref = "opentelemetry-alpha" }
 opentelemetry-instrumentation-resources = { module = "io.opentelemetry.instrumentation:opentelemetry-resources", version.ref = "opentelemetry-instrumentation-alpha" }
-opentelemetry-instrumentation-runtime-telemetry-java17 = { module = "io.opentelemetry.instrumentation:opentelemetry-runtime-telemetry-java17", version.ref = "opentelemetry-instrumentation-alpha" }
+opentelemetry-instrumentation-runtime-telemetry = { module = "io.opentelemetry.instrumentation:opentelemetry-runtime-telemetry", version.ref = "opentelemetry-instrumentation-alpha" }
 opentelemetry-semconv = { module = "io.opentelemetry.semconv:opentelemetry-semconv", version.ref = "opentelemetry-semconv" }
 opentelemetry-gcp-resources = { module = "io.opentelemetry.contrib:opentelemetry-gcp-resources", version.ref = "opentelemetry-gcp-resources" }
 # BouncyCastle
@@ -316,6 +316,7 @@ error-prone-annotations = { module = "com.google.errorprone:error_prone_annotati
 # Data structures
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine", version.ref = "caffeine" }
 jctools-core = { module = "org.jctools:jctools-core", version.ref = "jctools" }
+jctools-core-jdk11 = { module = "org.jctools:jctools-core-jdk11", version.ref = "jctools" }
 roaringbitmap = { module = "org.roaringbitmap:RoaringBitmap", version.ref = "roaringbitmap" }
 hppc = { module = "com.carrotsearch:hppc", version.ref = "hppc" }
 aircompressor = { module = "io.airlift:aircompressor", version.ref = "aircompressor" }

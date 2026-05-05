@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
@@ -230,12 +231,35 @@ public class ScalableTopicService {
     /**
      * Register a scalable consumer with the controller leader for {@code topic}.
      * Persists a durable session and returns the consumer's segment assignment.
+     *
+     * <p>The {@code consumerType} drives broker-side semantics that depend on the
+     * consumer mode — most importantly whether the {@link SubscriptionCoordinator}
+     * enforces parent-drain ordering before handing out children of a split. STREAM
+     * consumers want it (per-key ordering); CHECKPOINT and QUEUE consumers don't
+     * (they either track position client-side or have shared, already-out-of-order
+     * delivery semantics).
      */
     public CompletableFuture<ConsumerAssignment> registerConsumer(TopicName topic, String subscription,
                                                                    String consumerName, long consumerId,
+                                                                   ScalableConsumerType
+                                                                           consumerType,
                                                                    org.apache.pulsar.broker.service.TransportCnx cnx) {
         return getOrCreateController(topic)
-                .thenCompose(controller -> controller.registerConsumer(subscription, consumerName, consumerId, cnx));
+                .thenCompose(controller ->
+                        controller.registerConsumer(subscription, consumerName, consumerId,
+                                consumerType, cnx));
+    }
+
+    /**
+     * @deprecated Defaults to {@link ScalableConsumerType#STREAM}
+     *     for backward compatibility. New callers should pass the explicit consumer type.
+     */
+    @Deprecated
+    public CompletableFuture<ConsumerAssignment> registerConsumer(TopicName topic, String subscription,
+                                                                   String consumerName, long consumerId,
+                                                                   org.apache.pulsar.broker.service.TransportCnx cnx) {
+        return registerConsumer(topic, subscription, consumerName, consumerId,
+                ScalableConsumerType.STREAM, cnx);
     }
 
     /**
