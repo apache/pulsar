@@ -42,16 +42,16 @@ import org.testng.annotations.Test;
 public class ShadowTopicRealBkTest {
 
     private static final String cluster = "test";
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2,
-            PortManager.nextLockedFreePort(), PortManager::nextLockedFreePort);
+    // Pass 0 for the ZK port so the kernel picks a free port at bind time. This avoids the race
+    // where PortManager.nextLockedFreePort() reserves a port at the JVM level but another process
+    // grabs it before the bind. The actual bound port is read back via bk.getZookeeperPort().
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0, PortManager::nextLockedFreePort);
     private PulsarService pulsar;
     private PulsarAdmin admin;
 
     @BeforeClass
     public void setup() throws Exception {
         bk.start();
-        // Read the actual bound ZK port: LocalBookkeeperEnsemble may have retried with a different port
-        // if the original one was grabbed by another process between allocation and bind.
         final int zkPort = bk.getZookeeperPort();
         final var config = new ServiceConfiguration();
         config.setClusterName(cluster);
