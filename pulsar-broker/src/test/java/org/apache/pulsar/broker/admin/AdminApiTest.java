@@ -2932,7 +2932,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         });
 
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(30, TimeUnit.SECONDS);
+            assertNotNull(message, "Failed to receive initial message-" + i);
             consumer.acknowledge(message);
         }
 
@@ -2942,7 +2943,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Should received messages from 5-9
         for (int i = 5; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(30, TimeUnit.SECONDS);
+            assertNotNull(message,
+                    "Failed to receive message-" + i + " after first resetCursor (firstTimestamp)");
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
@@ -2956,7 +2959,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Should received messages from 8-9
         for (int i = 8; i < 10; i++) {
-            Message<byte[]> message = consumer.receive();
+            Message<byte[]> message = consumer.receive(30, TimeUnit.SECONDS);
+            assertNotNull(message,
+                    "Failed to receive message-" + i + " after second resetCursor (secondTimestamp)");
             consumer.acknowledge(message);
             ++receivedAfterReset;
             String expected = "message-" + i;
