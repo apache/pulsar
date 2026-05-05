@@ -2074,10 +2074,8 @@ public abstract class NamespacesBase extends AdminResource {
 
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.UNSUBSCRIBE)
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(policies ->
-                        validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
-                                authoritative, false))
+                .thenCompose(__ -> validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange,
+                        authoritative, false))
                 .thenCompose(bundle -> unsubscribeAsync(bundle, subscription))
                 .thenRun(() -> log.info()
                         .attr("subscription", subscription)
