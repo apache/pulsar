@@ -493,8 +493,8 @@ public class ScalableTopicControllerTest {
         controller.runGcTickAsync().get();
         assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L),
                 "tick past retention must prune the sealed segment");
-        // Backing topic delete was issued.
-        verify(topics).deleteAsync(anyString(), anyBoolean());
+        // Backing topic delete was issued via the segment-aware admin call.
+        verify(scalableTopics).deleteSegmentAsync(anyString(), anyBoolean());
     }
 
     /**
@@ -586,8 +586,8 @@ public class ScalableTopicControllerTest {
         // immediately considered prunable on retention expiry.
         // (resources.listSubscriptionsAsync returns [] from the in-memory store by default.)
 
-        // Backing-topic delete succeeds.
-        when(topics.deleteAsync(anyString(), anyBoolean()))
+        // Backing-topic delete succeeds (segment-aware admin call).
+        when(scalableTopics.deleteSegmentAsync(anyString(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
     }
 

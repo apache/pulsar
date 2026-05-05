@@ -748,29 +748,103 @@ public class ScalableTopicController {
 
     /**
      * For each candidate sealed segment, check that every existing subscription has
-     * drained it (backlog == 0); prune the ones that pass. Failures on individual
-     * segments are logged and skipped — the next tick retries.
+     * drained it (backlog == 0); prune the ones that pass. The drain checks fan out
+     * concurrently, but the resulting layout mutation is coalesced into a <em>single</em>
+     * CAS write so multiple eligible segments don't compete on the same metadata znode.
+     *
+     * <p><b>Subscription-type behaviour.</b> The drain check is the per-segment backlog
+     * admin endpoint — Pulsar's standard cursor-position view, which works the same way
+     * for STREAM (Exclusive) and QUEUE (Shared) subscriptions: a sealed segment with
+     * cursor at the end reports backlog 0. For CHECKPOINT subscriptions there is no
+     * broker-side cursor, the endpoint returns {@code NotFoundException}, and
+     * {@code isSegmentDrained} reports {@code false} — the segment is treated as
+     * "still in use" and never pruned while a CHECKPOINT subscription is registered.
+     *
+     * <p><b>Parent-vs-child ordering.</b> Sealed segments form a DAG; pruning is allowed
+     * in any order because the active leaves always cover the full hash range, and the
+     * managed-ledger storage of each segment is independent. {@link SegmentLayout#pruneSegment}
+     * rewrites the parent/child edges, so consumers using the post-prune layout see the
+     * pruned segment as "no longer present" — equivalent to "drained" for parent-drain
+     * ordering.
      */
     private CompletableFuture<Void> pruneEligibleAsync(List<SegmentInfo> candidates) {
         return resources.listSubscriptionsAsync(topicName)
                 .thenCompose(subs -> {
-                    List<CompletableFuture<Void>> perSegment = new ArrayList<>();
+                    // Fan out drain checks; collect the survivors.
+                    List<CompletableFuture<SegmentInfo>> filtered = new ArrayList<>();
                     for (SegmentInfo seg : candidates) {
-                        perSegment.add(prunable(seg, subs)
-                                .thenCompose(prunable -> prunable
-                                        ? pruneSegmentAsync(seg)
-                                        : CompletableFuture.completedFuture(null))
+                        filtered.add(prunable(seg, subs)
+                                .thenApply(ok -> ok ? seg : null)
                                 .exceptionally(ex -> {
                                     log.warn().attr("segmentId", seg.segmentId())
                                             .exceptionMessage(ex)
-                                            .log("GC: failed to evaluate / prune segment;"
+                                            .log("GC: failed to evaluate prunability;"
                                                     + " will retry on next tick");
                                     return null;
                                 }));
                     }
-                    return CompletableFuture.allOf(
-                            perSegment.toArray(CompletableFuture[]::new));
-                });
+                    return CompletableFuture.allOf(filtered.toArray(CompletableFuture[]::new))
+                            .thenApply(__ -> {
+                                List<SegmentInfo> drained = new ArrayList<>();
+                                for (var f : filtered) {
+                                    SegmentInfo s = f.join();
+                                    if (s != null) {
+                                        drained.add(s);
+                                    }
+                                }
+                                return drained;
+                            });
+                })
+                .thenCompose(this::pruneAllAsync);
+    }
+
+    /**
+     * Coalesce all drained-and-eligible segments into a single layout-mutation CAS,
+     * then fan out the per-segment backing-topic deletes. This is the path that
+     * actually mutates state. Re-validates leadership before the CAS — drain checks
+     * can take seconds, leadership may have flipped in the meantime, and we don't
+     * want a deposed leader writing layout updates.
+     */
+    private CompletableFuture<Void> pruneAllAsync(List<SegmentInfo> drained) {
+        if (drained.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (!isLeader() || closed) {
+            return CompletableFuture.completedFuture(null);
+        }
+        for (SegmentInfo s : drained) {
+            log.info().attr("segmentId", s.segmentId())
+                    .attr("sealedAtMs", s.sealedAtMs())
+                    .log("GC: pruning sealed segment past retention");
+        }
+        return resources.updateScalableTopicAsync(topicName, md -> {
+            SegmentLayout latest = SegmentLayout.fromMetadata(md);
+            SegmentLayout updated = latest;
+            for (SegmentInfo s : drained) {
+                // Re-validate per segment: another writer (or a previous failed
+                // tick of this same loop) may have already pruned it.
+                if (updated.getAllSegments().containsKey(s.segmentId())) {
+                    updated = updated.pruneSegment(s.segmentId());
+                }
+            }
+            return updated == latest ? md : updated.toMetadata(md.getProperties());
+        }).thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
+          .thenCompose(optMd -> {
+              currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
+              return notifySubscriptions(currentLayout);
+          })
+          .thenCompose(__ -> {
+              CompletableFuture<?>[] deletes = drained.stream()
+                      .map(this::deleteSegmentBackingTopic)
+                      .toArray(CompletableFuture[]::new);
+              return CompletableFuture.allOf(deletes);
+          })
+          .thenAccept(__ -> {
+              for (SegmentInfo s : drained) {
+                  log.info().attr("segmentId", s.segmentId())
+                          .log("GC: segment pruned + backing topic deleted");
+              }
+          });
     }
 
     private CompletableFuture<Boolean> prunable(SegmentInfo seg, List<String> subs) {
@@ -793,42 +867,17 @@ public class ScalableTopicController {
     }
 
     /**
-     * Apply a single segment's prune: CAS the layout to drop it, then delete the
-     * backing managed-ledger topic. Layout-prune is the point of no return — once it
-     * lands, no consumer will ever subscribe to the segment again. Backing-topic
-     * delete failures are logged and retried on subsequent ticks.
+     * Delete the segment's backing storage via the {@code scalableTopics} admin
+     * endpoint, which understands the {@code segment://} naming scheme and routes
+     * to the segment's owning broker. Failures are best-effort: the controller
+     * has already pruned the segment from the layout (the point of no return),
+     * so a failed delete is just leaked storage that the next tick will retry.
      */
-    private CompletableFuture<Void> pruneSegmentAsync(SegmentInfo seg) {
-        long segmentId = seg.segmentId();
-        log.info().attr("segmentId", segmentId)
-                .attr("sealedAtMs", seg.sealedAtMs())
-                .log("GC: pruning sealed segment past retention");
-
-        return resources.updateScalableTopicAsync(topicName, md -> {
-            SegmentLayout latest = SegmentLayout.fromMetadata(md);
-            // Re-validate against the latest layout: another writer may have already
-            // pruned this segment, or replaced it via a follow-up split / merge. If
-            // it's gone, leave the metadata untouched (no-op CAS).
-            if (!latest.getAllSegments().containsKey(segmentId)) {
-                return md;
-            }
-            SegmentLayout updated = latest.pruneSegment(segmentId);
-            return updated.toMetadata(md.getProperties());
-        }).thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
-          .thenCompose(optMd -> {
-              currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
-              return notifySubscriptions(currentLayout);
-          })
-          .thenCompose(__ -> deleteSegmentBackingTopic(seg))
-          .thenAccept(__ -> log.info().attr("segmentId", segmentId)
-                  .log("GC: segment pruned + backing topic deleted"));
-    }
-
     private CompletableFuture<Void> deleteSegmentBackingTopic(SegmentInfo seg) {
-        String name = toSegmentUnderlyingPersistentName(seg);
+        String name = toSegmentPersistentName(seg);
         try {
             return brokerService.getPulsar().getAdminClient()
-                    .topics().deleteAsync(name, /* force */ true)
+                    .scalableTopics().deleteSegmentAsync(name, /* force */ true)
                     .exceptionally(ex -> {
                         Throwable cause =
                                 org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
