@@ -288,6 +288,33 @@ public interface MetadataStore extends AutoCloseable {
     }
 
     /**
+     * Stream all direct children of {@code parentPath} together with their values.
+     *
+     * <p>This is the value-bearing counterpart to {@link #getChildren} — same semantics for
+     * what counts as a "child" (one hierarchical level below {@code parentPath}, no
+     * descendants), but each record carries the value and {@link Stat} alongside the path.
+     * Results are delivered to {@code consumer} as they become available so callers don't
+     * have to materialize a potentially-large list in memory.
+     *
+     * <p>The consumer's {@link ScanConsumer#onNext} is invoked for each child, then either
+     * {@link ScanConsumer#onCompleted} (success) or {@link ScanConsumer#onError} (failure)
+     * exactly once. The returned future completes when the scan terminates and mirrors the
+     * terminal callback — callers may rely on either.
+     *
+     * <p>Backends with a native range-scan primitive (Oxia, RocksDB, in-memory NavigableMap)
+     * issue a single store-side scan. Other backends fall back to {@link #getChildren} +
+     * sequential {@link #get}, at the cost of one extra round trip per child.
+     *
+     * @param parentPath path whose direct children should be streamed
+     * @param consumer   callback that receives records, completion, or an error
+     * @return a future that completes when the scan terminates
+     */
+    default CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer) {
+        return CompletableFuture.failedFuture(
+                new MetadataStoreException("scanChildren not supported by this store"));
+    }
+
+    /**
      * Returns the default metadata cache config.
      *
      * @return default metadata cache config

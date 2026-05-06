@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -69,6 +70,7 @@ import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -527,6 +529,55 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return alreadyClosedFailedFuture();
         }
         return storeFindByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter);
+    }
+
+    @Override
+    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer) {
+        if (isClosed()) {
+            CompletableFuture<Void> failed = alreadyClosedFailedFuture();
+            failed.whenComplete((__, ex) -> {
+                if (ex != null) {
+                    consumer.onError(ex);
+                }
+            });
+            return failed;
+        }
+        if (parentPath == null) {
+            MetadataStoreException ex = new MetadataStoreException("parentPath must be non-null");
+            consumer.onError(ex);
+            return FutureUtil.failedFuture(ex);
+        }
+        return storeScanChildren(parentPath, consumer);
+    }
+
+    /**
+     * Backend hook for {@link #scanChildren}. The default implementation lists the parent's
+     * children with {@link #getChildrenFromStore} and fetches each value sequentially with
+     * {@link #storeGet}. Backends with a native range-scan primitive (Oxia, RocksDB,
+     * in-memory NavigableMap) override this method for a single store-side scan.
+     */
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        getChildrenFromStore(parentPath).thenCompose(children -> {
+            CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+            for (String child : children) {
+                String childPath = parentPath.equals("/") ? "/" + child : parentPath + "/" + child;
+                chain = chain.thenCompose(__ -> storeGet(childPath))
+                        .thenAccept(opt -> opt.ifPresent(consumer::onNext));
+            }
+            return chain;
+        }).whenComplete((v, ex) -> {
+            if (ex != null) {
+                Throwable cause = ex instanceof CompletionException && ex.getCause() != null
+                        ? ex.getCause() : ex;
+                consumer.onError(cause);
+                result.completeExceptionally(cause);
+            } else {
+                consumer.onCompleted();
+                result.complete(null);
+            }
+        });
+        return result;
     }
 
     protected CompletableFuture<List<GetResult>> storeFindByIndex(

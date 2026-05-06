@@ -45,6 +45,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -118,6 +119,39 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             } else {
                 return FutureUtils.value(Optional.empty());
             }
+        }
+    }
+
+    @Override
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+        // Snapshot the immediate children under the lock, then dispatch outside it so a slow
+        // consumer can't stall other store operations.
+        List<GetResult> snapshot = new ArrayList<>();
+        synchronized (map) {
+            String firstKey = parentPath.equals("/") ? "/" : parentPath + "/";
+            String lastKey = parentPath.equals("/") ? "0" : parentPath + "0";
+            map.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                // Filter to direct children only — paths with no further "/" beyond the
+                // parent's level. Same scoping `getChildrenFromStore` applies.
+                int relStart = firstKey.length();
+                if (key.indexOf('/', relStart) >= 0) {
+                    return;
+                }
+                snapshot.add(new GetResult(
+                        value.data,
+                        new Stat(key, value.version, value.createdTimestamp, value.modifiedTimestamp,
+                                value.isEphemeral(), true)));
+            });
+        }
+        try {
+            for (GetResult r : snapshot) {
+                consumer.onNext(r);
+            }
+            consumer.onCompleted();
+            return CompletableFuture.completedFuture(null);
+        } catch (Throwable t) {
+            consumer.onError(t);
+            return FutureUtil.failedFuture(t);
         }
     }
 

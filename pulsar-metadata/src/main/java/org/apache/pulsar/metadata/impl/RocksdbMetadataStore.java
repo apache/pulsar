@@ -53,6 +53,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.rocksdb.ColumnFamilyDescriptor;
@@ -404,6 +405,85 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         } finally {
             dbStateLock.readLock().unlock();
         }
+    }
+
+    @Override
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+        // Native iterator-based scan over the parent's key range, with the same direct-child
+        // filter getChildrenFromStore applies. Snapshot under the read lock then dispatch
+        // outside it.
+        List<GetResult> snapshot = new ArrayList<>();
+        try {
+            dbStateLock.readLock().lock();
+            if (isClosed()) {
+                CompletableFuture<Void> failed = alreadyClosedFailedFuture();
+                failed.whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        consumer.onError(ex);
+                    }
+                });
+                return failed;
+            }
+            String firstKey = parentPath.equals("/") ? "/" : parentPath + "/";
+            String lastKey = parentPath.equals("/") ? "0" : parentPath + "0";
+            byte[] endBytes = toBytes(lastKey);
+            try (RocksIterator iterator = db.newIterator(optionDontCache)) {
+                for (iterator.seek(toBytes(firstKey)); iterator.isValid(); iterator.next()) {
+                    byte[] keyBytes = iterator.key();
+                    if (compareUnsigned(keyBytes, endBytes) >= 0) {
+                        break;
+                    }
+                    String currentPath = toString(keyBytes);
+                    // Direct children only.
+                    if (currentPath.indexOf('/', firstKey.length()) >= 0) {
+                        continue;
+                    }
+                    byte[] value = iterator.value();
+                    if (value == null) {
+                        continue;
+                    }
+                    MetaValue metaValue = MetaValue.parse(value);
+                    if (metaValue.ephemeral && metaValue.owner != instanceId) {
+                        // Ephemeral record left behind by a different session; skip.
+                        continue;
+                    }
+                    snapshot.add(new GetResult(metaValue.getData(),
+                            new Stat(currentPath,
+                                    metaValue.getVersion(),
+                                    metaValue.getCreatedTimestamp(),
+                                    metaValue.getModifiedTimestamp(),
+                                    metaValue.ephemeral,
+                                    metaValue.getOwner() == instanceId)));
+                }
+            }
+        } catch (Throwable e) {
+            MetadataStoreException ex = MetadataStoreException.wrap(e);
+            consumer.onError(ex);
+            return FutureUtil.failedFuture(ex);
+        } finally {
+            dbStateLock.readLock().unlock();
+        }
+        try {
+            for (GetResult r : snapshot) {
+                consumer.onNext(r);
+            }
+            consumer.onCompleted();
+            return CompletableFuture.completedFuture(null);
+        } catch (Throwable t) {
+            consumer.onError(t);
+            return FutureUtil.failedFuture(t);
+        }
+    }
+
+    private static int compareUnsigned(byte[] a, byte[] b) {
+        int len = Math.min(a.length, b.length);
+        for (int i = 0; i < len; i++) {
+            int diff = (a[i] & 0xFF) - (b[i] & 0xFF);
+            if (diff != 0) {
+                return diff;
+            }
+        }
+        return a.length - b.length;
     }
 
     @Override

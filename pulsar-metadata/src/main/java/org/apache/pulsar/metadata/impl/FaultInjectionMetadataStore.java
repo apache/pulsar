@@ -38,6 +38,7 @@ import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -60,6 +61,7 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
         EXISTS,
         PUT,
         DELETE,
+        SCAN_CHILDREN,
     }
 
     @Data
@@ -153,6 +155,17 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
         }
 
         return store.deleteRecursive(path);
+    }
+
+    @Override
+    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer) {
+        Optional<MetadataStoreException> ex = programmedFailure(OperationType.SCAN_CHILDREN, parentPath);
+        if (ex.isPresent()) {
+            consumer.onError(ex.get());
+            return FutureUtil.failedFuture(ex.get());
+        }
+
+        return store.scanChildren(parentPath, consumer);
     }
 
     @Override
