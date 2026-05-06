@@ -48,6 +48,7 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
@@ -104,7 +105,11 @@ public class PulsarFunctionTlsTest {
             config.setBrokerShutdownTimeoutMs(0L);
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setWebServicePort(Optional.empty());
-            config.setWebServicePortTls(Optional.of(0));
+            // Pre-allocate the TLS web port: PulsarService.initializeWorkerConfigFromBrokerConfig
+            // builds workerId = "c-{cluster}-fw-{host}-{port}" from the CONFIGURED port. Two
+            // brokers configured with port 0 would end up with the same workerId and the
+            // function-worker membership manager would never elect a leader.
+            config.setWebServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
             config.setBrokerServicePort(Optional.empty());
             config.setBrokerServicePortTls(Optional.of(0));
             config.setClusterName("my-cluster");
@@ -215,6 +220,8 @@ public class PulsarFunctionTlsTest {
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarServices[i] != null) {
+                    pulsarServices[i].getConfiguration()
+                            .getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
                     pulsarServices[i].close();
                     pulsarServices[i] = null;
                 }

@@ -64,6 +64,7 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.Auditor;
 import org.apache.bookkeeper.replication.ReplicationWorker;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -289,12 +290,15 @@ public abstract class BookKeeperClusterTestCase {
             t.shutdown();
         }
         servers.clear();
-        bookiePorts.clear();
+        bookiePorts.removeIf(PortManager::releaseLockedPort);
     }
 
     protected ServerConfiguration newServerConfiguration() throws Exception {
         File f = tmpDirs.createNew("bookie", "test");
-        return newServerConfiguration(0, f, new File[] { f });
+        // Bookies need a pre-allocated port: BK identifies them by host:port in metadata
+        // and the test client resolves that back to a TCP address. Port 0 would leave
+        // the cookie + registration with port=0, which fails DNS-style resolution.
+        return newServerConfiguration(PortManager.nextLockedFreePort(), f, new File[] { f });
     }
 
     protected ClientConfiguration newClientConfiguration() {
