@@ -40,6 +40,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Topic policies service backed by Pulsar metadata stores.
@@ -62,10 +63,7 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
         this.localPoliciesCache = localStore.getMetadataCache(TopicPolicies.class);
         this.globalPoliciesCache = configurationStore.getMetadataCache(TopicPolicies.class);
         localStore.registerListener(notification -> handleNotification(notification, false));
-        if (localStore != configurationStore) {
-            // They are the same when geo-replication is not enabled, no need to register the same listener again
-            configurationStore.registerListener(notification -> handleNotification(notification, true));
-        }
+        configurationStore.registerListener(notification -> handleNotification(notification, true));
     }
 
     @Override
@@ -234,7 +232,7 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
         });
     }
 
-    private void notifyListeners(TopicName topicName, TopicPolicies policies) {
+    private void notifyListeners(TopicName topicName, @Nullable TopicPolicies policies) {
         List<TopicPolicyListener> topicListeners = listeners.get(topicName);
         if (topicListeners == null) {
             return;

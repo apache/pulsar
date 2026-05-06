@@ -21,13 +21,18 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.utils.TestLogAppender;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -40,6 +45,11 @@ public class MetadataStoreTopicPoliciesServiceTest extends MockedPulsarServiceBa
 
     protected boolean isLegacyTopicPoliciesService() {
         return false;
+    }
+
+    @Override
+    protected void configureMetadataStores(PulsarTestContext.Builder builder) {
+        builder.withMockZookeeper();
     }
 
     @BeforeClass
@@ -79,8 +89,8 @@ public class MetadataStoreTopicPoliciesServiceTest extends MockedPulsarServiceBa
 
         admin.topicPolicies().setCompactionThreshold(topic, 1000);
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(admin.topicPolicies().getCompactionThreshold(topic), Long.valueOf(1000));
-            assertEquals(persistentTopic.getHierarchyTopicPolicies().getCompactionThreshold().get(), Long.valueOf(1000));
+            assertEquals(admin.topicPolicies().getCompactionThreshold(topic), 1000L);
+            assertEquals(persistentTopic.getHierarchyTopicPolicies().getCompactionThreshold().get(), 1000L);
         });
 
         restartBroker();
@@ -155,5 +165,40 @@ public class MetadataStoreTopicPoliciesServiceTest extends MockedPulsarServiceBa
                 .orElseThrow();
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(persistentTopic.getShadowReplicators().size(), 1));
+    }
+
+    @Test
+    public void testListenerTriggered() throws Exception {
+        final var topic = TopicName.get("test-global-policies-not-triggered").toString();
+        final var topicName = TopicName.get(topic);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        final var compactionThreshold = new AtomicLong(0);
+        pulsar.getTopicPoliciesService().registerListener(topicName, policies ->
+                Optional.ofNullable(policies).map(TopicPolicies::getCompactionThreshold).ifPresentOrElse(
+                        compactionThreshold::set, () -> compactionThreshold.set(-1)));
+
+        // Verify Created events are handled
+        admin.topicPolicies(false).setCompactionThreshold(topic, 100);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), 100));
+
+        admin.topicPolicies(true).setCompactionThreshold(topic, 200);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), 200));
+
+        // Verify Modified events are handled
+        admin.topicPolicies(false).setCompactionThreshold(topic, 300);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), 300));
+
+        admin.topicPolicies(true).setCompactionThreshold(topic, 400);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), 400));
+
+        // Verify Deleted events are handled
+        admin.topicPolicies(false).deleteTopicPolicies(topic);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), -1));
     }
 }

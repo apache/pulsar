@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.client.api.Schema;
@@ -30,8 +29,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -150,9 +147,8 @@ public class LegacyAwareTopicPoliciesServiceTest extends MetadataStoreTopicPolic
                 .join());
 
         admin.topics().createNonPartitionedTopic(eventTopic);
-        Awaitility.await().untilAsserted(() ->
-                assertTrue(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(TopicName.get(eventTopic))
-                        .join()));
+        Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getPulsarResources().getTopicResources()
+                .persistentTopicExists(TopicName.get(eventTopic)).join()));
 
         final var eventTopicLastConfirmedEntryBeforeUpdate = admin.topics().getInternalStats(eventTopic)
                 .lastConfirmedEntry;
