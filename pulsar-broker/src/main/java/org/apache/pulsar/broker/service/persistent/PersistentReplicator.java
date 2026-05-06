@@ -496,6 +496,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+        InFlightTask inFlightTask = (InFlightTask) ctx;
         if (state != Started) {
             log.info("[{}] Replicator was disconnected while reading entries."
                             + " Stop reading. Replicator state: {}",
@@ -516,14 +517,14 @@ public abstract class PersistentReplicator extends AbstractReplicator
             terminate();
             return;
         } else if (!(exception instanceof TooManyRequestsException)) {
+            inFlightTask.setEntries(Collections.emptyList());
             log.error("[{}] Error reading entries at {}. Retrying to read in {}s. ({})",
                     replicatorId, ctx, waitTimeMillis / 1000.0, exception.getMessage(), exception);
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Throttled by bookies while reading at {}. Retrying to read in {}s. ({})",
-                        replicatorId, ctx, waitTimeMillis / 1000.0, exception.getMessage(),
-                        exception);
-            }
+            inFlightTask.setEntries(Collections.emptyList());
+            log.debug("[{}] Throttled by bookies while reading at {}. Retrying to read in {}s. ({})",
+                    replicatorId, ctx, waitTimeMillis / 1000.0, exception.getMessage(),
+                    exception);
         }
 
         brokerService.executor().schedule(this::readMoreEntries, waitTimeMillis, TimeUnit.MILLISECONDS);

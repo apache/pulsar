@@ -310,6 +310,12 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         super.testReplicatorProducerStatInTopic();
     }
 
+    @Override
+    @Test(enabled = false)
+    public void testProbBKErrorWhenReplicating() throws Exception {
+        super.testProbBKErrorWhenReplicating();
+    }
+
     @Test(enabled = false)
     public void testTopicCloseWhenInternalProducerCloseErrorOnce() throws Exception {
         super.testReplicatorProducerStatInTopic();

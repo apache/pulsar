@@ -104,6 +104,12 @@ public class OneWayReplicatorUsingGlobalPartitionedTest extends OneWayReplicator
 
     @Override
     @Test(enabled = false)
+    public void testProbBKErrorWhenReplicating() throws Exception {
+        super.testProbBKErrorWhenReplicating();
+    }
+
+    @Override
+    @Test(enabled = false)
     public void testTopicCloseWhenInternalProducerCloseErrorOnce() throws Exception {
         super.testReplicatorProducerStatInTopic();
     }
