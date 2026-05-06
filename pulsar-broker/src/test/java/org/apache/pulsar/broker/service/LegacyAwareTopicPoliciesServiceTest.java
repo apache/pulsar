@@ -53,6 +53,8 @@ public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBase
 
     @Test
     public void testLegacyNamespaceKeepsSystemTopicBackendAfterRestart() throws Exception {
+        restartWithSystemTopicPoliciesService();
+
         final var namespace1 = "public/legacy-aware-ns1";
         final var topic1 = "persistent://" + namespace1 + "/topic";
         final var eventTopic1 = NamespaceEventsSystemTopicFactory
@@ -130,6 +132,62 @@ public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBase
                     .exists(MetadataStoreTopicPoliciesService.pathFor(TopicName.get(topic2), false))
                     .join());
         });
+    }
+
+    @Test
+    public void testOwnedBundleCanSwitchToLegacyBackendAfterNamespaceBecomesLegacy() throws Exception {
+        restartWithLegacyAwareMetadataStoreService();
+
+        final var namespace = "public/legacy-aware-flip";
+        final var topic = "persistent://" + namespace + "/topic";
+        final var eventTopic = NamespaceEventsSystemTopicFactory
+                .getEventsTopicName(NamespaceName.get(namespace))
+                .toString();
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        try (var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
+            producer.send("warmup");
+        }
+        final var persistentTopic = getPersistentTopic(topic);
+
+        assertNull(admin.topicPolicies().getCompactionThreshold(topic));
+        assertFalse(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(TopicName.get(eventTopic))
+                .join());
+        assertFalse(pulsar.getLocalMetadataStore()
+                .exists(MetadataStoreTopicPoliciesService.pathFor(TopicName.get(topic), false))
+                .join());
+
+        admin.topics().createNonPartitionedTopic(eventTopic);
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(TopicName.get(eventTopic))
+                        .join()));
+
+        final var eventTopicLastConfirmedEntryBeforeUpdate = admin.topics().getInternalStats(eventTopic)
+                .lastConfirmedEntry;
+        admin.topicPolicies().setCompactionThreshold(topic, 1000);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topicPolicies().getCompactionThreshold(topic), Long.valueOf(1000));
+            assertEquals(persistentTopic.getHierarchyTopicPolicies().getCompactionThreshold().get(),
+                    Long.valueOf(1000));
+            Assert.assertNotEquals(admin.topics().getInternalStats(eventTopic).lastConfirmedEntry,
+                    eventTopicLastConfirmedEntryBeforeUpdate);
+            assertFalse(pulsar.getLocalMetadataStore()
+                    .exists(MetadataStoreTopicPoliciesService.pathFor(TopicName.get(topic), false))
+                    .join());
+        });
+    }
+
+    private void restartWithSystemTopicPoliciesService() throws Exception {
+        restartBroker(configuration ->
+                configuration.setTopicPoliciesServiceClassName(SystemTopicBasedTopicPoliciesService.class.getName()));
+        assertTrue(pulsar.getTopicPoliciesService() instanceof SystemTopicBasedTopicPoliciesService);
+    }
+
+    private void restartWithLegacyAwareMetadataStoreService() throws Exception {
+        restartBroker(configuration ->
+                configuration.setTopicPoliciesServiceClassName(MetadataStoreTopicPoliciesService.class.getName()));
+        assertTrue(pulsar.getTopicPoliciesService() instanceof LegacyAwareTopicPoliciesService);
     }
 
     private PersistentTopic getPersistentTopic(String topic) throws Exception {

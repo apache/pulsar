@@ -18,18 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.common.events.EventType;
-import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -44,8 +39,6 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
     private final PulsarService pulsar;
     private final SystemTopicBasedTopicPoliciesService systemTopicService;
     private final TopicPoliciesService configuredService;
-    private final Map<NamespaceName, Set<NamespaceBundle>> ownedBundles = new ConcurrentHashMap<>();
-    private final Map<NamespaceName, Set<NamespaceBundle>> legacyOwnedBundles = new ConcurrentHashMap<>();
 
     public LegacyAwareTopicPoliciesService(PulsarService pulsar,
                                            SystemTopicBasedTopicPoliciesService systemTopicService,
@@ -58,24 +51,6 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
     @Override
     public void start(PulsarService pulsarService) {
         configuredService.start(pulsarService);
-        final var self = this;
-        pulsarService.getNamespaceService().addNamespaceBundleOwnershipListener(
-                new NamespaceBundleOwnershipListener() {
-                    @Override
-                    public void onLoad(NamespaceBundle bundle) {
-                        self.executeOrdered(bundle.getNamespaceObject(), () -> onBundleLoaded(bundle));
-                    }
-
-                    @Override
-                    public void unLoad(NamespaceBundle bundle) {
-                        self.executeOrdered(bundle.getNamespaceObject(), () -> onBundleUnloaded(bundle));
-                    }
-
-                    @Override
-                    public boolean test(NamespaceBundle namespaceBundle) {
-                        return true;
-                    }
-                });
     }
 
     @Override
@@ -130,99 +105,7 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
     }
 
     private CompletableFuture<TopicPoliciesService> resolveService(NamespaceName namespace) {
-        return isLegacy(namespace).thenCompose(isLegacy -> reconcileLegacyOwnership(namespace, isLegacy)
-                        .thenApply(__ -> isLegacy ? systemTopicService : configuredService));
-    }
-
-    private void onBundleLoaded(NamespaceBundle bundle) {
-        NamespaceName namespace = bundle.getNamespaceObject();
-        addBundle(ownedBundles, bundle);
-        isLegacy(namespace).whenComplete((isLegacy, error) -> {
-            if (error != null) {
-                log.warn()
-                        .attr("namespace", namespace)
-                        .exception(error)
-                        .log("Failed to check topic-policy system topic for namespace");
-                return;
-            }
-            reconcileLegacyOwnership(namespace, Boolean.TRUE.equals(isLegacy)).exceptionally(reconcileError -> {
-                log.warn()
-                        .attr("namespace", namespace)
-                        .exception(reconcileError)
-                        .log("Failed to reconcile legacy topic-policy ownership for namespace");
-                return null;
-            });
-        });
-    }
-
-    private void onBundleUnloaded(NamespaceBundle bundle) {
-        removeBundle(ownedBundles, bundle);
-        if (removeBundle(legacyOwnedBundles, bundle)) {
-            systemTopicService.removeOwnedNamespaceBundleAsync(bundle);
-        }
-    }
-
-    private CompletableFuture<Void> reconcileLegacyOwnership(NamespaceName namespace, boolean isLegacy) {
-        return executeOrdered(namespace, () -> applyLegacyOwnership(namespace, isLegacy));
-    }
-
-    private CompletableFuture<Void> executeOrdered(NamespaceName namespace, Runnable action) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            pulsar.getOrderedExecutor().executeOrdered(namespace, () -> {
-                try {
-                    action.run();
-                    future.complete(null);
-                } catch (Throwable error) {
-                    future.completeExceptionally(error);
-                }
-            });
-        } catch (Throwable error) {
-            future.completeExceptionally(error);
-        }
-        return future;
-    }
-
-    private void applyLegacyOwnership(NamespaceName namespace, boolean isLegacy) {
-        if (isLegacy) {
-            Set<NamespaceBundle> namespaceOwnedBundles = ownedBundles.get(namespace);
-            if (namespaceOwnedBundles == null || namespaceOwnedBundles.isEmpty()) {
-                return;
-            }
-            Set<NamespaceBundle> namespaceLegacyBundles =
-                    legacyOwnedBundles.computeIfAbsent(namespace, __ -> ConcurrentHashMap.newKeySet());
-            for (NamespaceBundle bundle : namespaceOwnedBundles) {
-                if (namespaceLegacyBundles.add(bundle)) {
-                    systemTopicService.addOwnedNamespaceBundleAsync(bundle);
-                }
-            }
-            return;
-        }
-        Set<NamespaceBundle> namespaceLegacyBundles = legacyOwnedBundles.remove(namespace);
-        if (namespaceLegacyBundles == null) {
-            return;
-        }
-        for (NamespaceBundle bundle : namespaceLegacyBundles) {
-            systemTopicService.removeOwnedNamespaceBundleAsync(bundle);
-        }
-    }
-
-    private static void addBundle(Map<NamespaceName, Set<NamespaceBundle>> bundlesByNamespace, NamespaceBundle bundle) {
-        bundlesByNamespace.computeIfAbsent(bundle.getNamespaceObject(), __ -> ConcurrentHashMap.newKeySet()).add(bundle);
-    }
-
-    private static boolean removeBundle(Map<NamespaceName, Set<NamespaceBundle>> bundlesByNamespace,
-                                        NamespaceBundle bundle) {
-        NamespaceName namespace = bundle.getNamespaceObject();
-        Set<NamespaceBundle> namespaceBundles = bundlesByNamespace.get(namespace);
-        if (namespaceBundles == null) {
-            return false;
-        }
-        boolean removed = namespaceBundles.remove(bundle);
-        if (namespaceBundles.isEmpty()) {
-            bundlesByNamespace.remove(namespace, namespaceBundles);
-        }
-        return removed;
+        return isLegacy(namespace).thenApply(isLegacy -> isLegacy ? systemTopicService : configuredService);
     }
 
     private CompletableFuture<Boolean> isLegacy(NamespaceName namespace) {
