@@ -47,11 +47,8 @@ import org.apache.pulsar.metadata.api.NotificationType;
 @CustomLog
 public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
 
-    @VisibleForTesting
-    static final String GLOBAL_POLICIES_ROOT = "/admin/topic-policies";
-
-    @VisibleForTesting
-    static final String LOCAL_POLICIES_ROOT = "/admin/local-policies/topic-policies";
+    private static final String GLOBAL_POLICIES_ROOT = "/admin/topic-policies/global";
+    private static final String LOCAL_POLICIES_ROOT = "/admin/topic-policies/local";
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Map<TopicName, List<TopicPolicyListener>> listeners = new ConcurrentHashMap<>();
@@ -272,7 +269,7 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
     }
 
     @VisibleForTesting
-    static Optional<TopicName> topicNameFromPath(String root, String path) {
+    private static Optional<TopicName> topicNameFromPath(String root, String path) {
         if (!path.startsWith(root + "/")) {
             return Optional.empty();
         }

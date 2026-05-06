@@ -24,9 +24,11 @@ import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -108,6 +110,27 @@ public class MetadataStoreTopicPoliciesServiceTest extends MockedPulsarServiceBa
         admin.topics().delete(topic);
         admin.topics().createNonPartitionedTopic(topic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies().getCompactionThreshold(topic)));
+    }
+
+    // Verify the topic policies metadata path does not have conflicts with "/admin/local-policies", which is registered
+    // with a listener from `NamespaceBundleFactory`.
+    @Test
+    public void testLocalTopicPoliciesPathDoesNotTriggerNamespaceBundleFactoryError() throws Exception {
+        final var topic = TopicName.get("test-metadata-store-topic-policies-log-regression").toString();
+        admin.topics().createNonPartitionedTopic(topic);
+
+        try (var appender = TestLogAppender.create(NamespaceBundleFactory.class)) {
+            appender.clearEvents();
+
+            admin.topicPolicies().setCompactionThreshold(topic, 1000);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(admin.topicPolicies().getCompactionThreshold(topic), Long.valueOf(1000)));
+
+            Awaitility.await().during(1, TimeUnit.SECONDS).atMost(2, TimeUnit.SECONDS).until(() ->
+                    appender.getEvents().stream().noneMatch(event ->
+                            event.getMessage().getFormattedMessage()
+                                    .contains("Failed to update the policy change for path")));
+        }
     }
 
     @Test
