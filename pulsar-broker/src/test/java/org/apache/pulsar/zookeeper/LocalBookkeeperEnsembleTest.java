@@ -60,8 +60,7 @@ public class LocalBookkeeperEnsembleTest {
     public void testStartWithSpecifiedStreamStoragePort() throws Exception {
         LocalBookkeeperEnsemble ensemble = null;
         try {
-            ensemble =
-                    new LocalBookkeeperEnsemble(1, 0, 0, 4182, null, null, true, null);
+            ensemble = new LocalBookkeeperEnsemble(1, 0, 4182, null, null, true, null, () -> 0);
             ensemble.startStandalone(new ServerConfiguration(), true);
         } finally {
             if (ensemble != null) {

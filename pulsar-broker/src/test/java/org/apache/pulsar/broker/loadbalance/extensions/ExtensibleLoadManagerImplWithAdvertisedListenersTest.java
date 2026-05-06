@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.ServerSocket;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -46,8 +48,10 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
     @Override
     protected ServiceConfiguration updateConfig(ServiceConfiguration conf) {
         super.updateConfig(conf);
-        int privatePulsarPort = nextLockedFreePort();
-        int publicPulsarPort = nextLockedFreePort();
+        // Pre-allocate ports because advertised listener URLs are baked into config
+        // before the broker starts.
+        int privatePulsarPort = allocateFreePort();
+        int publicPulsarPort = allocateFreePort();
         conf.setInternalListenerName("internal");
         conf.setBindAddresses("external:pulsar://localhost:" + publicPulsarPort);
         conf.setAdvertisedListeners(
@@ -59,6 +63,14 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
         conf.setWebServicePort(Optional.of(0));
         brokerServiceUrl = conf.getBindAddresses().replaceAll("external:", "");
         return conf;
+    }
+
+    private static int allocateFreePort() {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @DataProvider(name = "isPersistentTopicSubscriptionTypeTest")

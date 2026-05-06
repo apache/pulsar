@@ -88,7 +88,7 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.PortManager;
+import java.net.ServerSocket;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -947,7 +947,13 @@ public class ModularLoadManagerImplTest {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName("use");
-        config.setWebServicePort(Optional.of(PortManager.nextLockedFreePort()));
+        // Pre-allocate a port: the test creates a znode at the broker's would-be address before
+        // starting the broker, so it needs to know the address up front.
+        int webPort;
+        try (ServerSocket socket = new ServerSocket(0)) {
+            webPort = socket.getLocalPort();
+        }
+        config.setWebServicePort(Optional.of(webPort));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));

@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.ServerSocket;
 import java.net.URI;
 import java.util.Optional;
 import lombok.Cleanup;
@@ -65,9 +67,11 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
     }
 
     private void updateConfig(ServiceConfiguration conf, String advertisedAddress) {
-        int pulsarPort = nextLockedFreePort();
-        int httpPort = nextLockedFreePort();
-        int httpsPort = nextLockedFreePort();
+        // Pre-allocate ports because the advertised listener URLs are baked into config
+        // before the broker starts. The broker then binds to the same ports.
+        int pulsarPort = allocateFreePort();
+        int httpPort = allocateFreePort();
+        int httpsPort = allocateFreePort();
 
         // Use invalid domain name as identifier and instead make sure the advertised listeners work as intended
         conf.setAdvertisedAddress(advertisedAddress);
@@ -77,6 +81,14 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
                         + ",public_https:https://localhost:" + httpsPort);
         conf.setBrokerServicePort(Optional.of(pulsarPort));
         conf.setWebServicePort(Optional.of(httpPort));
+    }
+
+    private static int allocateFreePort() {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Test

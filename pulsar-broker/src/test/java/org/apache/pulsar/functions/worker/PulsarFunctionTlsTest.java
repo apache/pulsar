@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -49,7 +48,6 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
@@ -102,16 +100,13 @@ public class PulsarFunctionTlsTest {
 
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
-            int brokerPort = nextLockedFreePort();
-            int webPort = nextLockedFreePort();
-
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setWebServicePort(Optional.empty());
-            config.setWebServicePortTls(Optional.of(webPort));
+            config.setWebServicePortTls(Optional.of(0));
             config.setBrokerServicePort(Optional.empty());
-            config.setBrokerServicePortTls(Optional.of(brokerPort));
+            config.setBrokerServicePortTls(Optional.of(0));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
             config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
@@ -221,10 +216,6 @@ public class PulsarFunctionTlsTest {
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarServices[i] != null) {
                     pulsarServices[i].close();
-                    pulsarServices[i].getConfiguration().
-                            getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
-                    pulsarServices[i].getConfiguration()
-                            .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
                     pulsarServices[i] = null;
                 }
             }

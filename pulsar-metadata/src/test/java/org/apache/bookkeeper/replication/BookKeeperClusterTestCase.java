@@ -25,7 +25,6 @@
 package org.apache.bookkeeper.replication;
 
 import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertFalse;
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -65,7 +64,6 @@ import org.apache.bookkeeper.test.ServerTester;
 import org.apache.bookkeeper.test.TmpDirs;
 import org.apache.bookkeeper.test.ZooKeeperCluster;
 import org.apache.bookkeeper.test.ZooKeeperClusterUtil;
-import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -311,19 +309,12 @@ public abstract class BookKeeperClusterTestCase {
             t.shutdown();
         }
         servers.clear();
-        bookiePorts.removeIf(PortManager::releaseLockedPort);
+        bookiePorts.clear();
     }
 
     protected ServerConfiguration newServerConfiguration() throws Exception {
         File f = tmpDirs.createNew("bookie", "test");
-
-        int port;
-        if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts()) {
-            port = nextLockedFreePort();
-        } else {
-            port = 0;
-        }
-        return newServerConfiguration(port, f, new File[] { f });
+        return newServerConfiguration(0, f, new File[] { f });
     }
 
     protected ClientConfiguration newClientConfiguration() {

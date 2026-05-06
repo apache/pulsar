@@ -91,46 +91,23 @@ public class LocalBookkeeperEnsemble {
     int numberOfBookies;
     private final boolean clearOldData;
 
-    private static class BasePortManager implements Supplier<Integer> {
-
-        private int port;
-
-        public BasePortManager(int basePort) {
-            this.port = basePort;
-        }
-
-        @Override
-        public synchronized Integer get() {
-            return port++;
-        }
-    }
-
+    // Supplier of bookie ports. Tests typically use `() -> 0` so the kernel picks a free port at
+    // bind time. Bookies are identified by `bookieId`, not host:port, so multiple ephemeral
+    // bookies coexist fine.
     private final Supplier<Integer> portManager;
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, Supplier<Integer> portManager) {
         this(numberOfBookies, zkPort, 4181, null, null, true, null, portManager);
     }
 
-    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData) {
-        this(numberOfBookies, zkPort, bkBasePort, 4181, zkDataDirName, bkDataDirName, clearOldData, null);
+        this(numberOfBookies, zkPort, 4181, zkDataDirName, bkDataDirName, clearOldData, null, () -> 0);
     }
 
-    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData, String advertisedAddress) {
-        this(numberOfBookies, zkPort, bkBasePort, 4181, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress);
-    }
-
-    public LocalBookkeeperEnsemble(int numberOfBookies,
-                                   int zkPort,
-                                   int bkBasePort,
-                                   int streamStoragePort,
-                                   String zkDataDirName,
-                                   String bkDataDirName,
-                                   boolean clearOldData,
-                                   String advertisedAddress) {
-        this(numberOfBookies, zkPort, streamStoragePort, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress,
-                bkBasePort != 0 ? new BasePortManager(bkBasePort) : () -> 0);
+        this(numberOfBookies, zkPort, 4181, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress, () -> 0);
     }
 
     public LocalBookkeeperEnsemble(int numberOfBookies,

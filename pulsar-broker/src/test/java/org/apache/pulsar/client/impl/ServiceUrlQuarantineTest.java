@@ -37,8 +37,10 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionMode;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.ServerSocket;
 import org.apache.pulsar.common.net.ServiceURI;
-import org.apache.pulsar.common.util.PortManager;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -54,23 +56,24 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableQuarantine;
     private int brokerServicePort;
     private int webServicePort;
-    private final Set<Integer> lockedFreePortSet = new HashSet<>();
     private static final int UNAVAILABLE_NODES = 20;
     private static final int TIMEOUT_MS = 500;
 
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        this.brokerServicePort = nextLockedFreePort();
-        this.webServicePort = nextLockedFreePort();
+        // Pre-allocate ports for the broker because they must match the URL the test builds below.
+        this.brokerServicePort = allocateFreePort();
+        this.webServicePort = allocateFreePort();
         super.internalSetup();
         super.producerBaseSetup();
-        // Create a Pulsar client with some unavailable nodes
+        // Create a Pulsar client with some unavailable nodes (port allocated, socket closed —
+        // nothing is bound there during the test).
         StringBuilder binaryServiceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
         StringBuilder httpServiceUrlBuilder = new StringBuilder(pulsar.getWebServiceAddress());
         for (int i = 0; i < UNAVAILABLE_NODES; i++) {
-            binaryServiceUrlBuilder.append(",127.0.0.1:").append(nextLockedFreePort());
-            httpServiceUrlBuilder.append(",127.0.0.1:").append(nextLockedFreePort());
+            binaryServiceUrlBuilder.append(",127.0.0.1:").append(allocateFreePort());
+            httpServiceUrlBuilder.append(",127.0.0.1:").append(allocateFreePort());
         }
         this.binaryServiceUrlWithUnavailableNodes = binaryServiceUrlBuilder.toString();
         this.httpServiceUrlWithUnavailableNodes = httpServiceUrlBuilder.toString();
@@ -97,10 +100,12 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                         .build();
     }
 
-    private int nextLockedFreePort() {
-        int newLockedFreePort = PortManager.nextLockedFreePort();
-        this.lockedFreePortSet.add(newLockedFreePort);
-        return newLockedFreePort;
+    private static int allocateFreePort() {
+        try (ServerSocket socket = new ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     @Override
@@ -132,9 +137,6 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         }
         if (pulsarClientWithHttpServiceUrlDisableQuarantine != null) {
             pulsarClientWithHttpServiceUrlDisableQuarantine.close();
-        }
-        for (Integer port : lockedFreePortSet) {
-            PortManager.releaseLockedPort(port);
         }
     }
 

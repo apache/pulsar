@@ -197,11 +197,6 @@ public abstract class AbstractBrokerEntryCacheMultiBrokerTest extends MultiBroke
         return 1;
     }
 
-    @Override
-    protected boolean useDynamicBrokerPorts() {
-        return false;
-    }
-
     @BeforeMethod(alwaysRun = true)
     public final void doBeforeMethod() {
         beforeMethod();

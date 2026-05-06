@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -42,14 +41,16 @@ import org.testng.annotations.Test;
 public class ShadowTopicRealBkTest {
 
     private static final String cluster = "test";
-    private final int zkPort = PortManager.nextLockedFreePort();
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextLockedFreePort);
+    // Both ZK and bookie ports use 0 so the kernel picks free ports at bind time. The actual
+    // ZK port is read back via bk.getZookeeperPort() after start.
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
     private PulsarService pulsar;
     private PulsarAdmin admin;
 
     @BeforeClass
     public void setup() throws Exception {
         bk.start();
+        final int zkPort = bk.getZookeeperPort();
         final var config = new ServiceConfiguration();
         config.setClusterName(cluster);
         config.setAdvertisedAddress("localhost");

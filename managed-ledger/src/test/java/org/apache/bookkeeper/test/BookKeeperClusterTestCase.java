@@ -25,7 +25,6 @@
 package org.apache.bookkeeper.test;
 
 import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertFalse;
 import com.google.common.base.Stopwatch;
 import java.io.File;
@@ -65,7 +64,6 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.Auditor;
 import org.apache.bookkeeper.replication.ReplicationWorker;
-import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -291,19 +289,12 @@ public abstract class BookKeeperClusterTestCase {
             t.shutdown();
         }
         servers.clear();
-        bookiePorts.removeIf(PortManager::releaseLockedPort);
+        bookiePorts.clear();
     }
 
     protected ServerConfiguration newServerConfiguration() throws Exception {
         File f = tmpDirs.createNew("bookie", "test");
-
-        int port;
-        if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts()) {
-            port = nextLockedFreePort();
-        } else {
-            port = 0;
-        }
-        return newServerConfiguration(port, f, new File[] { f });
+        return newServerConfiguration(0, f, new File[] { f });
     }
 
     protected ClientConfiguration newClientConfiguration() {
