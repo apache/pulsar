@@ -122,7 +122,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     @Override
-    public boolean addMessage(long ledgerId, long entryId, long deliverAt) {
+    public synchronized boolean addMessage(long ledgerId, long entryId, long deliverAt) {
         if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
             messagesHaveFixedDelay = false;
             return false;
@@ -161,7 +161,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      * Return true if there's at least a message that is scheduled to be delivered already.
      */
     @Override
-    public boolean hasMessageAvailable() {
+    public synchronized boolean hasMessageAvailable() {
         boolean hasMessageAvailable = !delayedMessageMap.isEmpty()
                 && delayedMessageMap.firstKey() <= getCutoffTime();
         if (!hasMessageAvailable) {
@@ -174,7 +174,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      * Get a set of position of messages that have already reached.
      */
     @Override
-    public NavigableSet<Position> getScheduledMessages(int maxMessages) {
+    public synchronized NavigableSet<Position> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
         NavigableSet<Position> positions = new TreeSet<>();
         long cutoffTime = getCutoffTime();
@@ -237,14 +237,14 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     @Override
-    public CompletableFuture<Void> clear() {
+    public synchronized CompletableFuture<Void> clear() {
         this.delayedMessageMap.clear();
         this.delayedMessagesCount.set(0);
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public long getNumberOfDelayedMessages() {
+    public synchronized long getNumberOfDelayedMessages() {
         return delayedMessagesCount.get();
     }
 
@@ -255,14 +255,14 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      * @return the memory usage of the buffer
      */
     @Override
-    public long getBufferMemoryUsage() {
+    public synchronized long getBufferMemoryUsage() {
         return delayedMessageMap.values().stream().mapToLong(
                 ledgerMap -> ledgerMap.values().stream().mapToLong(
                         Roaring64Bitmap::getLongSizeInBytes).sum()).sum();
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         super.close();
     }
 
@@ -275,7 +275,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 && !hasMessageAvailable();
     }
 
-    protected long nextDeliveryTime() {
+    protected synchronized long nextDeliveryTime() {
         return delayedMessageMap.firstKey();
     }
 }
