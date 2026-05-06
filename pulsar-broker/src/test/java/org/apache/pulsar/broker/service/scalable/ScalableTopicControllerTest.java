@@ -148,6 +148,13 @@ public class ScalableTopicControllerTest {
         return new ScalableTopicController(tn, resources, brokerService, coordinationService);
     }
 
+    private ScalableTopicController newControllerWithClock(TopicName tn,
+                                                           java.time.Clock clock,
+                                                           java.time.Duration gcInterval) {
+        return new ScalableTopicController(tn, resources, brokerService, coordinationService,
+                clock, gcInterval);
+    }
+
     // --- initialize() ---
 
     @Test
@@ -447,6 +454,141 @@ public class ScalableTopicControllerTest {
         } finally {
             second.close().join();
         }
+    }
+
+    // --- Sealed-segment GC ---
+
+    /**
+     * After a split, the parent is sealed; with no live subscriptions and a small
+     * configured retention the GC tick should prune the parent from the layout and
+     * delete its backing topic.
+     */
+    @Test
+    public void testGcTickPrunesDrainedSealedSegmentPastRetention() throws Exception {
+        // Inject GC-related mocks (topic-policies + namespace policies + delete).
+        installGcMocks(/* nsRetentionMinutes */ 1);
+
+        // Use a controllable clock so we can fast-forward past the retention window.
+        long startMs = 1_700_000_000_000L;
+        AdjustableClock clock = new AdjustableClock(startMs);
+        if (controller != null) {
+            controller.close().join();
+        }
+        controller = newControllerWithClock(topicName, clock,
+                java.time.Duration.ofHours(1)); // GC interval irrelevant — we drive ticks manually
+        controller.initialize().get();
+
+        int sealedBefore = controller.sealedSegmentCount();
+        // Split segment 0 → seg 0 sealed at startMs, children created at startMs.
+        controller.splitSegment(0).get();
+        assertEquals(controller.sealedSegmentCount(), sealedBefore + 1);
+
+        // Tick at the seal time — retention not yet elapsed; nothing pruned.
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "tick within retention window must not prune");
+
+        // Fast-forward past 1 minute; tick should now prune segment 0.
+        clock.set(startMs + java.util.concurrent.TimeUnit.MINUTES.toMillis(1) + 1_000L);
+        controller.runGcTickAsync().get();
+        assertFalse(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "tick past retention must prune the sealed segment");
+        // Backing topic delete was issued via the segment-aware admin call.
+        verify(scalableTopics).deleteSegmentAsync(anyString(), anyBoolean());
+    }
+
+    /**
+     * If retention is set to "keep forever" (negative value), the GC tick is a no-op
+     * even for sealed + drained segments.
+     */
+    @Test
+    public void testGcTickRespectsKeepForeverRetention() throws Exception {
+        installGcMocks(/* nsRetentionMinutes */ -1);
+
+        long now = 1_700_000_000_000L;
+        if (controller != null) {
+            controller.close().join();
+        }
+        java.time.Clock fixed = java.time.Clock.fixed(
+                java.time.Instant.ofEpochMilli(now + 365L * 86_400_000L),
+                java.time.ZoneOffset.UTC);
+        controller = newControllerWithClock(topicName, fixed, java.time.Duration.ofHours(1));
+        controller.initialize().get();
+        controller.splitSegment(0).get();
+
+        controller.runGcTickAsync().get();
+        assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
+                "negative retention must keep sealed segments forever");
+    }
+
+    /** Settable {@link java.time.Clock} for the GC tick tests. */
+    private static final class AdjustableClock extends java.time.Clock {
+        private volatile long nowMs;
+
+        AdjustableClock(long initialMs) {
+            this.nowMs = initialMs;
+        }
+
+        void set(long nowMs) {
+            this.nowMs = nowMs;
+        }
+
+        @Override
+        public java.time.ZoneId getZone() {
+            return java.time.ZoneOffset.UTC;
+        }
+
+        @Override
+        public java.time.Clock withZone(java.time.ZoneId zone) {
+            return this; // tests don't care about zone
+        }
+
+        @Override
+        public java.time.Instant instant() {
+            return java.time.Instant.ofEpochMilli(nowMs);
+        }
+
+        @Override
+        public long millis() {
+            return nowMs;
+        }
+    }
+
+    /**
+     * Wire up the mocks the GC tick needs: empty topic-policies (so retention falls
+     * through to namespace), a namespace policy with the requested retention, a
+     * "drained" segment-backlog response (cursor at end), and a successful topic
+     * delete admin call.
+     */
+    @SuppressWarnings("unchecked")
+    private void installGcMocks(int nsRetentionMinutes) {
+        // Topic-policies service: no policies set on the topic.
+        var tps = mock(org.apache.pulsar.broker.service.TopicPoliciesService.class);
+        when(pulsar.getTopicPoliciesService()).thenReturn(tps);
+        when(tps.getTopicPoliciesAsync(any(),
+                any(org.apache.pulsar.broker.service.TopicPoliciesService.GetType.class)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+        // Namespace policy with the requested retention. Wired through PulsarResources.
+        var pulsarResources = mock(org.apache.pulsar.broker.resources.PulsarResources.class);
+        var namespaceResources = mock(org.apache.pulsar.broker.resources.NamespaceResources.class);
+        when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
+        when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
+        org.apache.pulsar.common.policies.data.Policies nsPolicies =
+                new org.apache.pulsar.common.policies.data.Policies();
+        nsPolicies.retention_policies =
+                new org.apache.pulsar.common.policies.data.RetentionPolicies(
+                        nsRetentionMinutes, /* sizeMB */ -1);
+        when(namespaceResources.getPoliciesAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(nsPolicies)));
+
+        // No active subscriptions on the parent → nothing to drain → segment is
+        // immediately considered prunable on retention expiry.
+        // (resources.listSubscriptionsAsync returns [] from the in-memory store by default.)
+
+        // Backing-topic delete succeeds (segment-aware admin call).
+        when(scalableTopics.deleteSegmentAsync(anyString(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(null));
     }
 
     // --- ConsumerRegistration record sanity ---

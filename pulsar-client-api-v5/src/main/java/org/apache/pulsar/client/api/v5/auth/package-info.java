@@ -23,6 +23,8 @@
  * <p>Provides pluggable authentication via {@link org.apache.pulsar.client.api.v5.auth.Authentication}
  * and convenience factories in {@link org.apache.pulsar.client.api.v5.auth.AuthenticationFactory},
  * as well as end-to-end encryption support via
- * {@link org.apache.pulsar.client.api.v5.auth.CryptoKeyReader}.
+ * {@link org.apache.pulsar.client.api.v5.auth.PublicKeyProvider} (producer side) and
+ * {@link org.apache.pulsar.client.api.v5.auth.PrivateKeyProvider} (consumer side).
+ * For local PEM-file-backed setups, use {@link org.apache.pulsar.client.api.v5.auth.PemFileKeyProvider}.
  */
 package org.apache.pulsar.client.api.v5.auth;

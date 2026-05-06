@@ -24,7 +24,7 @@ import org.apache.pulsar.client.api.v5.Checkpoint;
 import org.apache.pulsar.client.api.v5.CheckpointConsumer;
 import org.apache.pulsar.client.api.v5.CheckpointConsumerBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
@@ -40,7 +40,7 @@ final class CheckpointConsumerBuilderV5<T> implements CheckpointConsumerBuilder<
     private Checkpoint startPosition = CheckpointV5.LATEST;
     private String consumerName;
     private String consumerGroup;
-    private EncryptionPolicy encryptionPolicy;
+    private ConsumerEncryptionPolicy encryptionPolicy;
 
     CheckpointConsumerBuilderV5(PulsarClientV5 client, Schema<T> v5Schema) {
         this.client = client;
@@ -116,7 +116,7 @@ final class CheckpointConsumerBuilderV5<T> implements CheckpointConsumerBuilder<
     }
 
     @Override
-    public CheckpointConsumerBuilderV5<T> encryptionPolicy(EncryptionPolicy policy) {
+    public CheckpointConsumerBuilderV5<T> encryptionPolicy(ConsumerEncryptionPolicy policy) {
         this.encryptionPolicy = policy;
         return this;
     }

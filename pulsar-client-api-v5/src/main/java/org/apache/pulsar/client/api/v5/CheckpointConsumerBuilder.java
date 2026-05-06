@@ -20,7 +20,7 @@ package org.apache.pulsar.client.api.v5;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 
 /**
  * Builder for configuring and creating a {@link CheckpointConsumer}.
@@ -111,9 +111,9 @@ public interface CheckpointConsumerBuilder<T> {
      *
      * @param policy the encryption policy to use
      * @return this builder instance for chaining
-     * @see EncryptionPolicy#forConsumer
+     * @see ConsumerEncryptionPolicy#builder()
      */
-    CheckpointConsumerBuilder<T> encryptionPolicy(EncryptionPolicy policy);
+    CheckpointConsumerBuilder<T> encryptionPolicy(ConsumerEncryptionPolicy policy);
 
     // --- Metadata ---
 

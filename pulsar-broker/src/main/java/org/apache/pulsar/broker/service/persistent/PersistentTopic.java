@@ -3550,6 +3550,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkGC() {
+        if (TopicName.get(topic).isSegment()) {
+            // Segment-backing topics are owned by ScalableTopicController; its GC tick
+            // decides when a sealed segment is drained + retention-expired and deletes
+            // the topic. Letting v4 inactive-topic-GC race against that would risk the
+            // broker quietly tearing down a segment the controller still considers live.
+            return;
+        }
         if (!isDeleteWhileInactive()) {
             // This topic is not included in GC
             return;
