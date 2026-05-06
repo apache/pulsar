@@ -52,7 +52,7 @@ public class LeaderElectionServiceTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         log.info("---- bk started ----");
     }

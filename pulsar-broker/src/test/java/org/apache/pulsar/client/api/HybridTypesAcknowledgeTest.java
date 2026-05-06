@@ -73,7 +73,7 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
     @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         incrementSetupNumber();
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         // Start broker.
         setupBrokers();

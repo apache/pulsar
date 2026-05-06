@@ -41,9 +41,9 @@ import org.testng.annotations.Test;
 public class ShadowTopicRealBkTest {
 
     private static final String cluster = "test";
-    // Both ZK and bookie ports use 0 so the kernel picks free ports at bind time. The actual
-    // ZK port is read back via bk.getZookeeperPort() after start.
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
+    // ZK port 0 lets the kernel pick a free port at bind time. The actual port is read back
+    // via bk.getZookeeperPort() after start. Bookies always bind to kernel-assigned ports.
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0);
     private PulsarService pulsar;
     private PulsarAdmin admin;
 

@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 public class LoadManagerFailFastTest {
 
     private static final String cluster = "test";
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0);
     private final ServiceConfiguration config = new ServiceConfiguration();
 
     @BeforeClass

@@ -472,10 +472,10 @@ public class PulsarStandalone implements AutoCloseable {
         ServerConfiguration bkServerConf = new ServerConfiguration();
         bkServerConf.loadConf(new File(configFile).toURI().toURL());
         calculateCacheSize(bkServerConf);
-        // Start LocalBookKeeper. Bookies bind to kernel-assigned ports (() -> 0).
+        // Start LocalBookKeeper. Bookies bind to kernel-assigned ports.
         bkEnsemble = new LocalBookkeeperEnsemble(
                 this.getNumOfBk(), this.getZkPort(), this.getStreamStoragePort(), this.getZkDir(),
-                this.getBkDir(), this.isWipeData(), "127.0.0.1", () -> 0);
+                this.getBkDir(), this.isWipeData(), "127.0.0.1");
         bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
         config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
     }

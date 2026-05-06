@@ -37,7 +37,7 @@ public class PulsarClientBasedHandlerTest {
 
     private static final String clusterName = "cluster";
     private static final int shutdownTimeoutMs = 100;
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0);
     private File tempDirectory;
     private PulsarService pulsar;
 

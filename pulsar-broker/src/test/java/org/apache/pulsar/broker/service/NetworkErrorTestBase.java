@@ -86,7 +86,7 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
 
     protected void startZKAndBK() throws Exception {
         // Start ZK & BK.
-        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble1.start();
 
         metadataZKProxy = new Ipv4Proxy(getOneFreePort(), "127.0.0.1", bkEnsemble1.getZookeeperPort());

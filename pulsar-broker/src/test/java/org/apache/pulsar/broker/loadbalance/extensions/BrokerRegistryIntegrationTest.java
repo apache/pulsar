@@ -47,7 +47,7 @@ public class BrokerRegistryIntegrationTest {
 
     @BeforeClass
     protected void setup() throws Exception {
-        bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
+        bk = new LocalBookkeeperEnsemble(2, 0);
         bk.start();
         pulsar = new PulsarService(brokerConfig());
         pulsar.start();
