@@ -119,7 +119,9 @@ import org.glassfish.jersey.client.JerseyClient;
 import org.glassfish.jersey.client.JerseyClientBuilder;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -144,10 +146,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final int testTopicPartitions = 2;
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         this.conf.setDefaultNumberOfNamespaceBundles(1);
+        this.conf.setForceDeleteNamespaceAllowed(true);
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -156,15 +159,32 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
         admin.namespaces().createNamespace(myNamespaceV1);
         admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
-        Producer<?> producer = pulsarClient.newProducer().topic(testTopic).create();
-        producer.close();
-        waitForZooKeeperWatchers();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @BeforeMethod
+    void setupTestTopic() throws Exception {
+        // Recreate namespace to clear any policies set by previous tests
+        try {
+            admin.topics().deletePartitionedTopic(testTopic, true);
+        } catch (PulsarAdminException.NotFoundException e) {
+            // topic may already be deleted
+        }
+        admin.namespaces().deleteNamespace(myNamespace, true);
+        admin.namespaces().deleteNamespace(myNamespaceV1, true);
+        admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
+        admin.namespaces().createNamespace(myNamespaceV1);
+        admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
+    }
+
+    @AfterMethod
+    void afterMethodCleanup() {
+        clearTopicPoliciesCache();
     }
 
     @Test
@@ -2756,10 +2776,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testPublishRateInDifferentLevelPolicy() throws Exception {
-        cleanup();
-        conf.setMaxPublishRatePerTopicInMessages(5);
-        conf.setMaxPublishRatePerTopicInBytes(50L);
-        setup();
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "5");
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "50");
 
         final String topicName = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         pulsarClient.newProducer().topic(topicName).create().close();
@@ -2817,6 +2835,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishRateLimiter.getTokenBucketOnMessage().getRate(), 5);
         Assert.assertEquals(publishRateLimiter.getTokenBucketOnByte().getRate(), 50L);
+
+        // restore defaults
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "0");
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "0");
     }
 
     @Test(timeOut = 20000)
@@ -3050,9 +3072,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMaxUnackedMessagesOnSubscriptionPriority() throws Exception {
-        cleanup();
-        conf.setMaxUnackedMessagesPerSubscription(30);
-        setup();
+        restartBroker(conf -> conf.setMaxUnackedMessagesPerSubscription(30));
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         // init cache
         @Cleanup
@@ -3115,6 +3135,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 && admin.topicPolicies().getMaxUnackedMessagesOnSubscription(topic) == null);
         messages = getMsgReceived(consumer1, Integer.MAX_VALUE);
         assertEquals(messages.size(), defaultMaxUnackedMsgOnBroker);
+
+        // restore default config
+        restartBroker(conf -> conf.setMaxUnackedMessagesPerSubscription(4 * 50000));
     }
 
     private void produceMsg(Producer<byte[]> producer, int msgNum) throws Exception{
@@ -3299,14 +3322,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30000)
     public void testAutoCreationDisabled() throws Exception {
-        cleanup();
-        conf.setAllowAutoTopicCreation(false);
-        setup();
+        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreation", "false");
+
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         pulsarClient.newProducer().topic(topic).create().close();
         //should not fail
         assertNull(admin.topicPolicies().getMessageTTL(topic));
+
+        // restore default
+        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreation", "true");
     }
 
     @SuppressWarnings("deprecation")
@@ -3431,6 +3456,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newConsumer().topic(topic)
                 .subscriptionType(SubscriptionType.Shared).subscriptionName("test")
                 .subscribe().close();
+
+        // restore dynamic broker config and conf object
+        pulsar.getConfiguration().setSubscriptionTypesEnabled(
+                Set.of("Exclusive", "Shared", "Failover", "Key_Shared"));
+        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled",
+                "Exclusive,Shared,Failover,Key_Shared");
     }
 
     @Test(timeOut = 20000)
@@ -3765,7 +3796,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testDoNotCreateSystemTopicForHeartbeatNamespace() {
+    public void testDoNotCreateSystemTopicForHeartbeatNamespace() throws Exception {
+        initEventsTopicAndPartitions();
         assertTrue(pulsar.getBrokerService().getTopics().size() > 0);
         pulsar.getBrokerService().getTopics().forEach((k, v) -> {
             TopicName topicName = TopicName.get(k);
@@ -4121,6 +4153,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testMaxMessageSizeWithChunking() throws Exception {
+        final var maxMessageSize = this.conf.getMaxMessageSize();
         this.conf.setMaxMessageSize(1000);
 
         @Cleanup
@@ -4149,6 +4182,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         // chunk message send success
         producer.send(new byte[2000]);
+        this.conf.setMaxMessageSize(maxMessageSize);
     }
 
     @Test(timeOut = 30000)
@@ -4202,6 +4236,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceChangesWithEncryptionRequired() throws Exception {
+        initEventsTopicAndPartitions();
         final String beforeLac = admin.topics().getInternalStats(topicPolicyEventsTopic).lastConfirmedEntry;
         admin.namespaces().setEncryptionRequiredStatus(myNamespace, true);
         // just an update to trigger writes on __change_events
@@ -4656,5 +4691,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNotNull(offloadPolicies, "Applied policies should not be null");
         assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), (Long) (1024 * 1024 * 10L),
                 "Should inherit offload threshold from legacy namespace policy");
+    }
+
+    private void initEventsTopicAndPartitions() throws Exception {
+        Producer<?> producer = pulsarClient.newProducer().topic(testTopic).create();
+        producer.close();
     }
 }
