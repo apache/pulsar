@@ -36,14 +36,22 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class MetadataStoreTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
+    protected boolean isLegacyTopicPoliciesService() {
+        return false;
+    }
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
         conf.setTopicPoliciesServiceClassName(MetadataStoreTopicPoliciesService.class.getName());
-        conf.setSystemTopicEnabled(false);
+        conf.setSystemTopicEnabled(isLegacyTopicPoliciesService());
         super.internalSetup();
         super.setupDefaultTenantAndNamespace();
-        assertTrue(pulsar.getTopicPoliciesService() instanceof MetadataStoreTopicPoliciesService);
+        if (isLegacyTopicPoliciesService()) {
+            assertTrue(pulsar.getTopicPoliciesService() instanceof LegacyAwareTopicPoliciesService);
+        } else {
+            assertTrue(pulsar.getTopicPoliciesService() instanceof MetadataStoreTopicPoliciesService);
+        }
     }
 
     @AfterClass

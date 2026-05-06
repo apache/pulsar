@@ -35,20 +35,11 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
+public class LegacyAwareTopicPoliciesServiceTest extends MetadataStoreTopicPoliciesServiceTest{
 
-    @BeforeClass
     @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.setupDefaultTenantAndNamespace();
-        assertTrue(pulsar.getTopicPoliciesService() instanceof SystemTopicBasedTopicPoliciesService);
-    }
-
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    protected boolean isLegacyTopicPoliciesService() {
+        return true;
     }
 
     @Test
