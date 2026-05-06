@@ -66,11 +66,6 @@ final class AsyncCheckpointConsumerV5<T> implements AsyncCheckpointConsumer<T> {
     }
 
     @Override
-    public CompletableFuture<Void> seek(Checkpoint checkpoint) {
-        return consumer.seekAsync(checkpoint);
-    }
-
-    @Override
     public CompletableFuture<Void> close() {
         return consumer.closeAsync();
     }

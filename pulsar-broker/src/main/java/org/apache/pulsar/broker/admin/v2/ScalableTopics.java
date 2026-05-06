@@ -404,6 +404,92 @@ public class ScalableTopics extends AdminResource {
                 });
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/subscriptions/{subscription}/seek")
+    @ApiOperation(value = "Reset a subscription's cursor on every segment to the given"
+            + " wall-clock timestamp. The controller uses each segment's recorded sealed-time"
+            + " window to dispatch the cheapest per-segment op.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Cursor reset successfully on all segments"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
+            @ApiResponse(code = 404, message = "Scalable topic or subscription doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void seekSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription name", required = true)
+            @PathParam("subscription") String subscription,
+            @ApiParam(value = "Wall-clock millis since the unix epoch", required = true)
+            @QueryParam("timestamp") long timestampMs) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateTopicOperationAsync(tn, TopicOperation.RESET_CURSOR, subscription)
+                .thenCompose(__ -> onControllerLeader(tn,
+                        svc -> svc.seekSubscription(tn, subscription, timestampMs)))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId())
+                            .attr("subscription", subscription).attr("topic", tn)
+                            .attr("timestampMs", timestampMs)
+                            .log("Sought subscription on scalable topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId())
+                            .attr("subscription", subscription).attr("topic", tn)
+                            .exception(ex).log("Failed to seek subscription");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/subscriptions/{subscription}/skip-all")
+    @ApiOperation(value = "Skip every undelivered message on the subscription, across every"
+            + " segment in the DAG (advance each per-segment cursor to the end).")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Backlog cleared successfully on all segments"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
+            @ApiResponse(code = 404, message = "Scalable topic or subscription doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void clearBacklog(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription name", required = true)
+            @PathParam("subscription") String subscription) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateTopicOperationAsync(tn, TopicOperation.SKIP, subscription)
+                .thenCompose(__ -> onControllerLeader(tn,
+                        svc -> svc.clearBacklog(tn, subscription)))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId())
+                            .attr("subscription", subscription).attr("topic", tn)
+                            .log("Cleared backlog on scalable topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId())
+                            .attr("subscription", subscription).attr("topic", tn)
+                            .exception(ex).log("Failed to clear subscription backlog");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     // --- Segment operations ---
 
     @POST

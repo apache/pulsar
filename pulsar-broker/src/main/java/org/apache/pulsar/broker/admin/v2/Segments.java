@@ -228,6 +228,115 @@ public class Segments extends AdminResource {
                 });
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}/seek")
+    @ApiOperation(value = "Reset the segment topic's subscription cursor to the given timestamp."
+            + " Super-user only.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Cursor reset successfully"),
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 403, message = "This operation requires super-user access"),
+            @ApiResponse(code = 404, message = "Segment topic or subscription not found"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void seekSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify the parent topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @PathParam("descriptor") String descriptor,
+            @ApiParam(value = "Subscription name", required = true)
+            @PathParam("subscription") String subscription,
+            @ApiParam(value = "Wall-clock millis since the unix epoch", required = true)
+            @QueryParam("timestamp") long timestampMs,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
+
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateTopicOwnershipAsync(segmentTopic, authoritative))
+                .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(segmentTopic.toString()))
+                .thenCompose(optTopic -> {
+                    if (optTopic.isEmpty()) {
+                        // Segment topic not loaded → no cursor to reset. Surfaces as 404 so
+                        // callers can retry once the segment owner has loaded it (matches
+                        // the backlog-endpoint contract).
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Segment topic not loaded: " + segmentTopic);
+                    }
+                    var sub = optTopic.get().getSubscription(subscription);
+                    if (sub == null) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Subscription not found on segment: " + subscription);
+                    }
+                    return sub.resetCursor(timestampMs);
+                })
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
+                            .attr("subscription", subscription).attr("timestampMs", timestampMs)
+                            .exception(ex).log("Failed to seek segment subscription");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}/skip-all")
+    @ApiOperation(value = "Skip every undelivered message on the segment topic's subscription —"
+            + " advance the cursor to the end. Super-user only.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Backlog cleared successfully"),
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 403, message = "This operation requires super-user access"),
+            @ApiResponse(code = 404, message = "Segment topic or subscription not found"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void clearSubscriptionBacklog(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify the parent topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @PathParam("descriptor") String descriptor,
+            @ApiParam(value = "Subscription name", required = true)
+            @PathParam("subscription") String subscription,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
+
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateTopicOwnershipAsync(segmentTopic, authoritative))
+                .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(segmentTopic.toString()))
+                .thenCompose(optTopic -> {
+                    if (optTopic.isEmpty()) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Segment topic not loaded: " + segmentTopic);
+                    }
+                    var sub = optTopic.get().getSubscription(subscription);
+                    if (sub == null) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Subscription not found on segment: " + subscription);
+                    }
+                    return sub.clearBacklog();
+                })
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
+                            .attr("subscription", subscription)
+                            .exception(ex).log("Failed to clear segment subscription backlog");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}")
     @ApiOperation(value = "Delete a segment topic. Super-user only.")

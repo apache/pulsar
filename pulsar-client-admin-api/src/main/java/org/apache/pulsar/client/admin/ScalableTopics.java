@@ -207,6 +207,38 @@ public interface ScalableTopics {
     CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subscription);
 
     /**
+     * Reset a subscription's cursor across every segment to the given wall-clock
+     * timestamp. The controller uses each segment's recorded sealed-time window to
+     * dispatch the cheapest per-segment op.
+     *
+     * @param topic        Topic name in the format "tenant/namespace/topic"
+     * @param subscription Subscription name
+     * @param timestampMs  Wall-clock millis since the unix epoch
+     */
+    void seekSubscription(String topic, String subscription, long timestampMs)
+            throws PulsarAdminException;
+
+    /**
+     * Reset a subscription's cursor across every segment, asynchronously.
+     */
+    CompletableFuture<Void> seekSubscriptionAsync(String topic, String subscription,
+                                                   long timestampMs);
+
+    /**
+     * Skip every undelivered message on the subscription, across every segment in the
+     * DAG (advance each per-segment cursor to the end).
+     *
+     * @param topic        Topic name in the format "tenant/namespace/topic"
+     * @param subscription Subscription name
+     */
+    void clearBacklog(String topic, String subscription) throws PulsarAdminException;
+
+    /**
+     * Skip every undelivered message on the subscription, asynchronously.
+     */
+    CompletableFuture<Void> clearBacklogAsync(String topic, String subscription);
+
+    /**
      * Split a segment into two halves.
      *
      * @param topic     Topic name in the format "tenant/namespace/topic"
@@ -298,4 +330,31 @@ public interface ScalableTopics {
      */
     CompletableFuture<Long> getSegmentSubscriptionBacklogAsync(String segmentTopic,
                                                                 String subscription);
+
+    /**
+     * Reset the segment topic's subscription cursor to the given wall-clock timestamp.
+     * Routes to the broker that owns the segment topic.
+     *
+     * <p>Used internally by the parent-topic seek operation in
+     * {@link org.apache.pulsar.broker.service.scalable.ScalableTopicController
+     * ScalableTopicController}: the controller classifies each segment by its
+     * {@code [createdAtMs, sealedAtMs)} window against the requested timestamp and
+     * dispatches per-segment seek / skip-all calls.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     * @param timestampMs Wall-clock millis since the unix epoch
+     */
+    CompletableFuture<Void> seekSegmentSubscriptionAsync(String segmentTopic, String subscription,
+                                                          long timestampMs);
+
+    /**
+     * Skip every undelivered message on the segment topic's subscription — advance the
+     * cursor to the end of the segment.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     */
+    CompletableFuture<Void> clearSegmentSubscriptionBacklogAsync(String segmentTopic,
+                                                                  String subscription);
 }

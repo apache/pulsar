@@ -62,9 +62,8 @@ public interface CheckpointConsumerBuilder<T> {
     /**
      * Set the initial position for this consumer.
      *
-     * <p>Use {@link Checkpoint#earliest()}, {@link Checkpoint#latest()},
-     * {@link Checkpoint#atTimestamp}, or {@link Checkpoint#fromByteArray} to
-     * create the appropriate starting position.
+     * <p>Use {@link Checkpoint#earliest()}, {@link Checkpoint#latest()}, or
+     * {@link Checkpoint#fromByteArray} to create the appropriate starting position.
      *
      * <p>Defaults to {@link Checkpoint#latest()} if not specified.
      *

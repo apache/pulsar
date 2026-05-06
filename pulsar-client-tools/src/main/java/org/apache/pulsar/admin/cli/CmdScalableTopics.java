@@ -137,6 +137,49 @@ public class CmdScalableTopics extends CmdBase {
         }
     }
 
+    @Command(description = "Reset a subscription's cursor on every segment to a given"
+            + " point in time. Pass --time as a relative offset (e.g. 1h, 5d) — the cursor"
+            + " is reset to (now - offset).")
+    private class SeekSubscriptionCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-s", "--subscription"},
+                description = "Subscription name", required = true)
+        private String subscription;
+
+        @Option(names = {"-t", "--time"},
+                description = "Relative offset in the past to seek to (e.g. 1h, 5d, 30m)",
+                required = true,
+                converter = org.apache.pulsar.cli.converters.picocli.TimeUnitToMillisConverter.class)
+        private Long offsetMillis;
+
+        @Override
+        void run() throws Exception {
+            long target = System.currentTimeMillis() - offsetMillis;
+            scalableTopics().seekSubscription(topic, subscription, target);
+            print("Reset subscription " + subscription + " on topic " + topic
+                    + " to timestamp " + target + " (" + offsetMillis + "ms ago)");
+        }
+    }
+
+    @Command(description = "Skip every undelivered message on the subscription, across every"
+            + " segment in the DAG.")
+    private class ClearBacklogCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-s", "--subscription"},
+                description = "Subscription name", required = true)
+        private String subscription;
+
+        @Override
+        void run() throws Exception {
+            scalableTopics().clearBacklog(topic, subscription);
+            print("Cleared backlog of subscription " + subscription + " on topic " + topic);
+        }
+    }
+
     @Command(description = "Merge two adjacent segments into one")
     private class MergeSegmentsCmd extends CliCommand {
         @Parameters(description = "tenant/namespace/topic", arity = "1")
@@ -166,5 +209,7 @@ public class CmdScalableTopics extends CmdBase {
         addCommand("delete", new DeleteCmd());
         addCommand("split-segment", new SplitSegmentCmd());
         addCommand("merge-segments", new MergeSegmentsCmd());
+        addCommand("seek", new SeekSubscriptionCmd());
+        addCommand("clear-backlog", new ClearBacklogCmd());
     }
 }

@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
  * Basic end-to-end coverage for {@link CheckpointConsumer}: the unmanaged reader-style
  * API used by connector frameworks (Flink, Spark) — specifically the start-position
  * sentinels (earliest / latest), checkpoint roundtrip via {@link Checkpoint#toByteArray()},
- * resume from a saved checkpoint, and {@link CheckpointConsumer#seek(Checkpoint)}.
+ * and resume from a saved checkpoint.
  *
  * <p>All scenarios use a single-segment scalable topic to keep the focus on the
  * consumer surface itself; cross-segment position-vector behavior lives in the
@@ -187,42 +187,6 @@ public class V5CheckpointConsumerBasicTest extends V5ClientBaseTest {
             received.add(msg.value());
         }
         assertEquals(received, List.of("v-3", "v-4", "v-5"));
-    }
-
-    @Test
-    public void testSeekRewindsToEarlierCheckpoint() throws Exception {
-        String topic = newScalableTopic(1);
-
-        @Cleanup
-        Producer<String> producer = v5Client.newProducer(Schema.string())
-                .topic(topic)
-                .create();
-        for (int i = 0; i < 6; i++) {
-            producer.newMessage().value("v-" + i).send();
-        }
-
-        @Cleanup
-        CheckpointConsumer<String> consumer = v5Client.newCheckpointConsumer(Schema.string())
-                .topic(topic)
-                .startPosition(Checkpoint.earliest())
-                .create();
-
-        // Read 3, snapshot, read 3 more, then seek back to the snapshot — should
-        // re-deliver the second batch.
-        for (int i = 0; i < 3; i++) {
-            assertEquals(consumer.receive(Duration.ofSeconds(5)).value(), "v-" + i);
-        }
-        Checkpoint mark = consumer.checkpoint();
-        for (int i = 3; i < 6; i++) {
-            assertEquals(consumer.receive(Duration.ofSeconds(5)).value(), "v-" + i);
-        }
-
-        consumer.seek(mark);
-        for (int i = 3; i < 6; i++) {
-            Message<String> msg = consumer.receive(Duration.ofSeconds(5));
-            assertNotNull(msg, "seek did not redeliver message v-" + i);
-            assertEquals(msg.value(), "v-" + i);
-        }
     }
 
     @Test

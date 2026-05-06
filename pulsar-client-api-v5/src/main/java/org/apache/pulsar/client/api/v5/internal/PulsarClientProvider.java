@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api.v5.internal;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.function.Supplier;
@@ -86,8 +85,6 @@ public interface PulsarClientProvider {
     Checkpoint earliestCheckpoint();
 
     Checkpoint latestCheckpoint();
-
-    Checkpoint checkpointAtTimestamp(Instant timestamp);
 
     // --- Authentication ---
 

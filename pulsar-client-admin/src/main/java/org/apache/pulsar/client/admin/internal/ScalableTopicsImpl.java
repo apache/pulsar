@@ -184,6 +184,33 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public void seekSubscription(String topic, String subscription, long timestampMs)
+            throws PulsarAdminException {
+        sync(() -> seekSubscriptionAsync(topic, subscription, timestampMs));
+    }
+
+    @Override
+    public CompletableFuture<Void> seekSubscriptionAsync(String topic, String subscription,
+                                                          long timestampMs) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("subscriptions").path(subscription).path("seek")
+                .queryParam("timestamp", timestampMs);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void clearBacklog(String topic, String subscription) throws PulsarAdminException {
+        sync(() -> clearBacklogAsync(topic, subscription));
+    }
+
+    @Override
+    public CompletableFuture<Void> clearBacklogAsync(String topic, String subscription) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("subscriptions").path(subscription).path("skip-all");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
     // --- Split ---
 
     @Override
@@ -272,6 +299,30 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
                 .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
                 .path("subscription").path(subscription).path("backlog");
         return asyncGetRequest(path, Long.class);
+    }
+
+    @Override
+    public CompletableFuture<Void> seekSegmentSubscriptionAsync(String segmentTopic,
+                                                                 String subscription,
+                                                                 long timestampMs) {
+        TopicName tn = TopicName.get(segmentTopic);
+        WebTarget path = adminSegments
+                .path(tn.getTenant()).path(tn.getNamespacePortion())
+                .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
+                .path("subscription").path(subscription).path("seek")
+                .queryParam("timestamp", timestampMs);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> clearSegmentSubscriptionBacklogAsync(String segmentTopic,
+                                                                        String subscription) {
+        TopicName tn = TopicName.get(segmentTopic);
+        WebTarget path = adminSegments
+                .path(tn.getTenant()).path(tn.getNamespacePortion())
+                .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
+                .path("subscription").path(subscription).path("skip-all");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     // --- Helpers ---
