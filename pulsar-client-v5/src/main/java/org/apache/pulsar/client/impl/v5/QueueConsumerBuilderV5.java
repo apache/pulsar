@@ -26,8 +26,8 @@ import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.QueueConsumer;
 import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
 import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -205,8 +205,10 @@ final class QueueConsumerBuilderV5<T> implements QueueConsumerBuilder<T> {
     }
 
     @Override
-    public QueueConsumerBuilderV5<T> encryptionPolicy(EncryptionPolicy policy) {
-        conf.setCryptoKeyReader(CryptoKeyReaderAdapter.wrap(policy.keyReader()));
+    public QueueConsumerBuilderV5<T> encryptionPolicy(ConsumerEncryptionPolicy policy) {
+        if (policy.privateKeyProvider() != null) {
+            conf.setCryptoKeyReader(CryptoKeyReaderAdapter.forConsumer(policy.privateKeyProvider()));
+        }
         conf.setCryptoFailureAction(
                 org.apache.pulsar.client.api.ConsumerCryptoFailureAction.valueOf(
                         policy.failureAction().name()));

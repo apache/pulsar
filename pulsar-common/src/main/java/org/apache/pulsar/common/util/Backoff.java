@@ -28,8 +28,8 @@ import lombok.Getter;
  * Exponential backoff with mandatory stop.
  *
  * <p>Delays start at {@code initialDelay} and double on every call to {@link #next()}, up to
- * {@code maxBackoff}. A random jitter of up to 10% is subtracted from each value to avoid
- * thundering-herd retries.
+ * {@code maxBackoff}. A symmetric random jitter of {@code ±jitterPercent/2} is applied to every
+ * returned value (including the first one) to avoid thundering-herd retries.
  *
  * <p>If a {@code mandatoryStop} duration is configured, the backoff tracks wall-clock time from the
  * first {@link #next()} call. Once the elapsed time plus the next delay would exceed the mandatory
@@ -43,6 +43,7 @@ import lombok.Getter;
  *         .initialDelay(Duration.ofMillis(100))
  *         .maxBackoff(Duration.ofMinutes(1))
  *         .mandatoryStop(Duration.ofSeconds(30))
+ *         .jitterPercent(10.0)
  *         .build();
  *
  * Duration delay = backoff.next();
@@ -51,6 +52,7 @@ import lombok.Getter;
 public class Backoff {
     private static final Duration DEFAULT_INITIAL_DELAY = Duration.ofMillis(100);
     private static final Duration DEFAULT_MAX_BACKOFF_INTERVAL = Duration.ofMinutes(1);
+    private static final double DEFAULT_JITTER_PERCENT = 10.0;
     private static final Random random = new Random();
 
     @Getter
@@ -59,6 +61,8 @@ public class Backoff {
     private final Duration max;
     @Getter
     private final Duration mandatoryStop;
+    @Getter
+    private final double jitterPercent;
     private final Clock clock;
 
     private Duration next;
@@ -67,10 +71,11 @@ public class Backoff {
     @Getter
     private boolean mandatoryStopMade;
 
-    private Backoff(Duration initial, Duration max, Duration mandatoryStop, Clock clock) {
+    private Backoff(Duration initial, Duration max, Duration mandatoryStop, double jitterPercent, Clock clock) {
         this.initial = initial;
         this.max = max;
         this.mandatoryStop = mandatoryStop;
+        this.jitterPercent = jitterPercent;
         this.next = initial;
         this.clock = clock;
         this.firstBackoffTime = Instant.EPOCH;
@@ -101,8 +106,10 @@ public class Backoff {
     /**
      * Returns the next backoff delay, advancing the internal state.
      *
-     * <p>The returned duration is never less than the initial delay and never more than the max
-     * backoff. A random jitter of up to 10% is subtracted to spread out concurrent retries.
+     * <p>The underlying delay starts at the initial delay and doubles on each call up to the max
+     * backoff. A symmetric jitter of {@code ±jitterPercent/2} is applied on every call (including
+     * the first one) to spread out concurrent retries; the returned value may therefore be slightly
+     * below the initial delay or slightly above the max backoff.
      *
      * @return the delay to wait before the next retry attempt
      */
@@ -130,13 +137,13 @@ public class Backoff {
             }
         }
 
-        // Randomly decrease the timeout up to 10% to avoid simultaneous retries
         long currentMillis = current.toMillis();
-        if (currentMillis > 10) {
-            currentMillis -= random.nextInt((int) currentMillis / 10);
+        if (jitterPercent > 0 && currentMillis > 0) {
+            // Apply a symmetric jitter of ±jitterPercent/2 around the current delay.
+            double factor = 1.0 + (random.nextDouble() - 0.5) * (jitterPercent / 100.0);
+            currentMillis = Math.max(0L, Math.round(currentMillis * factor));
         }
-        long initialMillis = initial.toMillis();
-        return Duration.ofMillis(Math.max(initialMillis, currentMillis));
+        return Duration.ofMillis(currentMillis);
     }
 
     /**
@@ -162,12 +169,13 @@ public class Backoff {
     /**
      * Builder for {@link Backoff}.
      *
-     * <p>Defaults: initial delay 100 ms, max backoff 1 min, no mandatory stop.
+     * <p>Defaults: initial delay 100 ms, max backoff 1 min, no mandatory stop, 10% jitter.
      */
     public static class Builder {
         private Duration initialDelay = DEFAULT_INITIAL_DELAY;
         private Duration maxBackoff = DEFAULT_MAX_BACKOFF_INTERVAL;
         private Duration mandatoryStop = Duration.ZERO;
+        private double jitterPercent = DEFAULT_JITTER_PERCENT;
         private Clock clock = Clock.systemDefaultZone();
 
         /**
@@ -205,6 +213,24 @@ public class Backoff {
             return this;
         }
 
+        /**
+         * Sets the jitter percentage applied to each returned delay. The actual jitter is symmetric:
+         * the returned value is multiplied by a uniform random factor in
+         * {@code [1 - jitterPercent/200, 1 + jitterPercent/200)}. Defaults to 10. Set to 0 to disable
+         * jitter.
+         *
+         * @param jitterPercent the jitter percentage, must be in {@code [0, 100]}
+         * @return this builder
+         * @throws IllegalArgumentException if {@code jitterPercent} is outside {@code [0, 100]}
+         */
+        public Builder jitterPercent(double jitterPercent) {
+            if (jitterPercent < 0 || jitterPercent > 100) {
+                throw new IllegalArgumentException("jitterPercent must be in [0, 100]");
+            }
+            this.jitterPercent = jitterPercent;
+            return this;
+        }
+
         Builder clock(Clock clock) {
             this.clock = clock;
             return this;
@@ -216,7 +242,7 @@ public class Backoff {
          * @return a new Backoff
          */
         public Backoff build() {
-            return new Backoff(initialDelay, maxBackoff, mandatoryStop, clock);
+            return new Backoff(initialDelay, maxBackoff, mandatoryStop, jitterPercent, clock);
         }
     }
 }

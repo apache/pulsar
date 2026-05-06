@@ -19,23 +19,20 @@
 package org.apache.pulsar.client.api.v5.auth;
 
 /**
- * Action to take when a message encryption or decryption operation fails.
+ * Action a producer takes when message encryption fails (e.g. the
+ * {@link PublicKeyProvider} cannot be reached or returns no key).
  */
-public enum CryptoFailureAction {
+public enum ProducerCryptoFailureAction {
 
     /**
-     * Fail the operation and return an error to the caller.
+     * Fail the {@code send} call. The send future completes exceptionally and
+     * the application sees the error.
      */
     FAIL,
 
     /**
-     * Silently discard the message (consumer side only).
+     * Send the message unencrypted instead of failing. Useful when encryption
+     * is opportunistic — for example, during a key-rollout migration.
      */
-    DISCARD,
-
-    /**
-     * Deliver the message to the consumer without decrypting (consumer side only).
-     * The message will contain encrypted payload.
-     */
-    CONSUME
+    SEND_UNENCRYPTED
 }

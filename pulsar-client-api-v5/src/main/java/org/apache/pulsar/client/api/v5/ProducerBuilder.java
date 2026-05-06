@@ -24,8 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
 import org.apache.pulsar.client.api.v5.config.ChunkingPolicy;
 import org.apache.pulsar.client.api.v5.config.CompressionPolicy;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.ProducerAccessMode;
+import org.apache.pulsar.client.api.v5.config.ProducerEncryptionPolicy;
 
 /**
  * Builder for configuring and creating a {@link Producer}.
@@ -133,11 +133,11 @@ public interface ProducerBuilder<T> {
     /**
      * Configure end-to-end message encryption.
      *
-     * @param policy the encryption policy for producing encrypted messages
+     * @param policy the producer-side encryption policy
      * @return this builder instance for chaining
-     * @see EncryptionPolicy#forProducer(org.apache.pulsar.client.api.v5.auth.CryptoKeyReader, String...)
+     * @see ProducerEncryptionPolicy#builder()
      */
-    ProducerBuilder<T> encryptionPolicy(EncryptionPolicy policy);
+    ProducerBuilder<T> encryptionPolicy(ProducerEncryptionPolicy policy);
 
     /**
      * Set the initial sequence ID for producer message deduplication. Subsequent messages

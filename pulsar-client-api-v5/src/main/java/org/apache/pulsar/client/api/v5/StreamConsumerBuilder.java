@@ -22,7 +22,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 
 /**
@@ -164,9 +164,9 @@ public interface StreamConsumerBuilder<T> {
      *
      * @param policy the encryption policy to use
      * @return this builder instance for chaining
-     * @see EncryptionPolicy#forConsumer
+     * @see ConsumerEncryptionPolicy#builder()
      */
-    StreamConsumerBuilder<T> encryptionPolicy(EncryptionPolicy policy);
+    StreamConsumerBuilder<T> encryptionPolicy(ConsumerEncryptionPolicy policy);
 
     // --- Metadata ---
 
