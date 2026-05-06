@@ -733,6 +733,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      */
     public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         Awaitility.await()
+                .atMost(20, TimeUnit.SECONDS)
                 .pollDelay(500, TimeUnit.MILLISECONDS)
                 .until(() -> {
             try {

@@ -18,28 +18,15 @@
  */
 package org.apache.pulsar.client.api.v5.auth;
 
-import java.util.Map;
-
 /**
- * Interface for loading encryption and decryption keys for end-to-end message encryption.
+ * Convenience interface for implementations that serve <em>both</em> public keys (for
+ * producer-side encryption) and private keys (for consumer-side decryption) — for
+ * example, a single PEM-file-backed key store used by both sides of an in-process
+ * round trip.
+ *
+ * <p>Producer-only or consumer-only implementations should implement
+ * {@link PublicKeyProvider} or {@link PrivateKeyProvider} directly instead — that
+ * makes the role explicit and avoids stub methods that throw.
  */
-public interface CryptoKeyReader {
-
-    /**
-     * Get the public key for encrypting messages.
-     *
-     * @param keyName  the name of the key
-     * @param metadata additional metadata associated with the key
-     * @return the encryption key info containing the public key data
-     */
-    EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> metadata);
-
-    /**
-     * Get the private key for decrypting messages.
-     *
-     * @param keyName  the name of the key
-     * @param metadata additional metadata associated with the key
-     * @return the encryption key info containing the private key data
-     */
-    EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> metadata);
+public interface CryptoKeyProvider extends PublicKeyProvider, PrivateKeyProvider {
 }

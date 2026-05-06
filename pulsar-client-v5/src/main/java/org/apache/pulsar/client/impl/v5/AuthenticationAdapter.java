@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationData;
@@ -107,8 +111,22 @@ final class AuthenticationAdapter {
 
         @Override
         public AuthenticationData authData() throws PulsarClientException {
-            // TODO: Implement AuthenticationData adapter when needed
-            return null;
+            try {
+                AuthenticationDataProvider v4Data = v4Auth.getAuthData();
+                return v4Data == null ? null : new V5AuthDataWrapper(v4Data);
+            } catch (org.apache.pulsar.client.api.PulsarClientException e) {
+                throw new PulsarClientException(e.getMessage(), e);
+            }
+        }
+
+        @Override
+        public AuthenticationData authData(String brokerHostName) throws PulsarClientException {
+            try {
+                AuthenticationDataProvider v4Data = v4Auth.getAuthData(brokerHostName);
+                return v4Data == null ? null : new V5AuthDataWrapper(v4Data);
+            } catch (org.apache.pulsar.client.api.PulsarClientException e) {
+                throw new PulsarClientException(e.getMessage(), e);
+            }
         }
 
         @Override
@@ -127,6 +145,58 @@ final class AuthenticationAdapter {
             } catch (Exception e) {
                 // ignore
             }
+        }
+    }
+
+    /**
+     * Bridges a v4 {@link AuthenticationDataProvider} into the V5 {@link AuthenticationData}
+     * surface. The two interfaces are intentionally aligned so this is a 1:1 delegation.
+     */
+    private static final class V5AuthDataWrapper implements AuthenticationData {
+        private final AuthenticationDataProvider v4Data;
+
+        V5AuthDataWrapper(AuthenticationDataProvider v4Data) {
+            this.v4Data = v4Data;
+        }
+
+        @Override
+        public boolean hasDataForHttp() {
+            return v4Data.hasDataForHttp();
+        }
+
+        @Override
+        public Set<Map.Entry<String, String>> getHttpHeaders() {
+            try {
+                Set<Map.Entry<String, String>> headers = v4Data.getHttpHeaders();
+                return headers != null ? headers : Set.of();
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to obtain HTTP auth headers", e);
+            }
+        }
+
+        @Override
+        public boolean hasDataForTls() {
+            return v4Data.hasDataForTls();
+        }
+
+        @Override
+        public Certificate[] getTlsCertificates() {
+            return v4Data.getTlsCertificates();
+        }
+
+        @Override
+        public PrivateKey getTlsPrivateKey() {
+            return v4Data.getTlsPrivateKey();
+        }
+
+        @Override
+        public boolean hasDataFromCommand() {
+            return v4Data.hasDataFromCommand();
+        }
+
+        @Override
+        public String getCommandData() {
+            return v4Data.getCommandData();
         }
     }
 }

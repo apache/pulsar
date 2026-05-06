@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api.v5;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -26,14 +27,18 @@ import org.apache.pulsar.client.api.v5.async.AsyncProducer;
 import org.apache.pulsar.client.api.v5.async.AsyncQueueConsumer;
 import org.apache.pulsar.client.api.v5.async.AsyncStreamConsumer;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationFactory;
+import org.apache.pulsar.client.api.v5.auth.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.v5.auth.PemFileKeyProvider;
 import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
 import org.apache.pulsar.client.api.v5.config.CompressionPolicy;
 import org.apache.pulsar.client.api.v5.config.CompressionType;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
+import org.apache.pulsar.client.api.v5.config.ProducerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -297,6 +302,42 @@ public class Examples {
                     // After 5 redeliveries → moves to dead letter topic automatically
                 }
             }
+        }
+    }
+
+    /**
+     * End-to-end encryption — producer encrypts with a public key, consumer decrypts
+     * with the matching private key. The {@link PemFileKeyProvider} is the
+     * batteries-included reader for local PEM files; for remote key stores
+     * (KMS, Vault, ...) implement {@link org.apache.pulsar.client.api.v5.auth.PublicKeyProvider}
+     * or {@link org.apache.pulsar.client.api.v5.auth.PrivateKeyProvider} directly.
+     */
+    void encryptedProducerAndConsumer(PulsarClient client) throws Exception {
+        try (var producer = client.newProducer(Schema.string())
+                .topic("orders")
+                .encryptionPolicy(ProducerEncryptionPolicy.builder()
+                        .publicKeyProvider(PemFileKeyProvider.builder()
+                                .publicKey("orders-v1", Path.of("/etc/keys/orders-pub.pem"))
+                                .build())
+                        .keyName("orders-v1")
+                        .build())
+                .create()) {
+            producer.newMessage().value("classified payload").send();
+        }
+
+        try (var consumer = client.newQueueConsumer(Schema.string())
+                .topic("orders")
+                .subscriptionName("trusted")
+                .encryptionPolicy(ConsumerEncryptionPolicy.builder()
+                        .privateKeyProvider(PemFileKeyProvider.builder()
+                                .privateKey("orders-v1", Path.of("/etc/keys/orders-priv.pem"))
+                                .build())
+                        .failureAction(ConsumerCryptoFailureAction.FAIL)
+                        .build())
+                .subscribe()) {
+            Message<String> msg = consumer.receive(Duration.ofSeconds(5));
+            // ... use msg.value()
+            consumer.acknowledge(msg.id());
         }
     }
 

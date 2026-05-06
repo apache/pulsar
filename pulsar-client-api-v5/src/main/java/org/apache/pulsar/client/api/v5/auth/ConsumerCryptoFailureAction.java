@@ -18,20 +18,29 @@
  */
 package org.apache.pulsar.client.api.v5.auth;
 
-import java.util.Map;
-import java.util.Objects;
-
 /**
- * Holds an encryption key and associated metadata.
- *
- * @param key      the raw key bytes
- * @param metadata key-value metadata associated with the key
+ * Action a consumer takes when message decryption fails (e.g. the
+ * {@link PrivateKeyProvider} cannot be reached, returns no key, or the
+ * ciphertext is malformed).
  */
-public record EncryptionKeyInfo(byte[] key, Map<String, String> metadata) {
-    public EncryptionKeyInfo {
-        Objects.requireNonNull(key, "key must not be null");
-        if (metadata == null) {
-            metadata = Map.of();
-        }
-    }
+public enum ConsumerCryptoFailureAction {
+
+    /**
+     * Fail the {@code receive} call. The application sees the decryption error
+     * and the message stays unacknowledged so it will be redelivered.
+     */
+    FAIL,
+
+    /**
+     * Silently acknowledge and skip the message. Useful when the consumer
+     * legitimately cannot read some encrypted streams (e.g. a side channel)
+     * but should keep moving forward through the rest.
+     */
+    DISCARD,
+
+    /**
+     * Deliver the message to the application as-is, with the still-encrypted
+     * payload. The application can then handle decryption out-of-band.
+     */
+    CONSUME
 }

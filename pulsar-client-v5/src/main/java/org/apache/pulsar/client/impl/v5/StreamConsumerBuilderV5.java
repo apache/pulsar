@@ -27,7 +27,7 @@ import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.StreamConsumer;
 import org.apache.pulsar.client.api.v5.StreamConsumerBuilder;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -178,8 +178,10 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     }
 
     @Override
-    public StreamConsumerBuilderV5<T> encryptionPolicy(EncryptionPolicy policy) {
-        conf.setCryptoKeyReader(CryptoKeyReaderAdapter.wrap(policy.keyReader()));
+    public StreamConsumerBuilderV5<T> encryptionPolicy(ConsumerEncryptionPolicy policy) {
+        if (policy.privateKeyProvider() != null) {
+            conf.setCryptoKeyReader(CryptoKeyReaderAdapter.forConsumer(policy.privateKeyProvider()));
+        }
         conf.setCryptoFailureAction(
                 org.apache.pulsar.client.api.ConsumerCryptoFailureAction.valueOf(
                         policy.failureAction().name()));
