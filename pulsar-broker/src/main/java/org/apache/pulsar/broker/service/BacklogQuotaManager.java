@@ -85,6 +85,17 @@ public class BacklogQuotaManager {
      */
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic, BacklogQuotaType backlogQuotaType,
                                            boolean preciseTimeBasedBacklogQuotaCheck) {
+        if (persistentTopic.isFenced() || persistentTopic.isClosingOrDeleting()) {
+            // Skip eviction work on a topic that is being torn down or transiently fenced.
+            // Mutating cursors here (skipEntries / markDeletePosition) contends with the
+            // delete path and can keep namespace force-delete from completing in time;
+            // the entries are about to be discarded anyway.
+            if (log.isDebugEnabled()) {
+                log.debug("Skipping backlog-quota eviction on fenced/closing topic {}, backlog quota type {}",
+                        persistentTopic.getName(), backlogQuotaType);
+            }
+            return;
+        }
         BacklogQuota quota = persistentTopic.getBacklogQuota(backlogQuotaType);
         BacklogQuotaMetrics topicBacklogQuotaMetrics =
                 persistentTopic.getPersistentTopicMetrics().getBacklogQuotaMetrics();
