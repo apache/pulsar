@@ -18,173 +18,121 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
-import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class LegacyAwareTopicPoliciesServiceTest {
+public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
-    @Test
-    public void testRoutesOperationsByLegacyMarker() throws Exception {
-        NamespaceName legacyNamespace = NamespaceName.get("tenant", "legacy");
-        RecordingTopicPoliciesService systemTopicService = new RecordingTopicPoliciesService();
-        RecordingTopicPoliciesService configuredService = new RecordingTopicPoliciesService();
-        LegacyAwareTopicPoliciesService service = new LegacyAwareTopicPoliciesService(null, systemTopicService,
-                configuredService, namespace -> CompletableFuture.completedFuture(namespace.equals(legacyNamespace)),
-                __ -> { }, __ -> { });
+    @BeforeClass
+    @Override
+    protected void setup() throws Exception {
+        super.internalSetup();
+        super.setupDefaultTenantAndNamespace();
+        assertTrue(pulsar.getTopicPoliciesService() instanceof SystemTopicBasedTopicPoliciesService);
+    }
 
-        service.updateTopicPoliciesAsync(TopicName.get("persistent://tenant/legacy/topic"), false, false,
-                policies -> { }).get();
-        service.getTopicPoliciesAsync(TopicName.get("persistent://tenant/new/topic"),
-                TopicPoliciesService.GetType.LOCAL_ONLY).get();
-        service.deleteTopicPoliciesAsync(TopicName.get("persistent://tenant/legacy/topic")).get();
-
-        assertEquals(systemTopicService.updateCount.get(), 1);
-        assertEquals(systemTopicService.deleteCount.get(), 1);
-        assertEquals(configuredService.getCount.get(), 1);
+    @AfterClass
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 
     @Test
-    public void testLegacyCheckFailureDoesNotRouteToConfiguredBackend() {
-        RecordingTopicPoliciesService systemTopicService = new RecordingTopicPoliciesService();
-        RecordingTopicPoliciesService configuredService = new RecordingTopicPoliciesService();
-        LegacyAwareTopicPoliciesService service = new LegacyAwareTopicPoliciesService(null, systemTopicService,
-                configuredService, __ -> CompletableFuture.failedFuture(new RuntimeException("failed marker check")),
-                __ -> { }, __ -> { });
+    public void testLegacyNamespaceKeepsSystemTopicBackendAfterRestart() throws Exception {
+        final var namespace1 = "public/legacy-aware-ns1";
+        final var topic1 = "persistent://" + namespace1 + "/topic";
+        final var eventTopic1 = NamespaceEventsSystemTopicFactory
+                .getEventsTopicName(NamespaceName.get(namespace1))
+                .toString();
+        admin.namespaces().createNamespace(namespace1);
+        admin.topics().createNonPartitionedTopic(topic1);
 
-        assertThrows(ExecutionException.class, () -> service.getTopicPoliciesAsync(
-                TopicName.get("persistent://tenant/ns/topic"), TopicPoliciesService.GetType.LOCAL_ONLY).get());
-        assertEquals(systemTopicService.getCount.get(), 0);
-        assertEquals(configuredService.getCount.get(), 0);
+        try (var producer = pulsarClient.newProducer(Schema.STRING).topic(topic1).create()) {
+            producer.send("warmup");
+        }
+        final var namespace1TopicBeforeRestart = getPersistentTopic(topic1);
+
+        assertNull(admin.topicPolicies().getCompactionThreshold(topic1));
+
+        admin.topicPolicies().setCompactionThreshold(topic1, 1000);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topicPolicies().getCompactionThreshold(topic1), Long.valueOf(1000));
+            assertEquals(namespace1TopicBeforeRestart.getHierarchyTopicPolicies().getCompactionThreshold().get(),
+                    Long.valueOf(1000));
+            assertTrue(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(TopicName.get(eventTopic1))
+                    .join());
+        });
+
+        restartBroker(configuration ->
+                configuration.setTopicPoliciesServiceClassName(MetadataStoreTopicPoliciesService.class.getName()));
+        assertTrue(pulsar.getTopicPoliciesService() instanceof LegacyAwareTopicPoliciesService);
+
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topicPolicies().getCompactionThreshold(topic1), Long.valueOf(1000)));
+
+        try (var producer = pulsarClient.newProducer(Schema.STRING).topic(topic1).create()) {
+            producer.send("after-restart");
+        }
+        final var namespace1TopicAfterRestart = getPersistentTopic(topic1);
+        final var namespace1LacBeforeUpdate = admin.topics().getInternalStats(eventTopic1).lastConfirmedEntry;
+
+        admin.topicPolicies().setCompactionThreshold(topic1, 2000);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topicPolicies().getCompactionThreshold(topic1), Long.valueOf(2000));
+            assertEquals(namespace1TopicAfterRestart.getHierarchyTopicPolicies().getCompactionThreshold().get(),
+                    Long.valueOf(2000));
+            Assert.assertNotEquals(admin.topics().getInternalStats(eventTopic1).lastConfirmedEntry,
+                    namespace1LacBeforeUpdate);
+        });
+        assertFalse(pulsar.getLocalMetadataStore()
+                .exists(MetadataStoreTopicPoliciesService.pathFor(TopicName.get(topic1), false))
+                .join());
+
+        final var namespace2 = "public/legacy-aware-ns2";
+        final var topic2 = "persistent://" + namespace2 + "/topic";
+        final var eventTopic2 = NamespaceEventsSystemTopicFactory
+                .getEventsTopicName(NamespaceName.get(namespace2))
+                .toString();
+        admin.namespaces().createNamespace(namespace2);
+        admin.topics().createNonPartitionedTopic(topic2);
+
+        try (var producer = pulsarClient.newProducer(Schema.STRING).topic(topic2).create()) {
+            producer.send("warmup");
+        }
+        final var namespace2Topic = getPersistentTopic(topic2);
+
+        assertNull(admin.topicPolicies().getCompactionThreshold(topic2));
+        assertFalse(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(TopicName.get(eventTopic2))
+                .join());
+
+        admin.topicPolicies().setCompactionThreshold(topic2, 3000);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.topicPolicies().getCompactionThreshold(topic2), Long.valueOf(3000));
+            assertEquals(namespace2Topic.getHierarchyTopicPolicies().getCompactionThreshold().get(),
+                    Long.valueOf(3000));
+            assertFalse(pulsar.getPulsarResources().getTopicResources()
+                    .persistentTopicExists(TopicName.get(eventTopic2)).join());
+            assertTrue(pulsar.getLocalMetadataStore()
+                    .exists(MetadataStoreTopicPoliciesService.pathFor(TopicName.get(topic2), false))
+                    .join());
+        });
     }
 
-    @Test
-    public void testLoadsSystemTopicBackendOnlyForStillOwnedLegacyBundles() {
-        NamespaceName namespace = NamespaceName.get("tenant", "ns");
-        NamespaceBundle bundle = mock(NamespaceBundle.class);
-        when(bundle.getNamespaceObject()).thenReturn(namespace);
-        CompletableFuture<Boolean> markerCheck = new CompletableFuture<>();
-        List<NamespaceBundle> loads = new ArrayList<>();
-        List<NamespaceBundle> unloads = new ArrayList<>();
-        LegacyAwareTopicPoliciesService service = new LegacyAwareTopicPoliciesService(null,
-                new RecordingTopicPoliciesService(), new RecordingTopicPoliciesService(), __ -> markerCheck,
-                loads::add, unloads::add);
-
-        // Bundle loaded then unloaded before marker check completes
-        service.onBundleLoaded(bundle);
-        service.onBundleUnloaded(bundle);
-        markerCheck.complete(true);
-        assertTrue(loads.isEmpty());
-        assertTrue(unloads.isEmpty());
-
-        // Bundle loaded with synchronous marker check
-        CompletableFuture<Boolean> secondMarkerCheck = CompletableFuture.completedFuture(true);
-        service = new LegacyAwareTopicPoliciesService(null, new RecordingTopicPoliciesService(),
-                new RecordingTopicPoliciesService(), __ -> secondMarkerCheck, loads::add, unloads::add);
-        service.onBundleLoaded(bundle);
-        assertEquals(loads, List.of(bundle));
-        service.onBundleUnloaded(bundle);
-        assertEquals(unloads, List.of(bundle));
-    }
-
-    @Test
-    public void testResolveServiceReconcilesOwnedBundlesWhenLegacyStatusFlips() throws Exception {
-        NamespaceName namespace = NamespaceName.get("tenant", "ns");
-        NamespaceBundle bundle = mock(NamespaceBundle.class);
-        when(bundle.getNamespaceObject()).thenReturn(namespace);
-        AtomicBoolean isLegacy = new AtomicBoolean(false);
-        List<NamespaceBundle> loads = new ArrayList<>();
-        List<NamespaceBundle> unloads = new ArrayList<>();
-        RecordingTopicPoliciesService systemTopicService = new RecordingTopicPoliciesService();
-        RecordingTopicPoliciesService configuredService = new RecordingTopicPoliciesService();
-        LegacyAwareTopicPoliciesService service = new LegacyAwareTopicPoliciesService(null, systemTopicService,
-                configuredService, __ -> CompletableFuture.completedFuture(isLegacy.get()), loads::add, unloads::add);
-
-        service.onBundleLoaded(bundle);
-        assertEquals(service.resolveService(namespace).get(), configuredService);
-        assertTrue(loads.isEmpty());
-
-        isLegacy.set(true);
-        assertEquals(service.resolveService(namespace).get(), systemTopicService);
-        assertEquals(loads, List.of(bundle));
-
-        isLegacy.set(false);
-        assertEquals(service.resolveService(namespace).get(), configuredService);
-        assertEquals(unloads, List.of(bundle));
-    }
-
-    @Test
-    public void testRegisterAndUnregisterListenerOnBothBackends() {
-        RecordingTopicPoliciesService systemTopicService = new RecordingTopicPoliciesService();
-        RecordingTopicPoliciesService configuredService = new RecordingTopicPoliciesService();
-        LegacyAwareTopicPoliciesService service = new LegacyAwareTopicPoliciesService(null, systemTopicService,
-                configuredService, __ -> CompletableFuture.completedFuture(true),
-                __ -> { }, __ -> { });
-
-        TopicName topic = TopicName.get("persistent://tenant/ns/topic");
-        TopicPolicyListener listener = policies -> { };
-
-        assertTrue(service.registerListener(topic, listener));
-        assertEquals(systemTopicService.registerListenerCount.get(), 1);
-        assertEquals(configuredService.registerListenerCount.get(), 1);
-
-        service.unregisterListener(topic, listener);
-        assertEquals(systemTopicService.unregisterListenerCount.get(), 1);
-        assertEquals(configuredService.unregisterListenerCount.get(), 1);
-    }
-
-    private static class RecordingTopicPoliciesService implements TopicPoliciesService {
-        private final AtomicInteger getCount = new AtomicInteger();
-        private final AtomicInteger updateCount = new AtomicInteger();
-        private final AtomicInteger deleteCount = new AtomicInteger();
-        private final AtomicInteger registerListenerCount = new AtomicInteger();
-        private final AtomicInteger unregisterListenerCount = new AtomicInteger();
-
-        @Override
-        public CompletableFuture<Void> deleteTopicPoliciesAsync(TopicName topicName) {
-            deleteCount.incrementAndGet();
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, boolean isGlobalPolicy,
-                                                                boolean skipUpdateWhenTopicPolicyDoesntExist,
-                                                                Consumer<TopicPolicies> policyUpdater) {
-            updateCount.incrementAndGet();
-            return CompletableFuture.completedFuture(null);
-        }
-
-        @Override
-        public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(TopicName topicName, GetType type) {
-            getCount.incrementAndGet();
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
-
-        @Override
-        public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
-            registerListenerCount.incrementAndGet();
-            return true;
-        }
-
-        @Override
-        public void unregisterListener(TopicName topicName, TopicPolicyListener listener) {
-            unregisterListenerCount.incrementAndGet();
-        }
+    private PersistentTopic getPersistentTopic(String topic) throws Exception {
+        return (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().orElseThrow();
     }
 }

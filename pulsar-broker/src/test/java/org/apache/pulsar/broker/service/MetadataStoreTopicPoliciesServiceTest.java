@@ -18,183 +18,111 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import org.apache.pulsar.broker.PulsarService;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class MetadataStoreTopicPoliciesServiceTest {
+public class MetadataStoreTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
-    private MetadataStoreExtended localStore;
-    private MetadataStoreExtended configurationStore;
-    private MetadataStoreTopicPoliciesService service;
-
-    @BeforeMethod(alwaysRun = true)
-    public void setup() throws Exception {
-        localStore = MetadataStoreExtended.create("memory:local-" + UUID.randomUUID(),
-                MetadataStoreConfig.builder().build());
-        configurationStore = MetadataStoreExtended.create("memory:configuration-" + UUID.randomUUID(),
-                MetadataStoreConfig.builder().build());
-        PulsarService pulsar = mock(PulsarService.class);
-        when(pulsar.getLocalMetadataStore()).thenReturn(localStore);
-        when(pulsar.getConfigurationMetadataStore()).thenReturn(configurationStore);
-        service = new MetadataStoreTopicPoliciesService();
-        service.start(pulsar);
+    @BeforeClass
+    @Override
+    protected void setup() throws Exception {
+        conf.setTopicPoliciesServiceClassName(MetadataStoreTopicPoliciesService.class.getName());
+        conf.setSystemTopicEnabled(false);
+        super.internalSetup();
+        super.setupDefaultTenantAndNamespace();
+        assertTrue(pulsar.getTopicPoliciesService() instanceof MetadataStoreTopicPoliciesService);
     }
 
-    @AfterMethod(alwaysRun = true)
-    public void cleanup() throws Exception {
-        if (service != null) {
-            service.close();
-        }
-        if (localStore != null) {
-            localStore.close();
-        }
-        if (configurationStore != null) {
-            configurationStore.close();
-        }
+    @AfterClass
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 
     @Test
-    public void testLocalAndGlobalPoliciesUseSeparateStoresAndNormalizePartitions() throws Exception {
-        TopicName partition = TopicName.get("persistent://tenant/ns/topic-partition-0");
-        TopicName topic = TopicName.get("persistent://tenant/ns/topic");
+    public void testTopicPoliciesAdminPersistsAndUpdatesLoadedTopic() throws Exception {
+        final var topic = TopicName.get("test-metadata-store-topic-policies").toString();
+        admin.topics().createNonPartitionedTopic(topic);
 
-        service.updateTopicPoliciesAsync(partition, false, false,
-                policies -> policies.setMaxConsumerPerTopic(3)).get();
-        service.updateTopicPoliciesAsync(partition, true, false,
-                policies -> policies.setMessageTTLInSeconds(10)).get();
+        try (var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
+            producer.send("warmup");
+        }
+        final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get()
+                .orElseThrow();
 
-        Optional<TopicPolicies> localPolicies =
-                service.getTopicPoliciesAsync(topic, TopicPoliciesService.GetType.LOCAL_ONLY).get();
-        Optional<TopicPolicies> globalPolicies =
-                service.getTopicPoliciesAsync(topic, TopicPoliciesService.GetType.GLOBAL_ONLY).get();
+        assertNull(admin.topicPolicies().getCompactionThreshold(topic));
+        Assert.assertNotEquals(persistentTopic.getHierarchyTopicPolicies().getCompactionThreshold().get(),
+                Long.valueOf(1000));
 
-        assertTrue(localPolicies.isPresent());
-        assertFalse(localPolicies.get().isGlobalPolicies());
-        assertEquals(localPolicies.get().getMaxConsumerPerTopic(), Integer.valueOf(3));
-        assertTrue(globalPolicies.isPresent());
-        assertTrue(globalPolicies.get().isGlobalPolicies());
-        assertEquals(globalPolicies.get().getMessageTTLInSeconds(), Integer.valueOf(10));
-        assertTrue(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(topic, false)).get());
-        assertTrue(configurationStore.exists(MetadataStoreTopicPoliciesService.pathFor(topic, true)).get());
-    }
-
-    @Test
-    public void testDeleteIsIdempotentAndCanKeepGlobalPolicies() throws Exception {
-        TopicName topic = TopicName.get("persistent://tenant/ns/delete-topic");
-
-        service.updateTopicPoliciesAsync(topic, true, false,
-                policies -> policies.setMessageTTLInSeconds(10)).get();
-        service.deleteTopicPoliciesAsync(topic, false).get();
-        assertTrue(service.getTopicPoliciesAsync(topic, TopicPoliciesService.GetType.GLOBAL_ONLY).get().isEmpty());
-        // second delete should be idempotent
-        service.deleteTopicPoliciesAsync(topic, false).get();
-        assertTrue(service.getTopicPoliciesAsync(topic, TopicPoliciesService.GetType.GLOBAL_ONLY).get().isEmpty());
-
-        service.updateTopicPoliciesAsync(topic, false, false,
-                policies -> policies.setMaxConsumerPerTopic(3)).get();
-        service.updateTopicPoliciesAsync(topic, true, false,
-                policies -> policies.setMessageTTLInSeconds(20)).get();
-        service.deleteTopicPoliciesAsync(topic, true).get();
-
-        assertTrue(service.getTopicPoliciesAsync(topic, TopicPoliciesService.GetType.LOCAL_ONLY).get().isEmpty());
-        Optional<TopicPolicies> globalPolicies =
-                service.getTopicPoliciesAsync(topic, TopicPoliciesService.GetType.GLOBAL_ONLY).get();
-        assertTrue(globalPolicies.isPresent());
-        assertEquals(globalPolicies.get().getMessageTTLInSeconds(), Integer.valueOf(20));
-    }
-
-    @Test
-    public void testListenerReceivesMetadataUpdatesAndDeletes() throws Exception {
-        TopicName topic = TopicName.get("persistent://tenant/ns/listener-topic");
-        List<TopicPolicies> updates = new CopyOnWriteArrayList<>();
-        service.registerListener(topic, updates::add);
-
-        service.updateTopicPoliciesAsync(topic, false, false,
-                policies -> policies.setMaxProducerPerTopic(2)).get();
+        admin.topicPolicies().setCompactionThreshold(topic, 1000);
         Awaitility.await().untilAsserted(() -> {
-            assertFalse(updates.isEmpty());
-            assertEquals(updates.get(updates.size() - 1).getMaxProducerPerTopic(), Integer.valueOf(2));
+            assertEquals(admin.topicPolicies().getCompactionThreshold(topic), Long.valueOf(1000));
+            assertEquals(persistentTopic.getHierarchyTopicPolicies().getCompactionThreshold().get(), Long.valueOf(1000));
         });
 
-        service.deleteTopicPoliciesAsync(topic, true).get();
-        Awaitility.await().untilAsserted(() -> assertTrue(updates.contains(null)));
-    }
+        restartBroker();
 
-    @Test
-    public void testSkipUpdateWhenTopicPolicyDoesntExist() throws Exception {
-        TopicName topic = TopicName.get("persistent://tenant/ns/skip-update-topic");
-        // Should not throw when skip=true and policy doesn't exist
-        service.updateTopicPoliciesAsync(topic, false, true,
-                policies -> policies.setMaxConsumerPerTopic(5)).get();
-        assertTrue(service.getTopicPoliciesAsync(topic, TopicPoliciesService.GetType.LOCAL_ONLY).get().isEmpty());
-
-        // Normal update creates the policy
-        service.updateTopicPoliciesAsync(topic, false, false,
-                policies -> policies.setMaxConsumerPerTopic(5)).get();
-        Optional<TopicPolicies> result =
-                service.getTopicPoliciesAsync(topic, TopicPoliciesService.GetType.LOCAL_ONLY).get();
-        assertTrue(result.isPresent());
-        assertEquals(result.get().getMaxConsumerPerTopic(), Integer.valueOf(5));
-    }
-
-    @Test
-    public void testCloseStopsReadsAndWrites() throws Exception {
-        TopicName existingTopic = TopicName.get("persistent://tenant/ns/closed-topic");
-        TopicName newTopic = TopicName.get("persistent://tenant/ns/closed-topic-new");
-
-        service.updateTopicPoliciesAsync(existingTopic, false, false,
-                policies -> policies.setMaxConsumerPerTopic(7)).get();
-        service.close();
-
-        assertTrue(service.getTopicPoliciesAsync(existingTopic, TopicPoliciesService.GetType.LOCAL_ONLY)
-                .get().isEmpty());
-
-        try {
-            service.updateTopicPoliciesAsync(newTopic, false, false,
-                    policies -> policies.setMaxConsumerPerTopic(9)).get();
-            fail("Expected update after close to fail");
-        } catch (ExecutionException error) {
-            assertTrue(error.getCause() instanceof BrokerServiceException);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topicPolicies().getCompactionThreshold(topic), Long.valueOf(1000)));
+        try (var producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create()) {
+            producer.send("after-restart");
         }
-        assertFalse(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(newTopic, false)).get());
-
-        try {
-            service.deleteTopicPoliciesAsync(existingTopic).get();
-            fail("Expected delete after close to fail");
-        } catch (ExecutionException error) {
-            assertTrue(error.getCause() instanceof BrokerServiceException);
-        }
-        assertTrue(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(existingTopic, false)).get());
+        final var reloadedTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get()
+                .orElseThrow();
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(reloadedTopic.getHierarchyTopicPolicies().getCompactionThreshold().get(),
+                        Long.valueOf(1000)));
     }
 
     @Test
-    public void testPathFor() {
-        TopicName topic = TopicName.get("persistent://tenant/ns/topic");
-        String globalPath = MetadataStoreTopicPoliciesService.pathFor(topic, true);
-        String localPath = MetadataStoreTopicPoliciesService.pathFor(topic, false);
+    public void testTopicPoliciesDeletedWithTopic() throws Exception {
+        final var topic = TopicName.get("test-metadata-store-topic-policies-delete").toString();
+        admin.topics().createNonPartitionedTopic(topic);
 
-        assertTrue(globalPath.startsWith(MetadataStoreTopicPoliciesService.GLOBAL_POLICIES_ROOT));
-        assertTrue(localPath.startsWith(MetadataStoreTopicPoliciesService.LOCAL_POLICIES_ROOT));
-        assertTrue(globalPath.contains("tenant/ns/"));
-        assertTrue(localPath.contains("tenant/ns/"));
+        assertNull(admin.topicPolicies().getCompactionThreshold(topic));
+        admin.topicPolicies().setCompactionThreshold(topic, 1000);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.topicPolicies().getCompactionThreshold(topic), Long.valueOf(1000)));
+
+        admin.topics().delete(topic);
+        admin.topics().createNonPartitionedTopic(topic);
+        Awaitility.await().untilAsserted(() -> assertNull(admin.topicPolicies().getCompactionThreshold(topic)));
+    }
+
+    @Test
+    public void testShadowReplicator() throws Exception {
+        final var sourceTopic = TopicName.get("test-metadata-shadow-replicator").toString();
+        final var shadowTopic = sourceTopic + "-shadow";
+
+        admin.topics().createNonPartitionedTopic(sourceTopic);
+        admin.topics().createShadowTopic(shadowTopic, sourceTopic);
+        admin.topics().setShadowTopics(sourceTopic, List.of(shadowTopic));
+
+        try (var producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
+             var consumer = pulsarClient.newConsumer(Schema.STRING).topic(shadowTopic)
+                     .subscriptionName("sub").subscribe()) {
+            producer.send("msg");
+            final var msg = consumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(msg);
+            Assert.assertEquals(msg.getValue(), "msg");
+        }
+
+        final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopic).get()
+                .orElseThrow();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(persistentTopic.getShadowReplicators().size(), 1));
     }
 }
