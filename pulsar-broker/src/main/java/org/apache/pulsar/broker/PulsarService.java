@@ -2289,10 +2289,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 return TopicPoliciesService.DISABLED;
             }
         }
-        TopicPoliciesService configuredService = (TopicPoliciesService) Reflections.createInstance(className,
+        final var configuredService = (TopicPoliciesService) Reflections.createInstance(className,
                 Thread.currentThread().getContextClassLoader());
         if (!config.isSystemTopicEnabled()) {
-            log.warn()
+            log.info()
                     .attr("className", className)
                     .log("System topic is disabled, using configured topic policies service without legacy routing");
             return configuredService;

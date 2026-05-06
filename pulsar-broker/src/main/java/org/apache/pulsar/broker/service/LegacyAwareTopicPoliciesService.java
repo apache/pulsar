@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
@@ -43,53 +42,33 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
 
     private final PulsarService pulsar;
-    private final TopicPoliciesService systemTopicService;
+    private final SystemTopicBasedTopicPoliciesService systemTopicService;
     private final TopicPoliciesService configuredService;
-    private final Function<NamespaceName, CompletableFuture<Boolean>> legacyNamespaceChecker;
-    private final Consumer<NamespaceBundle> systemTopicBundleLoad;
-    private final Consumer<NamespaceBundle> systemTopicBundleUnload;
     private final Map<NamespaceName, Set<NamespaceBundle>> ownedBundles = new ConcurrentHashMap<>();
     private final Map<NamespaceName, Set<NamespaceBundle>> legacyOwnedBundles = new ConcurrentHashMap<>();
 
     public LegacyAwareTopicPoliciesService(PulsarService pulsar,
                                            SystemTopicBasedTopicPoliciesService systemTopicService,
                                            TopicPoliciesService configuredService) {
-        this(pulsar, systemTopicService, configuredService,
-                namespace -> NamespaceEventsSystemTopicFactory.checkSystemTopicExists(namespace,
-                        EventType.TOPIC_POLICY, pulsar),
-                systemTopicService::addOwnedNamespaceBundleAsync,
-                systemTopicService::removeOwnedNamespaceBundleAsync);
-    }
-
-    LegacyAwareTopicPoliciesService(PulsarService pulsar,
-                                    TopicPoliciesService systemTopicService,
-                                    TopicPoliciesService configuredService,
-                                    Function<NamespaceName, CompletableFuture<Boolean>> legacyNamespaceChecker,
-                                    Consumer<NamespaceBundle> systemTopicBundleLoad,
-                                    Consumer<NamespaceBundle> systemTopicBundleUnload) {
         this.pulsar = pulsar;
         this.systemTopicService = systemTopicService;
         this.configuredService = configuredService;
-        this.legacyNamespaceChecker = legacyNamespaceChecker;
-        this.systemTopicBundleLoad = systemTopicBundleLoad;
-        this.systemTopicBundleUnload = systemTopicBundleUnload;
     }
 
     @Override
     public void start(PulsarService pulsarService) {
         configuredService.start(pulsarService);
+        final var self = this;
         pulsarService.getNamespaceService().addNamespaceBundleOwnershipListener(
                 new NamespaceBundleOwnershipListener() {
                     @Override
                     public void onLoad(NamespaceBundle bundle) {
-                        pulsarService.getOrderedExecutor().executeOrdered(bundle.getNamespaceObject(),
-                                () -> onBundleLoaded(bundle));
+                        self.executeOrdered(bundle.getNamespaceObject(), () -> onBundleLoaded(bundle));
                     }
 
                     @Override
                     public void unLoad(NamespaceBundle bundle) {
-                        pulsarService.getOrderedExecutor().executeOrdered(bundle.getNamespaceObject(),
-                                () -> onBundleUnloaded(bundle));
+                        self.executeOrdered(bundle.getNamespaceObject(), () -> onBundleUnloaded(bundle));
                     }
 
                     @Override
@@ -150,16 +129,15 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
         systemTopicService.unregisterListener(topicName, listener);
     }
 
-    CompletableFuture<TopicPoliciesService> resolveService(NamespaceName namespace) {
-        return legacyNamespaceChecker.apply(namespace)
-                .thenCompose(isLegacy -> reconcileLegacyOwnership(namespace, Boolean.TRUE.equals(isLegacy))
-                        .thenApply(__ -> Boolean.TRUE.equals(isLegacy) ? systemTopicService : configuredService));
+    private CompletableFuture<TopicPoliciesService> resolveService(NamespaceName namespace) {
+        return isLegacy(namespace).thenCompose(isLegacy -> reconcileLegacyOwnership(namespace, isLegacy)
+                        .thenApply(__ -> isLegacy ? systemTopicService : configuredService));
     }
 
-    void onBundleLoaded(NamespaceBundle bundle) {
+    private void onBundleLoaded(NamespaceBundle bundle) {
         NamespaceName namespace = bundle.getNamespaceObject();
         addBundle(ownedBundles, bundle);
-        legacyNamespaceChecker.apply(namespace).whenComplete((isLegacy, error) -> {
+        isLegacy(namespace).whenComplete((isLegacy, error) -> {
             if (error != null) {
                 log.warn()
                         .attr("namespace", namespace)
@@ -177,10 +155,10 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
         });
     }
 
-    void onBundleUnloaded(NamespaceBundle bundle) {
+    private void onBundleUnloaded(NamespaceBundle bundle) {
         removeBundle(ownedBundles, bundle);
         if (removeBundle(legacyOwnedBundles, bundle)) {
-            systemTopicBundleUnload.accept(bundle);
+            systemTopicService.removeOwnedNamespaceBundleAsync(bundle);
         }
     }
 
@@ -189,10 +167,6 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
     }
 
     private CompletableFuture<Void> executeOrdered(NamespaceName namespace, Runnable action) {
-        if (pulsar == null) {
-            action.run();
-            return CompletableFuture.completedFuture(null);
-        }
         CompletableFuture<Void> future = new CompletableFuture<>();
         try {
             pulsar.getOrderedExecutor().executeOrdered(namespace, () -> {
@@ -219,7 +193,7 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
                     legacyOwnedBundles.computeIfAbsent(namespace, __ -> ConcurrentHashMap.newKeySet());
             for (NamespaceBundle bundle : namespaceOwnedBundles) {
                 if (namespaceLegacyBundles.add(bundle)) {
-                    systemTopicBundleLoad.accept(bundle);
+                    systemTopicService.addOwnedNamespaceBundleAsync(bundle);
                 }
             }
             return;
@@ -229,7 +203,7 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
             return;
         }
         for (NamespaceBundle bundle : namespaceLegacyBundles) {
-            systemTopicBundleUnload.accept(bundle);
+            systemTopicService.removeOwnedNamespaceBundleAsync(bundle);
         }
     }
 
@@ -249,5 +223,9 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
             bundlesByNamespace.remove(namespace, namespaceBundles);
         }
         return removed;
+    }
+
+    private CompletableFuture<Boolean> isLegacy(NamespaceName namespace) {
+        return NamespaceEventsSystemTopicFactory.checkSystemTopicExists(namespace, EventType.TOPIC_POLICY, pulsar);
     }
 }
