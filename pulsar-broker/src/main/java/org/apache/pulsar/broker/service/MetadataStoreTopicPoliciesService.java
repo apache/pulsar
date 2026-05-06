@@ -55,19 +55,20 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Map<TopicName, List<TopicPolicyListener>> listeners = new ConcurrentHashMap<>();
-    private MetadataStore localStore;
-    private MetadataStore configurationStore;
     private MetadataCache<TopicPolicies> localPoliciesCache;
     private MetadataCache<TopicPolicies> globalPoliciesCache;
 
     @Override
     public void start(PulsarService pulsar) {
-        this.localStore = pulsar.getLocalMetadataStore();
-        this.configurationStore = pulsar.getConfigurationMetadataStore();
+        MetadataStore localStore = pulsar.getLocalMetadataStore();
+        MetadataStore configurationStore = pulsar.getConfigurationMetadataStore();
         this.localPoliciesCache = localStore.getMetadataCache(TopicPolicies.class);
         this.globalPoliciesCache = configurationStore.getMetadataCache(TopicPolicies.class);
-        this.localStore.registerListener(notification -> handleNotification(notification, false));
-        this.configurationStore.registerListener(notification -> handleNotification(notification, true));
+        localStore.registerListener(notification -> handleNotification(notification, false));
+        if (localStore != configurationStore) {
+            // They are the same when geo-replication is not enabled, no need to register the same listener again
+            configurationStore.registerListener(notification -> handleNotification(notification, true));
+        }
     }
 
     @Override
