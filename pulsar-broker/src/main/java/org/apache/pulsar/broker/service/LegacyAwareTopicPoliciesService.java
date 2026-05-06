@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -47,8 +48,8 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
     private final Function<NamespaceName, CompletableFuture<Boolean>> legacyNamespaceChecker;
     private final Consumer<NamespaceBundle> systemTopicBundleLoad;
     private final Consumer<NamespaceBundle> systemTopicBundleUnload;
-    private final Set<NamespaceBundle> ownedBundles = ConcurrentHashMap.newKeySet();
-    private final Set<NamespaceBundle> legacyOwnedBundles = ConcurrentHashMap.newKeySet();
+    private final Map<NamespaceName, Set<NamespaceBundle>> ownedBundles = new ConcurrentHashMap<>();
+    private final Map<NamespaceName, Set<NamespaceBundle>> legacyOwnedBundles = new ConcurrentHashMap<>();
 
     public LegacyAwareTopicPoliciesService(PulsarService pulsar,
                                            SystemTopicBasedTopicPoliciesService systemTopicService,
@@ -151,29 +152,102 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
 
     CompletableFuture<TopicPoliciesService> resolveService(NamespaceName namespace) {
         return legacyNamespaceChecker.apply(namespace)
-                .thenApply(isLegacy -> Boolean.TRUE.equals(isLegacy) ? systemTopicService : configuredService);
+                .thenCompose(isLegacy -> reconcileLegacyOwnership(namespace, Boolean.TRUE.equals(isLegacy))
+                        .thenApply(__ -> Boolean.TRUE.equals(isLegacy) ? systemTopicService : configuredService));
     }
 
     void onBundleLoaded(NamespaceBundle bundle) {
-        ownedBundles.add(bundle);
-        legacyNamespaceChecker.apply(bundle.getNamespaceObject()).whenComplete((isLegacy, error) -> {
+        NamespaceName namespace = bundle.getNamespaceObject();
+        addBundle(ownedBundles, bundle);
+        legacyNamespaceChecker.apply(namespace).whenComplete((isLegacy, error) -> {
             if (error != null) {
                 log.warn()
-                        .attr("namespace", bundle.getNamespaceObject())
+                        .attr("namespace", namespace)
                         .exception(error)
                         .log("Failed to check topic-policy system topic for namespace");
                 return;
             }
-            if (Boolean.TRUE.equals(isLegacy) && ownedBundles.contains(bundle) && legacyOwnedBundles.add(bundle)) {
-                systemTopicBundleLoad.accept(bundle);
-            }
+            reconcileLegacyOwnership(namespace, Boolean.TRUE.equals(isLegacy)).exceptionally(reconcileError -> {
+                log.warn()
+                        .attr("namespace", namespace)
+                        .exception(reconcileError)
+                        .log("Failed to reconcile legacy topic-policy ownership for namespace");
+                return null;
+            });
         });
     }
 
     void onBundleUnloaded(NamespaceBundle bundle) {
-        ownedBundles.remove(bundle);
-        if (legacyOwnedBundles.remove(bundle)) {
+        removeBundle(ownedBundles, bundle);
+        if (removeBundle(legacyOwnedBundles, bundle)) {
             systemTopicBundleUnload.accept(bundle);
         }
+    }
+
+    private CompletableFuture<Void> reconcileLegacyOwnership(NamespaceName namespace, boolean isLegacy) {
+        return executeOrdered(namespace, () -> applyLegacyOwnership(namespace, isLegacy));
+    }
+
+    private CompletableFuture<Void> executeOrdered(NamespaceName namespace, Runnable action) {
+        if (pulsar == null) {
+            action.run();
+            return CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        try {
+            pulsar.getOrderedExecutor().executeOrdered(namespace, () -> {
+                try {
+                    action.run();
+                    future.complete(null);
+                } catch (Throwable error) {
+                    future.completeExceptionally(error);
+                }
+            });
+        } catch (Throwable error) {
+            future.completeExceptionally(error);
+        }
+        return future;
+    }
+
+    private void applyLegacyOwnership(NamespaceName namespace, boolean isLegacy) {
+        if (isLegacy) {
+            Set<NamespaceBundle> namespaceOwnedBundles = ownedBundles.get(namespace);
+            if (namespaceOwnedBundles == null || namespaceOwnedBundles.isEmpty()) {
+                return;
+            }
+            Set<NamespaceBundle> namespaceLegacyBundles =
+                    legacyOwnedBundles.computeIfAbsent(namespace, __ -> ConcurrentHashMap.newKeySet());
+            for (NamespaceBundle bundle : namespaceOwnedBundles) {
+                if (namespaceLegacyBundles.add(bundle)) {
+                    systemTopicBundleLoad.accept(bundle);
+                }
+            }
+            return;
+        }
+        Set<NamespaceBundle> namespaceLegacyBundles = legacyOwnedBundles.remove(namespace);
+        if (namespaceLegacyBundles == null) {
+            return;
+        }
+        for (NamespaceBundle bundle : namespaceLegacyBundles) {
+            systemTopicBundleUnload.accept(bundle);
+        }
+    }
+
+    private static void addBundle(Map<NamespaceName, Set<NamespaceBundle>> bundlesByNamespace, NamespaceBundle bundle) {
+        bundlesByNamespace.computeIfAbsent(bundle.getNamespaceObject(), __ -> ConcurrentHashMap.newKeySet()).add(bundle);
+    }
+
+    private static boolean removeBundle(Map<NamespaceName, Set<NamespaceBundle>> bundlesByNamespace,
+                                        NamespaceBundle bundle) {
+        NamespaceName namespace = bundle.getNamespaceObject();
+        Set<NamespaceBundle> namespaceBundles = bundlesByNamespace.get(namespace);
+        if (namespaceBundles == null) {
+            return false;
+        }
+        boolean removed = namespaceBundles.remove(bundle);
+        if (namespaceBundles.isEmpty()) {
+            bundlesByNamespace.remove(namespace, namespaceBundles);
+        }
+        return removed;
     }
 }

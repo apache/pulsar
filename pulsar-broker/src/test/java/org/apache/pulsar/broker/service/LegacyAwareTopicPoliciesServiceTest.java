@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -99,6 +100,32 @@ public class LegacyAwareTopicPoliciesServiceTest {
         service.onBundleLoaded(bundle);
         assertEquals(loads, List.of(bundle));
         service.onBundleUnloaded(bundle);
+        assertEquals(unloads, List.of(bundle));
+    }
+
+    @Test
+    public void testResolveServiceReconcilesOwnedBundlesWhenLegacyStatusFlips() throws Exception {
+        NamespaceName namespace = NamespaceName.get("tenant", "ns");
+        NamespaceBundle bundle = mock(NamespaceBundle.class);
+        when(bundle.getNamespaceObject()).thenReturn(namespace);
+        AtomicBoolean isLegacy = new AtomicBoolean(false);
+        List<NamespaceBundle> loads = new ArrayList<>();
+        List<NamespaceBundle> unloads = new ArrayList<>();
+        RecordingTopicPoliciesService systemTopicService = new RecordingTopicPoliciesService();
+        RecordingTopicPoliciesService configuredService = new RecordingTopicPoliciesService();
+        LegacyAwareTopicPoliciesService service = new LegacyAwareTopicPoliciesService(null, systemTopicService,
+                configuredService, __ -> CompletableFuture.completedFuture(isLegacy.get()), loads::add, unloads::add);
+
+        service.onBundleLoaded(bundle);
+        assertEquals(service.resolveService(namespace).get(), configuredService);
+        assertTrue(loads.isEmpty());
+
+        isLegacy.set(true);
+        assertEquals(service.resolveService(namespace).get(), systemTopicService);
+        assertEquals(loads, List.of(bundle));
+
+        isLegacy.set(false);
+        assertEquals(service.resolveService(namespace).get(), configuredService);
         assertEquals(unloads, List.of(bundle));
     }
 

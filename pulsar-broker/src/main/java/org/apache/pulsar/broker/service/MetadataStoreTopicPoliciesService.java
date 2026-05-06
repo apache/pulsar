@@ -83,6 +83,9 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
         if (NamespaceService.isHeartbeatNamespace(partitionedTopicName.getNamespaceObject())) {
             return CompletableFuture.completedFuture(null);
         }
+        if (closed.get()) {
+            return CompletableFuture.failedFuture(new BrokerServiceException(getClass().getName() + " is closed."));
+        }
         CompletableFuture<Void> deleteLocal =
                 deleteIfExists(localPoliciesCache, pathFor(partitionedTopicName, false));
         if (keepGlobalPoliciesAfterDeleting) {
@@ -103,6 +106,9 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
         if (NamespaceService.isHeartbeatNamespace(partitionedTopicName.getNamespaceObject())) {
             return CompletableFuture.failedFuture(new BrokerServiceException.NotAllowedException(
                     "Not allowed to update topic policy for the heartbeat topic"));
+        }
+        if (closed.get()) {
+            return CompletableFuture.failedFuture(new BrokerServiceException(getClass().getName() + " is closed."));
         }
         MetadataCache<TopicPolicies> cache = cache(isGlobalPolicy);
         String path = pathFor(partitionedTopicName, isGlobalPolicy);
@@ -128,6 +134,9 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
         requireNonNull(topicName);
         TopicName partitionedTopicName = normalizeTopicName(topicName);
         if (NamespaceService.isHeartbeatNamespace(partitionedTopicName.getNamespaceObject())) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        if (closed.get()) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
         boolean global = type == GetType.GLOBAL_ONLY;

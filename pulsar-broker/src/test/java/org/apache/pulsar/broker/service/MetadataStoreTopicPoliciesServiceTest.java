@@ -23,10 +23,12 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -152,6 +154,36 @@ public class MetadataStoreTopicPoliciesServiceTest {
                 service.getTopicPoliciesAsync(topic, TopicPoliciesService.GetType.LOCAL_ONLY).get();
         assertTrue(result.isPresent());
         assertEquals(result.get().getMaxConsumerPerTopic(), Integer.valueOf(5));
+    }
+
+    @Test
+    public void testCloseStopsReadsAndWrites() throws Exception {
+        TopicName existingTopic = TopicName.get("persistent://tenant/ns/closed-topic");
+        TopicName newTopic = TopicName.get("persistent://tenant/ns/closed-topic-new");
+
+        service.updateTopicPoliciesAsync(existingTopic, false, false,
+                policies -> policies.setMaxConsumerPerTopic(7)).get();
+        service.close();
+
+        assertTrue(service.getTopicPoliciesAsync(existingTopic, TopicPoliciesService.GetType.LOCAL_ONLY)
+                .get().isEmpty());
+
+        try {
+            service.updateTopicPoliciesAsync(newTopic, false, false,
+                    policies -> policies.setMaxConsumerPerTopic(9)).get();
+            fail("Expected update after close to fail");
+        } catch (ExecutionException error) {
+            assertTrue(error.getCause() instanceof BrokerServiceException);
+        }
+        assertFalse(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(newTopic, false)).get());
+
+        try {
+            service.deleteTopicPoliciesAsync(existingTopic).get();
+            fail("Expected delete after close to fail");
+        } catch (ExecutionException error) {
+            assertTrue(error.getCause() instanceof BrokerServiceException);
+        }
+        assertTrue(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(existingTopic, false)).get());
     }
 
     @Test
