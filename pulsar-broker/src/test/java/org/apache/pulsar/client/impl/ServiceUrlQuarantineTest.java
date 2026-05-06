@@ -21,10 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashSet;
@@ -41,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.common.net.ServiceURI;
+import org.apache.pulsar.common.util.PortManager;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -56,6 +54,7 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableQuarantine;
     private int brokerServicePort;
     private int webServicePort;
+    private final Set<Integer> reservedPorts = new HashSet<>();
     private static final int UNAVAILABLE_NODES = 20;
     private static final int TIMEOUT_MS = 500;
 
@@ -63,17 +62,18 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     @Override
     protected void setup() throws Exception {
         // Pre-allocate ports for the broker because they must match the URL the test builds below.
-        this.brokerServicePort = allocateFreePort();
-        this.webServicePort = allocateFreePort();
+        this.brokerServicePort = nextLockedFreePort();
+        this.webServicePort = nextLockedFreePort();
         super.internalSetup();
         super.producerBaseSetup();
-        // Create a Pulsar client with some unavailable nodes (port allocated, socket closed —
-        // nothing is bound there during the test).
+        // Build a service URL that includes a bunch of unavailable-node ports. PortManager
+        // hands out ports outside the ephemeral range, so nothing else is going to grab them
+        // and the connection attempts to those addresses will fail as expected.
         StringBuilder binaryServiceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
         StringBuilder httpServiceUrlBuilder = new StringBuilder(pulsar.getWebServiceAddress());
         for (int i = 0; i < UNAVAILABLE_NODES; i++) {
-            binaryServiceUrlBuilder.append(",127.0.0.1:").append(allocateFreePort());
-            httpServiceUrlBuilder.append(",127.0.0.1:").append(allocateFreePort());
+            binaryServiceUrlBuilder.append(",127.0.0.1:").append(nextLockedFreePort());
+            httpServiceUrlBuilder.append(",127.0.0.1:").append(nextLockedFreePort());
         }
         this.binaryServiceUrlWithUnavailableNodes = binaryServiceUrlBuilder.toString();
         this.httpServiceUrlWithUnavailableNodes = httpServiceUrlBuilder.toString();
@@ -100,12 +100,10 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                         .build();
     }
 
-    private static int allocateFreePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    private int nextLockedFreePort() {
+        int port = PortManager.nextLockedFreePort();
+        reservedPorts.add(port);
+        return port;
     }
 
     @Override
@@ -138,6 +136,8 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         if (pulsarClientWithHttpServiceUrlDisableQuarantine != null) {
             pulsarClientWithHttpServiceUrlDisableQuarantine.close();
         }
+        reservedPorts.forEach(PortManager::releaseLockedPort);
+        reservedPorts.clear();
     }
 
     @Test

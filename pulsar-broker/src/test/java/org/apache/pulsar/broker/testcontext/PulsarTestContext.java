@@ -62,6 +62,7 @@ import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
@@ -723,38 +724,36 @@ public class PulsarTestContext implements AutoCloseable {
         protected void handlePreallocatePorts(ServiceConfiguration config) {
             if (super.preallocatePorts) {
                 // Pre-allocate ports for callers that need the port number BEFORE the broker
-                // starts (e.g. to build advertised-listener URLs). We open a ServerSocket on
-                // port 0, take the kernel-assigned port, and close the socket. There is a brief
-                // window where another process could grab the same port; tests that don't need
-                // a pre-known port should leave preallocatePorts=false and bind to 0 directly.
+                // starts (e.g. to build advertised-listener URLs). PortManager hands out ports
+                // outside the ephemeral range, so the kernel won't auto-assign them to other
+                // processes. Tests that don't need a pre-known port should leave
+                // preallocatePorts=false and let the broker bind to 0 directly.
                 config.getBrokerServicePort().ifPresent(portNumber -> {
                     if (portNumber == 0) {
-                        config.setBrokerServicePort(Optional.of(allocateFreePort()));
+                        config.setBrokerServicePort(Optional.of(PortManager.nextLockedFreePort()));
                     }
                 });
                 config.getBrokerServicePortTls().ifPresent(portNumber -> {
                     if (portNumber == 0) {
-                        config.setBrokerServicePortTls(Optional.of(allocateFreePort()));
+                        config.setBrokerServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
                     }
                 });
                 config.getWebServicePort().ifPresent(portNumber -> {
                     if (portNumber == 0) {
-                        config.setWebServicePort(Optional.of(allocateFreePort()));
+                        config.setWebServicePort(Optional.of(PortManager.nextLockedFreePort()));
                     }
                 });
                 config.getWebServicePortTls().ifPresent(portNumber -> {
                     if (portNumber == 0) {
-                        config.setWebServicePortTls(Optional.of(allocateFreePort()));
+                        config.setWebServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
                     }
                 });
-            }
-        }
-
-        private static int allocateFreePort() {
-            try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
-                return socket.getLocalPort();
-            } catch (java.io.IOException e) {
-                throw new java.io.UncheckedIOException(e);
+                registerCloseable(() -> {
+                    config.getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
+                    config.getBrokerServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                    config.getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                    config.getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                });
             }
         }
 

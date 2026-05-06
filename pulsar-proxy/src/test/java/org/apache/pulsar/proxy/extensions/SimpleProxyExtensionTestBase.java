@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.proxy.extensions;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
+import static org.apache.pulsar.common.util.PortManager.releaseLockedPort;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
@@ -29,10 +31,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -93,12 +92,7 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
         public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
             // Pre-allocate a free port: extension handlers need to register a listener at a known
             // address before the proxy calls back into them.
-            int port;
-            try (ServerSocket socket = new ServerSocket(0)) {
-                port = socket.getLocalPort();
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+            int port = nextLockedFreePort();
             this.ports.add(port);
             return Collections.singletonMap(new InetSocketAddress(conf.getBindAddress(), port),
                     new ChannelInitializer<SocketChannel>() {
@@ -125,7 +119,7 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
 
         @Override
         public void close() {
-            ports.clear();
+            ports.removeIf(p -> releaseLockedPort(p));
         }
     }
 

@@ -39,7 +39,6 @@ import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.net.ServerSocket;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -89,6 +88,7 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -949,29 +949,30 @@ public class ModularLoadManagerImplTest {
         config.setClusterName("use");
         // Pre-allocate a port: the test creates a znode at the broker's would-be address before
         // starting the broker, so it needs to know the address up front.
-        int webPort;
-        try (ServerSocket socket = new ServerSocket(0)) {
-            webPort = socket.getLocalPort();
-        }
-        config.setWebServicePort(Optional.of(webPort));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
-        config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        config.setBrokerServicePort(Optional.of(0));
-        PulsarService pulsar = new PulsarService(config);
-        // create znode using different zk-session
-        final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
-                + config.getWebServicePort().get();
-        pulsar1.getLocalMetadataStore()
-                .put(brokerZnode, new byte[0], Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+        int webPort = PortManager.nextLockedFreePort();
         try {
-            pulsar.start();
-            fail("should have failed");
-        } catch (PulsarServerException e) {
-            //Ok.
-        }
+            config.setWebServicePort(Optional.of(webPort));
+            config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
+            config.setBrokerShutdownTimeoutMs(0L);
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+            config.setBrokerServicePort(Optional.of(0));
+            PulsarService pulsar = new PulsarService(config);
+            // create znode using different zk-session
+            final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
+                    + config.getWebServicePort().get();
+            pulsar1.getLocalMetadataStore()
+                    .put(brokerZnode, new byte[0], Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+            try {
+                pulsar.start();
+                fail("should have failed");
+            } catch (PulsarServerException e) {
+                //Ok.
+            }
 
-        pulsar.close();
+            pulsar.close();
+        } finally {
+            PortManager.releaseLockedPort(webPort);
+        }
     }
 
     @Test

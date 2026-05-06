@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.protocol;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
+import static org.apache.pulsar.common.util.PortManager.releaseLockedPort;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -28,10 +30,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
@@ -91,12 +90,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
         public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
             // Pre-allocate a free port: protocol handlers need to register a listener at a known
             // address before the broker calls back into them.
-            int port;
-            try (ServerSocket socket = new ServerSocket(0)) {
-                port = socket.getLocalPort();
-            } catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+            int port = nextLockedFreePort();
             this.ports.add(port);
             return Collections.singletonMap(new InetSocketAddress(conf.getBindAddress(), port),
                     new ChannelInitializer<SocketChannel>() {
@@ -123,7 +117,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
 
         @Override
         public void close() {
-            ports.clear();
+            ports.removeIf(p -> releaseLockedPort(p));
         }
     }
 

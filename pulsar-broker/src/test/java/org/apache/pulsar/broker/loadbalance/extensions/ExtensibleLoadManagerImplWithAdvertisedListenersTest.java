@@ -18,14 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.ServerSocket;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.util.PortManager;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
@@ -50,8 +48,8 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
         super.updateConfig(conf);
         // Pre-allocate ports because advertised listener URLs are baked into config
         // before the broker starts.
-        int privatePulsarPort = allocateFreePort();
-        int publicPulsarPort = allocateFreePort();
+        int privatePulsarPort = PortManager.nextLockedFreePort();
+        int publicPulsarPort = PortManager.nextLockedFreePort();
         conf.setInternalListenerName("internal");
         conf.setBindAddresses("external:pulsar://localhost:" + publicPulsarPort);
         conf.setAdvertisedListeners(
@@ -63,14 +61,6 @@ public class ExtensibleLoadManagerImplWithAdvertisedListenersTest extends Extens
         conf.setWebServicePort(Optional.of(0));
         brokerServiceUrl = conf.getBindAddresses().replaceAll("external:", "");
         return conf;
-    }
-
-    private static int allocateFreePort() {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            return socket.getLocalPort();
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     @DataProvider(name = "isPersistentTopicSubscriptionTypeTest")
