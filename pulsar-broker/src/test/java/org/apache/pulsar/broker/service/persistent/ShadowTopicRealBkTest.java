@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -42,10 +41,10 @@ import org.testng.annotations.Test;
 public class ShadowTopicRealBkTest {
 
     private static final String cluster = "test";
-    // Pass 0 for the ZK port so the kernel picks a free port at bind time. This avoids the race
-    // where PortManager.nextLockedFreePort() reserves a port at the JVM level but another process
-    // grabs it before the bind. The actual bound port is read back via bk.getZookeeperPort().
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0, PortManager::nextLockedFreePort);
+    // Pass 0 for both ZK and bookie ports so the kernel picks free ports at bind time, avoiding
+    // any JVM-vs-OS race on pre-allocated ports. The actual ZK port is read back via
+    // bk.getZookeeperPort().
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0, () -> 0);
     private PulsarService pulsar;
     private PulsarAdmin admin;
 
