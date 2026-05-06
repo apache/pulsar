@@ -201,14 +201,28 @@ public class BacklogQuotaManagerTest {
     }
 
     @BeforeMethod(alwaysRun = true)
-    void createNamespaces() throws PulsarAdminException {
+    void createNamespaces() throws Exception {
         config.setPreciseTimeBasedBacklogQuotaCheck(false);
-        admin.namespaces().createNamespace("prop/ns-quota");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-quota", Sets.newHashSet("usc"), false);
-        admin.namespaces().createNamespace("prop/quotahold");
-        admin.namespaces().setNamespaceReplicationClusters("prop/quotahold", Sets.newHashSet("usc"), false);
-        admin.namespaces().createNamespace("prop/quotaholdasync");
-        admin.namespaces().setNamespaceReplicationClusters("prop/quotaholdasync", Sets.newHashSet("usc"), false);
+        createNamespaceForTest("prop/ns-quota");
+        createNamespaceForTest("prop/quotahold");
+        createNamespaceForTest("prop/quotaholdasync");
+    }
+
+    /**
+     * If a previous test's @AfterMethod timed out before the namespace was fully removed, the
+     * leftover would otherwise cascade as HTTP 409 here and fail every subsequent test.
+     * Force-delete and retry so each test starts with clean namespace state.
+     */
+    private void createNamespaceForTest(String ns) throws Exception {
+        try {
+            admin.namespaces().createNamespace(ns);
+        } catch (PulsarAdminException.ConflictException e) {
+            log.warn().attr("namespace", ns)
+                    .log("Namespace already exists from previous test — force-deleting and recreating");
+            deleteNamespaceWithRetry(ns, true);
+            admin.namespaces().createNamespace(ns);
+        }
+        admin.namespaces().setNamespaceReplicationClusters(ns, Sets.newHashSet("usc"), false);
     }
 
     @AfterMethod(alwaysRun = true)

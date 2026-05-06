@@ -476,23 +476,47 @@ public class LocalBookkeeperEnsemble {
     public void stop() throws Exception {
         if (null != streamStorage) {
             log.debug("Local bk stream storage stopping ...");
-            streamStorage.close();
-        }
-
-        log.debug("Local ZK/BK stopping ...");
-        for (LifecycleComponent bookie : bookieComponents) {
             try {
-                if (bookie != null) {
-                    bookie.close();
-                }
+                streamStorage.close();
             } catch (Exception e) {
-                log.warn().exception(e).log("failed to shutdown bookie");
+                log.warn().exception(e).log("failed to shutdown stream storage");
             }
         }
 
-        zkc.close();
-        zks.shutdown();
-        serverFactory.shutdown();
+        log.debug("Local ZK/BK stopping ...");
+        if (bookieComponents != null) {
+            for (LifecycleComponent bookie : bookieComponents) {
+                try {
+                    if (bookie != null) {
+                        bookie.close();
+                    }
+                } catch (Exception e) {
+                    log.warn().exception(e).log("failed to shutdown bookie");
+                }
+            }
+        }
+
+        if (zkc != null) {
+            try {
+                zkc.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("failed to close zk client");
+            }
+        }
+        if (zks != null) {
+            try {
+                zks.shutdown();
+            } catch (Exception e) {
+                log.warn().exception(e).log("failed to shutdown zk server");
+            }
+        }
+        if (serverFactory != null) {
+            try {
+                serverFactory.shutdown();
+            } catch (Exception e) {
+                log.warn().exception(e).log("failed to shutdown zk server factory");
+            }
+        }
 
         if (zkDataCleanupManager != null) {
             zkDataCleanupManager.shutdown();
@@ -500,7 +524,11 @@ public class LocalBookkeeperEnsemble {
         log.debug("Local ZK/BK stopped");
         for (File managedDir : temporaryDirectories) {
             log.info().attr("directory", managedDir).log("deleting test directory");
-            FileUtils.deleteDirectory(managedDir);
+            try {
+                FileUtils.deleteDirectory(managedDir);
+            } catch (Exception e) {
+                log.warn().attr("directory", managedDir).exception(e).log("failed to delete test directory");
+            }
         }
         temporaryDirectories.clear();
     }

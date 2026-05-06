@@ -1748,6 +1748,15 @@ public class ClientCnx extends PulsarHandler {
         if (!topicListWatchers.isEmpty()) {
             return false;
         }
+        if (!dagWatchSessions.isEmpty()) {
+            return false;
+        }
+        if (!scalableConsumerSessions.isEmpty()) {
+            return false;
+        }
+        if (!scalableTopicsWatchers.isEmpty()) {
+            return false;
+        }
         return true;
     }
 }

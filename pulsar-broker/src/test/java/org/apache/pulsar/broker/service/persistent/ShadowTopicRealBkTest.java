@@ -69,7 +69,11 @@ public class ShadowTopicRealBkTest {
     @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         if (pulsar != null) {
-            pulsar.close();
+            try {
+                pulsar.close();
+            } catch (Exception e) {
+                // best effort cleanup; setup may have failed before pulsar was fully initialized
+            }
         }
         bk.stop();
     }

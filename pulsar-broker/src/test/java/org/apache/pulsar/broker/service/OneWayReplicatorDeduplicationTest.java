@@ -114,6 +114,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
         // For check whether deduplication snapshot has done.
+        config.setBrokerDeduplicationSnapshotIntervalSeconds(1);
         config.setBrokerDeduplicationEntriesInterval(10);
         config.setReplicationStartAt("earliest");
         // To cover more cases, write more than one ledger.

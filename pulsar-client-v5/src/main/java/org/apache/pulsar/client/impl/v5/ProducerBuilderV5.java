@@ -29,8 +29,8 @@ import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
 import org.apache.pulsar.client.api.v5.config.ChunkingPolicy;
 import org.apache.pulsar.client.api.v5.config.CompressionPolicy;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.ProducerAccessMode;
+import org.apache.pulsar.client.api.v5.config.ProducerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
@@ -156,12 +156,13 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilderV5<T> encryptionPolicy(EncryptionPolicy policy) {
-        conf.setCryptoKeyReader(CryptoKeyReaderAdapter.wrap(policy.keyReader()));
+    public ProducerBuilderV5<T> encryptionPolicy(ProducerEncryptionPolicy policy) {
+        conf.setCryptoKeyReader(CryptoKeyReaderAdapter.forProducer(policy.publicKeyProvider()));
         conf.setEncryptionKeys(new HashSet<>(policy.keyNames()));
-        conf.setCryptoFailureAction(
-                org.apache.pulsar.client.api.ProducerCryptoFailureAction.valueOf(
-                        policy.failureAction().name()));
+        conf.setCryptoFailureAction(switch (policy.failureAction()) {
+            case FAIL -> org.apache.pulsar.client.api.ProducerCryptoFailureAction.FAIL;
+            case SEND_UNENCRYPTED -> org.apache.pulsar.client.api.ProducerCryptoFailureAction.SEND;
+        });
         return this;
     }
 

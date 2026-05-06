@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.Position;
 import org.awaitility.Awaitility;
 
 public class BrokerServicePersistInternalMethodInvoker {
@@ -41,5 +42,9 @@ public class BrokerServicePersistInternalMethodInvoker {
             }
             return true;
         });
+    }
+
+    public static Object newInFlightTaskCtx(PersistentReplicator replicator, Position readPos, int readingEntries) {
+        return new PersistentReplicator.InFlightTask(readPos, readingEntries, replicator.getReplicatorId());
     }
 }

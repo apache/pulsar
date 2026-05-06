@@ -111,7 +111,7 @@ public class ConsumerImplTest {
         ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
         Assert.assertEquals(backoff.getMax().toMillis(),
                 TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getMaxBackoffIntervalNanos()));
-        Assert.assertEquals(backoff.next().toMillis(),
+        Assert.assertEquals(backoff.getInitial().toMillis(),
                 TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 

@@ -22,8 +22,8 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 
@@ -194,9 +194,9 @@ public interface QueueConsumerBuilder<T> {
      *
      * @param policy the encryption policy to use
      * @return this builder instance for chaining
-     * @see EncryptionPolicy#forConsumer
+     * @see ConsumerEncryptionPolicy#builder()
      */
-    QueueConsumerBuilder<T> encryptionPolicy(EncryptionPolicy policy);
+    QueueConsumerBuilder<T> encryptionPolicy(ConsumerEncryptionPolicy policy);
 
 
     // --- Misc ---
