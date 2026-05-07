@@ -180,6 +180,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
         admin.namespaces().createNamespace(myNamespaceV1);
         admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
+        // Acquire namespace bundle ownership so tests that call getOrCreateTopic() directly succeed.
+        // Without this, services that don't create a __change_events reader (e.g. MetadataStoreTopicPoliciesService)
+        // leave the bundle unowned after namespace recreation and the first broker-side topic load fails.
+        admin.lookups().lookupTopic(testTopic + "-partition-0");
     }
 
     @AfterMethod
@@ -539,8 +543,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "clientRequestType")
     public void testPriorityOfGlobalPolicies(String clientRequestType) throws Exception {
-        final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
         final JerseyClient httpClient = JerseyClientBuilder.createClient();
         // create topic and load it up.
         final String namespace = myNamespace;
@@ -620,8 +624,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "clientRequestType")
     public void testPriorityOfGlobalPolicies2(String clientRequestType) throws Exception {
-        final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
         final JerseyClient httpClient = JerseyClientBuilder.createClient();
         // create topic and load it up.
         final String namespace = myNamespace;
@@ -707,8 +711,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final TopicName topicName = TopicName.get(topic);
         admin.topics().createNonPartitionedTopic(topic);
         pulsarClient.newProducer().topic(topic).create().close();
-        final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
 
         // Set non-global policy of the limitation of max consumers.
         // Set global policy of the limitation of max producers.
@@ -749,8 +753,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         final TopicName topicName = TopicName.get(topic);
         admin.topics().createNonPartitionedTopic(topic);
         pulsarClient.newProducer().topic(topic).create().close();
-        final SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
 
         // Set non-global policy of the limitation of max consumers.
         // Set global policy of the persistence policies.
@@ -3858,8 +3862,13 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     private void triggerAndWaitNewTopicCompaction(String topicName) throws Exception {
-        PersistentTopic tp =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().get();
+        Optional<Topic> topicOpt =
+                pulsar.getBrokerService().getTopic(topicName, false).join();
+        if (topicOpt.isEmpty()) {
+            // Topic doesn't exist (e.g., when not using system-topic-based policies service), nothing to compact.
+            return;
+        }
+        PersistentTopic tp = (PersistentTopic) topicOpt.get();
         // Wait for the old task finish.
         Awaitility.await().untilAsserted(() -> {
             CompletableFuture<Long> compactionTask = WhiteboxImpl.getInternalState(tp, "currentCompaction");
@@ -3878,7 +3887,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
      * It is not a thread safety method, something will go to a wrong pointer if there is a task is trying to load a
      * topic policies.
      */
-    private void clearTopicPoliciesCache() {
+    protected void clearTopicPoliciesCache() {
         TopicPoliciesService topicPoliciesService = pulsar.getTopicPoliciesService();
         if (topicPoliciesService instanceof TopicPoliciesService.TopicPoliciesServiceDisabled) {
             return;
@@ -4108,8 +4117,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                         .isNull());
         admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(1,
                 2));
-        SystemTopicBasedTopicPoliciesService topicPoliciesService =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        TopicPoliciesService topicPoliciesService =
+                pulsar.getTopicPoliciesService();
 
         // check global topic policies can be added correctly.
         Awaitility.await().untilAsserted(() -> assertNotNull(

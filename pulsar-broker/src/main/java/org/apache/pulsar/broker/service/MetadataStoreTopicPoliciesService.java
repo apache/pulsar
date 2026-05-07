@@ -257,6 +257,16 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
     }
 
     @VisibleForTesting
+    public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesDirectFromStore(TopicName topicName,
+                                                                                      boolean isGlobal) {
+        TopicName partitionedTopicName = normalizeTopicName(topicName);
+        String path = pathFor(partitionedTopicName, isGlobal);
+        MetadataCache<TopicPolicies> c = cache(isGlobal);
+        c.invalidate(path);
+        return c.get(path).thenApply(opt -> opt.map(p -> cloneWithScope(p, isGlobal)));
+    }
+
+    @VisibleForTesting
     static String pathFor(TopicName topicName, boolean isGlobalPolicy) {
         TopicName partitionedTopicName = normalizeTopicName(topicName);
         return (isGlobalPolicy ? GLOBAL_POLICIES_ROOT : LOCAL_POLICIES_ROOT)

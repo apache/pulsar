@@ -72,6 +72,14 @@ public class TopicPolicyTestUtils {
     public static Optional<TopicPolicies> getTopicPoliciesBypassCache(TopicPoliciesService topicPoliciesService,
                                                                       TopicName topicName, boolean isGlobal)
             throws Exception {
+        if (topicPoliciesService instanceof LegacyAwareTopicPoliciesService legacyService) {
+            TopicPoliciesService resolved =
+                    legacyService.resolveServiceForTesting(topicName.getNamespaceObject()).get();
+            return getTopicPoliciesBypassCache(resolved, topicName, isGlobal);
+        }
+        if (topicPoliciesService instanceof MetadataStoreTopicPoliciesService metadataStoreService) {
+            return metadataStoreService.getTopicPoliciesDirectFromStore(topicName, isGlobal).get();
+        }
         @Cleanup final var reader = ((SystemTopicBasedTopicPoliciesService) topicPoliciesService)
                 .getNamespaceEventsSystemTopicFactory()
                 .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject())

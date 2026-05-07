@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -106,6 +107,11 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
 
     private CompletableFuture<TopicPoliciesService> resolveService(NamespaceName namespace) {
         return isLegacy(namespace).thenApply(isLegacy -> isLegacy ? systemTopicService : configuredService);
+    }
+
+    @VisibleForTesting
+    public CompletableFuture<TopicPoliciesService> resolveServiceForTesting(NamespaceName namespace) {
+        return resolveService(namespace);
     }
 
     private CompletableFuture<Boolean> isLegacy(NamespaceName namespace) {
