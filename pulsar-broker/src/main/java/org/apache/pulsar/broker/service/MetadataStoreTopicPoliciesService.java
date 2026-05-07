@@ -48,8 +48,8 @@ import org.jspecify.annotations.Nullable;
 @CustomLog
 public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
 
-    private static final String GLOBAL_POLICIES_ROOT = "/admin/topic-policies/global";
-    private static final String LOCAL_POLICIES_ROOT = "/admin/topic-policies/local";
+    public static final String GLOBAL_POLICIES_ROOT = "/admin/topic-policies/global";
+    public static final String LOCAL_POLICIES_ROOT = "/admin/topic-policies/local";
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Map<TopicName, List<TopicPolicyListener>> listeners = new ConcurrentHashMap<>();
