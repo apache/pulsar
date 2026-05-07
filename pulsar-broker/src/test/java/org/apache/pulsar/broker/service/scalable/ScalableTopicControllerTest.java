@@ -47,7 +47,6 @@ import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
