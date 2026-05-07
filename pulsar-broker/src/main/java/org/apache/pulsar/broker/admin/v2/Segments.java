@@ -41,6 +41,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -98,7 +99,11 @@ public class Segments extends AdminResource {
 
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validateTopicOwnershipAsync(segmentTopic, authoritative))
-                .thenCompose(__ -> pulsar().getBrokerService().getOrCreateTopic(segmentTopic.toString()))
+                // Explicit create — segments don't go through the auto-create policy
+                // (BrokerService.isAllowAutoTopicCreationAsync forbids segment auto-create).
+                .thenCompose(__ -> pulsar().getBrokerService()
+                        .getTopic(segmentTopic.toString(), true)
+                        .thenApply(java.util.Optional::get))
                 .thenCompose(topic -> {
                     log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
                             .log("Created segment topic");
@@ -390,7 +395,8 @@ public class Segments extends AdminResource {
                     if (optTopic.isEmpty()) {
                         return CompletableFuture.completedFuture(null);
                     }
-                    return optTopic.get().delete().thenApply(__ -> null);
+                    Topic t = optTopic.get();
+                    return (force ? t.deleteForcefully() : t.delete()).thenApply(__ -> null);
                 })
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
