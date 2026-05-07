@@ -617,9 +617,13 @@ public class ScalableTopicController {
      *       cursor seeks to {@code timestamp}.</li>
      * </ul>
      *
-     * <p>Per-segment failures are surfaced (the call fails-fast). Subscription-not-found
-     * on a segment (e.g. cursor not yet materialised) is tolerated as success — cursor
-     * creation propagates lazily and the next seek will land it.
+     * <p>Per-segment failures are surfaced (the call fails-fast). The only tolerated
+     * outcome is {@code 404 Not Found} from the segment endpoint, which the segment
+     * REST resource emits exclusively for "subscription not present on this segment"
+     * (e.g. the cursor hasn't been materialised yet — it will propagate lazily and
+     * the next seek will land it). Transient unloads / ownership churn surface as
+     * {@code 503} from the segment endpoint and propagate to the caller, who can
+     * retry the parent-level operation.
      */
     public CompletableFuture<Void> seekSubscription(String subscription, long timestampMs) {
         checkLeader();
@@ -670,7 +674,10 @@ public class ScalableTopicController {
                                 org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException
                                 .NotFoundException) {
-                            // No cursor on this segment yet — nothing to seek. Tolerated.
+                            // 404 from the segment endpoint == "subscription not present
+                            // on this segment" (the segment endpoint uses 503 for
+                            // "topic not loaded"). The cursor will propagate lazily;
+                            // tolerated.
                             return null;
                         }
                         throw org.apache.pulsar.common.util.FutureUtil.wrapToCompletionException(cause);
@@ -692,6 +699,8 @@ public class ScalableTopicController {
                                 org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException
                                 .NotFoundException) {
+                            // Subscription not present on this segment — tolerated.
+                            // (See seek path for the 404-vs-503 contract.)
                             return null;
                         }
                         throw org.apache.pulsar.common.util.FutureUtil.wrapToCompletionException(cause);

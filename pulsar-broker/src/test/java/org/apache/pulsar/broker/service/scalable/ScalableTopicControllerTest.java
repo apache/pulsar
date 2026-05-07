@@ -553,6 +553,67 @@ public class ScalableTopicControllerTest {
                         org.mockito.ArgumentMatchers.eq("sub-a"));
     }
 
+    /**
+     * 404 from a per-segment seek means "subscription not present on that segment" —
+     * the controller tolerates this as success (cursor will materialise lazily).
+     */
+    @Test
+    public void testSeekTolerates404SubscriptionNotFound() throws Exception {
+        when(scalableTopics.seekSegmentSubscriptionAsync(anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.failedFuture(
+                        new org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException(
+                                new RuntimeException("Subscription not found"),
+                                "Subscription not found", 404)));
+        controller.initialize().get();
+
+        // Should not throw — every segment's 404 is swallowed.
+        controller.seekSubscription("sub-a", System.currentTimeMillis()).get();
+    }
+
+    /**
+     * 503 from the segment endpoint == "topic not loaded yet". This is a transient
+     * unload (e.g. ownership churn); the controller MUST surface it so the caller can
+     * retry the parent-level operation, instead of silently skipping segments.
+     */
+    @Test
+    public void testSeekPropagates503TransientUnload() throws Exception {
+        org.apache.pulsar.client.admin.PulsarAdminException unavailable =
+                new org.apache.pulsar.client.admin.PulsarAdminException(
+                        new RuntimeException("Service Unavailable"),
+                        "Segment topic not loaded", 503);
+        when(scalableTopics.seekSegmentSubscriptionAsync(anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.failedFuture(unavailable));
+        controller.initialize().get();
+
+        java.util.concurrent.ExecutionException ex =
+                org.testng.Assert.expectThrows(java.util.concurrent.ExecutionException.class,
+                        () -> controller.seekSubscription("sub-a", System.currentTimeMillis()).get());
+        Throwable cause = ex.getCause() instanceof java.util.concurrent.CompletionException
+                ? ex.getCause().getCause() : ex.getCause();
+        assertTrue(cause instanceof org.apache.pulsar.client.admin.PulsarAdminException,
+                "expected 503 PulsarAdminException to propagate, got " + cause);
+    }
+
+    /** Same contract as seek: 503 from a per-segment clear-backlog must propagate. */
+    @Test
+    public void testClearBacklogPropagates503TransientUnload() throws Exception {
+        org.apache.pulsar.client.admin.PulsarAdminException unavailable =
+                new org.apache.pulsar.client.admin.PulsarAdminException(
+                        new RuntimeException("Service Unavailable"),
+                        "Segment topic not loaded", 503);
+        when(scalableTopics.clearSegmentSubscriptionBacklogAsync(anyString(), anyString()))
+                .thenReturn(CompletableFuture.failedFuture(unavailable));
+        controller.initialize().get();
+
+        java.util.concurrent.ExecutionException ex =
+                org.testng.Assert.expectThrows(java.util.concurrent.ExecutionException.class,
+                        () -> controller.clearBacklog("sub-a").get());
+        Throwable cause = ex.getCause() instanceof java.util.concurrent.CompletionException
+                ? ex.getCause().getCause() : ex.getCause();
+        assertTrue(cause instanceof org.apache.pulsar.client.admin.PulsarAdminException,
+                "expected 503 PulsarAdminException to propagate, got " + cause);
+    }
+
     // --- Sealed-segment GC ---
 
     /**

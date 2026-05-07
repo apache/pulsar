@@ -262,10 +262,11 @@ public class Segments extends AdminResource {
                 .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(segmentTopic.toString()))
                 .thenCompose(optTopic -> {
                     if (optTopic.isEmpty()) {
-                        // Segment topic not loaded → no cursor to reset. Surfaces as 404 so
-                        // callers can retry once the segment owner has loaded it (matches
-                        // the backlog-endpoint contract).
-                        throw new RestException(Response.Status.NOT_FOUND,
+                        // Segment topic not loaded on this owner — could be ownership
+                        // churn or a transient unload. 503 so the caller retries (and so
+                        // the parent-topic seek can't conflate this with the
+                        // subscription-not-found case below, which is tolerated).
+                        throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
                                 "Segment topic not loaded: " + segmentTopic);
                     }
                     var sub = optTopic.get().getSubscription(subscription);
@@ -273,7 +274,24 @@ public class Segments extends AdminResource {
                         throw new RestException(Response.Status.NOT_FOUND,
                                 "Subscription not found on segment: " + subscription);
                     }
-                    return sub.resetCursor(timestampMs);
+                    return sub.resetCursor(timestampMs)
+                            .exceptionally(ex -> {
+                                Throwable cause = ex instanceof java.util.concurrent.CompletionException
+                                        ? ex.getCause() : ex;
+                                if (cause instanceof org.apache.pulsar.broker.service.BrokerServiceException
+                                        .SubscriptionInvalidCursorPosition) {
+                                    // Empty managed ledger — no entries to seek to. The
+                                    // cursor is already at the only valid position, so this
+                                    // is a no-op (e.g. a freshly-split active child segment
+                                    // that hasn't received any messages yet).
+                                    log.debug().attr("segment", segmentTopic)
+                                            .attr("subscription", subscription)
+                                            .log("Empty segment, treating seek as no-op");
+                                    return null;
+                                }
+                                throw org.apache.pulsar.common.util.FutureUtil
+                                        .wrapToCompletionException(cause);
+                            });
                 })
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -317,7 +335,10 @@ public class Segments extends AdminResource {
                 .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(segmentTopic.toString()))
                 .thenCompose(optTopic -> {
                     if (optTopic.isEmpty()) {
-                        throw new RestException(Response.Status.NOT_FOUND,
+                        // 503 vs 404 — see the rationale on the seek endpoint above. The
+                        // distinction lets the parent-topic clear-backlog tolerate
+                        // subscription-not-found while still surfacing transient unloads.
+                        throw new RestException(Response.Status.SERVICE_UNAVAILABLE,
                                 "Segment topic not loaded: " + segmentTopic);
                     }
                     var sub = optTopic.get().getSubscription(subscription);
