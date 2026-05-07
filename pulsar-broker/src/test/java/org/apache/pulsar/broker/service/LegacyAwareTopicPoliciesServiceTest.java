@@ -22,21 +22,38 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.time.Duration;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class LegacyAwareTopicPoliciesServiceTest extends MetadataStoreTopicPoliciesServiceTest{
+public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
+    @BeforeClass
     @Override
-    protected boolean isLegacyTopicPoliciesService() {
-        return true;
+    protected void setup() throws Exception {
+        conf.setTopicPoliciesServiceClassName(MetadataStoreTopicPoliciesService.class.getName());
+        super.internalSetup();
+        super.setupDefaultTenantAndNamespace();
+        assertTrue(pulsar.getTopicPoliciesService() instanceof LegacyAwareTopicPoliciesService);
+    }
+
+    @AfterClass
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
     }
 
     @Test
@@ -179,5 +196,40 @@ public class LegacyAwareTopicPoliciesServiceTest extends MetadataStoreTopicPolic
 
     private PersistentTopic getPersistentTopic(String topic) throws Exception {
         return (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().orElseThrow();
+    }
+
+    @Test
+    public void testListenerTriggered() throws Exception {
+        final var topic = TopicName.get("test-global-policies-not-triggered").toString();
+        final var topicName = TopicName.get(topic);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        final var compactionThreshold = new AtomicLong(0);
+        pulsar.getTopicPoliciesService().registerListener(topicName, policies ->
+                Optional.ofNullable(policies).map(TopicPolicies::getCompactionThreshold).ifPresentOrElse(
+                        compactionThreshold::set, () -> compactionThreshold.set(-1)));
+
+        // Verify Created events are handled
+        admin.topicPolicies(false).setCompactionThreshold(topic, 100);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), 100));
+
+        admin.topicPolicies(true).setCompactionThreshold(topic, 200);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), 200));
+
+        // Verify Modified events are handled
+        admin.topicPolicies(false).setCompactionThreshold(topic, 300);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), 300));
+
+        admin.topicPolicies(true).setCompactionThreshold(topic, 400);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), 400));
+
+        // Verify Deleted events are handled
+        admin.topicPolicies(false).deleteTopicPolicies(topic);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(compactionThreshold.get(), -1));
     }
 }
