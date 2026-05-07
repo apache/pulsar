@@ -175,6 +175,107 @@ public class Segments extends AdminResource {
                 });
     }
 
+    @PUT
+    @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}")
+    @ApiOperation(value = "Create a subscription cursor on the segment topic at the earliest"
+            + " position. Super-user only.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Subscription cursor created (or already existed)"),
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 403, message = "This operation requires super-user access"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void createSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify the parent topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @PathParam("descriptor") String descriptor,
+            @ApiParam(value = "Subscription name", required = true)
+            @PathParam("subscription") String subscription,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
+
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateTopicOwnershipAsync(segmentTopic, authoritative))
+                .thenCompose(__ -> pulsar().getBrokerService().getOrCreateTopic(segmentTopic.toString()))
+                .thenCompose(topic -> topic.createSubscription(subscription,
+                        CommandSubscribe.InitialPosition.Earliest, false, null))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
+                            .attr("subscription", subscription)
+                            .log("Created subscription on segment topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
+                            .attr("subscription", subscription)
+                            .exception(ex).log("Failed to create subscription on segment");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}")
+    @ApiOperation(value = "Delete a subscription cursor on the segment topic. Super-user only.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Subscription cursor deleted (or never existed)"),
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 403, message = "This operation requires super-user access"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void deleteSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify the parent topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @PathParam("descriptor") String descriptor,
+            @ApiParam(value = "Subscription name", required = true)
+            @PathParam("subscription") String subscription,
+            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
+
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateTopicOwnershipAsync(segmentTopic, authoritative))
+                .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(segmentTopic.toString()))
+                .thenCompose(optTopic -> {
+                    if (optTopic.isEmpty()) {
+                        // Topic not loaded → no cursor to delete. Idempotent success.
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    var sub = optTopic.get().getSubscription(subscription);
+                    if (sub == null) {
+                        // Subscription doesn't exist on this segment — idempotent success.
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return sub.delete();
+                })
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
+                            .attr("subscription", subscription)
+                            .log("Deleted subscription on segment topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
+                            .attr("subscription", subscription)
+                            .exception(ex).log("Failed to delete subscription on segment");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}/backlog")
     @ApiOperation(value = "Number of unconsumed entries in the segment topic for the "

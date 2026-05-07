@@ -117,13 +117,13 @@ public class ScalableTopicControllerTest {
         // Default: all admin ops succeed.
         when(topics.getSubscriptionsAsync(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(java.util.List.of()));
-        when(topics.createSubscriptionAsync(anyString(), anyString(), any(MessageId.class)))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        when(topics.deleteSubscriptionAsync(anyString(), anyString(), anyBoolean()))
-                .thenReturn(CompletableFuture.completedFuture(null));
         when(scalableTopics.createSegmentAsync(anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(scalableTopics.terminateSegmentAsync(anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(scalableTopics.createSegmentSubscriptionAsync(anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(scalableTopics.deleteSegmentSubscriptionAsync(anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
         controller = newController(topicName);
@@ -288,9 +288,9 @@ public class ScalableTopicControllerTest {
                 resources.getSubscriptionAsync(topicName, "sub-stream").get();
         assertTrue(persisted.isPresent());
         assertEquals(persisted.get().type(), SubscriptionType.STREAM);
-        // Propagated to every active segment via admin.topics().createSubscriptionAsync().
-        verify(topics, org.mockito.Mockito.times(INITIAL_SEGMENTS))
-                .createSubscriptionAsync(anyString(), anyString(), any(MessageId.class));
+        // Propagated to every active segment via the segment-subscription admin endpoint.
+        verify(scalableTopics, org.mockito.Mockito.times(INITIAL_SEGMENTS))
+                .createSegmentSubscriptionAsync(anyString(), anyString());
     }
 
     @Test
@@ -321,8 +321,8 @@ public class ScalableTopicControllerTest {
         controller.deleteSubscription("sub-a").get();
         assertFalse(resources.getSubscriptionAsync(topicName, "sub-a").get().isPresent());
         // Propagated a delete to every segment (all segments incl. any sealed ones).
-        verify(topics, org.mockito.Mockito.atLeast(INITIAL_SEGMENTS))
-                .deleteSubscriptionAsync(anyString(), anyString(), anyBoolean());
+        verify(scalableTopics, org.mockito.Mockito.atLeast(INITIAL_SEGMENTS))
+                .deleteSegmentSubscriptionAsync(anyString(), anyString());
     }
 
     @Test

@@ -711,11 +711,11 @@ public class ScalableTopicController {
     }
 
     private CompletableFuture<Void> createSubscriptionOnSegment(SegmentInfo segment, String subscription) {
-        String persistentName = toSegmentUnderlyingPersistentName(segment);
+        String segmentTopicName = toSegmentPersistentName(segment);
         try {
             return brokerService.getPulsar().getAdminClient()
-                    .topics().createSubscriptionAsync(persistentName, subscription,
-                            org.apache.pulsar.client.api.MessageId.earliest)
+                    .scalableTopics()
+                    .createSegmentSubscriptionAsync(segmentTopicName, subscription)
                     .exceptionally(ex -> {
                         Throwable cause = org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException.ConflictException) {
@@ -730,17 +730,18 @@ public class ScalableTopicController {
     }
 
     private CompletableFuture<Void> deleteSubscriptionOnSegment(SegmentInfo segment, String subscription) {
-        String persistentName = toSegmentUnderlyingPersistentName(segment);
+        String segmentTopicName = toSegmentPersistentName(segment);
         try {
             return brokerService.getPulsar().getAdminClient()
-                    .topics().deleteSubscriptionAsync(persistentName, subscription, true)
+                    .scalableTopics()
+                    .deleteSegmentSubscriptionAsync(segmentTopicName, subscription)
                     .exceptionally(ex -> {
                         Throwable cause = org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException) {
                             return null;
                         }
                         log.warn().attr("subscription", subscription)
-                                .attr("segment", persistentName).exceptionMessage(cause)
+                                .attr("segment", segmentTopicName).exceptionMessage(cause)
                                 .log("Failed to delete subscription from segment");
                         return null;
                     });
@@ -1094,19 +1095,6 @@ public class ScalableTopicController {
         TopicName segmentTopicName = SegmentTopicName.fromParent(
                 topicName, segment.hashRange(), segment.segmentId());
         return segmentTopicName.toString();
-    }
-
-    /**
-     * Return the {@code persistent://} form of a segment's underlying managed-ledger topic,
-     * suitable for the standard {@link org.apache.pulsar.client.admin.Topics} admin API.
-     * The segment-owning broker is discovered by the admin client's normal bundle routing.
-     */
-    private String toSegmentUnderlyingPersistentName(SegmentInfo segment) {
-        TopicName segmentTopicName = SegmentTopicName.fromParent(
-                topicName, segment.hashRange(), segment.segmentId());
-        return "persistent://" + segmentTopicName.getTenant() + "/"
-                + segmentTopicName.getNamespacePortion() + "/"
-                + segmentTopicName.getLocalName();
     }
 
     private CompletableFuture<Void> terminateSegmentTopic(String segmentTopicName) {
