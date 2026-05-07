@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata.api.extended;
 
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -46,35 +47,35 @@ public interface MetadataStoreExtended extends MetadataStore {
     }
 
     /**
-     * Put a new value for a given key.
+     * Legacy {@code EnumSet<CreateOption>} form of {@link MetadataStore#put(String, byte[], Optional, Set)}.
      *
-     * The caller can specify an expected version to be atomically checked against the current version of the stored
-     * data.
-     *
-     * The future will return the {@link Stat} object associated with the newly inserted value.
-     *
+     * <p>Translates the {@link CreateOption} set into the canonical {@code Set<Option>} form and
+     * forwards to {@link MetadataStore#put(String, byte[], Optional, Set)}.
      *
      * @param path
-     *            the path of the key to delete from the store
+     *            the path of the key
      * @param value
-     *            the value to
+     *            the value to store
      * @param expectedVersion
-     *            if present, the version will have to match with the currently stored value for the operation to
-     *            succeed. Use -1 to enforce a non-existing value.
+     *            if present, the version will have to match for the operation to succeed. Use -1 to enforce a
+     *            non-existing value.
      * @param options
-     *            a set of {@link CreateOption} to use if the the key-value pair is being created
+     *            a set of {@link CreateOption} to use if the key-value pair is being created
      * @throws BadVersionException
      *             if the expected version doesn't match the actual version of the data
      * @return a future to track the async request
      */
-    CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
-            EnumSet<CreateOption> options);
+    default CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
+            EnumSet<CreateOption> options) {
+        return put(path, value, expectedVersion, toOptions(options, null));
+    }
 
     /**
-     * Put a new value for a given key with secondary index associations.
+     * Legacy {@code EnumSet<CreateOption>} + {@code Map<String,String>} form of
+     * {@link MetadataStore#put(String, byte[], Optional, Set)}.
      *
-     * <p>Secondary indexes are hints: stores that don't support them simply ignore them
-     * and delegate to the regular {@link #put(String, byte[], Optional, EnumSet)} method.
+     * <p>Translates the inputs into the canonical {@code Set<Option>} form and forwards to
+     * {@link MetadataStore#put(String, byte[], Optional, Set)}.
      *
      * @param path              the path of the key
      * @param value             the value to store
@@ -86,41 +87,34 @@ public interface MetadataStoreExtended extends MetadataStore {
      */
     default CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
             EnumSet<CreateOption> options, Map<String, String> secondaryIndexes) {
-        return put(path, value, expectedVersion, options);
+        return put(path, value, expectedVersion, toOptions(options, secondaryIndexes));
     }
 
     /**
-     * Override of {@link MetadataStore#put(String, byte[], Optional, Set)} that translates {@link Option}
-     * values into the legacy {@code EnumSet<CreateOption>} + {@code Map<String,String> secondaryIndexes} form.
-     *
-     * <p>Recognized options: {@link Option.Ephemeral}, {@link Option.Sequential},
-     * {@link Option.SecondaryIndex}, {@link Option.PartitionKey}. The partition key is currently
-     * ignored on stores that haven't yet wired it through; sharded backends override this method to
-     * thread it down. Pass {@link Set#of()} for no options.
+     * Translate the legacy {@code EnumSet<CreateOption>} + {@code Map<String,String>} form into the
+     * canonical {@code Set<Option>} form.
      */
-    @Override
-    default CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
-            Set<Option> opts) {
-        EnumSet<CreateOption> legacyOpts = EnumSet.noneOf(CreateOption.class);
-        Map<String, String> secondaryIndexes = null;
-        if (opts != null) {
-            for (Option o : opts) {
-                if (o == Option.Ephemeral.INSTANCE) {
-                    legacyOpts.add(CreateOption.Ephemeral);
-                } else if (o == Option.Sequential.INSTANCE) {
-                    legacyOpts.add(CreateOption.Sequential);
-                } else if (o instanceof Option.SecondaryIndex si) {
-                    if (secondaryIndexes == null) {
-                        secondaryIndexes = new java.util.HashMap<>();
-                    }
-                    secondaryIndexes.put(si.indexName(), si.secondaryKey());
-                }
+    private static Set<Option> toOptions(EnumSet<CreateOption> options, Map<String, String> secondaryIndexes) {
+        boolean hasOptions = options != null && !options.isEmpty();
+        boolean hasIndexes = secondaryIndexes != null && !secondaryIndexes.isEmpty();
+        if (!hasOptions && !hasIndexes) {
+            return Set.of();
+        }
+        Set<Option> result = new HashSet<>();
+        if (hasOptions) {
+            if (options.contains(CreateOption.Ephemeral)) {
+                result.add(Option.Ephemeral.INSTANCE);
+            }
+            if (options.contains(CreateOption.Sequential)) {
+                result.add(Option.Sequential.INSTANCE);
             }
         }
-        if (secondaryIndexes == null) {
-            return put(path, value, expectedVersion, legacyOpts);
+        if (hasIndexes) {
+            for (Map.Entry<String, String> e : secondaryIndexes.entrySet()) {
+                result.add(new Option.SecondaryIndex(e.getKey(), e.getValue()));
+            }
         }
-        return put(path, value, expectedVersion, legacyOpts, secondaryIndexes);
+        return result;
     }
 
     /**

@@ -28,10 +28,11 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
@@ -56,7 +57,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException
 import org.apache.pulsar.metadata.api.MetadataStoreException.ContentDeserializationException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
@@ -263,9 +264,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                     }
 
                     final T finalNewValue = newValueObj;
-                    return putWithIndexes(path, newValue, Optional.of(expectedVersion),
-                                    EnumSet.noneOf(CreateOption.class),
-                                    indexExtractor.apply(finalNewValue))
+                    return store.put(path, newValue, Optional.of(expectedVersion),
+                                    toOptions(indexExtractor.apply(finalNewValue)))
                             .thenAccept(__ -> refresh(path))
                             .thenApply(__ -> finalNewValue);
                 }, executor), path);
@@ -292,9 +292,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     public CompletableFuture<Void> create(String path, T value,
                                           Function<T, Map<String, String>> indexExtractor) {
         final var future = new CompletableFuture<Void>();
-        serialize(path, value).thenCompose(content -> putWithIndexes(
-                        path, content, Optional.of(-1L), EnumSet.noneOf(CreateOption.class),
-                        indexExtractor.apply(value)))
+        serialize(path, value).thenCompose(content -> store.put(
+                        path, content, Optional.of(-1L), toOptions(indexExtractor.apply(value))))
             // Make sure we have the value cached before the operation is completed
             // In addition to caching the value, we need to add a watch on the path,
             // so when/if it changes on any other node, we are notified and we can
@@ -313,28 +312,23 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         return future;
     }
 
-    /**
-     * Route writes through the extended store API when secondary indexes are present and
-     * the underlying store supports them. Falls back to the base {@code put} otherwise.
-     */
-    private CompletableFuture<?> putWithIndexes(String path, byte[] content, Optional<Long> version,
-                                                EnumSet<CreateOption> options,
-                                                Map<String, String> indexes) {
-        if (storeExtended != null && indexes != null && !indexes.isEmpty()) {
-            return storeExtended.put(path, content, version, options, indexes);
+    /** Build a {@link Set} of {@link Option.SecondaryIndex} entries from an {@code indexName -> key} map. */
+    private static Set<Option> toOptions(Map<String, String> indexes) {
+        if (indexes == null || indexes.isEmpty()) {
+            return Set.of();
         }
-        return store.put(path, content, version);
+        Set<Option> opts = new HashSet<>();
+        for (Map.Entry<String, String> e : indexes.entrySet()) {
+            opts.add(new Option.SecondaryIndex(e.getKey(), e.getValue()));
+        }
+        return opts;
     }
 
     @Override
-    public CompletableFuture<Void> put(String path, T value, EnumSet<CreateOption> options) {
-        return serialize(path, value).thenCompose(bytes -> {
-            if (storeExtended != null) {
-                return storeExtended.put(path, bytes, Optional.empty(), options);
-            } else {
-                return store.put(path, bytes, Optional.empty());
-            }
-        }).thenAccept(__ -> {
+    public CompletableFuture<Void> put(String path, T value, Set<Option> opts) {
+        return serialize(path, value).thenCompose(bytes ->
+                store.put(path, bytes, Optional.empty(), opts)
+        ).thenAccept(__ -> {
             log.debug().attr("path", path).log("Refreshing path after put operation");
             refresh(path);
         });

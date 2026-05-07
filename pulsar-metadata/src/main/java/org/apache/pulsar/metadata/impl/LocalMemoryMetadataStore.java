@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.impl;
 
 import com.google.common.collect.MapMaker;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,8 +44,9 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 @CustomLog
@@ -156,7 +156,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                            EnumSet<CreateOption> options) {
+                                            Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -164,14 +164,15 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             boolean hasVersion = optExpectedVersion.isPresent();
             int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
-            if (options.contains(CreateOption.Sequential)) {
+            if (OptionsHelper.isSequential(opts)) {
                 path += Long.toString(sequentialIdGenerator.getAndIncrement());
             }
+            boolean ephemeral = OptionsHelper.isEphemeral(opts);
 
             long now = System.currentTimeMillis();
 
             if (hasVersion && expectedVersion == -1) {
-                Value newValue = new Value(0, data, now, now, options.contains(CreateOption.Ephemeral));
+                Value newValue = new Value(0, data, now, now, ephemeral);
                 Value existingValue = map.putIfAbsent(path, newValue);
                 if (existingValue != null) {
                     return FutureUtils.exception(new BadVersionException(""));
@@ -188,8 +189,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 } else {
                     long newVersion = existingValue != null ? existingValue.version + 1 : 0;
                     long createdTimestamp = existingValue != null ? existingValue.createdTimestamp : now;
-                    Value newValue = new Value(newVersion, data, createdTimestamp, now,
-                            options.contains(CreateOption.Ephemeral));
+                    Value newValue = new Value(newVersion, data, createdTimestamp, now, ephemeral);
                     map.put(path, newValue);
 
                     NotificationType type =
