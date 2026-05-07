@@ -741,9 +741,9 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
 
         // Verify spans for batched messages
         List<SpanData> spans = spanExporter.getFinishedSpanItems();
-        int exceptedNumSpans = numMessages * 2;
-        assertEquals(exceptedNumSpans, spans.size(),
-                "Expected " + exceptedNumSpans + " spans for batched messages, got " + spans.size());
+        int expectedNumSpans = numMessages * 2;
+        assertEquals(expectedNumSpans, spans.size(),
+                "Expected " + expectedNumSpans + " spans for batched messages, got " + spans.size());
 
         // Verify that spans have correct attributes
         spans.stream()
