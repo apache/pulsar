@@ -175,8 +175,16 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException.NotFoundException e) {
             // topic may already be deleted
         }
-        admin.namespaces().deleteNamespace(myNamespace, true);
-        admin.namespaces().deleteNamespace(myNamespaceV1, true);
+        try {
+            admin.namespaces().deleteNamespace(myNamespace, true);
+        } catch (PulsarAdminException.NotFoundException e) {
+            // namespace may already be deleted
+        }
+        try {
+            admin.namespaces().deleteNamespace(myNamespaceV1, true);
+        } catch (PulsarAdminException.NotFoundException e) {
+            // namespace may already be deleted
+        }
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Set.of("test"));
         admin.namespaces().createNamespace(myNamespaceV1);
         admin.topics().createPartitionedTopic(testTopic, testTopicPartitions);
@@ -186,8 +194,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.lookups().lookupTopic(testTopic + "-partition-0");
     }
 
-    @AfterMethod
-    void afterMethodCleanup() {
+    @AfterMethod(alwaysRun = true)
+    void afterMethodCleanup() throws Exception{
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "0");
+        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "0");
         clearTopicPoliciesCache();
     }
 
@@ -2839,10 +2849,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         publishRateLimiter = (PublishRateLimiterImpl) topic.getTopicPublishRateLimiter();
         Assert.assertEquals(publishRateLimiter.getTokenBucketOnMessage().getRate(), 5);
         Assert.assertEquals(publishRateLimiter.getTokenBucketOnByte().getRate(), 50L);
-
-        // restore defaults
-        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInMessages", "0");
-        admin.brokers().updateDynamicConfiguration("maxPublishRatePerTopicInBytes", "0");
     }
 
     @Test(timeOut = 20000)
@@ -4703,7 +4709,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     private void initEventsTopicAndPartitions() throws Exception {
-        Producer<?> producer = pulsarClient.newProducer().topic(testTopic).create();
-        producer.close();
+        try (Producer<?> producer = pulsarClient.newProducer().topic(testTopic).create()) {
+            // No-op. Creating the producer initializes the events topic and partitions.
+        }
     }
 }

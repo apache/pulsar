@@ -43,27 +43,26 @@ import org.jspecify.annotations.NonNull;
 @CustomLog
 public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
 
-    // Generally, we only need to check if the __change_events topic exists once because the __change_events topic
-    // should only be created by broker before the upgrade, where `SystemTopicBasedTopicPoliciesService` is configured
-    // as the topic policies service.
-    private final AsyncLoadingCache<NamespaceName, Boolean> isLegacyNamespace = Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofHours(1))
-            .buildAsync(new AsyncCacheLoader<>() {
-                @NonNull
-                @Override
-                public CompletableFuture<? extends Boolean> asyncLoad(NamespaceName key, Executor executor) {
-                    return NamespaceEventsSystemTopicFactory.checkSystemTopicExists(key, EventType.TOPIC_POLICY,
-                            pulsar);
-                }
-            });
-    private final PulsarService pulsar;
+    private final AsyncLoadingCache<NamespaceName, Boolean> isLegacyNamespace;
     private final SystemTopicBasedTopicPoliciesService systemTopicService;
     private final TopicPoliciesService configuredService;
 
     public LegacyAwareTopicPoliciesService(PulsarService pulsar,
                                            SystemTopicBasedTopicPoliciesService systemTopicService,
                                            TopicPoliciesService configuredService) {
-        this.pulsar = pulsar;
+        // Generally, we only need to check if the __change_events topic exists once because the __change_events topic
+        // should only be created by broker before the upgrade, where `SystemTopicBasedTopicPoliciesService` is
+        // configured as the topic policies service.
+        this.isLegacyNamespace = Caffeine.newBuilder().expireAfterWrite(Duration.ofHours(1))
+                .buildAsync(new AsyncCacheLoader<>() {
+                    @NonNull
+                    @Override
+                    public CompletableFuture<? extends Boolean> asyncLoad(NamespaceName key,
+                                                                          @NonNull Executor executor) {
+                        return NamespaceEventsSystemTopicFactory.checkSystemTopicExists(key, EventType.TOPIC_POLICY,
+                                pulsar);
+                    }
+                });
         this.systemTopicService = systemTopicService;
         this.configuredService = configuredService;
         if (configuredService instanceof SystemTopicBasedTopicPoliciesService) {
@@ -74,6 +73,7 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
 
     @Override
     public void start(PulsarService pulsarService) {
+        systemTopicService.start(pulsarService);
         configuredService.start(pulsarService);
     }
 
