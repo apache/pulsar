@@ -18,9 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
@@ -29,6 +34,7 @@ import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Routes topic policy operations to the legacy system-topic backend when a namespace already has
@@ -37,6 +43,19 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 @CustomLog
 public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
 
+    // Generally, we only need to check if the __change_events topic exists once because the __change_events topic
+    // should only be created by broker before the upgrade, where `SystemTopicBasedTopicPoliciesService` is configured
+    // as the topic policies service.
+    private final AsyncLoadingCache<NamespaceName, Boolean> isLegacyNamespace = Caffeine.newBuilder()
+            .expireAfterWrite(Duration.ofHours(1))
+            .buildAsync(new AsyncCacheLoader<>() {
+                @NonNull
+                @Override
+                public CompletableFuture<? extends Boolean> asyncLoad(NamespaceName key, Executor executor) {
+                    return NamespaceEventsSystemTopicFactory.checkSystemTopicExists(key, EventType.TOPIC_POLICY,
+                            pulsar);
+                }
+            });
     private final PulsarService pulsar;
     private final SystemTopicBasedTopicPoliciesService systemTopicService;
     private final TopicPoliciesService configuredService;
@@ -47,6 +66,10 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
         this.pulsar = pulsar;
         this.systemTopicService = systemTopicService;
         this.configuredService = configuredService;
+        if (configuredService instanceof SystemTopicBasedTopicPoliciesService) {
+            throw new IllegalArgumentException(
+                    "configuredService should not be an instance of SystemTopicBasedTopicPoliciesService");
+        }
     }
 
     @Override
@@ -94,6 +117,7 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
 
     @Override
     public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
+        // It's okay to register listeners for both because only one listener will receive the updates
         boolean configuredRegistered = configuredService.registerListener(topicName, listener);
         boolean systemTopicRegistered = systemTopicService.registerListener(topicName, listener);
         return configuredRegistered || systemTopicRegistered;
@@ -105,16 +129,9 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
         systemTopicService.unregisterListener(topicName, listener);
     }
 
-    private CompletableFuture<TopicPoliciesService> resolveService(NamespaceName namespace) {
-        return isLegacy(namespace).thenApply(isLegacy -> isLegacy ? systemTopicService : configuredService);
-    }
-
     @VisibleForTesting
-    public CompletableFuture<TopicPoliciesService> resolveServiceForTesting(NamespaceName namespace) {
-        return resolveService(namespace);
-    }
-
-    private CompletableFuture<Boolean> isLegacy(NamespaceName namespace) {
-        return NamespaceEventsSystemTopicFactory.checkSystemTopicExists(namespace, EventType.TOPIC_POLICY, pulsar);
+    CompletableFuture<TopicPoliciesService> resolveService(NamespaceName namespace) {
+        return isLegacyNamespace.get(namespace)
+                .thenApply(isLegacy -> isLegacy ? systemTopicService : configuredService);
     }
 }

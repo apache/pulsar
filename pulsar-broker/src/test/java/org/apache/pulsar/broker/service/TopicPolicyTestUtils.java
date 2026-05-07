@@ -73,8 +73,7 @@ public class TopicPolicyTestUtils {
                                                                       TopicName topicName, boolean isGlobal)
             throws Exception {
         if (topicPoliciesService instanceof LegacyAwareTopicPoliciesService legacyService) {
-            TopicPoliciesService resolved =
-                    legacyService.resolveServiceForTesting(topicName.getNamespaceObject()).get();
+            TopicPoliciesService resolved = legacyService.resolveService(topicName.getNamespaceObject()).get();
             return getTopicPoliciesBypassCache(resolved, topicName, isGlobal);
         }
         if (topicPoliciesService instanceof MetadataStoreTopicPoliciesService metadataStoreService) {

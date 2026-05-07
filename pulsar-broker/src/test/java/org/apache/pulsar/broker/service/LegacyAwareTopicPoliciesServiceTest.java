@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.awaitility.Awaitility;
@@ -146,6 +147,21 @@ public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBase
         waitUntilAssert(() -> assertEquals(compactionThreshold.get(), -1));
         assertFalse(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, false)).get());
         assertFalse(configurationStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, true)).get());
+    }
+
+    @Test
+    public void testUserCreatedEventsTopicAreIgnored() throws Exception {
+        final var topic = TopicName.get(metaNamespace + "/" + System.currentTimeMillis()).toString();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setCompactionThreshold(topic, 1);
+        waitUntilAssert(() -> assertEquals(admin.topicPolicies().getCompactionThreshold(topic), 1));
+
+        final var eventsTopic = metaNamespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        admin.topics().createNonPartitionedTopic(eventsTopic);
+        // Even if the __change_events topic is created, since it has detected the namespace didn't have the events
+        // topic before, it will be ignored and the policies are still read from metadata store.
+        waitUntilAssert(() -> assertEquals(admin.topicPolicies().getCompactionThreshold(topic), 1));
+        admin.topics().delete(eventsTopic);
     }
 
     private static void waitUntilAssert(ThrowingRunnable assertion) {
