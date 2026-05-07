@@ -184,9 +184,9 @@ public class ScalableTopicController {
      * {@code TopicDoesNotExist}.
      */
     private CompletableFuture<Void> ensureActiveSegmentsExist() {
-        java.util.List<CompletableFuture<Void>> futures = new java.util.ArrayList<>();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (SegmentInfo seg : currentLayout.getActiveSegments().values()) {
-            futures.add(createSegmentTopic(seg, java.util.List.of())
+            futures.add(createSegmentTopic(seg, List.of())
                     .exceptionally(ex -> {
                         log.warn().attr("segmentId", seg.segmentId())
                                 .exceptionMessage(ex)
