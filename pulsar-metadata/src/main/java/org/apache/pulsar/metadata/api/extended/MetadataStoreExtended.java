@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.api.extended;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.pulsar.metadata.api.MetadataEvent;
@@ -29,6 +30,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 
@@ -85,6 +87,40 @@ public interface MetadataStoreExtended extends MetadataStore {
     default CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
             EnumSet<CreateOption> options, Map<String, String> secondaryIndexes) {
         return put(path, value, expectedVersion, options);
+    }
+
+    /**
+     * Override of {@link MetadataStore#put(String, byte[], Optional, Set)} that translates {@link Option}
+     * values into the legacy {@code EnumSet<CreateOption>} + {@code Map<String,String> secondaryIndexes} form.
+     *
+     * <p>Recognized options: {@link Option.Ephemeral}, {@link Option.Sequential},
+     * {@link Option.SecondaryIndex}, {@link Option.PartitionKey}. The partition key is currently
+     * ignored on stores that haven't yet wired it through; sharded backends override this method to
+     * thread it down. Pass {@link Set#of()} for no options.
+     */
+    @Override
+    default CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
+            Set<Option> opts) {
+        EnumSet<CreateOption> legacyOpts = EnumSet.noneOf(CreateOption.class);
+        Map<String, String> secondaryIndexes = null;
+        if (opts != null) {
+            for (Option o : opts) {
+                if (o == Option.Ephemeral.INSTANCE) {
+                    legacyOpts.add(CreateOption.Ephemeral);
+                } else if (o == Option.Sequential.INSTANCE) {
+                    legacyOpts.add(CreateOption.Sequential);
+                } else if (o instanceof Option.SecondaryIndex si) {
+                    if (secondaryIndexes == null) {
+                        secondaryIndexes = new java.util.HashMap<>();
+                    }
+                    secondaryIndexes.put(si.indexName(), si.secondaryKey());
+                }
+            }
+        }
+        if (secondaryIndexes == null) {
+            return put(path, value, expectedVersion, legacyOpts);
+        }
+        return put(path, value, expectedVersion, legacyOpts, secondaryIndexes);
     }
 
     /**

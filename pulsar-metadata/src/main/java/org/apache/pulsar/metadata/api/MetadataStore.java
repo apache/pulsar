@@ -23,6 +23,7 @@ import com.google.common.annotations.Beta;
 import io.github.merlimat.slog.Logger;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -55,6 +56,14 @@ public interface MetadataStore extends AutoCloseable {
      */
     CompletableFuture<Optional<GetResult>> get(String path);
 
+    /**
+     * Like {@link #get(String)} with a set of {@link Option options}, e.g. {@link Option.PartitionKey}
+     * for routing on sharded backends. Pass {@link Set#of()} for no options.
+     */
+    default CompletableFuture<Optional<GetResult>> get(String path, Set<Option> opts) {
+        return get(path);
+    }
+
 
     /**
      * Ensure that the next value read from  the local client will be up-to-date with the latest version of the value
@@ -77,6 +86,13 @@ public interface MetadataStore extends AutoCloseable {
      */
     CompletableFuture<List<String>> getChildren(String path);
 
+    /**
+     * Like {@link #getChildren(String)} with a set of {@link Option options}.
+     */
+    default CompletableFuture<List<String>> getChildren(String path, Set<Option> opts) {
+        return getChildren(path);
+    }
+
 
     /**
      * Return all the nodes (lexicographically sorted) that are children to the specific path.
@@ -91,6 +107,13 @@ public interface MetadataStore extends AutoCloseable {
      * @return a future to track the async request
      */
     CompletableFuture<List<String>> getChildrenFromStore(String path);
+
+    /**
+     * Like {@link #getChildrenFromStore(String)} with a set of {@link Option options}.
+     */
+    default CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
+        return getChildrenFromStore(path);
+    }
     /**
      * Read whether a specific path exists.
      *
@@ -102,6 +125,13 @@ public interface MetadataStore extends AutoCloseable {
      * @return a future to track the async request
      */
     CompletableFuture<Boolean> exists(String path);
+
+    /**
+     * Like {@link #exists(String)} with a set of {@link Option options}.
+     */
+    default CompletableFuture<Boolean> exists(String path, Set<Option> opts) {
+        return exists(path);
+    }
 
     /**
      * Put a new value for a given key.
@@ -126,6 +156,16 @@ public interface MetadataStore extends AutoCloseable {
     CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion);
 
     /**
+     * Like {@link #put(String, byte[], Optional)} with a set of {@link Option options}, e.g.
+     * {@link Option.Ephemeral}, {@link Option.Sequential}, {@link Option.SecondaryIndex}, or
+     * {@link Option.PartitionKey}. Pass {@link Set#of()} for no options.
+     */
+    default CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
+            Set<Option> opts) {
+        return put(path, value, expectedVersion);
+    }
+
+    /**
      *
      * @param path
      *            the path of the key to delete from the store
@@ -139,6 +179,13 @@ public interface MetadataStore extends AutoCloseable {
      * @return a future to track the async request
      */
     CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion);
+
+    /**
+     * Like {@link #delete(String, Optional)} with a set of {@link Option options}.
+     */
+    default CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
+        return delete(path, expectedVersion);
+    }
 
     default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion) {
         return delete(path, expectedVersion)
@@ -285,6 +332,15 @@ public interface MetadataStore extends AutoCloseable {
             Predicate<GetResult> fallbackFilter) {
         return CompletableFuture.failedFuture(
                 new MetadataStoreException("Secondary index queries not supported by this store"));
+    }
+
+    /**
+     * Like {@link #findByIndex(String, String, String, Predicate)} with a set of {@link Option options}.
+     */
+    default CompletableFuture<List<GetResult>> findByIndex(
+            String scanPathPrefix, String indexName, String secondaryKey,
+            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
+        return findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter);
     }
 
     /**

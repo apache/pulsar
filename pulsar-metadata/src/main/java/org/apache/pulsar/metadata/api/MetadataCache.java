@@ -22,6 +22,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
@@ -187,6 +188,24 @@ public interface MetadataCache<T> {
      *   {@link MetadataStoreException} if the metadata store operation failed
      */
     CompletableFuture<Void> put(String path, T value, EnumSet<CreateOption> options);
+
+    /**
+     * Like {@link #put(String, Object, EnumSet)} but takes a {@link Option Option} set. Recognized options
+     * include {@link Option.Ephemeral}, {@link Option.Sequential}, {@link Option.SecondaryIndex}, and
+     * {@link Option.PartitionKey}. Pass {@link Set#of()} for none.
+     */
+    default CompletableFuture<Void> put(String path, T value, Set<Option> opts) {
+        EnumSet<CreateOption> legacyOpts = EnumSet.noneOf(CreateOption.class);
+        if (opts != null) {
+            if (opts.contains(Option.Ephemeral.INSTANCE)) {
+                legacyOpts.add(CreateOption.Ephemeral);
+            }
+            if (opts.contains(Option.Sequential.INSTANCE)) {
+                legacyOpts.add(CreateOption.Sequential);
+            }
+        }
+        return put(path, value, legacyOpts);
+    }
 
     /**
      * Delete an object from the metadata store.
