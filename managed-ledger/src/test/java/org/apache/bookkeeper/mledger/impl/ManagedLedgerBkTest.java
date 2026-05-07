@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.pulsar.common.util.PortManager.releaseLockedPort;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -134,7 +133,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         metadataStore.unsetAlwaysFail();
 
         bkc = new PulsarBookKeeperTestClient(baseClientConf);
-        int port = startNewBookie();
+        startNewBookie();
 
         // Reconnect a new bk client
         factory.shutdown();
@@ -164,7 +163,6 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals("entry-2", new String(entries.get(0).getData()));
         entries.forEach(Entry::release);
         factory.shutdown();
-        releaseLockedPort(port);
     }
 
     @Test

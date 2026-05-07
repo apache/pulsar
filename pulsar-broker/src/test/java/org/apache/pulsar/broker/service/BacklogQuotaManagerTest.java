@@ -138,7 +138,7 @@ public class BacklogQuotaManagerTest {
     void setup() throws Exception {
         try {
             // start local bookie and zookeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+            bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
             bkEnsemble.start();
 
             // start pulsar service

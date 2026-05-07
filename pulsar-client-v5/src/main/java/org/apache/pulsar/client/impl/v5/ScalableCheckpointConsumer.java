@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -221,8 +220,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
      * Update the checkpoint position for the segment this message belongs to. Called as
      * messages cross the boundary from the wire-buffer to the application — that's the
      * point at which a subsequent {@link #checkpoint()} should reflect "I have processed
-     * this message", so a {@link #seek(Checkpoint)} back to that checkpoint redelivers
-     * everything after it.
+     * this message".
      *
      * <p>{@code msg} may be null (timeout or interrupt path); returns it unchanged so the
      * caller can pass through the receive result without an extra null-check.
@@ -237,22 +235,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     @Override
     public Checkpoint checkpoint() {
         Map<Long, org.apache.pulsar.client.api.MessageId> positions = new HashMap<>(lastReceivedPositions);
-        return new CheckpointV5(positions, Instant.now());
-    }
-
-    @Override
-    public void seek(Checkpoint checkpoint) throws PulsarClientException {
-        try {
-            seekAsync(checkpoint).get();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Seek interrupted", e);
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof PulsarClientException pce) {
-                throw pce;
-            }
-            throw new PulsarClientException(e.getCause());
-        }
+        return new CheckpointV5(positions);
     }
 
     @Override
@@ -296,36 +279,6 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
 
     CompletableFuture<Checkpoint> checkpointAsync() {
         return CompletableFuture.completedFuture(checkpoint());
-    }
-
-    CompletableFuture<Void> seekAsync(Checkpoint checkpoint) {
-        if (checkpoint instanceof CheckpointV5 cp) {
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            for (var entry : cp.segmentPositions().entrySet()) {
-                var readerFuture = segmentReaders.get(entry.getKey());
-                if (readerFuture != null) {
-                    futures.add(readerFuture.thenCompose(r -> r.seekAsync(entry.getValue())));
-                }
-            }
-            return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
-                    .whenComplete((__, ___) -> messageQueue.clear());
-        } else if (checkpoint == CheckpointV5.EARLIEST) {
-            return seekAllAsync(org.apache.pulsar.client.api.MessageId.earliest);
-        } else if (checkpoint == CheckpointV5.LATEST) {
-            return seekAllAsync(org.apache.pulsar.client.api.MessageId.latest);
-        } else {
-            return CompletableFuture.failedFuture(
-                    new PulsarClientException("Unsupported checkpoint type: " + checkpoint.getClass()));
-        }
-    }
-
-    private CompletableFuture<Void> seekAllAsync(org.apache.pulsar.client.api.MessageId position) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (var readerFuture : segmentReaders.values()) {
-            futures.add(readerFuture.thenCompose(r -> r.seekAsync(position)));
-        }
-        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
-                .whenComplete((__, ___) -> messageQueue.clear());
     }
 
     CompletableFuture<Void> closeAsync() {

@@ -52,6 +52,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.OptionsHelper;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
@@ -207,6 +208,41 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     protected CompletableFuture<Stat> storePut(
             String path, byte[] data, Optional<Long> optExpectedVersion, Set<Option> opts) {
         return doStorePut(path, data, optExpectedVersion, opts);
+    }
+
+    @Override
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+        // Oxia's hierarchical sort makes [parentPath + "/", parentPath + "//") the canonical
+        // range covering exactly the immediate children — same convention getChildrenFromStore
+        // uses with `client.list(...)`.
+        String firstKey = parentPath.endsWith("/") ? parentPath : parentPath + "/";
+        String lastKey = firstKey + "/";
+        CompletableFuture<Void> done = new CompletableFuture<>();
+        try {
+            client.rangeScan(firstKey, lastKey, new io.oxia.client.api.RangeScanConsumer() {
+                @Override
+                public void onNext(io.oxia.client.api.GetResult result) {
+                    consumer.onNext(new GetResult(result.value(),
+                            convertStat(result.key(), result.version())));
+                }
+
+                @Override
+                public void onError(Throwable throwable) {
+                    consumer.onError(throwable);
+                    done.completeExceptionally(throwable);
+                }
+
+                @Override
+                public void onCompleted() {
+                    consumer.onCompleted();
+                    done.complete(null);
+                }
+            });
+        } catch (Throwable t) {
+            consumer.onError(t);
+            done.completeExceptionally(t);
+        }
+        return done;
     }
 
     @Override

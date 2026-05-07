@@ -603,6 +603,113 @@ public class ScalableTopicController {
         return CompletableFuture.allOf(futures);
     }
 
+    /**
+     * Reset a subscription's cursor across every segment to the given wall-clock
+     * timestamp. We use each segment's recorded {@code [createdAtMs, sealedAtMs)}
+     * window to dispatch the cheapest possible per-segment op:
+     *
+     * <ul>
+     *   <li>Segment was sealed before {@code timestampMs} — all of its data is from
+     *       earlier; cursor → end of segment (skip-all).</li>
+     *   <li>Segment was created at-or-after {@code timestampMs} — all of its data is
+     *       from at-or-after; cursor → earliest (seek to {@code timestamp=0}).</li>
+     *   <li>Segment is alive at {@code timestampMs} (active or straddling sealed) —
+     *       cursor seeks to {@code timestamp}.</li>
+     * </ul>
+     *
+     * <p>Per-segment failures are surfaced (the call fails-fast). The only tolerated
+     * outcome is {@code 404 Not Found} from the segment endpoint, which the segment
+     * REST resource emits exclusively for "subscription not present on this segment"
+     * (e.g. the cursor hasn't been materialised yet — it will propagate lazily and
+     * the next seek will land it). Transient unloads / ownership churn surface as
+     * {@code 503} from the segment endpoint and propagate to the caller, who can
+     * retry the parent-level operation.
+     */
+    public CompletableFuture<Void> seekSubscription(String subscription, long timestampMs) {
+        checkLeader();
+        SegmentLayout layout = this.currentLayout;
+        CompletableFuture<?>[] futures = layout.getAllSegments().values().stream()
+                .map(segment -> seekSubscriptionOnSegment(segment, subscription, timestampMs))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(futures);
+    }
+
+    /**
+     * Skip every undelivered message on the subscription, across every segment in the
+     * DAG. Equivalent to advancing each per-segment cursor to the end.
+     */
+    public CompletableFuture<Void> clearBacklog(String subscription) {
+        checkLeader();
+        SegmentLayout layout = this.currentLayout;
+        CompletableFuture<?>[] futures = layout.getAllSegments().values().stream()
+                .map(segment -> clearSubscriptionBacklogOnSegment(segment, subscription))
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(futures);
+    }
+
+    private CompletableFuture<Void> seekSubscriptionOnSegment(SegmentInfo segment,
+                                                              String subscription,
+                                                              long timestampMs) {
+        // Classify the segment relative to the requested timestamp using the recorded
+        // sealed-time / created-time. This is what makes the parent-level seek O(N segments)
+        // worth of cheap RPCs rather than O(N) timestamp-based scans of every segment's
+        // managed ledger.
+        if (segment.isSealed() && segment.sealedAtMs() > 0
+                && segment.sealedAtMs() <= timestampMs) {
+            // Segment fully predates timestamp → skip everything on this segment.
+            return clearSubscriptionBacklogOnSegment(segment, subscription);
+        }
+        long effective = timestampMs;
+        if (segment.createdAtMs() > 0 && segment.createdAtMs() >= timestampMs) {
+            // Segment fully postdates timestamp → seek to start (timestamp=0 == earliest
+            // for managed-ledger reset-cursor-by-timestamp semantics).
+            effective = 0L;
+        }
+        String segmentName = toSegmentPersistentName(segment);
+        try {
+            return brokerService.getPulsar().getAdminClient()
+                    .scalableTopics().seekSegmentSubscriptionAsync(segmentName, subscription, effective)
+                    .exceptionally(ex -> {
+                        Throwable cause =
+                                org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException
+                                .NotFoundException) {
+                            // 404 from the segment endpoint == "subscription not present
+                            // on this segment" (the segment endpoint uses 503 for
+                            // "topic not loaded"). The cursor will propagate lazily;
+                            // tolerated.
+                            return null;
+                        }
+                        throw org.apache.pulsar.common.util.FutureUtil.wrapToCompletionException(cause);
+                    });
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private CompletableFuture<Void> clearSubscriptionBacklogOnSegment(SegmentInfo segment,
+                                                                       String subscription) {
+        String segmentName = toSegmentPersistentName(segment);
+        try {
+            return brokerService.getPulsar().getAdminClient()
+                    .scalableTopics()
+                    .clearSegmentSubscriptionBacklogAsync(segmentName, subscription)
+                    .exceptionally(ex -> {
+                        Throwable cause =
+                                org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException
+                                .NotFoundException) {
+                            // Subscription not present on this segment — tolerated.
+                            // (See seek path for the 404-vs-503 contract.)
+                            return null;
+                        }
+                        throw org.apache.pulsar.common.util.FutureUtil.wrapToCompletionException(cause);
+                    });
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
     private CompletableFuture<Void> createSubscriptionOnSegment(SegmentInfo segment, String subscription) {
         String persistentName = toSegmentUnderlyingPersistentName(segment);
         try {

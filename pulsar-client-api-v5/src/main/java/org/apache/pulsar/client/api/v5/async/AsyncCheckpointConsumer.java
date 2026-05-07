@@ -70,15 +70,6 @@ public interface AsyncCheckpointConsumer<T> {
     CompletableFuture<Checkpoint> checkpoint();
 
     /**
-     * Seek to a checkpoint asynchronously.
-     *
-     * @param checkpoint the checkpoint to seek to
-     * @return a {@link CompletableFuture} that completes when the consumer has been repositioned
-     *         to the given checkpoint
-     */
-    CompletableFuture<Void> seek(Checkpoint checkpoint);
-
-    /**
      * Close this consumer asynchronously.
      *
      * @return a {@link CompletableFuture} that completes when the consumer has been closed

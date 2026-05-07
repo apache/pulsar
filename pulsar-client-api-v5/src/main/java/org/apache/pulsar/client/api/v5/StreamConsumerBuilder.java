@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api.v5;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
@@ -87,25 +86,6 @@ public interface StreamConsumerBuilder<T> {
      * @return this builder instance for chaining
      */
     StreamConsumerBuilder<T> subscriptionName(String subscriptionName);
-
-    // --- Seek (initial position override) ---
-
-    /**
-     * Reset the subscription to a specific message ID.
-     *
-     * @param messageId the message ID to seek to
-     * @return this builder instance for chaining
-     */
-    StreamConsumerBuilder<T> seek(MessageId messageId);
-
-    /**
-     * Reset the subscription to a specific timestamp. The subscription
-     * will be positioned at the first message published at or after this timestamp.
-     *
-     * @param timestamp the timestamp to seek to
-     * @return this builder instance for chaining
-     */
-    StreamConsumerBuilder<T> seek(Instant timestamp);
 
     // --- Optional ---
 

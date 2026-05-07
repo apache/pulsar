@@ -543,26 +543,6 @@ public class Examples {
         }
     }
 
-    /** Time-travel seek — rewind to a specific timestamp. */
-    void checkpointConsumerSeek(PulsarClient client) throws Exception {
-        try (var consumer = client.newCheckpointConsumer(Schema.string())
-                .topic("events")
-                .startPosition(Checkpoint.latest())
-                .create()) {
-
-            // Seek back to replay from a specific time
-            consumer.seek(Checkpoint.atTimestamp(Instant.parse("2025-12-01T00:00:00Z")));
-
-            while (true) {
-                Message<String> msg = consumer.receive(Duration.ofSeconds(5));
-                if (msg == null) {
-                    break;
-                }
-                System.out.printf("[%s] %s%n", msg.publishTime(), msg.value());
-            }
-        }
-    }
-
     // ==================================================================================
     // Helper types for the examples
     // ==================================================================================

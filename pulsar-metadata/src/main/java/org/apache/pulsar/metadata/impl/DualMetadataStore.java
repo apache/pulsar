@@ -52,6 +52,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.OptionsHelper;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -310,6 +311,16 @@ public class DualMetadataStore implements MetadataStoreExtended {
                     sourceStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, opts);
             case COMPLETED ->
                     targetStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, opts);
+        };
+    }
+
+    @Override
+    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
+        return switch (migrationState.getPhase()) {
+            case NOT_STARTED, PREPARATION, COPYING, FAILED ->
+                    sourceStore.scanChildren(parentPath, consumer, opts);
+            case COMPLETED ->
+                    targetStore.scanChildren(parentPath, consumer, opts);
         };
     }
 

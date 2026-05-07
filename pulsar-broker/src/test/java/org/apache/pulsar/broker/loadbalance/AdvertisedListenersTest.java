@@ -65,6 +65,8 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
     }
 
     private void updateConfig(ServiceConfiguration conf, String advertisedAddress) {
+        // Pre-allocate ports because the advertised listener URLs are baked into config
+        // before the broker starts. The broker then binds to the same ports.
         int pulsarPort = nextLockedFreePort();
         int httpPort = nextLockedFreePort();
         int httpsPort = nextLockedFreePort();

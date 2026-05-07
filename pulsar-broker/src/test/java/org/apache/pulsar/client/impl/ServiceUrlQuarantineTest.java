@@ -54,18 +54,21 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableQuarantine;
     private int brokerServicePort;
     private int webServicePort;
-    private final Set<Integer> lockedFreePortSet = new HashSet<>();
+    private final Set<Integer> reservedPorts = new HashSet<>();
     private static final int UNAVAILABLE_NODES = 20;
     private static final int TIMEOUT_MS = 500;
 
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        // Pre-allocate ports for the broker because they must match the URL the test builds below.
         this.brokerServicePort = nextLockedFreePort();
         this.webServicePort = nextLockedFreePort();
         super.internalSetup();
         super.producerBaseSetup();
-        // Create a Pulsar client with some unavailable nodes
+        // Build a service URL that includes a bunch of unavailable-node ports. PortManager
+        // hands out ports outside the ephemeral range, so nothing else is going to grab them
+        // and the connection attempts to those addresses will fail as expected.
         StringBuilder binaryServiceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
         StringBuilder httpServiceUrlBuilder = new StringBuilder(pulsar.getWebServiceAddress());
         for (int i = 0; i < UNAVAILABLE_NODES; i++) {
@@ -98,9 +101,9 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     }
 
     private int nextLockedFreePort() {
-        int newLockedFreePort = PortManager.nextLockedFreePort();
-        this.lockedFreePortSet.add(newLockedFreePort);
-        return newLockedFreePort;
+        int port = PortManager.nextLockedFreePort();
+        reservedPorts.add(port);
+        return port;
     }
 
     @Override
@@ -133,9 +136,8 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         if (pulsarClientWithHttpServiceUrlDisableQuarantine != null) {
             pulsarClientWithHttpServiceUrlDisableQuarantine.close();
         }
-        for (Integer port : lockedFreePortSet) {
-            PortManager.releaseLockedPort(port);
-        }
+        reservedPorts.forEach(PortManager::releaseLockedPort);
+        reservedPorts.clear();
     }
 
     @Test

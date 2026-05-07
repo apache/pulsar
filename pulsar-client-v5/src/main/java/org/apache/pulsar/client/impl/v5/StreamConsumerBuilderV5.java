@@ -19,11 +19,9 @@
 package org.apache.pulsar.client.impl.v5;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.StreamConsumer;
 import org.apache.pulsar.client.api.v5.StreamConsumerBuilder;
@@ -123,18 +121,6 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     @Override
     public StreamConsumerBuilderV5<T> subscriptionName(String subscriptionName) {
         conf.setSubscriptionName(subscriptionName);
-        return this;
-    }
-
-    @Override
-    public StreamConsumerBuilderV5<T> seek(MessageId messageId) {
-        // Seek will be applied after consumer creation
-        // Store for later use
-        return this;
-    }
-
-    @Override
-    public StreamConsumerBuilderV5<T> seek(Instant timestamp) {
         return this;
     }
 

@@ -42,7 +42,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.CustomLog;
@@ -91,46 +90,18 @@ public class LocalBookkeeperEnsemble {
     int numberOfBookies;
     private final boolean clearOldData;
 
-    private static class BasePortManager implements Supplier<Integer> {
-
-        private int port;
-
-        public BasePortManager(int basePort) {
-            this.port = basePort;
-        }
-
-        @Override
-        public synchronized Integer get() {
-            return port++;
-        }
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort) {
+        this(numberOfBookies, zkPort, 4181, null, null, true, null);
     }
 
-    private final Supplier<Integer> portManager;
-
-    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, Supplier<Integer> portManager) {
-        this(numberOfBookies, zkPort, 4181, null, null, true, null, portManager);
-    }
-
-    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData) {
-        this(numberOfBookies, zkPort, bkBasePort, 4181, zkDataDirName, bkDataDirName, clearOldData, null);
+        this(numberOfBookies, zkPort, 4181, zkDataDirName, bkDataDirName, clearOldData, null);
     }
 
-    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData, String advertisedAddress) {
-        this(numberOfBookies, zkPort, bkBasePort, 4181, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress);
-    }
-
-    public LocalBookkeeperEnsemble(int numberOfBookies,
-                                   int zkPort,
-                                   int bkBasePort,
-                                   int streamStoragePort,
-                                   String zkDataDirName,
-                                   String bkDataDirName,
-                                   boolean clearOldData,
-                                   String advertisedAddress) {
-        this(numberOfBookies, zkPort, streamStoragePort, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress,
-                bkBasePort != 0 ? new BasePortManager(bkBasePort) : () -> 0);
+        this(numberOfBookies, zkPort, 4181, zkDataDirName, bkDataDirName, clearOldData, advertisedAddress);
     }
 
     public LocalBookkeeperEnsemble(int numberOfBookies,
@@ -139,10 +110,8 @@ public class LocalBookkeeperEnsemble {
             String zkDataDirName,
             String bkDataDirName,
             boolean clearOldData,
-            String advertisedAddress,
-            Supplier<Integer> portManager) {
+            String advertisedAddress) {
         this.numberOfBookies = numberOfBookies;
-        this.portManager = portManager;
         this.streamStoragePort = streamStoragePort;
         this.zkDataDirName = zkDataDirName;
         this.bkDataDirName = bkDataDirName;
@@ -301,7 +270,8 @@ public class LocalBookkeeperEnsemble {
                 cleanDirectory(bkDataDir);
             }
 
-            int bookiePort = portManager.get();
+            // Bookies bind to a kernel-assigned port; identity is established via bookieId.
+            int bookiePort = 0;
             String bookieId = "bk" + i + "test";
             // Ensure registration Z-nodes are cleared when standalone service is restarted ungracefully
             deleteBookieRegistrationZnode(

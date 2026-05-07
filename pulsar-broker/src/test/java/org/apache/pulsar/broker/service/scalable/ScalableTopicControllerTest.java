@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.scalable;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -454,6 +455,163 @@ public class ScalableTopicControllerTest {
         } finally {
             second.close().join();
         }
+    }
+
+    // --- Seek subscription / clear backlog ---
+
+    /**
+     * The seek path classifies each segment by its {@code [createdAtMs, sealedAtMs)} window
+     * against the requested timestamp. With 3 segments — one sealed entirely before the
+     * timestamp, one straddling, and one created entirely after — we expect:
+     * <ul>
+     *   <li>Sealed-and-old segment: skip-all admin call (cursor → end).</li>
+     *   <li>Straddling segment: seek admin call with the requested timestamp.</li>
+     *   <li>Created-after segment: seek admin call with timestamp 0 (i.e. earliest).</li>
+     * </ul>
+     */
+    @Test
+    public void testSeekSubscriptionDispatchesPerSegmentByTimestamp() throws Exception {
+        // Build a custom metadata with three segments at specific timestamps.
+        long t0 = 1_000_000L;
+        long t1 = 2_000_000L;
+        long t2 = 3_000_000L;
+        long t3 = 4_000_000L;
+        // Segment 0: created at t0, sealed at t1 (entirely before tSeek).
+        // Segment 1: created at t1, still active (straddles tSeek).
+        // Segment 2: created at t3, still active (entirely after tSeek).
+        long tSeek = t2;
+
+        org.apache.pulsar.common.scalable.SegmentInfo seg0 = new org.apache.pulsar.common.scalable.SegmentInfo(
+                0L,
+                org.apache.pulsar.common.scalable.HashRange.of(0x0000, 0x3FFF),
+                org.apache.pulsar.common.scalable.SegmentState.SEALED,
+                java.util.List.of(), java.util.List.of(3L),
+                /*createdAtEpoch*/ 0, /*sealedAtEpoch*/ 1,
+                /*createdAtMs*/ t0, /*sealedAtMs*/ t1);
+        org.apache.pulsar.common.scalable.SegmentInfo seg1 = new org.apache.pulsar.common.scalable.SegmentInfo(
+                1L,
+                org.apache.pulsar.common.scalable.HashRange.of(0x4000, 0x7FFF),
+                org.apache.pulsar.common.scalable.SegmentState.ACTIVE,
+                java.util.List.of(), java.util.List.of(),
+                0, -1, t1, -1);
+        org.apache.pulsar.common.scalable.SegmentInfo seg2 = new org.apache.pulsar.common.scalable.SegmentInfo(
+                2L,
+                org.apache.pulsar.common.scalable.HashRange.of(0x8000, 0xFFFF),
+                org.apache.pulsar.common.scalable.SegmentState.ACTIVE,
+                java.util.List.of(), java.util.List.of(),
+                0, -1, t3, -1);
+
+        TopicName seekTopic = TopicName.get("topic://tenant/ns/seek-topic");
+        ScalableTopicMetadata md = ScalableTopicMetadata.builder()
+                .epoch(2).nextSegmentId(4)
+                .segments(java.util.Map.of(0L, seg0, 1L, seg1, 2L, seg2))
+                .properties(java.util.Map.of())
+                .build();
+        resources.createScalableTopicAsync(seekTopic, md).get();
+        ScalableTopicController c = new ScalableTopicController(
+                seekTopic, resources, brokerService, coordinationService);
+        try {
+            // Stub the segment-aware admin calls.
+            when(scalableTopics.seekSegmentSubscriptionAsync(anyString(), anyString(), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+            when(scalableTopics.clearSegmentSubscriptionBacklogAsync(anyString(), anyString()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
+
+            c.initialize().get();
+            c.seekSubscription("sub-a", tSeek).get();
+
+            // Sealed-old segment: skip-all admin call once.
+            verify(scalableTopics, org.mockito.Mockito.times(1))
+                    .clearSegmentSubscriptionBacklogAsync(anyString(), org.mockito.ArgumentMatchers.eq("sub-a"));
+
+            // Two seek calls: one for the straddling segment (t == tSeek), one for the
+            // created-after segment (t == 0 because seg2.createdAtMs >= tSeek).
+            org.mockito.ArgumentCaptor<Long> tsCaptor = org.mockito.ArgumentCaptor.forClass(Long.class);
+            verify(scalableTopics, org.mockito.Mockito.times(2))
+                    .seekSegmentSubscriptionAsync(anyString(),
+                            org.mockito.ArgumentMatchers.eq("sub-a"),
+                            tsCaptor.capture());
+            java.util.List<Long> sentTs = tsCaptor.getAllValues();
+            assertTrue(sentTs.contains(tSeek), "expected straddling segment to receive tSeek");
+            assertTrue(sentTs.contains(0L), "expected created-after segment to receive 0");
+        } finally {
+            c.close().join();
+        }
+    }
+
+    /** Clear-backlog dispatches skip-all to every segment in the DAG. */
+    @Test
+    public void testClearBacklogDispatchesSkipAllToEverySegment() throws Exception {
+        when(scalableTopics.clearSegmentSubscriptionBacklogAsync(anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        controller.initialize().get();
+
+        controller.clearBacklog("sub-a").get();
+        // INITIAL_SEGMENTS active segments, no sealed ones in the baseline → exactly N calls.
+        verify(scalableTopics, org.mockito.Mockito.times(INITIAL_SEGMENTS))
+                .clearSegmentSubscriptionBacklogAsync(anyString(),
+                        org.mockito.ArgumentMatchers.eq("sub-a"));
+    }
+
+    /**
+     * 404 from a per-segment seek means "subscription not present on that segment" —
+     * the controller tolerates this as success (cursor will materialise lazily).
+     */
+    @Test
+    public void testSeekTolerates404SubscriptionNotFound() throws Exception {
+        when(scalableTopics.seekSegmentSubscriptionAsync(anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.failedFuture(
+                        new org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException(
+                                new RuntimeException("Subscription not found"),
+                                "Subscription not found", 404)));
+        controller.initialize().get();
+
+        // Should not throw — every segment's 404 is swallowed.
+        controller.seekSubscription("sub-a", System.currentTimeMillis()).get();
+    }
+
+    /**
+     * 503 from the segment endpoint == "topic not loaded yet". This is a transient
+     * unload (e.g. ownership churn); the controller MUST surface it so the caller can
+     * retry the parent-level operation, instead of silently skipping segments.
+     */
+    @Test
+    public void testSeekPropagates503TransientUnload() throws Exception {
+        org.apache.pulsar.client.admin.PulsarAdminException unavailable =
+                new org.apache.pulsar.client.admin.PulsarAdminException(
+                        new RuntimeException("Service Unavailable"),
+                        "Segment topic not loaded", 503);
+        when(scalableTopics.seekSegmentSubscriptionAsync(anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.failedFuture(unavailable));
+        controller.initialize().get();
+
+        java.util.concurrent.ExecutionException ex =
+                org.testng.Assert.expectThrows(java.util.concurrent.ExecutionException.class,
+                        () -> controller.seekSubscription("sub-a", System.currentTimeMillis()).get());
+        Throwable cause = ex.getCause() instanceof java.util.concurrent.CompletionException
+                ? ex.getCause().getCause() : ex.getCause();
+        assertTrue(cause instanceof org.apache.pulsar.client.admin.PulsarAdminException,
+                "expected 503 PulsarAdminException to propagate, got " + cause);
+    }
+
+    /** Same contract as seek: 503 from a per-segment clear-backlog must propagate. */
+    @Test
+    public void testClearBacklogPropagates503TransientUnload() throws Exception {
+        org.apache.pulsar.client.admin.PulsarAdminException unavailable =
+                new org.apache.pulsar.client.admin.PulsarAdminException(
+                        new RuntimeException("Service Unavailable"),
+                        "Segment topic not loaded", 503);
+        when(scalableTopics.clearSegmentSubscriptionBacklogAsync(anyString(), anyString()))
+                .thenReturn(CompletableFuture.failedFuture(unavailable));
+        controller.initialize().get();
+
+        java.util.concurrent.ExecutionException ex =
+                org.testng.Assert.expectThrows(java.util.concurrent.ExecutionException.class,
+                        () -> controller.clearBacklog("sub-a").get());
+        Throwable cause = ex.getCause() instanceof java.util.concurrent.CompletionException
+                ? ex.getCause().getCause() : ex.getCause();
+        assertTrue(cause instanceof org.apache.pulsar.client.admin.PulsarAdminException,
+                "expected 503 PulsarAdminException to propagate, got " + cause);
     }
 
     // --- Sealed-segment GC ---

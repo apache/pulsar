@@ -197,6 +197,27 @@ public class ScalableTopicService {
     }
 
     /**
+     * Reset a subscription's cursor across every segment to the given wall-clock
+     * timestamp. Delegates to the controller leader; the controller uses each
+     * segment's recorded {@code [createdAtMs, sealedAtMs)} window to dispatch the
+     * cheapest per-segment op (skip-all, seek-by-timestamp, or seek-to-earliest).
+     */
+    public CompletableFuture<Void> seekSubscription(TopicName topic, String subscription,
+                                                     long timestampMs) {
+        return getOrCreateController(topic)
+                .thenCompose(controller -> controller.seekSubscription(subscription, timestampMs));
+    }
+
+    /**
+     * Skip every undelivered message on the subscription, across every segment in
+     * the DAG. Delegates to the controller leader.
+     */
+    public CompletableFuture<Void> clearBacklog(TopicName topic, String subscription) {
+        return getOrCreateController(topic)
+                .thenCompose(controller -> controller.clearBacklog(subscription));
+    }
+
+    /**
      * Get aggregated stats for a scalable topic. Read-only: does not require leadership.
      * Returns segment-DAG counts and per-subscription consumer counts, read from the
      * metadata store so the answer is consistent regardless of which broker is serving the
