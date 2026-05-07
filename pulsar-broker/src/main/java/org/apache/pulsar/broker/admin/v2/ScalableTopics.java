@@ -26,6 +26,7 @@ import io.swagger.annotations.ApiResponses;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -214,7 +215,7 @@ public class ScalableTopics extends AdminResource {
             TopicName parentTopic, ScalableTopicMetadata metadata) {
         try {
             var admin = pulsar().getAdminClient();
-            List<CompletableFuture<Void>> futures = new java.util.ArrayList<>();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (SegmentInfo seg : metadata.getSegments().values()) {
                 String segmentTopic = SegmentTopicName.fromParent(
                         parentTopic, seg.hashRange(), seg.segmentId()).toString();

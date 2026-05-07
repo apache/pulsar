@@ -161,10 +161,41 @@ public class ScalableTopicController {
                 .thenCompose(__ -> {
                     if (isLeader()) {
                         scheduleGcTask();
-                        return restoreSessionsFromStore();
+                        return ensureActiveSegmentsExist()
+                                .thenCompose(___ -> restoreSessionsFromStore());
                     }
                     return CompletableFuture.completedFuture(null);
                 });
+    }
+
+    /**
+     * Recovery path for active segments whose backing topics are missing — e.g.,
+     * a {@code createScalableTopic} call that committed metadata but failed to
+     * materialize all initial segments before crashing, or a force-delete of an
+     * active segment.
+     *
+     * <p>Idempotent: {@code createSegmentAsync} on an existing segment is a
+     * no-op at the broker (it just loads the existing topic).
+     *
+     * <p>Sealed segments are intentionally NOT healed here — if a sealed segment's
+     * backing topic is gone the data is permanently gone (retention applied or
+     * an explicit delete), and re-creating an empty topic would mask that. The
+     * V5 checkpoint consumer skips sealed segments whose topics return
+     * {@code TopicDoesNotExist}.
+     */
+    private CompletableFuture<Void> ensureActiveSegmentsExist() {
+        java.util.List<CompletableFuture<Void>> futures = new java.util.ArrayList<>();
+        for (SegmentInfo seg : currentLayout.getActiveSegments().values()) {
+            futures.add(createSegmentTopic(seg, java.util.List.of())
+                    .exceptionally(ex -> {
+                        log.warn().attr("segmentId", seg.segmentId())
+                                .exceptionMessage(ex)
+                                .log("Failed to ensure active segment topic at controller init; "
+                                        + "next attempt to use this segment will retry");
+                        return null;
+                    }));
+        }
+        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     }
 
     /**

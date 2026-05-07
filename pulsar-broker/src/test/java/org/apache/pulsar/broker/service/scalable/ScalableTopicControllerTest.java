@@ -22,7 +22,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -166,6 +169,49 @@ public class ScalableTopicControllerTest {
         assertEquals(layout.getAllSegments().size(), INITIAL_SEGMENTS);
         assertEquals(layout.getActiveSegments().size(), INITIAL_SEGMENTS);
         assertEquals(layout.getEpoch(), 0);
+    }
+
+    /**
+     * Recovery path: a {@code createScalableTopic} can commit metadata then crash
+     * before it materializes all the initial segment topics. The next time the
+     * controller initializes (broker restart, bundle ownership transfer, leader
+     * re-election), it must recreate any missing active-segment backing topics
+     * so producers/consumers can use them again. The check is idempotent —
+     * existing segments are simply re-loaded.
+     */
+    @Test
+    public void testInitializeRecreatesMissingActiveSegments() throws Exception {
+        controller.initialize().get();
+
+        // The leader's initialize() must have asked the admin client to
+        // (re)materialize each of the INITIAL_SEGMENTS active segments.
+        verify(scalableTopics, times(INITIAL_SEGMENTS))
+                .createSegmentAsync(anyString(), any());
+    }
+
+    /**
+     * Idempotency partner to the above: a non-leader controller must NOT trigger
+     * segment-topic creation. Only the leader heals; followers just observe the
+     * layout. (We can't easily build a "loser" in this single-broker harness, but
+     * we can at least verify that no segment is created when the controller fails
+     * to become leader — e.g., because the topic metadata is gone.)
+     */
+    @Test
+    public void testInitializeDoesNotCreateSegmentsWhenNotLeader() throws Exception {
+        // Drive a "not leader" outcome by pointing at a topic with no metadata —
+        // initialize() bails before electLeader() / ensureActiveSegmentsExist().
+        TopicName missing = TopicName.get("topic://tenant/ns/does-not-exist");
+        ScalableTopicController orphan = newController(missing);
+        try {
+            orphan.initialize().get();
+            fail("expected IllegalStateException for missing topic");
+        } catch (ExecutionException expected) {
+            // Bailed before leader-elect, as desired.
+        } finally {
+            orphan.close().join();
+        }
+        verify(scalableTopics, times(0))
+                .createSegmentAsync(eq(missing.toString()), any());
     }
 
     @Test
@@ -341,6 +387,9 @@ public class ScalableTopicControllerTest {
     @Test
     public void testSplitSegment() throws Exception {
         controller.initialize().get();
+        // initialize() now eagerly creates the active segment topics for recovery —
+        // ignore those when counting what splitSegment itself triggered.
+        clearInvocations(scalableTopics);
         SegmentLayout before = controller.getLayout().get();
         long epochBefore = before.getEpoch();
         int activeBefore = before.getActiveSegments().size();
@@ -359,6 +408,7 @@ public class ScalableTopicControllerTest {
     @Test
     public void testMergeSegments() throws Exception {
         controller.initialize().get();
+        clearInvocations(scalableTopics);
         SegmentLayout before = controller.getLayout().get();
         long epochBefore = before.getEpoch();
         int activeBefore = before.getActiveSegments().size();

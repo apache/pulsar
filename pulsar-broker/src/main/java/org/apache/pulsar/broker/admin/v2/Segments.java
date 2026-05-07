@@ -24,6 +24,7 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -103,7 +104,7 @@ public class Segments extends AdminResource {
                 // (BrokerService.isAllowAutoTopicCreationAsync forbids segment auto-create).
                 .thenCompose(__ -> pulsar().getBrokerService()
                         .getTopic(segmentTopic.toString(), true)
-                        .thenApply(java.util.Optional::get))
+                        .thenApply(Optional::get))
                 .thenCompose(topic -> {
                     log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
                             .log("Created segment topic");
