@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import java.util.Map;
@@ -95,8 +94,6 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
     public CompletableFuture<Void> updateTopicPoliciesAsync(TopicName topicName, boolean isGlobalPolicy,
                                                             boolean skipUpdateWhenTopicPolicyDoesntExist,
                                                             Consumer<TopicPolicies> policyUpdater) {
-        requireNonNull(topicName);
-        requireNonNull(policyUpdater);
         TopicName partitionedTopicName = normalizeTopicName(topicName);
         if (NamespaceService.isHeartbeatNamespace(partitionedTopicName.getNamespaceObject())) {
             return CompletableFuture.failedFuture(new BrokerServiceException.NotAllowedException(
@@ -126,7 +123,6 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
 
     @Override
     public CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesAsync(TopicName topicName, GetType type) {
-        requireNonNull(topicName);
         TopicName partitionedTopicName = normalizeTopicName(topicName);
         if (NamespaceService.isHeartbeatNamespace(partitionedTopicName.getNamespaceObject())) {
             return CompletableFuture.completedFuture(Optional.empty());
@@ -141,8 +137,6 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
 
     @Override
     public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
-        requireNonNull(topicName);
-        requireNonNull(listener);
         listeners.compute(normalizeTopicName(topicName), (__, topicListeners) -> {
             if (topicListeners == null) {
                 topicListeners = new CopyOnWriteArrayList<>();
@@ -155,8 +149,6 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
 
     @Override
     public void unregisterListener(TopicName topicName, TopicPolicyListener listener) {
-        requireNonNull(topicName);
-        requireNonNull(listener);
         listeners.computeIfPresent(normalizeTopicName(topicName), (__, topicListeners) -> {
             topicListeners.remove(listener);
             return topicListeners.isEmpty() ? null : topicListeners;
