@@ -127,22 +127,22 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     }
 
     @Override
-    public final CompletableFuture<Optional<GetResult>> storeGet(String path) {
-        OpGet op = new OpGet(path);
+    public final CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
+        OpGet op = new OpGet(path, opts);
         enqueue(readOps, op);
         return op.getFuture();
     }
 
     @Override
-    public final CompletableFuture<List<String>> getChildrenFromStore(String path) {
-        OpGetChildren op = new OpGetChildren(path);
+    public final CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
+        OpGetChildren op = new OpGetChildren(path, opts);
         enqueue(readOps, op);
         return op.getFuture();
     }
 
     @Override
-    protected final CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        OpDelete op = new OpDelete(path, expectedVersion);
+    protected final CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
+        OpDelete op = new OpDelete(path, expectedVersion, opts);
         enqueue(writeOps, op);
         return op.getFuture();
     }

@@ -375,7 +375,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
+    public CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("getFromStore");
         try {
             dbStateLock.readLock().lock();
@@ -408,7 +408,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         // Native iterator-based scan over the parent's key range, with the same direct-child
         // filter getChildrenFromStore applies. Snapshot under the read lock then dispatch
         // outside it.
@@ -487,7 +487,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("getChildrenFromStore");
         try {
             dbStateLock.readLock().lock();
@@ -530,7 +530,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Boolean> existsFromStore(String path) {
+    protected CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("existsFromStore");
         try {
             dbStateLock.readLock().lock();
@@ -551,7 +551,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
+    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("storeDelete");
         try {
             dbStateLock.readLock().lock();

@@ -137,13 +137,13 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public CompletableFuture<Void> deleteRecursive(String path) {
+    public CompletableFuture<Void> deleteRecursive(String path, Set<Option> opts) {
         Optional<MetadataStoreException> ex = programmedFailure(OperationType.DELETE, path);
         if (ex.isPresent()) {
             return FutureUtil.failedFuture(ex.get());
         }
 
-        return store.deleteRecursive(path);
+        return store.deleteRecursive(path, opts);
     }
 
     @Override

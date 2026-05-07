@@ -101,13 +101,23 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected final AtomicBoolean isClosed = new AtomicBoolean(false);
 
-    protected abstract CompletableFuture<Boolean> existsFromStore(String path);
+    /**
+     * Backend hook for {@link #exists}. Implementations consume {@link Option} entries from {@code opts}
+     * via {@link OptionsHelper} (e.g. {@link OptionsHelper#partitionKey} for routing on sharded backends).
+     */
+    protected abstract CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts);
 
-    // Re-declare the legacy no-opts public methods as abstract here so that backends keep providing them
-    // as the concrete implementation hooks. The canonical {@code Set<Option>} forms in this class delegate
-    // to these via virtual dispatch.
+    /**
+     * Backend hook for {@link MetadataStore#getChildrenFromStore(String, Set)}. Implementations consume
+     * {@link Option} entries from {@code opts} via {@link OptionsHelper}.
+     */
     @Override
-    public abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
+    public abstract CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts);
+
+    @Override
+    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        return getChildrenFromStore(path, Set.of());
+    }
 
     protected MetadataNodeSizeStats nodeSizeStats;
 
@@ -186,14 +196,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 .buildAsync(new AsyncCacheLoader<String, Boolean>() {
                     @Override
                     public CompletableFuture<Boolean> asyncLoad(String key, Executor executor) {
-                        return existsFromStore(key);
+                        return existsFromStore(key, Set.of());
                     }
 
                     @Override
                     public CompletableFuture<Boolean> asyncReload(String key, Boolean oldValue,
                             Executor executor) {
                         if (isConnected) {
-                            return existsFromStore(key);
+                            return existsFromStore(key, Set.of());
                         } else {
                             // Do not refresh if we're not connected
                             return CompletableFuture.completedFuture(oldValue);
@@ -235,7 +245,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             }
             // else update the event
             CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
-                    ? deleteInternal(event.getPath(), Optional.empty())
+                    ? deleteInternal(event.getPath(), Optional.empty(), Set.of())
                     : putInternal(event.getPath(), event.getValue(),
                     Optional.ofNullable(event.getExpectedVersion()), fromLegacyCreateOptions(options));
             updateResult.thenApply(stat -> {
@@ -355,7 +365,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return FutureUtil
                     .failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
-        return storeGet(path)
+        return storeGet(path, opts)
                 .whenComplete((v, t) -> {
                     if (t != null) {
                         v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
@@ -366,7 +376,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 });
     }
 
-    protected abstract CompletableFuture<Optional<GetResult>> storeGet(String path);
+    /**
+     * Backend hook for {@link #get}. Implementations consume {@link Option} entries from {@code opts}
+     * via {@link OptionsHelper}.
+     */
+    protected abstract CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts);
 
     @Override
     public final CompletableFuture<List<String>> getChildren(String path, Set<Option> opts) {
@@ -381,11 +395,6 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             nodeSizeStats.recordGetChildrenRes(path, list);
         });
         return listFuture;
-    }
-
-    @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
-        return getChildrenFromStore(path);
     }
 
     @Override
@@ -448,7 +457,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
-    protected abstract CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion);
+    /**
+     * Backend hook for {@link #delete}. Implementations consume {@link Option} entries from {@code opts}
+     * via {@link OptionsHelper}.
+     */
+    protected abstract CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion,
+                                                            Set<Option> opts);
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
@@ -466,7 +480,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     expectedVersion.orElse(null), Instant.now().toEpochMilli(),
                     getMetadataEventSynchronizer().get().getClusterName(), NotificationType.Deleted);
             return getMetadataEventSynchronizer().get().notify(event)
-                    .thenCompose(__ -> deleteInternal(path, expectedVersion))
+                    .thenCompose(__ -> deleteInternal(path, expectedVersion, opts))
                     .whenComplete((v, t) -> {
                         if (null != t) {
                             metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
@@ -475,7 +489,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     });
         } else {
-            return deleteInternal(path, expectedVersion)
+            return deleteInternal(path, expectedVersion, opts)
                     .whenComplete((v, t) -> {
                         if (null != t) {
                             metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
@@ -486,9 +500,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
-    private CompletableFuture<Void> deleteInternal(String path, Optional<Long> expectedVersion) {
+    private CompletableFuture<Void> deleteInternal(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         // Ensure caches are invalidated before the operation is confirmed
-        return storeDelete(path, expectedVersion).thenRun(() -> {
+        return storeDelete(path, expectedVersion, opts).thenRun(() -> {
             existsCache.synchronous().invalidate(path);
             childrenCache.synchronous().invalidate(path);
             String parent = parent(path);
@@ -502,19 +516,19 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public CompletableFuture<Void> deleteRecursive(String path) {
+    public CompletableFuture<Void> deleteRecursive(String path, Set<Option> opts) {
         log.info().attr("path", path).log("Deleting recursively path");
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
-        return getChildren(path)
+        return getChildren(path, opts)
                 .thenCompose(children -> FutureUtil.waitForAll(
                         children.stream()
-                                .map(child -> deleteRecursive(path + "/" + child))
+                                .map(child -> deleteRecursive(path + "/" + child, opts))
                                 .collect(Collectors.toList())))
                 .thenCompose(__ -> {
                     log.info().attr("path", path).log("After deleting all children, now deleting path");
-                    return deleteIfExists(path, Optional.empty());
+                    return deleteIfExists(path, Optional.empty(), opts);
                 });
     }
 
@@ -533,7 +547,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
-        return storeFindByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter);
+        return storeFindByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, opts);
     }
 
     @Override
@@ -552,7 +566,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             consumer.onError(ex);
             return FutureUtil.failedFuture(ex);
         }
-        return storeScanChildren(parentPath, consumer);
+        return storeScanChildren(parentPath, consumer, opts);
     }
 
     /**
@@ -561,13 +575,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
      * {@link #storeGet}. Backends with a native range-scan primitive (Oxia, RocksDB,
      * in-memory NavigableMap) override this method for a single store-side scan.
      */
-    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        getChildrenFromStore(parentPath).thenCompose(children -> {
+        getChildrenFromStore(parentPath, opts).thenCompose(children -> {
             CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
             for (String child : children) {
                 String childPath = parentPath.equals("/") ? "/" + child : parentPath + "/" + child;
-                chain = chain.thenCompose(__ -> storeGet(childPath))
+                chain = chain.thenCompose(__ -> storeGet(childPath, opts))
                         .thenAccept(opt -> opt.ifPresent(consumer::onNext));
             }
             return chain;
@@ -587,12 +601,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected CompletableFuture<List<GetResult>> storeFindByIndex(
             String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter) {
+            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
         // Default fallback: full scan under scanPathPrefix, applying fallbackFilter to each result.
-        return getChildrenFromStore(scanPathPrefix)
+        return getChildrenFromStore(scanPathPrefix, opts)
                 .thenCompose(children -> {
                     List<CompletableFuture<Optional<GetResult>>> futures = children.stream()
-                            .map(child -> storeGet(scanPathPrefix + "/" + child))
+                            .map(child -> storeGet(scanPathPrefix + "/" + child, opts))
                             .toList();
                     return FutureUtil.waitForAll(futures)
                             .thenApply(__ -> futures.stream()

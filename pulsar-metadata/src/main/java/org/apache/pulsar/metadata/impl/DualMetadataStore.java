@@ -371,11 +371,11 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public CompletableFuture<Void> deleteRecursive(String path) {
+    public CompletableFuture<Void> deleteRecursive(String path, Set<Option> opts) {
         switch (migrationState.getPhase()) {
             case NOT_STARTED, FAILED -> {
                 pendingSourceWrites.incrementAndGet();
-                var future = sourceStore.deleteRecursive(path);
+                var future = sourceStore.deleteRecursive(path, opts);
                 future.whenComplete((result, e) -> pendingSourceWrites.decrementAndGet());
                 return future;
             }
@@ -383,7 +383,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
                 return CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
             }
             case COMPLETED -> {
-                return targetStore.deleteRecursive(path);
+                return targetStore.deleteRecursive(path, opts);
             }
 
             default -> throw new IllegalStateException("Invalid phase " + migrationState.getPhase());

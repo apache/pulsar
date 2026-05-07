@@ -27,8 +27,10 @@ import io.oxia.client.api.Version;
 import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
 import io.oxia.client.api.options.DeleteOption;
+import io.oxia.client.api.options.GetOption;
 import io.oxia.client.api.options.ListOption;
 import io.oxia.client.api.options.PutOption;
+import io.oxia.client.api.options.RangeScanOption;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -152,11 +154,11 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
         var pathWithSlash = path.endsWith("/") ? path : path + "/";
 
         return client
-                .list(pathWithSlash, pathWithSlash + "/")
+                .list(pathWithSlash, pathWithSlash + "/", listOptions(opts))
                 .thenApply(
                         children ->
                                 children.stream().map(child -> child.substring(pathWithSlash.length())).toList())
@@ -164,30 +166,27 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Boolean> existsFromStore(String path) {
-        return client.get(path).thenApply(Objects::nonNull)
+    protected CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
+        return client.get(path, getOptions(opts)).thenApply(Objects::nonNull)
                 .exceptionallyCompose(this::convertException);
     }
 
     @Override
-    protected CompletableFuture<Optional<GetResult>> storeGet(String path) {
-        return client.get(path).thenApply(res -> convertGetResult(path, res))
+    protected CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
+        return client.get(path, getOptions(opts)).thenApply(res -> convertGetResult(path, res))
                 .exceptionallyCompose(this::convertException);
     }
 
     @Override
-    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        return getChildrenFromStore(path)
+    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
+        return getChildrenFromStore(path, opts)
                 .thenCompose(
                         children -> {
                             if (!children.isEmpty()) {
                                 return CompletableFuture.failedFuture(
                                         new MetadataStoreException("Key '" + path + "' has children"));
                             } else {
-                                Set<DeleteOption> delOption =
-                                        expectedVersion
-                                                .map(v -> Collections.singleton(DeleteOption.IfVersionIdEquals(v)))
-                                                .orElse(Collections.emptySet());
+                                Set<DeleteOption> delOption = deleteOptions(opts, expectedVersion);
                                 CompletableFuture<Boolean> result = client.delete(path, delOption);
                                 return result
                                         .thenCompose(
@@ -211,7 +210,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         // Oxia's hierarchical sort makes [parentPath + "/", parentPath + "//") the canonical
         // range covering exactly the immediate children — same convention getChildrenFromStore
         // uses with `client.list(...)`.
@@ -237,7 +236,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                     consumer.onCompleted();
                     done.complete(null);
                 }
-            });
+            }, rangeScanOptions(opts));
         } catch (Throwable t) {
             consumer.onError(t);
             done.completeExceptionally(t);
@@ -248,12 +247,14 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     @Override
     protected CompletableFuture<List<GetResult>> storeFindByIndex(
             String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter) {
+            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
         String scopedKey = scanPathPrefix + "/" + secondaryKey;
-        return client.list(scopedKey, scopedKey + "~", Set.of(ListOption.UseIndex(indexName)))
+        Set<ListOption> listOpts = new HashSet<>(listOptions(opts));
+        listOpts.add(ListOption.UseIndex(indexName));
+        return client.list(scopedKey, scopedKey + "~", listOpts)
                 .thenCompose(primaryKeys -> {
                     List<CompletableFuture<Optional<GetResult>>> futures = primaryKeys.stream()
-                            .map(this::storeGet)
+                            .map(p -> storeGet(p, opts))
                             .toList();
                     return FutureUtil.waitForAll(futures)
                             .thenApply(__ -> futures.stream()
@@ -307,6 +308,10 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                     if (ephemeral) {
                         putOptions.add(PutOption.AsEphemeralRecord);
                     }
+                    String partitionKey = OptionsHelper.partitionKey(opts);
+                    if (partitionKey != null) {
+                        putOptions.add(PutOption.PartitionKey(partitionKey));
+                    }
                     var parentPath = parent(path);
                     var parentPrefix = parentPath == null ? "" : parentPath;
                     secondaryIndexes.forEach((indexName, secondaryKey) ->
@@ -322,6 +327,41 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                             .thenApply(res -> convertStat(res.path(), res.result().version()))
                             .exceptionallyCompose(this::convertException);
                 });
+    }
+
+    /** Build the Oxia {@link GetOption} set from {@code opts}, currently routing the partition key. */
+    private static Set<GetOption> getOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null ? Set.of() : Set.of(GetOption.PartitionKey(partitionKey));
+    }
+
+    /** Build the Oxia {@link ListOption} set from {@code opts}, currently routing the partition key. */
+    private static Set<ListOption> listOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null ? Set.of() : Set.of(ListOption.PartitionKey(partitionKey));
+    }
+
+    /**
+     * Build the Oxia {@link DeleteOption} set from {@code opts} together with the optional expected
+     * version.
+     */
+    private static Set<DeleteOption> deleteOptions(Set<Option> opts, Optional<Long> expectedVersion) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        if (partitionKey == null && expectedVersion.isEmpty()) {
+            return Set.of();
+        }
+        Set<DeleteOption> result = new HashSet<>();
+        expectedVersion.ifPresent(v -> result.add(DeleteOption.IfVersionIdEquals(v)));
+        if (partitionKey != null) {
+            result.add(DeleteOption.PartitionKey(partitionKey));
+        }
+        return result;
+    }
+
+    /** Build the Oxia {@link RangeScanOption} set from {@code opts}, currently routing the partition key. */
+    private static Set<RangeScanOption> rangeScanOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null ? Set.of() : Set.of(RangeScanOption.PartitionKey(partitionKey));
     }
 
     private <T> CompletionStage<T> convertException(Throwable ex) {

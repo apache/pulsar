@@ -100,22 +100,22 @@ public class MetadataStoreFactoryImplTest {
         }
 
         @Override
-        public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
             return null;
         }
 
         @Override
-        protected CompletableFuture<Boolean> existsFromStore(String path) {
+        protected CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
             return null;
         }
 
         @Override
-        protected CompletableFuture<Optional<GetResult>> storeGet(String path) {
+        protected CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
             return null;
         }
 
         @Override
-        protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
+        protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
             return null;
         }
 

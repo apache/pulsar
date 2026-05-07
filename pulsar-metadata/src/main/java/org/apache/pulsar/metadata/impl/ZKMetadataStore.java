@@ -390,7 +390,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     @Override
-    public CompletableFuture<Boolean> existsFromStore(String path) {
+    public CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         try {

@@ -108,7 +108,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
+    public CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
         synchronized (map) {
             Value v = map.get(path);
             if (v != null) {
@@ -123,7 +123,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         // Snapshot the immediate children under the lock, then dispatch outside it so a slow
         // consumer can't stall other store operations.
         List<GetResult> snapshot = new ArrayList<>();
@@ -156,7 +156,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -178,7 +178,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Boolean> existsFromStore(String path) {
+    public CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -242,7 +242,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
+    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion, Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }

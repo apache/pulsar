@@ -198,8 +198,8 @@ public interface MetadataStore extends AutoCloseable {
         return delete(path, expectedVersion, Set.of());
     }
 
-    default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion) {
-        return delete(path, expectedVersion)
+    default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion, Set<Option> opts) {
+        return delete(path, expectedVersion, opts)
                 .exceptionally(e -> {
                     if (e.getCause() instanceof NotFoundException) {
                         LOG.info().attr("path", path).log("Path not found while deleting (this is not a problem)");
@@ -216,6 +216,11 @@ public interface MetadataStore extends AutoCloseable {
                 });
     }
 
+    /** Like {@link #deleteIfExists(String, Optional, Set)} with no options. */
+    default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion) {
+        return deleteIfExists(path, expectedVersion, Set.of());
+    }
+
     /**
      * Delete a key-value pair and all the children nodes.
      *
@@ -224,9 +229,16 @@ public interface MetadataStore extends AutoCloseable {
      *
      * @param path
      *            the path of the key to delete from the store
+     * @param opts
+     *            the set of {@link Option options} for this operation
      * @return a future to track the async request
      */
-    CompletableFuture<Void> deleteRecursive(String path);
+    CompletableFuture<Void> deleteRecursive(String path, Set<Option> opts);
+
+    /** Like {@link #deleteRecursive(String, Set)} with no options. */
+    default CompletableFuture<Void> deleteRecursive(String path) {
+        return deleteRecursive(path, Set.of());
+    }
 
     /**
      * Register a listener that will be called on changes in the underlying store.
