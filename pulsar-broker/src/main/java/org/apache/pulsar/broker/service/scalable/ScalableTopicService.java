@@ -272,18 +272,6 @@ public class ScalableTopicService {
     }
 
     /**
-     * @deprecated Defaults to {@link ScalableConsumerType#STREAM}
-     *     for backward compatibility. New callers should pass the explicit consumer type.
-     */
-    @Deprecated
-    public CompletableFuture<ConsumerAssignment> registerConsumer(TopicName topic, String subscription,
-                                                                   String consumerName, long consumerId,
-                                                                   org.apache.pulsar.broker.service.TransportCnx cnx) {
-        return registerConsumer(topic, subscription, consumerName, consumerId,
-                ScalableConsumerType.STREAM, cnx);
-    }
-
-    /**
      * Called when a scalable consumer's transport connection drops. Forwards to the
      * controller which marks the session disconnected and starts its grace timer.
      * No-op if the controller is not held locally.
