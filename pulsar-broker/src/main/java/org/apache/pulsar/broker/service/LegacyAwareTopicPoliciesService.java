@@ -44,7 +44,8 @@ import org.jspecify.annotations.NonNull;
 public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
 
     private final AsyncLoadingCache<NamespaceName, Boolean> isLegacyNamespace;
-    private final SystemTopicBasedTopicPoliciesService systemTopicService;
+    @VisibleForTesting
+    final SystemTopicBasedTopicPoliciesService systemTopicService;
     private final TopicPoliciesService configuredService;
 
     public LegacyAwareTopicPoliciesService(PulsarService pulsar,
@@ -73,7 +74,10 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
 
     @Override
     public void start(PulsarService pulsarService) {
-        systemTopicService.start(pulsarService);
+        // We should not call `systemTopicService.start()`, which just registers a namespace bundle listener to create
+        // a reader on `<namespace>/__change_events` when the namespace's bundle is loaded firstly. It's just an
+        // optimization to create the reader before loading any topic. However, it could create a reader on a namespace
+        // that does not even have the __change_events topic.
         configuredService.start(pulsarService);
     }
 
@@ -116,11 +120,14 @@ public class LegacyAwareTopicPoliciesService implements TopicPoliciesService {
     }
 
     @Override
+    public CompletableFuture<Boolean> registerListenerAsync(TopicName topicName, TopicPolicyListener listener) {
+        return resolveService(topicName.getNamespaceObject())
+                .thenCompose(service -> service.registerListenerAsync(topicName, listener));
+    }
+
+    @Override
     public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
-        // It's okay to register listeners for both because only one listener will receive the updates
-        boolean configuredRegistered = configuredService.registerListener(topicName, listener);
-        boolean systemTopicRegistered = systemTopicService.registerListener(topicName, listener);
-        return configuredRegistered || systemTopicRegistered;
+        throw new RuntimeException("should not be called");
     }
 
     @Override

@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -33,6 +34,7 @@ import org.awaitility.Awaitility;
 import org.awaitility.core.ThrowingRunnable;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -107,20 +109,28 @@ public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBase
         assertNull(admin.topicPolicies().getCompactionThreshold(topic2));
     }
 
-    @Test
-    public void testPoliciesStoredInMetadataStore() throws Exception {
-        final var topicName = TopicName.get(metaNamespace + "/test-policies-stored-in-metadata-store");
+    @DataProvider
+    public Object[][] namespaces() {
+        return new Object[][] {
+                { "public/default" },
+                { metaNamespace }
+        };
+    }
+
+    @Test(dataProvider = "namespaces")
+    public void testPoliciesOperations(String namespace) throws Exception {
+        final var topicName = TopicName.get(namespace + "/test-policies-operations");
         final var topic = topicName.toString();
         admin.topics().createNonPartitionedTopic(topic);
 
         final var compactionThreshold = new AtomicLong(0);
         // Verify the exception thrown from one listener does not affect other listeners
-        pulsar.getTopicPoliciesService().registerListener(topicName, __ -> {
+        pulsar.getTopicPoliciesService().registerListenerAsync(topicName, __ -> {
             throw new RuntimeException("injected failure");
-        });
-        pulsar.getTopicPoliciesService().registerListener(topicName, policies ->
+        }).get();
+        pulsar.getTopicPoliciesService().registerListenerAsync(topicName, policies ->
                 Optional.ofNullable(policies).map(TopicPolicies::getCompactionThreshold).ifPresentOrElse(
-                        compactionThreshold::set, () -> compactionThreshold.set(-1)));
+                        compactionThreshold::set, () -> compactionThreshold.set(-1))).get();
 
         // Verify Created events are handled
         admin.topicPolicies(false).setCompactionThreshold(topic, 100);
@@ -128,12 +138,16 @@ public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBase
         final var localStore = pulsar.getLocalMetadataStore();
         final var configurationStore = pulsar.getConfigurationMetadataStore();
 
-        assertTrue(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, false)).get());
-        assertFalse(configurationStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, true)).get());
+        if (namespace.equals(metaNamespace)) {
+            assertTrue(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, false)).get());
+            assertFalse(configurationStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, true)).get());
+        }
 
         admin.topicPolicies(true).setCompactionThreshold(topic, 200);
         waitUntilAssert(() -> assertEquals(compactionThreshold.get(), 200));
-        assertTrue(configurationStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, true)).get());
+        if (namespace.equals(metaNamespace)) {
+            assertTrue(configurationStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, true)).get());
+        }
 
         // Verify Modified events are handled
         admin.topicPolicies(false).setCompactionThreshold(topic, 300);
@@ -142,11 +156,17 @@ public class LegacyAwareTopicPoliciesServiceTest extends MockedPulsarServiceBase
         admin.topicPolicies(true).setCompactionThreshold(topic, 400);
         waitUntilAssert(() -> assertEquals(compactionThreshold.get(), 400));
 
+        final var readerNamespaces = ((LegacyAwareTopicPoliciesService) pulsar.getTopicPoliciesService())
+                .systemTopicService.getReaderCaches().keySet();
+        assertFalse(readerNamespaces.contains(NamespaceName.get(metaNamespace)));
+
         // Verify Deleted events are handled
         admin.topicPolicies(false).deleteTopicPolicies(topic);
         waitUntilAssert(() -> assertEquals(compactionThreshold.get(), -1));
-        assertFalse(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, false)).get());
-        assertFalse(configurationStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, true)).get());
+        if (namespace.equals(metaNamespace)) {
+            assertFalse(localStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, false)).get());
+            assertFalse(configurationStore.exists(MetadataStoreTopicPoliciesService.pathFor(topicName, true)).get());
+        }
     }
 
     @Test
