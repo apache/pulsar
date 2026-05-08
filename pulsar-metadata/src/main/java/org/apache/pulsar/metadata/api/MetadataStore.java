@@ -403,6 +403,36 @@ public interface MetadataStore extends AutoCloseable {
     }
 
     /**
+     * Subscribe to updates on a sequence-key prefix written via {@link Option.SequenceKeysDeltas}.
+     *
+     * <p>The {@code listener} receives the latest assigned sequence key (the full path with
+     * sequence suffix) as new sequence records are created under {@code prefix}. Multiple updates
+     * may be collapsed into a single event with the highest sequence — callers must treat the
+     * stream as monotonic but not exhaustive.
+     *
+     * <p>Closing the returned handle unsubscribes. On Oxia this delegates to the native
+     * sequence-update channel; other backends synthesize the stream from change notifications on
+     * the prefix's parent path.
+     *
+     * @param prefix   the sequence-key prefix (the same string passed as {@code path} to a
+     *                 {@code put} with {@link Option.SequenceKeysDeltas})
+     * @param listener callback receiving the full path of the latest sequence key
+     * @param opts     the set of {@link Option options} for this subscription
+     * @return a handle whose {@link AutoCloseable#close} cancels the subscription
+     * @throws MetadataStoreException if the store doesn't support sequence subscriptions
+     */
+    default AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts)
+            throws MetadataStoreException {
+        throw new MetadataStoreException("Sequence subscriptions not supported by this store");
+    }
+
+    /** Like {@link #subscribeSequence(String, Consumer, Set)} with no options. */
+    default AutoCloseable subscribeSequence(String prefix, Consumer<String> listener)
+            throws MetadataStoreException {
+        return subscribeSequence(prefix, listener, Set.of());
+    }
+
+    /**
      * Returns the default metadata cache config.
      *
      * @return default metadata cache config

@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.api;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -72,5 +73,21 @@ public final class OptionsHelper {
             }
         }
         return map == null ? Collections.emptyMap() : map;
+    }
+
+    /**
+     * @return the per-dimension increments from a {@link Option.SequenceKeysDeltas} entry, or
+     *     {@code null} if no such option is present.
+     */
+    public static List<Long> sequenceKeysDeltas(Set<Option> opts) {
+        if (opts == null) {
+            return null;
+        }
+        for (Option o : opts) {
+            if (o instanceof Option.SequenceKeysDeltas sk) {
+                return sk.deltas();
+            }
+        }
+        return null;
     }
 }

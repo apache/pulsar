@@ -28,9 +28,11 @@ import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
 import io.oxia.client.api.options.DeleteOption;
 import io.oxia.client.api.options.GetOption;
+import io.oxia.client.api.options.GetSequenceUpdatesOption;
 import io.oxia.client.api.options.ListOption;
 import io.oxia.client.api.options.PutOption;
 import io.oxia.client.api.options.RangeScanOption;
+import java.io.Closeable;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
@@ -42,6 +44,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import lombok.CustomLog;
 import lombok.NonNull;
@@ -270,15 +273,22 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             String path, byte[] data, Optional<Long> optExpectedVersion, Set<Option> opts) {
         boolean sequential = OptionsHelper.isSequential(opts);
         boolean ephemeral = OptionsHelper.isEphemeral(opts);
+        List<Long> sequenceKeysDeltas = OptionsHelper.sequenceKeysDeltas(opts);
         Map<String, String> secondaryIndexes = OptionsHelper.secondaryIndexes(opts);
+        if (sequential && sequenceKeysDeltas != null) {
+            return CompletableFuture.failedFuture(new MetadataStoreException(
+                    "Sequential and SequenceKeysDeltas cannot be combined"));
+        }
         CompletableFuture<Void> parentsCreated = createParents(path);
         return parentsCreated.thenCompose(
                 __ -> {
                     var expectedVersion = optExpectedVersion;
-                    if (expectedVersion.isPresent() && expectedVersion.get() != -1L && sequential) {
+                    if (expectedVersion.isPresent() && expectedVersion.get() != -1L
+                            && (sequential || sequenceKeysDeltas != null)) {
                         return CompletableFuture.failedFuture(
                                 new MetadataStoreException(
-                                        "Can't have expectedVersion and Sequential at the same time"));
+                                        "Can't have expectedVersion and Sequential/SequenceKeysDeltas at the "
+                                                + "same time"));
                     }
                     CompletableFuture<String> actualPath;
                     if (sequential) {
@@ -312,6 +322,9 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                     if (partitionKey != null) {
                         putOptions.add(PutOption.PartitionKey(partitionKey));
                     }
+                    if (sequenceKeysDeltas != null) {
+                        putOptions.add(PutOption.SequenceKeysDeltas(sequenceKeysDeltas));
+                    }
                     var parentPath = parent(path);
                     var parentPrefix = parentPath == null ? "" : parentPath;
                     secondaryIndexes.forEach((indexName, secondaryKey) ->
@@ -324,7 +337,9 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                                             client
                                                     .put(aPath, data, putOptions)
                                                     .thenApply(res -> new PathWithPutResult(aPath, res)))
-                            .thenApply(res -> convertStat(res.path(), res.result().version()))
+                            // Use the effective key returned by Oxia — for SequenceKeysDeltas this is
+                            // the server-assigned key with sequence suffixes appended.
+                            .thenApply(res -> convertStat(res.result().key(), res.result().version()))
                             .exceptionallyCompose(this::convertException);
                 });
     }
@@ -362,6 +377,28 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private static Set<RangeScanOption> rangeScanOptions(Set<Option> opts) {
         String partitionKey = OptionsHelper.partitionKey(opts);
         return partitionKey == null ? Set.of() : Set.of(RangeScanOption.PartitionKey(partitionKey));
+    }
+
+    /**
+     * Build the Oxia {@link GetSequenceUpdatesOption} set from {@code opts}, currently routing the
+     * partition key.
+     */
+    private static Set<GetSequenceUpdatesOption> sequenceUpdatesOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null
+                ? Set.of()
+                : Set.of(GetSequenceUpdatesOption.PartitionKey(partitionKey));
+    }
+
+    @Override
+    public AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts) {
+        Closeable handle = client.getSequenceUpdates(prefix, listener, sequenceUpdatesOptions(opts));
+        return handle::close;
+    }
+
+    @Override
+    protected boolean supportsNativeSequenceKeys() {
+        return true;
     }
 
     private <T> CompletionStage<T> convertException(Throwable ex) {

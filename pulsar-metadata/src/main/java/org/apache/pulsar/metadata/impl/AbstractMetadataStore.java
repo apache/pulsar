@@ -32,6 +32,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.HashSet;
@@ -48,6 +49,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -629,6 +631,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
+        // Sequence-key compatibility layer: when the backend doesn't have native sequence-keys
+        // (everything except Oxia today), synthesize the actual key with a CAS-incremented
+        // counter document, then recurse into the regular put path with the synthesized key.
+        List<Long> deltas = OptionsHelper.sequenceKeysDeltas(opts);
+        if (deltas != null && !supportsNativeSequenceKeys()) {
+            return putWithSequenceKeysCompat(path, data, optExpectedVersion, opts, deltas);
+        }
         if (getMetadataEventSynchronizer().isPresent()) {
             Long version = optExpectedVersion.isPresent() && optExpectedVersion.get() < 0 ? null
                     : optExpectedVersion.orElse(null);
@@ -657,6 +666,152 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     });
         }
 
+    }
+
+    /**
+     * Whether this store has a native multi-dimensional atomic sequence-keys implementation
+     * (Oxia). Backends that return {@code true} are expected to interpret
+     * {@link Option.SequenceKeysDeltas} themselves in {@code storePut} and surface the
+     * server-assigned key in the returned {@link Stat}. Backends that return {@code false} fall
+     * back to the synthesized counter+CAS path in this class.
+     */
+    protected boolean supportsNativeSequenceKeys() {
+        return false;
+    }
+
+    private CompletableFuture<Stat> putWithSequenceKeysCompat(
+            String prefix, byte[] data, Optional<Long> version, Set<Option> opts, List<Long> deltas) {
+        if (version.isPresent() && version.get() != -1L) {
+            return FutureUtil.failedFuture(new MetadataStoreException(
+                    "Can't have expectedVersion and SequenceKeysDeltas at the same time"));
+        }
+        return atomicIncrementSequenceCounter(prefix, deltas).thenCompose(seqs -> {
+            String synthesized = formatSequenceKey(prefix, seqs);
+            Set<Option> remainingOpts = stripSequenceKeysDeltas(opts);
+            // Recurse into the regular put path with the synthesized key. expectedVersion = -1
+            // guarantees we only succeed on a fresh insert — defensive against stale counters.
+            return put(synthesized, data, Optional.of(-1L), remainingOpts);
+        });
+    }
+
+    private CompletableFuture<long[]> atomicIncrementSequenceCounter(String prefix, List<Long> deltas) {
+        String counterPath = sequenceCounterPath(prefix);
+        return get(counterPath, Set.of()).thenCompose(currentOpt -> {
+            long[] currentSeqs = currentOpt.isPresent()
+                    ? decodeSequenceCounter(currentOpt.get().getValue())
+                    : new long[0];
+            long[] newSeqs = new long[deltas.size()];
+            for (int i = 0; i < deltas.size(); i++) {
+                long current = i < currentSeqs.length ? currentSeqs[i] : 0L;
+                newSeqs[i] = current + deltas.get(i);
+            }
+            Optional<Long> expectedVersion = currentOpt.isPresent()
+                    ? Optional.of(currentOpt.get().getStat().getVersion())
+                    : Optional.of(-1L);
+            byte[] encoded = encodeSequenceCounter(newSeqs);
+            return put(counterPath, encoded, expectedVersion, Set.of())
+                    .thenApply(s -> newSeqs)
+                    .exceptionallyCompose(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof MetadataStoreException.BadVersionException) {
+                            // Concurrent writer beat us — read the new counter value and retry.
+                            return atomicIncrementSequenceCounter(prefix, deltas);
+                        }
+                        return FutureUtil.failedFuture(cause);
+                    });
+        });
+    }
+
+    /** Counter-document path for a sequence prefix. Sibling of the prefix at the parent level. */
+    static String sequenceCounterPath(String prefix) {
+        return prefix + "__seq_counter__";
+    }
+
+    /** Format a synthesized sequence key matching Oxia's native format: {@code prefix-{seq:%020d}-...}. */
+    static String formatSequenceKey(String prefix, long[] seqs) {
+        StringBuilder sb = new StringBuilder(prefix);
+        for (long s : seqs) {
+            sb.append('-').append(String.format("%020d", s));
+        }
+        return sb.toString();
+    }
+
+    private static byte[] encodeSequenceCounter(long[] seqs) {
+        ByteBuffer buf = ByteBuffer.allocate(seqs.length * Long.BYTES);
+        for (long s : seqs) {
+            buf.putLong(s);
+        }
+        return buf.array();
+    }
+
+    private static long[] decodeSequenceCounter(byte[] bytes) {
+        ByteBuffer buf = ByteBuffer.wrap(bytes);
+        long[] seqs = new long[bytes.length / Long.BYTES];
+        for (int i = 0; i < seqs.length; i++) {
+            seqs[i] = buf.getLong();
+        }
+        return seqs;
+    }
+
+    private static Set<Option> stripSequenceKeysDeltas(Set<Option> opts) {
+        if (opts == null || opts.isEmpty()) {
+            return Set.of();
+        }
+        Set<Option> result = new HashSet<>();
+        for (Option o : opts) {
+            if (!(o instanceof Option.SequenceKeysDeltas)) {
+                result.add(o);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts) {
+        SequenceWatcher watcher = new SequenceWatcher(prefix, listener);
+        listeners.add(watcher);
+        return () -> listeners.remove(watcher);
+    }
+
+    /**
+     * Listener-based subscription bridge: filter notifications matching a sequence prefix and
+     * deliver only paths that strictly increase the latest seen sequence. Multiple updates may
+     * collapse — only the highest path observed so far is delivered, matching Oxia's contract.
+     */
+    private static final class SequenceWatcher implements Consumer<Notification> {
+        private final String prefixDash;
+        private final Consumer<String> listener;
+        private final AtomicReference<String> latest = new AtomicReference<>();
+
+        SequenceWatcher(String prefix, Consumer<String> listener) {
+            this.prefixDash = prefix + "-";
+            this.listener = listener;
+        }
+
+        @Override
+        public void accept(Notification n) {
+            if (n.getType() != NotificationType.Created) {
+                return;
+            }
+            String path = n.getPath();
+            if (!path.startsWith(prefixDash)) {
+                return;
+            }
+            while (true) {
+                String previous = latest.get();
+                if (previous != null && path.compareTo(previous) <= 0) {
+                    return;
+                }
+                if (latest.compareAndSet(previous, path)) {
+                    try {
+                        listener.accept(path);
+                    } catch (Throwable t) {
+                        log.warn().attr("path", path).exception(t).log("Sequence subscription listener failed");
+                    }
+                    return;
+                }
+            }
+        }
     }
 
     /**

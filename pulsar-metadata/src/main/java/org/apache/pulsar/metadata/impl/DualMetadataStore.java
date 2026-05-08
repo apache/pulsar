@@ -325,6 +325,17 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
+    public AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts)
+            throws MetadataStoreException {
+        return switch (migrationState.getPhase()) {
+            case NOT_STARTED, PREPARATION, COPYING, FAILED ->
+                    sourceStore.subscribeSequence(prefix, listener, opts);
+            case COMPLETED ->
+                    targetStore.subscribeSequence(prefix, listener, opts);
+        };
+    }
+
+    @Override
     public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion, Set<Option> opts) {
         switch (migrationState.getPhase()) {
             case NOT_STARTED, FAILED -> {

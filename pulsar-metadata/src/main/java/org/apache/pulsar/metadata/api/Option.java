@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.metadata.api;
 
+import java.util.List;
+
 /**
  * An option attached to a {@link MetadataStore} operation.
  *
@@ -64,4 +66,40 @@ public sealed interface Option {
      * @param key the partition key (treated opaquely; equality-routed)
      */
     record PartitionKey(String key) implements Option {}
+
+    /**
+     * Request server-assigned multi-dimensional sequence keys on {@code put}. The {@code path}
+     * argument to {@code put} is treated as a key prefix; the actual stored key is
+     * {@code prefix-{seq0}-{seq1}-...} where each sequence is zero-padded 20-digit decimal and
+     * each dimension increments atomically by its delta.
+     *
+     * <p>The {@code Stat} returned from the {@code put} carries the actual generated path. Pair
+     * with {@link MetadataStore#subscribeSequence} to receive notifications as new sequence keys
+     * are created.
+     *
+     * <p>Constraints: {@code deltas} must be non-empty, the first delta must be {@code > 0}, and
+     * the rest must be {@code >= 0}. On Oxia a {@link PartitionKey} must also be provided.
+     * Backends without native sequence-key support synthesize the same key format using a
+     * sidecar counter document and CAS.
+     *
+     * @param deltas per-dimension increments
+     */
+    record SequenceKeysDeltas(List<Long> deltas) implements Option {
+
+        public SequenceKeysDeltas {
+            if (deltas == null || deltas.isEmpty()) {
+                throw new IllegalArgumentException("SequenceKeysDeltas requires at least one delta");
+            }
+            if (deltas.get(0) <= 0) {
+                throw new IllegalArgumentException("first delta must be > 0, got " + deltas.get(0));
+            }
+            for (int i = 1; i < deltas.size(); i++) {
+                if (deltas.get(i) < 0) {
+                    throw new IllegalArgumentException(
+                            "delta at index " + i + " must be >= 0, got " + deltas.get(i));
+                }
+            }
+            deltas = List.copyOf(deltas);
+        }
+    }
 }

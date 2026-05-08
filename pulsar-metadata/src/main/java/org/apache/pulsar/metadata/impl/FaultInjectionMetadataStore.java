@@ -158,6 +158,12 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
+    public AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts)
+            throws MetadataStoreException {
+        return store.subscribeSequence(prefix, listener, opts);
+    }
+
+    @Override
     public void registerListener(Consumer<Notification> listener) {
         store.registerListener(listener);
     }
