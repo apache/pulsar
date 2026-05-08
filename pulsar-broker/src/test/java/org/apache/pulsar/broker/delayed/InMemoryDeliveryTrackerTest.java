@@ -249,4 +249,14 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
 
         assertNull(exceptions[0]);
     }
+    @Test(dataProvider = "delayedTracker")
+    public void testAddMultipleMessagesSameWindow(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        tracker.addMessage(1, 1, 50);
+        tracker.addMessage(1, 1, 50);
+        tracker.addMessage(1, 1, 50);
+
+        clockTime.set(60);
+
+        tracker.getScheduledMessages(10);
+    }
 }

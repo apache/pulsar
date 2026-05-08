@@ -442,7 +442,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
-    protected Predicate<Position> createReadEntriesSkipConditionForNormalRead() {
+    protected synchronized Predicate<Position> createReadEntriesSkipConditionForNormalRead() {
         Predicate<Position> skipCondition = null;
         // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
         if (delayedDeliveryTracker.isPresent()) {
@@ -1367,12 +1367,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
-    public long getNumberOfDelayedMessages() {
+    public synchronized long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }
 
     @Override
-    public CompletableFuture<Void> clearDelayedMessages() {
+    public synchronized CompletableFuture<Void> clearDelayedMessages() {
         if (!topic.isDelayedDeliveryEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -1451,11 +1451,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
 
-    public long getDelayedTrackerMemoryUsage() {
+    public synchronized long getDelayedTrackerMemoryUsage() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getBufferMemoryUsage).orElse(0L);
     }
 
-    public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
+    public synchronized Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
         if (delayedDeliveryTracker.isEmpty()) {
             return Collections.emptyMap();
         }
