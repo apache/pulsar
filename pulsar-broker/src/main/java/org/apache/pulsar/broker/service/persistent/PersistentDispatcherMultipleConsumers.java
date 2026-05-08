@@ -1383,15 +1383,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
-    public CompletableFuture<Void> clearDelayedMessages() {
+    public synchronized CompletableFuture<Void> clearDelayedMessages() {
         if (!topic.isDelayedDeliveryEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
 
         if (delayedDeliveryTracker.isPresent()) {
-            synchronized (this) {
-                return this.delayedDeliveryTracker.get().clear();
-            }
+            return this.delayedDeliveryTracker.get().clear();
         } else {
             DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory =
                     topic.getBrokerService().getDelayedDeliveryTrackerFactory();
