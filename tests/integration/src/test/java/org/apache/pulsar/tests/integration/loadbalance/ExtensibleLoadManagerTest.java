@@ -143,10 +143,13 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                 brokerContainer.start();
             }
         });
-        String topicName = "persistent://" + DEFAULT_NAMESPACE + "/startBrokerCheck";
         // Build admin clients once and reuse across poll iterations to avoid the per-tick
         // connection churn (3 brokers x N polls of admin builder/close). Connection setup
         // contends with brokers that are still warming up after a stop/restart.
+        // We only check getActiveBrokers and intentionally avoid a topic lookup probe: the broker
+        // accepts HTTP requests before ServiceUnitStateChannel reaches Started, and a lookup in that
+        // window fails fast with "Invalid channel state:LeaderElectionServiceStarted", which would
+        // make this poll loop spin without ever giving the channel time to finish starting.
         List<BrokerContainer> brokers = new ArrayList<>(pulsarCluster.getBrokers());
         List<PulsarAdmin> brokerAdmins = new ArrayList<>(brokers.size());
         try {
@@ -167,12 +170,6 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
                                             .log("Broker does not see active brokers yet");
                                     return false;
                                 }
-                                try {
-                                    brokerAdmin.topics().createPartitionedTopic(topicName, 10);
-                                } catch (PulsarAdminException.ConflictException e) {
-                                    // expected - topic already exists
-                                }
-                                brokerAdmin.lookups().lookupPartitionedTopic(topicName);
                             } catch (Exception e) {
                                 log.warn()
                                         .attr("broker", brokerContainer.getHostName())

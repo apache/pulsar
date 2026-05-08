@@ -29,7 +29,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -53,9 +52,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ConfigOptions;
@@ -586,7 +586,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> expectedVersion,
-                                               EnumSet<CreateOption> options) {
+                                               Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("storePut");
         try {
             dbStateLock.readLock().lock();
@@ -613,8 +613,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                     metaValue = new MetaValue();
                     metaValue.version = 0;
                     metaValue.createdTimestamp = timestamp;
-                    metaValue.ephemeral = options.contains(CreateOption.Ephemeral);
-                    if (options.contains(CreateOption.Sequential)) {
+                    metaValue.ephemeral = OptionsHelper.isEphemeral(opts);
+                    if (OptionsHelper.isSequential(opts)) {
                         path += sequentialIdGenerator.getAndIncrement();
                         pathBytes = toBytes(path);
                         transaction.put(SEQUENTIAL_ID_KEY, toBytes(sequentialIdGenerator.get()));

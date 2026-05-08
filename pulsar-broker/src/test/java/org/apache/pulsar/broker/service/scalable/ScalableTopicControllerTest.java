@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -217,7 +218,8 @@ public class ScalableTopicControllerTest {
                 () -> controller.createSubscription("sub", SubscriptionType.STREAM));
         assertThrows(IllegalStateException.class, () -> controller.deleteSubscription("sub"));
         assertThrows(IllegalStateException.class,
-                () -> controller.registerConsumer("sub", "c1", 1L, mock(TransportCnx.class)));
+                () -> controller.registerConsumer(
+                        "sub", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)));
         assertThrows(IllegalStateException.class, () -> controller.unregisterConsumer("sub", "c1"));
     }
 
@@ -226,8 +228,8 @@ public class ScalableTopicControllerTest {
     @Test
     public void testRegisterConsumerPersistsAndAssigns() throws Exception {
         controller.initialize().get();
-        ConsumerAssignment assignment =
-                controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
+        ConsumerAssignment assignment = controller.registerConsumer(
+                "sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         assertEquals(assignment.assignedSegments().size(), INITIAL_SEGMENTS,
                 "single consumer owns all active segments");
@@ -240,10 +242,11 @@ public class ScalableTopicControllerTest {
     @Test
     public void testRegisterConsumerReconnectDoesNotDuplicate() throws Exception {
         controller.initialize().get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
+        controller.registerConsumer(
+                "sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
         // Reconnect: same name, new consumerId.
-        ConsumerAssignment assignment =
-                controller.registerConsumer("sub-a", "c1", 99L, mock(TransportCnx.class)).get();
+        ConsumerAssignment assignment = controller.registerConsumer(
+                "sub-a", "c1", 99L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         assertEquals(assignment.assignedSegments().size(), INITIAL_SEGMENTS);
         // Still just one persisted registration.
@@ -253,8 +256,8 @@ public class ScalableTopicControllerTest {
     @Test
     public void testUnregisterConsumerDeletesPersistedEntry() throws Exception {
         controller.initialize().get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
-        controller.registerConsumer("sub-a", "c2", 2L, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
         assertEquals(resources.listConsumersAsync(topicName, "sub-a").get().size(), 2);
 
         controller.unregisterConsumer("sub-a", "c1").get();
@@ -328,7 +331,7 @@ public class ScalableTopicControllerTest {
     public void testDeleteSubscriptionRemovesInMemoryCoordinator() throws Exception {
         controller.initialize().get();
         controller.createSubscription("sub-a", SubscriptionType.STREAM).get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         controller.deleteSubscription("sub-a").get();
         // After delete, the persisted consumer entries should be gone.
@@ -376,7 +379,7 @@ public class ScalableTopicControllerTest {
     @Test
     public void testSplitSegmentPropagatesToRegisteredConsumer() throws Exception {
         controller.initialize().get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         SegmentLayout after = controller.splitSegment(0).get();
         // consumer still owns everything after split (single consumer).
@@ -405,8 +408,8 @@ public class ScalableTopicControllerTest {
         controller.splitSegment(0).get();
         controller.createSubscription("sub-a", SubscriptionType.STREAM).get();
         controller.createSubscription("sub-b", SubscriptionType.QUEUE).get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
-        controller.registerConsumer("sub-a", "c2", 2L, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         ScalableTopicStats stats = controller.getStats().get();
 

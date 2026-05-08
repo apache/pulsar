@@ -80,6 +80,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -1815,15 +1816,18 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     public void testCompactorSubscription() {
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
+        CompactedTopicContext compactedTopicContext = mock(CompactedTopicContext.class);
+        LedgerHandle ledgerHandle = mock(LedgerHandle.class);
+        when(compactedTopicContext.getLedger()).thenReturn(ledgerHandle);
         when(compactedTopic.newCompactedLedger(any(Position.class), anyLong()))
-                .thenReturn(CompletableFuture.completedFuture(mock(CompactedTopicContext.class)));
+                .thenReturn(CompletableFuture.completedFuture(compactedTopicContext));
         PersistentSubscription sub = new PulsarCompactorSubscription(topic, compactedTopic,
                 Compactor.COMPACTION_SUBSCRIPTION,
                 cursorMock);
         Position position = PositionFactory.create(1, 1);
         long ledgerId = 0xc0bfefeL;
-        sub.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative,
-                Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
+        sub.acknowledgeMessageAsync(Collections.singletonList(position), AckType.Cumulative,
+                Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId)).join();
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
 
@@ -1994,7 +1998,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse(cursor3.isActive());
 
         // Write messages to ledger
-        CountDownLatch latch = new CountDownLatch(backloggedThreshold);
+        CountDownLatch latch = new CountDownLatch(backloggedThreshold + 1);
         for (int i = 0; i < backloggedThreshold + 1; i++) {
             String content = "entry"; // 5 bytes
             ByteBuf entry = getMessageWithMetadata(content.getBytes());

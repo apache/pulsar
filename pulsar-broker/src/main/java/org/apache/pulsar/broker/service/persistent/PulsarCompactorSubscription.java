@@ -64,11 +64,13 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+    public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
+                                                           Map<String, Long> properties) {
         checkArgument(ackType == AckType.Cumulative);
         checkArgument(positions.size() == 1);
         checkArgument(properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));
         long compactedLedgerId = properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
+        CompletableFuture<Void> completionFuture = new CompletableFuture<>();
 
         Position position = positions.get(0);
 
@@ -93,6 +95,7 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
                     if (previousContext != null) {
                         compactedTopic.deleteCompactedLedger(previousContext.getLedger().getId());
                     }
+                    completionFuture.complete(null);
                 }
 
                 @Override
@@ -101,14 +104,20 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
                     log.debug()
                             .exception(exception)
                             .log("Failed to mark delete for position on compactor subscription");
+                    completionFuture.completeExceptionally(exception);
                 }
             }, null);
+        }).exceptionally(ex -> {
+            completionFuture.completeExceptionally(ex);
+            return null;
         });
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
         }
+
+        return completionFuture;
     }
 
     CompletableFuture<Void> cleanCompactedLedger() {

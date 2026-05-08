@@ -46,6 +46,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -303,7 +304,7 @@ public class ScalableTopicServiceTest {
         TopicName tn = scalableTopic("t-reg");
         service.createScalableTopic(tn, 2).get();
 
-        ConsumerAssignment assignment = service.registerConsumer(tn, "sub-z", "c1", 1L,
+        ConsumerAssignment assignment = service.registerConsumer(tn, "sub-z", "c1", 1L, ScalableConsumerType.STREAM,
                 mock(TransportCnx.class)).get();
         assertEquals(assignment.assignedSegments().size(), 2);
         assertEquals(resources.listConsumersAsync(tn, "sub-z").get().size(), 1);

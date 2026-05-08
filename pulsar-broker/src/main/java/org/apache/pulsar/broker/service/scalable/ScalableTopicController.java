@@ -467,19 +467,6 @@ public class ScalableTopicController {
      * registration (a subscription's type doesn't change in practice); subsequent
      * registers with a different type still work but won't change the ordering policy.
      */
-    /**
-     * @deprecated Defaults to {@link ScalableConsumerType#STREAM}
-     *     for backward compatibility. New callers should pass the explicit type.
-     */
-    @Deprecated
-    public CompletableFuture<ConsumerAssignment> registerConsumer(String subscription,
-                                                                   String consumerName,
-                                                                   long consumerId,
-                                                                   TransportCnx cnx) {
-        return registerConsumer(subscription, consumerName, consumerId,
-                ScalableConsumerType.STREAM, cnx);
-    }
-
     public CompletableFuture<ConsumerAssignment> registerConsumer(String subscription,
                                                                    String consumerName,
                                                                    long consumerId,

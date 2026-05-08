@@ -34,10 +34,8 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -70,6 +68,8 @@ import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
@@ -102,6 +102,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected final AtomicBoolean isClosed = new AtomicBoolean(false);
 
     protected abstract CompletableFuture<Boolean> existsFromStore(String path);
+
+    // Re-declare the legacy no-opts public methods as abstract here so that backends keep providing them
+    // as the concrete implementation hooks. The canonical {@code Set<Option>} forms in this class delegate
+    // to these via virtual dispatch.
+    @Override
+    public abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
 
     protected MetadataNodeSizeStats nodeSizeStats;
 
@@ -231,7 +237,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
                     ? deleteInternal(event.getPath(), Optional.empty())
                     : putInternal(event.getPath(), event.getValue(),
-                    Optional.ofNullable(event.getExpectedVersion()), options);
+                    Optional.ofNullable(event.getExpectedVersion()), fromLegacyCreateOptions(options));
             updateResult.thenApply(stat -> {
                 log.debug().attr("path", event.getPath()).log("successfully updated");
                 return result.complete(null);
@@ -339,7 +345,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> get(String path) {
+    public CompletableFuture<Optional<GetResult>> get(String path, Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -363,12 +369,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected abstract CompletableFuture<Optional<GetResult>> storeGet(String path);
 
     @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
-        return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
-    }
-
-    @Override
-    public final CompletableFuture<List<String>> getChildren(String path) {
+    public final CompletableFuture<List<String>> getChildren(String path, Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -383,7 +384,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public final CompletableFuture<Boolean> exists(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
+        return getChildrenFromStore(path);
+    }
+
+    @Override
+    public final CompletableFuture<Boolean> exists(String path, Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -445,7 +451,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     protected abstract CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion);
 
     @Override
-    public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+    public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         log.info().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleting path");
         if (isClosed()) {
             return alreadyClosedFailedFuture();
@@ -512,19 +518,18 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 });
     }
 
+    /**
+     * Backend hook for writing a value. Implementations consume {@link Option} entries from {@code opts}
+     * via {@link OptionsHelper} (e.g. {@link OptionsHelper#isEphemeral}, {@link OptionsHelper#isSequential},
+     * {@link OptionsHelper#secondaryIndexes}, {@link OptionsHelper#partitionKey}).
+     */
     protected abstract CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                                        EnumSet<CreateOption> options);
-
-    protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                               EnumSet<CreateOption> options,
-                                               Map<String, String> secondaryIndexes) {
-        return storePut(path, data, optExpectedVersion, options);
-    }
+                                                        Set<Option> opts);
 
     @Override
     public CompletableFuture<List<GetResult>> findByIndex(
             String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter) {
+            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -532,7 +537,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer) {
+    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         if (isClosed()) {
             CompletableFuture<Void> failed = alreadyClosedFailedFuture();
             failed.whenComplete((__, ex) -> {
@@ -601,13 +606,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
-            EnumSet<CreateOption> options) {
-        return put(path, data, optExpectedVersion, options, Collections.emptyMap());
-    }
-
-    @Override
-    public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
-            EnumSet<CreateOption> options, Map<String, String> secondaryIndexes) {
+            Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -616,15 +615,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
-        HashSet<CreateOption> ops = new HashSet<>(options);
         if (getMetadataEventSynchronizer().isPresent()) {
             Long version = optExpectedVersion.isPresent() && optExpectedVersion.get() < 0 ? null
                     : optExpectedVersion.orElse(null);
-            MetadataEvent event = new MetadataEvent(path, data, ops, version,
+            MetadataEvent event = new MetadataEvent(path, data, toLegacyCreateOptions(opts), version,
                     Instant.now().toEpochMilli(), getMetadataEventSynchronizer().get().getClusterName(),
                     NotificationType.Modified);
             return getMetadataEventSynchronizer().get().notify(event)
-                    .thenCompose(__ -> putInternal(path, data, optExpectedVersion, options, secondaryIndexes))
+                    .thenCompose(__ -> putInternal(path, data, optExpectedVersion, opts))
                     .whenComplete((v, t) -> {
                         if (t != null) {
                             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
@@ -634,7 +632,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     });
         } else {
-            return putInternal(path, data, optExpectedVersion, options, secondaryIndexes)
+            return putInternal(path, data, optExpectedVersion, opts)
                     .whenComplete((v, t) -> {
                         if (t != null) {
                             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
@@ -647,17 +645,45 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     }
 
-    public final CompletableFuture<Stat> putInternal(String path, byte[] data, Optional<Long> optExpectedVersion,
-            Set<CreateOption> options) {
-        return putInternal(path, data, optExpectedVersion, options, Collections.emptyMap());
+    /**
+     * Translate {@link Option.Ephemeral}/{@link Option.Sequential} entries from {@code opts} into the
+     * legacy {@link CreateOption} set carried by {@link MetadataEvent} for sync replication. Other
+     * {@link Option} kinds (e.g. {@link Option.SecondaryIndex}, {@link Option.PartitionKey}) are not
+     * propagated through the legacy event payload.
+     */
+    private static HashSet<CreateOption> toLegacyCreateOptions(Set<Option> opts) {
+        HashSet<CreateOption> result = new HashSet<>();
+        if (OptionsHelper.isEphemeral(opts)) {
+            result.add(CreateOption.Ephemeral);
+        }
+        if (OptionsHelper.isSequential(opts)) {
+            result.add(CreateOption.Sequential);
+        }
+        return result;
+    }
+
+    /**
+     * Translate a legacy {@link CreateOption} set (carried by replicated {@link MetadataEvent} payloads)
+     * into the canonical {@code Set<Option>} form consumed by the {@code storePut} hook.
+     */
+    private static Set<Option> fromLegacyCreateOptions(Set<CreateOption> options) {
+        if (options == null || options.isEmpty()) {
+            return Set.of();
+        }
+        HashSet<Option> result = new HashSet<>();
+        if (options.contains(CreateOption.Ephemeral)) {
+            result.add(Option.Ephemeral.INSTANCE);
+        }
+        if (options.contains(CreateOption.Sequential)) {
+            result.add(Option.Sequential.INSTANCE);
+        }
+        return result;
     }
 
     public final CompletableFuture<Stat> putInternal(String path, byte[] data, Optional<Long> optExpectedVersion,
-            Set<CreateOption> options, Map<String, String> secondaryIndexes) {
-        var enumOptions =
-                (options != null && !options.isEmpty()) ? EnumSet.copyOf(options) : EnumSet.noneOf(CreateOption.class);
+            Set<Option> opts) {
         // Ensure caches are invalidated before the operation is confirmed
-        return storePut(path, data, optExpectedVersion, enumOptions, secondaryIndexes)
+        return storePut(path, data, optExpectedVersion, opts == null ? Set.of() : opts)
                 .thenApply(stat -> {
                     NotificationType type = stat.isFirstVersion() ? NotificationType.Created
                             : NotificationType.Modified;

@@ -31,7 +31,6 @@ import io.oxia.client.api.options.ListOption;
 import io.oxia.client.api.options.PutOption;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,9 +50,10 @@ import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
 @CustomLog
@@ -206,15 +206,8 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Stat> storePut(
-            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options) {
-        return doStorePut(path, data, optExpectedVersion, options, Collections.emptyMap());
-    }
-
-    @Override
-    protected CompletableFuture<Stat> storePut(
-            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options,
-            Map<String, String> secondaryIndexes) {
-        return doStorePut(path, data, optExpectedVersion, options, secondaryIndexes);
+            String path, byte[] data, Optional<Long> optExpectedVersion, Set<Option> opts) {
+        return doStorePut(path, data, optExpectedVersion, opts);
     }
 
     @Override
@@ -273,21 +266,21 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     private CompletableFuture<Stat> doStorePut(
-            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options,
-            Map<String, String> secondaryIndexes) {
+            String path, byte[] data, Optional<Long> optExpectedVersion, Set<Option> opts) {
+        boolean sequential = OptionsHelper.isSequential(opts);
+        boolean ephemeral = OptionsHelper.isEphemeral(opts);
+        Map<String, String> secondaryIndexes = OptionsHelper.secondaryIndexes(opts);
         CompletableFuture<Void> parentsCreated = createParents(path);
         return parentsCreated.thenCompose(
                 __ -> {
                     var expectedVersion = optExpectedVersion;
-                    if (expectedVersion.isPresent()
-                            && expectedVersion.get() != -1L
-                            && options.contains(CreateOption.Sequential)) {
+                    if (expectedVersion.isPresent() && expectedVersion.get() != -1L && sequential) {
                         return CompletableFuture.failedFuture(
                                 new MetadataStoreException(
                                         "Can't have expectedVersion and Sequential at the same time"));
                     }
                     CompletableFuture<String> actualPath;
-                    if (options.contains(CreateOption.Sequential)) {
+                    if (sequential) {
                         var parent = parent(path);
                         var parentPath = parent == null ? "/" : parent;
 
@@ -311,7 +304,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                                     })
                             .ifPresent(putOptions::add);
 
-                    if (options.contains(CreateOption.Ephemeral)) {
+                    if (ephemeral) {
                         putOptions.add(PutOption.AsEphemeralRecord);
                     }
                     var parentPath = parent(path);

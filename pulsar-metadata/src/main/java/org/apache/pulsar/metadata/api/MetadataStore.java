@@ -23,6 +23,7 @@ import com.google.common.annotations.Beta;
 import io.github.merlimat.slog.Logger;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
@@ -42,7 +43,8 @@ public interface MetadataStore extends AutoCloseable {
     Logger LOG = Logger.get(MetadataStore.class);
 
     /**
-     * Read the value of one key, identified by the path
+     * Read the value of one key, identified by the path, with a set of {@link Option options}, e.g.
+     * {@link Option.PartitionKey} for routing on sharded backends. Pass {@link Set#of()} for no options.
      *
      * The async call will return a future that yields a {@link GetResult} that will contain the value and the
      * associated {@link Stat} object.
@@ -51,9 +53,18 @@ public interface MetadataStore extends AutoCloseable {
      *
      * @param path
      *            the path of the key to get from the store
+     * @param opts
+     *            the set of {@link Option options} for this operation
      * @return a future to track the async request
      */
-    CompletableFuture<Optional<GetResult>> get(String path);
+    CompletableFuture<Optional<GetResult>> get(String path, Set<Option> opts);
+
+    /**
+     * Like {@link #get(String, Set)} with no options.
+     */
+    default CompletableFuture<Optional<GetResult>> get(String path) {
+        return get(path, Set.of());
+    }
 
 
     /**
@@ -73,9 +84,18 @@ public interface MetadataStore extends AutoCloseable {
      *
      * @param path
      *            the path of the key to get from the store
+     * @param opts
+     *            the set of {@link Option options} for this operation
      * @return a future to track the async request
      */
-    CompletableFuture<List<String>> getChildren(String path);
+    CompletableFuture<List<String>> getChildren(String path, Set<Option> opts);
+
+    /**
+     * Like {@link #getChildren(String, Set)} with no options.
+     */
+    default CompletableFuture<List<String>> getChildren(String path) {
+        return getChildren(path, Set.of());
+    }
 
 
     /**
@@ -83,14 +103,24 @@ public interface MetadataStore extends AutoCloseable {
      *
      * If the path itself does not exist, it will return an empty list.
      *
-     * This method is similar to {@link #getChildren(String)}, but it attempts to read directly from
+     * This method is similar to {@link #getChildren(String, Set)}, but it attempts to read directly from
      *  the underlying store.
      *
      * @param path
      *            the path of the key to get from the store
+     * @param opts
+     *            the set of {@link Option options} for this operation
      * @return a future to track the async request
      */
-    CompletableFuture<List<String>> getChildrenFromStore(String path);
+    CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts);
+
+    /**
+     * Like {@link #getChildrenFromStore(String, Set)} with no options.
+     */
+    default CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        return getChildrenFromStore(path, Set.of());
+    }
+
     /**
      * Read whether a specific path exists.
      *
@@ -99,18 +129,28 @@ public interface MetadataStore extends AutoCloseable {
      *
      * @param path
      *            the path of the key to check on the store
+     * @param opts
+     *            the set of {@link Option options} for this operation
      * @return a future to track the async request
      */
-    CompletableFuture<Boolean> exists(String path);
+    CompletableFuture<Boolean> exists(String path, Set<Option> opts);
 
     /**
-     * Put a new value for a given key.
+     * Like {@link #exists(String, Set)} with no options.
+     */
+    default CompletableFuture<Boolean> exists(String path) {
+        return exists(path, Set.of());
+    }
+
+    /**
+     * Put a new value for a given key with a set of {@link Option options}, e.g.
+     * {@link Option.Ephemeral}, {@link Option.Sequential}, {@link Option.SecondaryIndex}, or
+     * {@link Option.PartitionKey}. Pass {@link Set#of()} for no options.
      *
      * The caller can specify an expected version to be atomically checked against the current version of the stored
      * data.
      *
      * The future will return the {@link Stat} object associated with the newly inserted value.
-     *
      *
      * @param path
      *            the path of the key to delete from the store
@@ -119,11 +159,20 @@ public interface MetadataStore extends AutoCloseable {
      * @param expectedVersion
      *            if present, the version will have to match with the currently stored value for the operation to
      *            succeed. Use -1 to enforce a non-existing value.
+     * @param opts
+     *            the set of {@link Option options} for this operation
      * @throws BadVersionException
      *             if the expected version doesn't match the actual version of the data
      * @return a future to track the async request
      */
-    CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion);
+    CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion, Set<Option> opts);
+
+    /**
+     * Like {@link #put(String, byte[], Optional, Set)} with no options.
+     */
+    default CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
+        return put(path, value, expectedVersion, Set.of());
+    }
 
     /**
      *
@@ -132,13 +181,22 @@ public interface MetadataStore extends AutoCloseable {
      * @param expectedVersion
      *            if present, the version will have to match with the currently stored value for the operation to
      *            succeed
+     * @param opts
+     *            the set of {@link Option options} for this operation
      * @throws NotFoundException
      *             if the path is not found
      * @throws BadVersionException
      *             if the expected version doesn't match the actual version of the data
      * @return a future to track the async request
      */
-    CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion);
+    CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts);
+
+    /**
+     * Like {@link #delete(String, Optional, Set)} with no options.
+     */
+    default CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+        return delete(path, expectedVersion, Set.of());
+    }
 
     default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion) {
         return delete(path, expectedVersion)
@@ -278,13 +336,23 @@ public interface MetadataStore extends AutoCloseable {
      * @param indexName      the secondary index name
      * @param secondaryKey   the secondary key to look up
      * @param fallbackFilter predicate to filter results during fallback scan; ignored by native implementations
+     * @param opts           the set of {@link Option options} for this operation
      * @return list of matching {@link GetResult} entries
      */
     default CompletableFuture<List<GetResult>> findByIndex(
             String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter) {
+            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
         return CompletableFuture.failedFuture(
                 new MetadataStoreException("Secondary index queries not supported by this store"));
+    }
+
+    /**
+     * Like {@link #findByIndex(String, String, String, Predicate, Set)} with no options.
+     */
+    default CompletableFuture<List<GetResult>> findByIndex(
+            String scanPathPrefix, String indexName, String secondaryKey,
+            Predicate<GetResult> fallbackFilter) {
+        return findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, Set.of());
     }
 
     /**
@@ -307,11 +375,19 @@ public interface MetadataStore extends AutoCloseable {
      *
      * @param parentPath path whose direct children should be streamed
      * @param consumer   callback that receives records, completion, or an error
+     * @param opts       the set of {@link Option options} for this operation
      * @return a future that completes when the scan terminates
      */
-    default CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer) {
+    default CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         return CompletableFuture.failedFuture(
                 new MetadataStoreException("scanChildren not supported by this store"));
+    }
+
+    /**
+     * Like {@link #scanChildren(String, ScanConsumer, Set)} with no options.
+     */
+    default CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer) {
+        return scanChildren(parentPath, consumer, Set.of());
     }
 
     /**

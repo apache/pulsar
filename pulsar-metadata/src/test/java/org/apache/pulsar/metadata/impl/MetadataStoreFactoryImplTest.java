@@ -21,9 +21,9 @@ package org.apache.pulsar.metadata.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.OpenTelemetry;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -31,8 +31,8 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -121,7 +121,7 @@ public class MetadataStoreFactoryImplTest {
 
         @Override
         protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                                   EnumSet<CreateOption> options) {
+                                                   Set<Option> opts) {
             return null;
         }
     }
