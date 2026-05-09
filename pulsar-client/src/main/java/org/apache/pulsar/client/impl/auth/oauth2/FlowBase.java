@@ -55,16 +55,22 @@ abstract class FlowBase implements Flow {
     private static final long serialVersionUID = 1L;
 
     protected final URL issuerUrl;
-    protected final AsyncHttpClient httpClient;
+    private final Duration connectTimeout;
+    private final Duration readTimeout;
+    private final String trustCertsFilePath;
     protected final String wellKnownMetadataPath;
 
     protected transient Metadata metadata;
+    private transient AsyncHttpClient httpClient;
 
     protected FlowBase(URL issuerUrl, Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
                        String wellKnownMetadataPath) {
         this.issuerUrl = issuerUrl;
-        this.httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath);
+        this.connectTimeout = connectTimeout;
+        this.readTimeout = readTimeout;
+        this.trustCertsFilePath = trustCertsFilePath;
         this.wellKnownMetadataPath = wellKnownMetadataPath;
+        getHttpClient();
     }
 
     private AsyncHttpClient defaultHttpClient(Duration readTimeout, Duration connectTimeout,
@@ -89,6 +95,13 @@ abstract class FlowBase implements Flow {
             }
         }
         return new DefaultAsyncHttpClient(confBuilder.build());
+    }
+
+    protected synchronized AsyncHttpClient getHttpClient() {
+        if (httpClient == null) {
+            httpClient = defaultHttpClient(readTimeout, connectTimeout, trustCertsFilePath);
+        }
+        return httpClient;
     }
 
     private int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
@@ -118,7 +131,7 @@ abstract class FlowBase implements Flow {
     }
 
     protected MetadataResolver createMetadataResolver() {
-        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, httpClient, wellKnownMetadataPath);
+        return DefaultMetadataResolver.fromIssuerUrl(issuerUrl, getHttpClient(), wellKnownMetadataPath);
     }
 
     static String parseParameterString(Map<String, String> params, String name) {
@@ -155,6 +168,8 @@ abstract class FlowBase implements Flow {
 
     @Override
     public void close() throws Exception {
-        httpClient.close();
+        if (httpClient != null) {
+            httpClient.close();
+        }
     }
 }
