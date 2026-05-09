@@ -543,13 +543,28 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                                                         Set<Option> opts);
 
     @Override
-    public CompletableFuture<List<GetResult>> findByIndex(
-            String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
+    public CompletableFuture<Void> scanByIndex(
+            String scanPathPrefix, String indexName,
+            String fromKeyInclusive, String toKeyInclusive,
+            Predicate<GetResult> fallbackFilter,
+            ScanConsumer consumer, Set<Option> opts) {
         if (isClosed()) {
-            return alreadyClosedFailedFuture();
+            CompletableFuture<Void> failed = alreadyClosedFailedFuture();
+            failed.whenComplete((__, ex) -> {
+                if (ex != null) {
+                    consumer.onError(ex);
+                }
+            });
+            return failed;
         }
-        return storeFindByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, opts);
+        if (scanPathPrefix == null || indexName == null || consumer == null) {
+            MetadataStoreException ex = new MetadataStoreException(
+                    "scanPathPrefix, indexName, and consumer must be non-null");
+            consumer.onError(ex);
+            return FutureUtil.failedFuture(ex);
+        }
+        return storeScanByIndex(scanPathPrefix, indexName, fromKeyInclusive, toKeyInclusive,
+                fallbackFilter, consumer, opts);
     }
 
     @Override
@@ -601,23 +616,43 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return result;
     }
 
-    protected CompletableFuture<List<GetResult>> storeFindByIndex(
-            String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
-        // Default fallback: full scan under scanPathPrefix, applying fallbackFilter to each result.
-        return getChildrenFromStore(scanPathPrefix, opts)
-                .thenCompose(children -> {
-                    List<CompletableFuture<Optional<GetResult>>> futures = children.stream()
-                            .map(child -> storeGet(scanPathPrefix + "/" + child, opts))
-                            .toList();
-                    return FutureUtil.waitForAll(futures)
-                            .thenApply(__ -> futures.stream()
-                                    .map(CompletableFuture::join)
-                                    .filter(Optional::isPresent)
-                                    .map(Optional::get)
-                                    .filter(fallbackFilter)
-                                    .toList());
-                });
+    /**
+     * Backend hook for {@link #scanByIndex}. Default fallback: list children under
+     * {@code scanPathPrefix}, fetch each, and stream those passing {@code fallbackFilter} to
+     * {@code consumer}. Backends with a native indexed range-scan primitive (Oxia) override this
+     * to issue one store-side scan against the index.
+     *
+     * <p>The default impl ignores {@code indexName}, {@code fromKeyInclusive}, and
+     * {@code toKeyInclusive} — the caller's {@code fallbackFilter} is the only criterion.
+     * Callers that want range bounds enforced on non-native backends should encode the bounds in
+     * {@code fallbackFilter}.
+     */
+    protected CompletableFuture<Void> storeScanByIndex(
+            String scanPathPrefix, String indexName,
+            String fromKeyInclusive, String toKeyInclusive,
+            Predicate<GetResult> fallbackFilter,
+            ScanConsumer consumer, Set<Option> opts) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        getChildrenFromStore(scanPathPrefix, opts).thenCompose(children -> {
+            CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+            for (String child : children) {
+                String childPath = scanPathPrefix.equals("/") ? "/" + child : scanPathPrefix + "/" + child;
+                chain = chain.thenCompose(__ -> storeGet(childPath, opts))
+                        .thenAccept(opt -> opt.filter(fallbackFilter).ifPresent(consumer::onNext));
+            }
+            return chain;
+        }).whenComplete((v, ex) -> {
+            if (ex != null) {
+                Throwable cause = ex instanceof CompletionException && ex.getCause() != null
+                        ? ex.getCause() : ex;
+                consumer.onError(cause);
+                result.completeExceptionally(cause);
+            } else {
+                consumer.onCompleted();
+                result.complete(null);
+            }
+        });
+        return result;
     }
 
     @Override

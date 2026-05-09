@@ -315,19 +315,23 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                 return false;
             }
         };
-        return getStore().findByIndex(scanPathPrefix,
-                        indexFilter.getKey(), indexFilter.getValue(), matchesAll)
-                // Native-index implementations don't apply the fallback predicate, so
-                // re-check here. On the fallback path this is a no-op (predicate already
-                // applied) but cheap.
-                .thenApply(results -> results.stream()
-                        .filter(matchesAll)
-                        .map(r -> {
-                            String path = r.getStat().getPath();
-                            String encoded = path.substring(path.lastIndexOf('/') + 1);
-                            return TopicName.get("topic", ns, Codec.decode(encoded)).toString();
-                        })
-                        .collect(Collectors.toList()));
+        java.util.List<org.apache.pulsar.metadata.api.GetResult> results = new java.util.ArrayList<>();
+        return getStore().scanByIndex(scanPathPrefix,
+                        indexFilter.getKey(), indexFilter.getValue(), indexFilter.getValue(),
+                        matchesAll,
+                        org.apache.pulsar.metadata.api.ScanConsumer.collectInto(results))
+                .thenApply(__ ->
+                        // Native-index implementations don't apply the fallback predicate, so
+                        // re-check here. On the fallback path this is a no-op (predicate already
+                        // applied) but cheap.
+                        results.stream()
+                                .filter(matchesAll)
+                                .map(r -> {
+                                    String path = r.getStat().getPath();
+                                    String encoded = path.substring(path.lastIndexOf('/') + 1);
+                                    return TopicName.get("topic", ns, Codec.decode(encoded)).toString();
+                                })
+                                .collect(Collectors.toList()));
     }
 
     // --- Subscriptions ---

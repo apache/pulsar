@@ -303,14 +303,18 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public CompletableFuture<List<GetResult>> findByIndex(
-            String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
+    public CompletableFuture<Void> scanByIndex(
+            String scanPathPrefix, String indexName,
+            String fromKeyInclusive, String toKeyInclusive,
+            Predicate<GetResult> fallbackFilter,
+            ScanConsumer consumer, Set<Option> opts) {
         return switch (migrationState.getPhase()) {
             case NOT_STARTED, PREPARATION, COPYING, FAILED ->
-                    sourceStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, opts);
+                    sourceStore.scanByIndex(scanPathPrefix, indexName, fromKeyInclusive, toKeyInclusive,
+                            fallbackFilter, consumer, opts);
             case COMPLETED ->
-                    targetStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, opts);
+                    targetStore.scanByIndex(scanPathPrefix, indexName, fromKeyInclusive, toKeyInclusive,
+                            fallbackFilter, consumer, opts);
         };
     }
 

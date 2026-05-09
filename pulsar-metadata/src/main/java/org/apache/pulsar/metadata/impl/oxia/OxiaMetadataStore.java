@@ -248,25 +248,51 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<List<GetResult>> storeFindByIndex(
-            String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
-        String scopedKey = scanPathPrefix + "/" + secondaryKey;
+    protected CompletableFuture<Void> storeScanByIndex(
+            String scanPathPrefix, String indexName,
+            String fromKeyInclusive, String toKeyInclusive,
+            Predicate<GetResult> fallbackFilter,
+            ScanConsumer consumer, Set<Option> opts) {
+        // Index entries are stored at "<parentPath>/<secondaryKey>" by doStorePut, where
+        // parentPath == scanPathPrefix for records directly under the prefix. The API uses
+        // inclusive-on-both-sides bounds; Oxia's list(start, end, ...) is half-open, so we
+        // append a sentinel character to the upper bound to widen the half-open range to
+        // include `toKeyInclusive`. We use '~' (0x7E) — it lex-sorts after every printable
+        // ASCII byte, which is a safe choice for the secondary keys callers actually use today
+        // (numeric-encoded timestamps, fixed-tag enums, etc.). Callers that need full byte-range
+        // coverage can pass `toKeyInclusive=null` or use a different scheme.
+        String scopedFrom = fromKeyInclusive == null
+                ? scanPathPrefix + "/"
+                : scanPathPrefix + "/" + fromKeyInclusive;
+        String scopedTo = toKeyInclusive == null
+                ? scanPathPrefix + "0"   // '0' (0x30) is the lex successor of '/' (0x2F)
+                : scanPathPrefix + "/" + toKeyInclusive + "~";
         Set<ListOption> listOpts = new HashSet<>(listOptions(opts));
         listOpts.add(ListOption.UseIndex(indexName));
-        return client.list(scopedKey, scopedKey + "~", listOpts)
+        CompletableFuture<Void> done = new CompletableFuture<>();
+        client.list(scopedFrom, scopedTo, listOpts)
                 .thenCompose(primaryKeys -> {
-                    List<CompletableFuture<Optional<GetResult>>> futures = primaryKeys.stream()
-                            .map(p -> storeGet(p, opts))
-                            .toList();
-                    return FutureUtil.waitForAll(futures)
-                            .thenApply(__ -> futures.stream()
-                                    .map(CompletableFuture::join)
-                                    .filter(Optional::isPresent)
-                                    .map(Optional::get)
-                                    .toList());
+                    // Native indexes already enforced the range; fallbackFilter is unused here
+                    // (it's the scan-and-filter compat-path predicate).
+                    CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
+                    for (String key : primaryKeys) {
+                        chain = chain
+                                .thenCompose(__ -> storeGet(key, opts))
+                                .thenAccept(opt -> opt.ifPresent(consumer::onNext));
+                    }
+                    return chain;
                 })
-                .exceptionallyCompose(this::convertException);
+                .whenComplete((v, ex) -> {
+                    if (ex != null) {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        consumer.onError(cause);
+                        done.completeExceptionally(cause);
+                    } else {
+                        consumer.onCompleted();
+                        done.complete(null);
+                    }
+                });
+        return done;
     }
 
     private CompletableFuture<Stat> doStorePut(

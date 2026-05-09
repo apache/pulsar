@@ -338,33 +338,55 @@ public interface MetadataStore extends AutoCloseable {
     }
 
     /**
-     * Find all records matching a secondary index.
+     * Stream records matching a secondary-index value or range.
      *
-     * <p>On stores that support secondary indexes natively (e.g. Oxia), this uses the index
-     * efficiently. On stores that don't (e.g. ZooKeeper), it falls back to listing all children
-     * under {@code scanPathPrefix}, fetching each record, and applying {@code fallbackFilter}.
+     * <p>One method serves both point lookup and range queries:
+     * <ul>
+     *   <li>Point lookup: {@code fromKey == toKey == key}.</li>
+     *   <li>Range: pass {@code null} on either side for an unbounded bound, or specific values for
+     *       a closed range. Both bounds are <b>inclusive</b>.</li>
+     * </ul>
      *
-     * @param scanPathPrefix path prefix for fallback scan (used by stores without native index support)
-     * @param indexName      the secondary index name
-     * @param secondaryKey   the secondary key to look up
-     * @param fallbackFilter predicate to filter results during fallback scan; ignored by native implementations
-     * @param opts           the set of {@link Option options} for this operation
-     * @return list of matching {@link GetResult} entries
+     * <p>On stores that support secondary indexes natively (e.g. Oxia), this is a single store-side
+     * range scan over the index. On stores that don't (e.g. ZooKeeper), it falls back to listing
+     * all children under {@code scanPathPrefix}, fetching each record, and applying
+     * {@code fallbackFilter}; the fallback also enforces the {@code [fromKey, toKey]} bounds.
+     *
+     * <p>Results are streamed to {@code consumer} as they become available — {@link ScanConsumer#onNext}
+     * once per match, then exactly one of {@link ScanConsumer#onCompleted} or
+     * {@link ScanConsumer#onError}. The returned future completes when the scan terminates and
+     * mirrors the terminal callback.
+     *
+     * @param scanPathPrefix    path prefix scoping the scan (and used by the fallback list)
+     * @param indexName         the secondary-index name
+     * @param fromKeyInclusive  lower bound on the secondary-key value, or {@code null} for unbounded
+     * @param toKeyInclusive    upper bound on the secondary-key value, or {@code null} for unbounded
+     * @param fallbackFilter    additional predicate applied during fallback scan; ignored by native implementations
+     * @param consumer          callback receiving records, completion, or an error
+     * @param opts              the set of {@link Option options} for this operation
+     * @return a future that completes when the scan terminates
      */
-    default CompletableFuture<List<GetResult>> findByIndex(
-            String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
-        return CompletableFuture.failedFuture(
-                new MetadataStoreException("Secondary index queries not supported by this store"));
+    default CompletableFuture<Void> scanByIndex(
+            String scanPathPrefix, String indexName,
+            String fromKeyInclusive, String toKeyInclusive,
+            Predicate<GetResult> fallbackFilter,
+            ScanConsumer consumer, Set<Option> opts) {
+        MetadataStoreException ex =
+                new MetadataStoreException("Secondary index queries not supported by this store");
+        consumer.onError(ex);
+        return CompletableFuture.failedFuture(ex);
     }
 
     /**
-     * Like {@link #findByIndex(String, String, String, Predicate, Set)} with no options.
+     * Like {@link #scanByIndex(String, String, String, String, Predicate, ScanConsumer, Set)} with no options.
      */
-    default CompletableFuture<List<GetResult>> findByIndex(
-            String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter) {
-        return findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, Set.of());
+    default CompletableFuture<Void> scanByIndex(
+            String scanPathPrefix, String indexName,
+            String fromKeyInclusive, String toKeyInclusive,
+            Predicate<GetResult> fallbackFilter,
+            ScanConsumer consumer) {
+        return scanByIndex(scanPathPrefix, indexName, fromKeyInclusive, toKeyInclusive,
+                fallbackFilter, consumer, Set.of());
     }
 
     /**
