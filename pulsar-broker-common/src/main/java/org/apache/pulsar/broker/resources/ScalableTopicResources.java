@@ -20,12 +20,14 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -33,10 +35,12 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
@@ -297,7 +301,7 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         // know index cardinalities up front). The predicate then enforces AND across
         // every filter on the loaded record.
         Map.Entry<String, String> indexFilter = propertyFilters.entrySet().iterator().next();
-        java.util.function.Predicate<org.apache.pulsar.metadata.api.GetResult> matchesAll = result -> {
+        Predicate<GetResult> matchesAll = result -> {
             try {
                 ScalableTopicMetadata md =
                         mapper.readValue(result.getValue(), ScalableTopicMetadata.class);
@@ -315,11 +319,11 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                 return false;
             }
         };
-        java.util.List<org.apache.pulsar.metadata.api.GetResult> results = new java.util.ArrayList<>();
+        List<GetResult> results = new ArrayList<>();
         return getStore().scanByIndex(scanPathPrefix,
                         indexFilter.getKey(), indexFilter.getValue(), indexFilter.getValue(),
                         matchesAll,
-                        org.apache.pulsar.metadata.api.ScanConsumer.collectInto(results))
+                        ScanConsumer.collectInto(results))
                 .thenApply(__ ->
                         // Native-index implementations don't apply the fallback predicate, so
                         // re-check here. On the fallback path this is a no-op (predicate already
