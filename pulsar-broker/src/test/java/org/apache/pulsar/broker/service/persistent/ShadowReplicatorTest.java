@@ -176,7 +176,8 @@ public class ShadowReplicatorTest extends BrokerTestBase {
 
         List<Entry> entries = Lists.newArrayList(entry);
         PersistentReplicator.InFlightTask inFlightTask =
-                new PersistentReplicator.InFlightTask(entry.getPosition(), entries.size(), replicator.getReplicatorId());
+                new PersistentReplicator.InFlightTask(
+                        entry.getPosition(), entries.size(), replicator.getReplicatorId());
         inFlightTask.setEntries(entries);
         Assert.assertTrue(replicator.replicateEntries(entries, inFlightTask));
 
