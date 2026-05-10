@@ -134,8 +134,6 @@ public class ShadowReplicator extends PersistentReplicator {
                 msg.getMessageBuilder().addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION)
                         .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
 
-                headersAndPayload.retain();
-
                 // Increment pending messages for messages produced locally
                 producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg, inFlightTask));
                 atLeastOneMessageSentForReplication = true;
