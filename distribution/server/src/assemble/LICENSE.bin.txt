@@ -431,7 +431,7 @@ The Apache Software License, Version 2.0
  * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-7.9.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.45.0.jar
- * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
+ * Apache Thrift - org.apache.thrift-libthrift-0.23.0.jar
  * OkHttp3
      - com.squareup.okhttp3-logging-interceptor-5.3.1.jar
      - com.squareup.okhttp3-okhttp-5.3.1.jar

@@ -306,6 +306,7 @@ flexible messaging model and an intuitive client API.</description>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.5.0</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
+    <thrift.version>0.23.0</thrift.version>
 
     <!-- zstd-jni is only used for testcase,
     the core logic is switched to java implementation of zstd in org.apache.commons:commons-compress -->
@@ -1352,6 +1353,45 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <!-- libthrift is a transitive dependency of distributedlog-core.
+      libthrift 0.23.0 upgraded to jakarta.* and HttpComponents 5 deps for its HTTP/servlet
+      transports, which distributedlog-core does not use (only TJSON/TMemory serialization is needed). !-->
+      <dependency>
+        <groupId>org.apache.thrift</groupId>
+        <artifactId>libthrift</artifactId>
+        <version>${thrift.version}</version>
+        <exclusions>
+          <!-- Only TJSON/TMemory APIs are used; exclude HTTP/servlet transports and their transitives -->
+          <exclusion>
+            <groupId>org.apache.tomcat.embed</groupId>
+            <artifactId>tomcat-embed-core</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.httpcomponents.core5</groupId>
+            <artifactId>httpcore5</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.httpcomponents.core5</groupId>
+            <artifactId>httpcore5-h2</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
