@@ -37,7 +37,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TraceableMessageId;
 import org.apache.pulsar.client.impl.ConsumerBase;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 
 /**
@@ -64,11 +63,10 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 @CustomLog
 public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<T> {
 
-    private Tracer tracer;
-    private TextMapPropagator propagator;
+    private final Tracer tracer;
+    private final TextMapPropagator propagator;
     private String topic;
     private String subscription;
-    private boolean initialized = false;
 
     /**
      * Used for cumulative acknowledgment support (Failover/Exclusive subscriptions).
@@ -82,8 +80,9 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
      */
     private volatile Map<String, ConcurrentSkipListMap<MessageIdAdv, Span>> messageSpansByTopic;
 
-    public OpenTelemetryConsumerInterceptor() {
-        // Tracer and propagator will be initialized in beforeConsume when we have access to the consumer
+    public OpenTelemetryConsumerInterceptor(InstrumentProvider instrumentProvider) {
+        this.tracer = instrumentProvider.getTracer();
+        this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
     }
 
     /**
@@ -95,25 +94,6 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
             return ((TopicMessageId) messageId).getOwnerTopic();
         }
         return topic != null ? topic : "";
-    }
-
-    /**
-     * Initialize the tracer from the consumer's client.
-     * This is called lazily on the first message.
-     */
-    private void initializeIfNeeded(Consumer<T> consumer) {
-        if (!initialized && consumer instanceof ConsumerBase<?> consumerBase) {
-            PulsarClientImpl client = consumerBase.getClient();
-            InstrumentProvider instrumentProvider = client.instrumentProvider();
-
-            this.tracer = instrumentProvider.getTracer();
-            this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
-            this.initialized = true;
-            if (consumerBase.getConf().getSubscriptionType() == SubscriptionType.Exclusive
-                    || consumerBase.getConf().getSubscriptionType() == SubscriptionType.Failover) {
-                ensureMapInitialized();
-            }
-        }
     }
 
     /**
@@ -140,11 +120,14 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
 
     @Override
     public Message<T> beforeConsume(Consumer<T> consumer, Message<T> message) {
-        // Initialize tracer from consumer on first call
-        initializeIfNeeded(consumer);
-
         if (tracer == null || propagator == null) {
             return message;
+        }
+
+        if (consumer instanceof ConsumerBase<?> consumerBase
+                && (consumerBase.getConf().getSubscriptionType() == SubscriptionType.Exclusive
+                || consumerBase.getConf().getSubscriptionType() == SubscriptionType.Failover)) {
+            ensureMapInitialized();
         }
 
         try {
