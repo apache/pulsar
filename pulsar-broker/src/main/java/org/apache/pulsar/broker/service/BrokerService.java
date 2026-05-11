@@ -165,6 +165,7 @@ import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
@@ -3897,6 +3898,15 @@ public class BrokerService implements Closeable {
         // We don't allow the auto-creation here.
         // ExtensibleLoadManagerImpl.start() is responsible to create the internal system topics.
         if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
+            return CompletableFuture.completedFuture(false);
+        }
+
+        // Segment topics (PIP-468 scalable topics) are explicitly created by the
+        // ScalableTopicController via the /admin/v2/segments endpoint. They must
+        // never be auto-created on connect — otherwise a producer/consumer racing
+        // a controller-driven delete (post-prune retention GC, force-delete) would
+        // silently re-create the topic with default schema and mask the deletion.
+        if (topicName.getDomain() == TopicDomain.segment) {
             return CompletableFuture.completedFuture(false);
         }
 

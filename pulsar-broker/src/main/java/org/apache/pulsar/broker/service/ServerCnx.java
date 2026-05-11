@@ -2598,7 +2598,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .log("Ignoring message acks during topic transfer. Total ignored ack count");
                 return;
             }
-            consumer.messageAcked(ack).thenRun(() -> {
+            consumer.messageAcked(ack, hasRequestId).thenRun(() -> {
                 if (hasRequestId) {
                     writeAndFlush(Commands.newAckResponse(
                             requestId, null, null, consumerId));

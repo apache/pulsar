@@ -354,7 +354,36 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 .thenApply(reader -> {
                     startReadLoop(reader, segment.segmentId());
                     return reader;
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null
+                            ? ce.getCause() : ex;
+                    if (isSegmentGoneError(cause)) {
+                        // The backing topic was deleted by the controller's GC after its
+                        // retention window elapsed. The consumer may be restoring from a
+                        // checkpoint that pre-dates the prune, or racing a layout update.
+                        // Either way, the segment's data is gone — skip it silently.
+                        log.info().attr("segmentId", segment.segmentId())
+                                .log("Segment backing topic deleted (retention expired); skipping");
+                        segmentReaders.remove(segment.segmentId());
+                        lastReceivedPositions.remove(segment.segmentId());
+                        return null;
+                    }
+                    throw ex instanceof CompletionException
+                            ? (CompletionException) ex : new CompletionException(ex);
                 });
+    }
+
+    /**
+     * True if {@code cause} indicates the segment's backing topic no longer exists
+     * (deleted by the controller's GC, or a race between a layout update and the
+     * post-prune topic delete).
+     */
+    private static boolean isSegmentGoneError(Throwable cause) {
+        return cause instanceof org.apache.pulsar.client.api.PulsarClientException
+                .TopicDoesNotExistException
+                || cause instanceof org.apache.pulsar.client.api.PulsarClientException
+                .NotFoundException;
     }
 
     private org.apache.pulsar.client.api.MessageId resolveStartPosition(long segmentId) {
@@ -404,6 +433,22 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                 log.info().attr("segmentId", segmentId)
                         .log("Sealed segment drained, closing reader");
                 segmentReaders.remove(segmentId);
+                lastReceivedPositions.remove(segmentId);
+                reader.closeAsync();
+                return null;
+            }
+            if (isSegmentGoneError(cause)) {
+                // Segment backing topic deleted underneath us — the controller's GC
+                // pruned it after retention expired. The DagWatch layout update would
+                // normally remove this segment from the assignment first, but a
+                // network blip or in-flight read can lose that race. Treat as
+                // drained: close the reader and drop the position tracker so a
+                // subsequent checkpoint() doesn't carry a stale ID for a topic
+                // that no longer exists.
+                log.info().attr("segmentId", segmentId)
+                        .log("Segment backing topic deleted (retention expired); closing reader");
+                segmentReaders.remove(segmentId);
+                lastReceivedPositions.remove(segmentId);
                 reader.closeAsync();
                 return null;
             }

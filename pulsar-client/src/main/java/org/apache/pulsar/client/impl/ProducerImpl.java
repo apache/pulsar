@@ -1262,7 +1262,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         closeProducerTasks();
 
         ClientCnx cnx = cnx();
-        if (cnx == null || currentState != State.Ready) {
+        if (cnx == null || (currentState != State.Ready && currentState != State.RegisteringSchema)) {
             log.info("Closed Producer (not connected)");
             closeAndClearPendingMessages();
             return CompletableFuture.completedFuture(null);

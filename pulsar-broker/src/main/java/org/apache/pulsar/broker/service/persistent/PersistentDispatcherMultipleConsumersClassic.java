@@ -1146,7 +1146,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     }
 
     @Override
-    public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+    public synchronized boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
         if (!topic.isDelayedDeliveryEnabled()) {
             // If broker has the feature disabled, always deliver messages immediately
             return false;
@@ -1212,12 +1212,12 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     }
 
     @Override
-    public long getNumberOfDelayedMessages() {
+    public synchronized long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }
 
     @Override
-    public CompletableFuture<Void> clearDelayedMessages() {
+    public synchronized CompletableFuture<Void> clearDelayedMessages() {
         if (!topic.isDelayedDeliveryEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -1291,11 +1291,11 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     }
 
 
-    public long getDelayedTrackerMemoryUsage() {
+    public synchronized long getDelayedTrackerMemoryUsage() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getBufferMemoryUsage).orElse(0L);
     }
 
-    public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
+    public synchronized Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
         if (delayedDeliveryTracker.isEmpty()) {
             return Collections.emptyMap();
         }

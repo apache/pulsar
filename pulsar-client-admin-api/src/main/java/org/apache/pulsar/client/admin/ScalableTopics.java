@@ -314,6 +314,32 @@ public interface ScalableTopics {
     CompletableFuture<Void> deleteSegmentAsync(String segmentTopic, boolean force);
 
     /**
+     * Create a subscription cursor on the given segment topic at the earliest position.
+     * The call routes to the broker that owns the segment.
+     *
+     * <p>Used internally by {@link org.apache.pulsar.broker.service.scalable.ScalableTopicController
+     * ScalableTopicController} to fan a new scalable-topic subscription out across every
+     * active segment so a future consumer doesn't drop the backlog.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     */
+    CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic, String subscription);
+
+    /**
+     * Delete a subscription cursor on the given segment topic. The call routes to the broker
+     * that owns the segment.
+     *
+     * <p>Used internally by {@link org.apache.pulsar.broker.service.scalable.ScalableTopicController
+     * ScalableTopicController} when a scalable-topic subscription is deleted, so no orphan
+     * cursors remain on any segment in the DAG.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     */
+    CompletableFuture<Void> deleteSegmentSubscriptionAsync(String segmentTopic, String subscription);
+
+    /**
      * Returns the number of unconsumed entries in the given subscription's cursor on the
      * segment topic — i.e. the per-subscription backlog. The call routes to the broker
      * that owns the segment topic, so it works whether the caller is colocated with the

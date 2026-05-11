@@ -29,7 +29,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -53,9 +52,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.ConfigOptions;
@@ -375,7 +375,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
+    public CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("getFromStore");
         try {
             dbStateLock.readLock().lock();
@@ -408,7 +408,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         // Native iterator-based scan over the parent's key range, with the same direct-child
         // filter getChildrenFromStore applies. Snapshot under the read lock then dispatch
         // outside it.
@@ -487,7 +487,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("getChildrenFromStore");
         try {
             dbStateLock.readLock().lock();
@@ -530,7 +530,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Boolean> existsFromStore(String path) {
+    protected CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("existsFromStore");
         try {
             dbStateLock.readLock().lock();
@@ -551,7 +551,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
+    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("storeDelete");
         try {
             dbStateLock.readLock().lock();
@@ -586,7 +586,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> expectedVersion,
-                                               EnumSet<CreateOption> options) {
+                                               Set<Option> opts) {
         log.debug().attr("path", path).attr("instanceId", instanceId).log("storePut");
         try {
             dbStateLock.readLock().lock();
@@ -613,8 +613,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                     metaValue = new MetaValue();
                     metaValue.version = 0;
                     metaValue.createdTimestamp = timestamp;
-                    metaValue.ephemeral = options.contains(CreateOption.Ephemeral);
-                    if (options.contains(CreateOption.Sequential)) {
+                    metaValue.ephemeral = OptionsHelper.isEphemeral(opts);
+                    if (OptionsHelper.isSequential(opts)) {
                         path += sequentialIdGenerator.getAndIncrement();
                         pathBytes = toBytes(path);
                         transaction.put(SEQUENTIAL_ID_KEY, toBytes(sequentialIdGenerator.get()));

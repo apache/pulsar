@@ -22,7 +22,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -47,7 +50,7 @@ import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
-import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -117,13 +120,13 @@ public class ScalableTopicControllerTest {
         // Default: all admin ops succeed.
         when(topics.getSubscriptionsAsync(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(java.util.List.of()));
-        when(topics.createSubscriptionAsync(anyString(), anyString(), any(MessageId.class)))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        when(topics.deleteSubscriptionAsync(anyString(), anyString(), anyBoolean()))
-                .thenReturn(CompletableFuture.completedFuture(null));
         when(scalableTopics.createSegmentAsync(anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(scalableTopics.terminateSegmentAsync(anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(scalableTopics.createSegmentSubscriptionAsync(anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(scalableTopics.deleteSegmentSubscriptionAsync(anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
         controller = newController(topicName);
@@ -166,6 +169,49 @@ public class ScalableTopicControllerTest {
         assertEquals(layout.getAllSegments().size(), INITIAL_SEGMENTS);
         assertEquals(layout.getActiveSegments().size(), INITIAL_SEGMENTS);
         assertEquals(layout.getEpoch(), 0);
+    }
+
+    /**
+     * Recovery path: a {@code createScalableTopic} can commit metadata then crash
+     * before it materializes all the initial segment topics. The next time the
+     * controller initializes (broker restart, bundle ownership transfer, leader
+     * re-election), it must recreate any missing active-segment backing topics
+     * so producers/consumers can use them again. The check is idempotent —
+     * existing segments are simply re-loaded.
+     */
+    @Test
+    public void testInitializeRecreatesMissingActiveSegments() throws Exception {
+        controller.initialize().get();
+
+        // The leader's initialize() must have asked the admin client to
+        // (re)materialize each of the INITIAL_SEGMENTS active segments.
+        verify(scalableTopics, times(INITIAL_SEGMENTS))
+                .createSegmentAsync(anyString(), any());
+    }
+
+    /**
+     * Idempotency partner to the above: a non-leader controller must NOT trigger
+     * segment-topic creation. Only the leader heals; followers just observe the
+     * layout. (We can't easily build a "loser" in this single-broker harness, but
+     * we can at least verify that no segment is created when the controller fails
+     * to become leader — e.g., because the topic metadata is gone.)
+     */
+    @Test
+    public void testInitializeDoesNotCreateSegmentsWhenNotLeader() throws Exception {
+        // Drive a "not leader" outcome by pointing at a topic with no metadata —
+        // initialize() bails before electLeader() / ensureActiveSegmentsExist().
+        TopicName missing = TopicName.get("topic://tenant/ns/does-not-exist");
+        ScalableTopicController orphan = newController(missing);
+        try {
+            orphan.initialize().get();
+            fail("expected IllegalStateException for missing topic");
+        } catch (ExecutionException expected) {
+            // Bailed before leader-elect, as desired.
+        } finally {
+            orphan.close().join();
+        }
+        verify(scalableTopics, times(0))
+                .createSegmentAsync(eq(missing.toString()), any());
     }
 
     @Test
@@ -218,7 +264,8 @@ public class ScalableTopicControllerTest {
                 () -> controller.createSubscription("sub", SubscriptionType.STREAM));
         assertThrows(IllegalStateException.class, () -> controller.deleteSubscription("sub"));
         assertThrows(IllegalStateException.class,
-                () -> controller.registerConsumer("sub", "c1", 1L, mock(TransportCnx.class)));
+                () -> controller.registerConsumer(
+                        "sub", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)));
         assertThrows(IllegalStateException.class, () -> controller.unregisterConsumer("sub", "c1"));
     }
 
@@ -227,8 +274,8 @@ public class ScalableTopicControllerTest {
     @Test
     public void testRegisterConsumerPersistsAndAssigns() throws Exception {
         controller.initialize().get();
-        ConsumerAssignment assignment =
-                controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
+        ConsumerAssignment assignment = controller.registerConsumer(
+                "sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         assertEquals(assignment.assignedSegments().size(), INITIAL_SEGMENTS,
                 "single consumer owns all active segments");
@@ -241,10 +288,11 @@ public class ScalableTopicControllerTest {
     @Test
     public void testRegisterConsumerReconnectDoesNotDuplicate() throws Exception {
         controller.initialize().get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
+        controller.registerConsumer(
+                "sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
         // Reconnect: same name, new consumerId.
-        ConsumerAssignment assignment =
-                controller.registerConsumer("sub-a", "c1", 99L, mock(TransportCnx.class)).get();
+        ConsumerAssignment assignment = controller.registerConsumer(
+                "sub-a", "c1", 99L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         assertEquals(assignment.assignedSegments().size(), INITIAL_SEGMENTS);
         // Still just one persisted registration.
@@ -254,8 +302,8 @@ public class ScalableTopicControllerTest {
     @Test
     public void testUnregisterConsumerDeletesPersistedEntry() throws Exception {
         controller.initialize().get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
-        controller.registerConsumer("sub-a", "c2", 2L, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
         assertEquals(resources.listConsumersAsync(topicName, "sub-a").get().size(), 2);
 
         controller.unregisterConsumer("sub-a", "c1").get();
@@ -288,9 +336,9 @@ public class ScalableTopicControllerTest {
                 resources.getSubscriptionAsync(topicName, "sub-stream").get();
         assertTrue(persisted.isPresent());
         assertEquals(persisted.get().type(), SubscriptionType.STREAM);
-        // Propagated to every active segment via admin.topics().createSubscriptionAsync().
-        verify(topics, org.mockito.Mockito.times(INITIAL_SEGMENTS))
-                .createSubscriptionAsync(anyString(), anyString(), any(MessageId.class));
+        // Propagated to every active segment via the segment-subscription admin endpoint.
+        verify(scalableTopics, org.mockito.Mockito.times(INITIAL_SEGMENTS))
+                .createSegmentSubscriptionAsync(anyString(), anyString());
     }
 
     @Test
@@ -321,15 +369,15 @@ public class ScalableTopicControllerTest {
         controller.deleteSubscription("sub-a").get();
         assertFalse(resources.getSubscriptionAsync(topicName, "sub-a").get().isPresent());
         // Propagated a delete to every segment (all segments incl. any sealed ones).
-        verify(topics, org.mockito.Mockito.atLeast(INITIAL_SEGMENTS))
-                .deleteSubscriptionAsync(anyString(), anyString(), anyBoolean());
+        verify(scalableTopics, org.mockito.Mockito.atLeast(INITIAL_SEGMENTS))
+                .deleteSegmentSubscriptionAsync(anyString(), anyString());
     }
 
     @Test
     public void testDeleteSubscriptionRemovesInMemoryCoordinator() throws Exception {
         controller.initialize().get();
         controller.createSubscription("sub-a", SubscriptionType.STREAM).get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         controller.deleteSubscription("sub-a").get();
         // After delete, the persisted consumer entries should be gone.
@@ -341,6 +389,9 @@ public class ScalableTopicControllerTest {
     @Test
     public void testSplitSegment() throws Exception {
         controller.initialize().get();
+        // initialize() now eagerly creates the active segment topics for recovery —
+        // ignore those when counting what splitSegment itself triggered.
+        clearInvocations(scalableTopics);
         SegmentLayout before = controller.getLayout().get();
         long epochBefore = before.getEpoch();
         int activeBefore = before.getActiveSegments().size();
@@ -359,6 +410,7 @@ public class ScalableTopicControllerTest {
     @Test
     public void testMergeSegments() throws Exception {
         controller.initialize().get();
+        clearInvocations(scalableTopics);
         SegmentLayout before = controller.getLayout().get();
         long epochBefore = before.getEpoch();
         int activeBefore = before.getActiveSegments().size();
@@ -377,7 +429,7 @@ public class ScalableTopicControllerTest {
     @Test
     public void testSplitSegmentPropagatesToRegisteredConsumer() throws Exception {
         controller.initialize().get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         SegmentLayout after = controller.splitSegment(0).get();
         // consumer still owns everything after split (single consumer).
@@ -406,8 +458,8 @@ public class ScalableTopicControllerTest {
         controller.splitSegment(0).get();
         controller.createSubscription("sub-a", SubscriptionType.STREAM).get();
         controller.createSubscription("sub-b", SubscriptionType.QUEUE).get();
-        controller.registerConsumer("sub-a", "c1", 1L, mock(TransportCnx.class)).get();
-        controller.registerConsumer("sub-a", "c2", 2L, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
+        controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
 
         ScalableTopicStats stats = controller.getStats().get();
 

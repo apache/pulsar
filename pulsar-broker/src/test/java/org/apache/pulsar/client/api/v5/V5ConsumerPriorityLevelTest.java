@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Set;
@@ -152,10 +153,14 @@ public class V5ConsumerPriorityLevelTest extends V5ClientBaseTest {
                 low.acknowledge(msg.id());
             }
         }
-        // Allow some tolerance — the boundary between "high prefetch full" and
-        // "broker spills to low" depends on broker timing. The minimum guarantee
-        // is that the low consumer receives strictly more than zero overflow.
-        assertEquals(lowSeen.size() >= total - highReceiverQueue * 2 - 1, true,
+        // V5's receiverQueueSize sizes the v4 internal receive buffer; it isn't a
+        // broker-side backpressure cap. ScalableQueueConsumer runs a continuous receive
+        // loop that drains v4's queue into an unbounded V5 queue, which keeps refilling
+        // the broker's per-consumer permits. As a result the high consumer can absorb
+        // more than receiverQueueSize before the broker spills to low. The minimum
+        // guarantee that the priority dispatch is functioning is that the low consumer
+        // receives at least one overflow message.
+        assertTrue(lowSeen.size() > 0,
                 "low-priority consumer must see overflow once high consumer's prefetch fills, got: "
                         + lowSeen.size());
     }

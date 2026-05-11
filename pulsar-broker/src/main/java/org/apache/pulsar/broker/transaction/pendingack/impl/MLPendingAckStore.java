@@ -60,6 +60,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.transaction.coordinator.impl.TxnBatchedPositionImpl;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
@@ -524,6 +525,12 @@ public class MLPendingAckStore implements PendingAckStore {
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {
         TopicName origin = TopicName.get(originTopicName);
+        // URL-encode the subscription name so that any '/' characters it contains do not create
+        // extra path segments when the resulting string is parsed as a topic name.  TopicName
+        // always decodes the local-name component on parse (via Codec.decode) and re-encodes it
+        // on output (via getEncodedLocalName / getPersistenceNamingEncoding), so encoding here
+        // produces a valid round-trip with no double-encoding.
+        String encodedSubName = Codec.encode(subName);
         // Segment topics ("segment://tenant/ns/topic/<hexStart>-<hexEnd>-<segmentId>") cannot
         // host a derived pending-ack topic in the segment domain — the descriptor parser would
         // reject any name with extra dashes appended. Map to a flat persistent topic in the same
@@ -532,9 +539,9 @@ public class MLPendingAckStore implements PendingAckStore {
             return String.format("persistent://%s/%s/%s-%s-%s%s",
                     origin.getTenant(), origin.getNamespacePortion(),
                     origin.getLocalName(), origin.getSegmentDescriptor(),
-                    subName, SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
+                    encodedSubName, SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
         }
-        return origin + "-" + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
+        return origin + "-" + encodedSubName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
     }
 
     public static String getTransactionPendingAckStoreCursorName() {

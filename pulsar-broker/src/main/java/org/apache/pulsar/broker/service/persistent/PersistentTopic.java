@@ -1331,8 +1331,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
 
         TopicName tn = TopicName.get(MLPendingAckStore
-                .getTransactionPendingAckStoreSuffix(topic,
-                        Codec.encode(subscriptionName)));
+                .getTransactionPendingAckStoreSuffix(topic, subscriptionName));
         if (brokerService.pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
             ManagedLedgerConfig managedLedgerConfig = ledger.getConfig();
                 ManagedLedgerFactory managedLedgerFactory = getBrokerService()

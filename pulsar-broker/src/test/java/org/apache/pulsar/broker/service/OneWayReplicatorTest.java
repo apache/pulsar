@@ -312,7 +312,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         int age;
     }
 
-    @Test(dataProvider = "autoUpdateSchemaParams")
+    @Test(dataProvider = "autoUpdateSchemaParams", timeOut = 60_000)
     public void testMultipleVersionSchemas(boolean isAllowAutoUpdateSchema,
                                            Boolean allowAutoUpdateSchemaWithReplicator) throws Exception {
         final String ns = BrokerTestUtil.newUniqueName("public/ns");
@@ -331,17 +331,18 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 1);
         admin1.namespaces().setRetention(ns, retentionPolicies);
         admin2.namespaces().setRetention(ns, retentionPolicies);
-        PersistentTopic topic1 = (PersistentTopic) broker1.getTopic(topicName, false).join().get();
+        AtomicReference<PersistentTopic> topic1 = new AtomicReference<>((PersistentTopic) broker1
+                .getTopic(topicName, false).join().get());
         PersistentTopic topic2 = (PersistentTopic) broker2.getTopic(topicName, false).join().get();
         Awaitility.await().untilAsserted(() -> {
-            HierarchyTopicPolicies policies1 = topic1.getHierarchyTopicPolicies();
+            HierarchyTopicPolicies policies1 = topic1.get().getHierarchyTopicPolicies();
             HierarchyTopicPolicies policies2 = topic2.getHierarchyTopicPolicies();
             assertEquals(policies1.getSchemaCompatibilityStrategy().get(),
                     SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
             assertEquals(policies2.getSchemaCompatibilityStrategy().get(),
                     SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
-            assertTrue(topic1.isAllowAutoUpdateSchema);
-            assertTrue(topic1.isAllowAutoUpdateSchemaWithReplicator);
+            assertTrue(topic1.get().isAllowAutoUpdateSchema);
+            assertTrue(topic1.get().isAllowAutoUpdateSchemaWithReplicator);
             assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
             assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
             assertEquals(policies1.getRetentionPolicies().get().getRetentionTimeInMinutes(), 10);
@@ -405,8 +406,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema,
                 allowAutoUpdateSchemaWithReplicator);
         Awaitility.await().untilAsserted(() -> {
-            assertTrue(topic1.isAllowAutoUpdateSchema);
-            assertTrue(topic1.isAllowAutoUpdateSchemaWithReplicator);
+            assertTrue(topic1.get().isAllowAutoUpdateSchema);
+            assertTrue(topic1.get().isAllowAutoUpdateSchemaWithReplicator);
             assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
             if (allowAutoUpdateSchemaWithReplicator != null && !allowAutoUpdateSchemaWithReplicator) {
                 assertFalse(topic2.isAllowAutoUpdateSchemaWithReplicator);
@@ -426,8 +427,19 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             // The message can not be replicated to the remote side.
             TopicStats topicStats = admin1.topics().getStats(topicName);
             assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 1);
-            producer1.close();
-            return;
+            // Change the policy to allow replicator update schemas.
+            admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, true);
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
+                assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
+            });
+            // Unload topic. Highlight, please do not remove this line, it is in order to test whether the replication
+            // can be recovered from the following case: the internal producer of replicator is closed when it's state
+            // is registering schema.
+            admin1.topics().unload(topicName);
+            topic1.set((PersistentTopic) broker1.getTopic(topicName, false).join().get());
+            waitReplicatorStarted(topicName);
+            //return;
         }
         Awaitility.await().untilAsserted(() -> {
             TopicStats topicStats = admin1.topics().getStats(topicName);
@@ -464,16 +476,12 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         assertEquals(msg21.getValue().getAge(), 16);
         consumer2.acknowledge(msg21);
         Message<Customer> msg22 = consumer2.receive(5, TimeUnit.SECONDS);
-        if (allowAutoUpdateSchemaWithReplicator != null && !allowAutoUpdateSchemaWithReplicator) {
-            assertNull(msg22);
-        } else {
-            assertNotNull(msg22);
-            byte[] bytesVersion22 = msg22.getSchemaVersion();
-            assertEquals(ByteBuffer.wrap(bytesVersion22).getLong(), 1);
-            assertEquals(msg22.getValue().getName(), "Apache");
-            assertEquals(msg22.getValue().getAge(), 26);
-            consumer2.acknowledge(msg22);
-        }
+        assertNotNull(msg22);
+        byte[] bytesVersion22 = msg22.getSchemaVersion();
+        assertEquals(ByteBuffer.wrap(bytesVersion22).getLong(), 1);
+        assertEquals(msg22.getValue().getName(), "Apache");
+        assertEquals(msg22.getValue().getAge(), 26);
+        consumer2.acknowledge(msg22);
 
         // cleanup.
         consumer1.close();

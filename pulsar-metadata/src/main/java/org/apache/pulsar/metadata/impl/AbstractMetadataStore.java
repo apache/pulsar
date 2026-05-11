@@ -32,12 +32,11 @@ import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
+import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -50,6 +49,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -70,6 +70,8 @@ import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
@@ -101,7 +103,23 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected final AtomicBoolean isClosed = new AtomicBoolean(false);
 
-    protected abstract CompletableFuture<Boolean> existsFromStore(String path);
+    /**
+     * Backend hook for {@link #exists}. Implementations consume {@link Option} entries from {@code opts}
+     * via {@link OptionsHelper} (e.g. {@link OptionsHelper#partitionKey} for routing on sharded backends).
+     */
+    protected abstract CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts);
+
+    /**
+     * Backend hook for {@link MetadataStore#getChildrenFromStore(String, Set)}. Implementations consume
+     * {@link Option} entries from {@code opts} via {@link OptionsHelper}.
+     */
+    @Override
+    public abstract CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts);
+
+    @Override
+    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        return getChildrenFromStore(path, Set.of());
+    }
 
     protected MetadataNodeSizeStats nodeSizeStats;
 
@@ -180,14 +198,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 .buildAsync(new AsyncCacheLoader<String, Boolean>() {
                     @Override
                     public CompletableFuture<Boolean> asyncLoad(String key, Executor executor) {
-                        return existsFromStore(key);
+                        return existsFromStore(key, Set.of());
                     }
 
                     @Override
                     public CompletableFuture<Boolean> asyncReload(String key, Boolean oldValue,
                             Executor executor) {
                         if (isConnected) {
-                            return existsFromStore(key);
+                            return existsFromStore(key, Set.of());
                         } else {
                             // Do not refresh if we're not connected
                             return CompletableFuture.completedFuture(oldValue);
@@ -229,9 +247,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             }
             // else update the event
             CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
-                    ? deleteInternal(event.getPath(), Optional.empty())
+                    ? deleteInternal(event.getPath(), Optional.empty(), Set.of())
                     : putInternal(event.getPath(), event.getValue(),
-                    Optional.ofNullable(event.getExpectedVersion()), options);
+                    Optional.ofNullable(event.getExpectedVersion()), fromLegacyCreateOptions(options));
             updateResult.thenApply(stat -> {
                 log.debug().attr("path", event.getPath()).log("successfully updated");
                 return result.complete(null);
@@ -339,7 +357,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> get(String path) {
+    public CompletableFuture<Optional<GetResult>> get(String path, Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -349,7 +367,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             return FutureUtil
                     .failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
-        return storeGet(path)
+        return storeGet(path, opts)
                 .whenComplete((v, t) -> {
                     if (t != null) {
                         v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
@@ -360,15 +378,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 });
     }
 
-    protected abstract CompletableFuture<Optional<GetResult>> storeGet(String path);
+    /**
+     * Backend hook for {@link #get}. Implementations consume {@link Option} entries from {@code opts}
+     * via {@link OptionsHelper}.
+     */
+    protected abstract CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts);
 
     @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
-        return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
-    }
-
-    @Override
-    public final CompletableFuture<List<String>> getChildren(String path) {
+    public final CompletableFuture<List<String>> getChildren(String path, Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -383,7 +400,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public final CompletableFuture<Boolean> exists(String path) {
+    public final CompletableFuture<Boolean> exists(String path, Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -442,10 +459,15 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
-    protected abstract CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion);
+    /**
+     * Backend hook for {@link #delete}. Implementations consume {@link Option} entries from {@code opts}
+     * via {@link OptionsHelper}.
+     */
+    protected abstract CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion,
+                                                            Set<Option> opts);
 
     @Override
-    public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+    public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         log.info().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleting path");
         if (isClosed()) {
             return alreadyClosedFailedFuture();
@@ -460,7 +482,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                     expectedVersion.orElse(null), Instant.now().toEpochMilli(),
                     getMetadataEventSynchronizer().get().getClusterName(), NotificationType.Deleted);
             return getMetadataEventSynchronizer().get().notify(event)
-                    .thenCompose(__ -> deleteInternal(path, expectedVersion))
+                    .thenCompose(__ -> deleteInternal(path, expectedVersion, opts))
                     .whenComplete((v, t) -> {
                         if (null != t) {
                             metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
@@ -469,7 +491,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     });
         } else {
-            return deleteInternal(path, expectedVersion)
+            return deleteInternal(path, expectedVersion, opts)
                     .whenComplete((v, t) -> {
                         if (null != t) {
                             metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
@@ -480,9 +502,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
     }
 
-    private CompletableFuture<Void> deleteInternal(String path, Optional<Long> expectedVersion) {
+    private CompletableFuture<Void> deleteInternal(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         // Ensure caches are invalidated before the operation is confirmed
-        return storeDelete(path, expectedVersion).thenRun(() -> {
+        return storeDelete(path, expectedVersion, opts).thenRun(() -> {
             existsCache.synchronous().invalidate(path);
             childrenCache.synchronous().invalidate(path);
             String parent = parent(path);
@@ -496,43 +518,42 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public CompletableFuture<Void> deleteRecursive(String path) {
+    public CompletableFuture<Void> deleteRecursive(String path, Set<Option> opts) {
         log.info().attr("path", path).log("Deleting recursively path");
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
-        return getChildren(path)
+        return getChildren(path, opts)
                 .thenCompose(children -> FutureUtil.waitForAll(
                         children.stream()
-                                .map(child -> deleteRecursive(path + "/" + child))
+                                .map(child -> deleteRecursive(path + "/" + child, opts))
                                 .collect(Collectors.toList())))
                 .thenCompose(__ -> {
                     log.info().attr("path", path).log("After deleting all children, now deleting path");
-                    return deleteIfExists(path, Optional.empty());
+                    return deleteIfExists(path, Optional.empty(), opts);
                 });
     }
 
+    /**
+     * Backend hook for writing a value. Implementations consume {@link Option} entries from {@code opts}
+     * via {@link OptionsHelper} (e.g. {@link OptionsHelper#isEphemeral}, {@link OptionsHelper#isSequential},
+     * {@link OptionsHelper#secondaryIndexes}, {@link OptionsHelper#partitionKey}).
+     */
     protected abstract CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                                        EnumSet<CreateOption> options);
-
-    protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                               EnumSet<CreateOption> options,
-                                               Map<String, String> secondaryIndexes) {
-        return storePut(path, data, optExpectedVersion, options);
-    }
+                                                        Set<Option> opts);
 
     @Override
     public CompletableFuture<List<GetResult>> findByIndex(
             String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter) {
+            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
-        return storeFindByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter);
+        return storeFindByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, opts);
     }
 
     @Override
-    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer) {
+    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         if (isClosed()) {
             CompletableFuture<Void> failed = alreadyClosedFailedFuture();
             failed.whenComplete((__, ex) -> {
@@ -547,7 +568,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             consumer.onError(ex);
             return FutureUtil.failedFuture(ex);
         }
-        return storeScanChildren(parentPath, consumer);
+        return storeScanChildren(parentPath, consumer, opts);
     }
 
     /**
@@ -556,13 +577,13 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
      * {@link #storeGet}. Backends with a native range-scan primitive (Oxia, RocksDB,
      * in-memory NavigableMap) override this method for a single store-side scan.
      */
-    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        getChildrenFromStore(parentPath).thenCompose(children -> {
+        getChildrenFromStore(parentPath, opts).thenCompose(children -> {
             CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
             for (String child : children) {
                 String childPath = parentPath.equals("/") ? "/" + child : parentPath + "/" + child;
-                chain = chain.thenCompose(__ -> storeGet(childPath))
+                chain = chain.thenCompose(__ -> storeGet(childPath, opts))
                         .thenAccept(opt -> opt.ifPresent(consumer::onNext));
             }
             return chain;
@@ -582,12 +603,12 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     protected CompletableFuture<List<GetResult>> storeFindByIndex(
             String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter) {
+            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
         // Default fallback: full scan under scanPathPrefix, applying fallbackFilter to each result.
-        return getChildrenFromStore(scanPathPrefix)
+        return getChildrenFromStore(scanPathPrefix, opts)
                 .thenCompose(children -> {
                     List<CompletableFuture<Optional<GetResult>>> futures = children.stream()
-                            .map(child -> storeGet(scanPathPrefix + "/" + child))
+                            .map(child -> storeGet(scanPathPrefix + "/" + child, opts))
                             .toList();
                     return FutureUtil.waitForAll(futures)
                             .thenApply(__ -> futures.stream()
@@ -601,13 +622,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
-            EnumSet<CreateOption> options) {
-        return put(path, data, optExpectedVersion, options, Collections.emptyMap());
-    }
-
-    @Override
-    public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
-            EnumSet<CreateOption> options, Map<String, String> secondaryIndexes) {
+            Set<Option> opts) {
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -616,15 +631,21 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
-        HashSet<CreateOption> ops = new HashSet<>(options);
+        // Sequence-key compatibility layer: when the backend doesn't have native sequence-keys
+        // (everything except Oxia today), synthesize the actual key with a CAS-incremented
+        // counter document, then recurse into the regular put path with the synthesized key.
+        List<Long> deltas = OptionsHelper.sequenceKeysDeltas(opts);
+        if (deltas != null && !supportsNativeSequenceKeys()) {
+            return putWithSequenceKeysCompat(path, data, optExpectedVersion, opts, deltas);
+        }
         if (getMetadataEventSynchronizer().isPresent()) {
             Long version = optExpectedVersion.isPresent() && optExpectedVersion.get() < 0 ? null
                     : optExpectedVersion.orElse(null);
-            MetadataEvent event = new MetadataEvent(path, data, ops, version,
+            MetadataEvent event = new MetadataEvent(path, data, toLegacyCreateOptions(opts), version,
                     Instant.now().toEpochMilli(), getMetadataEventSynchronizer().get().getClusterName(),
                     NotificationType.Modified);
             return getMetadataEventSynchronizer().get().notify(event)
-                    .thenCompose(__ -> putInternal(path, data, optExpectedVersion, options, secondaryIndexes))
+                    .thenCompose(__ -> putInternal(path, data, optExpectedVersion, opts))
                     .whenComplete((v, t) -> {
                         if (t != null) {
                             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
@@ -634,7 +655,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                         }
                     });
         } else {
-            return putInternal(path, data, optExpectedVersion, options, secondaryIndexes)
+            return putInternal(path, data, optExpectedVersion, opts)
                     .whenComplete((v, t) -> {
                         if (t != null) {
                             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
@@ -647,17 +668,191 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     }
 
-    public final CompletableFuture<Stat> putInternal(String path, byte[] data, Optional<Long> optExpectedVersion,
-            Set<CreateOption> options) {
-        return putInternal(path, data, optExpectedVersion, options, Collections.emptyMap());
+    /**
+     * Whether this store has a native multi-dimensional atomic sequence-keys implementation
+     * (Oxia). Backends that return {@code true} are expected to interpret
+     * {@link Option.SequenceKeysDeltas} themselves in {@code storePut} and surface the
+     * server-assigned key in the returned {@link Stat}. Backends that return {@code false} fall
+     * back to the synthesized counter+CAS path in this class.
+     */
+    protected boolean supportsNativeSequenceKeys() {
+        return false;
+    }
+
+    private CompletableFuture<Stat> putWithSequenceKeysCompat(
+            String prefix, byte[] data, Optional<Long> version, Set<Option> opts, List<Long> deltas) {
+        if (version.isPresent() && version.get() != -1L) {
+            return FutureUtil.failedFuture(new MetadataStoreException(
+                    "Can't have expectedVersion and SequenceKeysDeltas at the same time"));
+        }
+        return atomicIncrementSequenceCounter(prefix, deltas).thenCompose(seqs -> {
+            String synthesized = formatSequenceKey(prefix, seqs);
+            Set<Option> remainingOpts = stripSequenceKeysDeltas(opts);
+            // Recurse into the regular put path with the synthesized key. expectedVersion = -1
+            // guarantees we only succeed on a fresh insert — defensive against stale counters.
+            return put(synthesized, data, Optional.of(-1L), remainingOpts);
+        });
+    }
+
+    private CompletableFuture<long[]> atomicIncrementSequenceCounter(String prefix, List<Long> deltas) {
+        String counterPath = sequenceCounterPath(prefix);
+        return get(counterPath, Set.of()).thenCompose(currentOpt -> {
+            long[] currentSeqs = currentOpt.isPresent()
+                    ? decodeSequenceCounter(currentOpt.get().getValue())
+                    : new long[0];
+            long[] newSeqs = new long[deltas.size()];
+            for (int i = 0; i < deltas.size(); i++) {
+                long current = i < currentSeqs.length ? currentSeqs[i] : 0L;
+                newSeqs[i] = current + deltas.get(i);
+            }
+            Optional<Long> expectedVersion = currentOpt.isPresent()
+                    ? Optional.of(currentOpt.get().getStat().getVersion())
+                    : Optional.of(-1L);
+            byte[] encoded = encodeSequenceCounter(newSeqs);
+            return put(counterPath, encoded, expectedVersion, Set.of())
+                    .thenApply(s -> newSeqs)
+                    .exceptionallyCompose(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof MetadataStoreException.BadVersionException) {
+                            // Concurrent writer beat us — read the new counter value and retry.
+                            return atomicIncrementSequenceCounter(prefix, deltas);
+                        }
+                        return FutureUtil.failedFuture(cause);
+                    });
+        });
+    }
+
+    /** Counter-document path for a sequence prefix. Sibling of the prefix at the parent level. */
+    static String sequenceCounterPath(String prefix) {
+        return prefix + "__seq_counter__";
+    }
+
+    /** Format a synthesized sequence key matching Oxia's native format: {@code prefix-{seq:%020d}-...}. */
+    static String formatSequenceKey(String prefix, long[] seqs) {
+        StringBuilder sb = new StringBuilder(prefix);
+        for (long s : seqs) {
+            sb.append('-').append(String.format("%020d", s));
+        }
+        return sb.toString();
+    }
+
+    private static byte[] encodeSequenceCounter(long[] seqs) {
+        ByteBuffer buf = ByteBuffer.allocate(seqs.length * Long.BYTES);
+        for (long s : seqs) {
+            buf.putLong(s);
+        }
+        return buf.array();
+    }
+
+    private static long[] decodeSequenceCounter(byte[] bytes) {
+        ByteBuffer buf = ByteBuffer.wrap(bytes);
+        long[] seqs = new long[bytes.length / Long.BYTES];
+        for (int i = 0; i < seqs.length; i++) {
+            seqs[i] = buf.getLong();
+        }
+        return seqs;
+    }
+
+    private static Set<Option> stripSequenceKeysDeltas(Set<Option> opts) {
+        if (opts == null || opts.isEmpty()) {
+            return Set.of();
+        }
+        Set<Option> result = new HashSet<>();
+        for (Option o : opts) {
+            if (!(o instanceof Option.SequenceKeysDeltas)) {
+                result.add(o);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts) {
+        SequenceWatcher watcher = new SequenceWatcher(prefix, listener);
+        listeners.add(watcher);
+        return () -> listeners.remove(watcher);
+    }
+
+    /**
+     * Listener-based subscription bridge: filter notifications matching a sequence prefix and
+     * deliver only paths that strictly increase the latest seen sequence. Multiple updates may
+     * collapse — only the highest path observed so far is delivered, matching Oxia's contract.
+     */
+    private static final class SequenceWatcher implements Consumer<Notification> {
+        private final String prefixDash;
+        private final Consumer<String> listener;
+        private final AtomicReference<String> latest = new AtomicReference<>();
+
+        SequenceWatcher(String prefix, Consumer<String> listener) {
+            this.prefixDash = prefix + "-";
+            this.listener = listener;
+        }
+
+        @Override
+        public void accept(Notification n) {
+            if (n.getType() != NotificationType.Created) {
+                return;
+            }
+            String path = n.getPath();
+            if (!path.startsWith(prefixDash)) {
+                return;
+            }
+            while (true) {
+                String previous = latest.get();
+                if (previous != null && path.compareTo(previous) <= 0) {
+                    return;
+                }
+                if (latest.compareAndSet(previous, path)) {
+                    try {
+                        listener.accept(path);
+                    } catch (Throwable t) {
+                        log.warn().attr("path", path).exception(t).log("Sequence subscription listener failed");
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * Translate {@link Option.Ephemeral}/{@link Option.Sequential} entries from {@code opts} into the
+     * legacy {@link CreateOption} set carried by {@link MetadataEvent} for sync replication. Other
+     * {@link Option} kinds (e.g. {@link Option.SecondaryIndex}, {@link Option.PartitionKey}) are not
+     * propagated through the legacy event payload.
+     */
+    private static HashSet<CreateOption> toLegacyCreateOptions(Set<Option> opts) {
+        HashSet<CreateOption> result = new HashSet<>();
+        if (OptionsHelper.isEphemeral(opts)) {
+            result.add(CreateOption.Ephemeral);
+        }
+        if (OptionsHelper.isSequential(opts)) {
+            result.add(CreateOption.Sequential);
+        }
+        return result;
+    }
+
+    /**
+     * Translate a legacy {@link CreateOption} set (carried by replicated {@link MetadataEvent} payloads)
+     * into the canonical {@code Set<Option>} form consumed by the {@code storePut} hook.
+     */
+    private static Set<Option> fromLegacyCreateOptions(Set<CreateOption> options) {
+        if (options == null || options.isEmpty()) {
+            return Set.of();
+        }
+        HashSet<Option> result = new HashSet<>();
+        if (options.contains(CreateOption.Ephemeral)) {
+            result.add(Option.Ephemeral.INSTANCE);
+        }
+        if (options.contains(CreateOption.Sequential)) {
+            result.add(Option.Sequential.INSTANCE);
+        }
+        return result;
     }
 
     public final CompletableFuture<Stat> putInternal(String path, byte[] data, Optional<Long> optExpectedVersion,
-            Set<CreateOption> options, Map<String, String> secondaryIndexes) {
-        var enumOptions =
-                (options != null && !options.isEmpty()) ? EnumSet.copyOf(options) : EnumSet.noneOf(CreateOption.class);
+            Set<Option> opts) {
         // Ensure caches are invalidated before the operation is confirmed
-        return storePut(path, data, optExpectedVersion, enumOptions, secondaryIndexes)
+        return storePut(path, data, optExpectedVersion, opts == null ? Set.of() : opts)
                 .thenApply(stat -> {
                     NotificationType type = stat.isFirstVersion() ? NotificationType.Created
                             : NotificationType.Modified;

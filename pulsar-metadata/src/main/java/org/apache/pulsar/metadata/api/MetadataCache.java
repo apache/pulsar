@@ -19,9 +19,11 @@
 package org.apache.pulsar.metadata.api;
 
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
@@ -172,21 +174,37 @@ public interface MetadataCache<T> {
 
     /**
      * Create or update the value of the given path in the metadata store without version comparison.
-     * <p>
-     * This method is equivalent to
-     * {@link org.apache.pulsar.metadata.api.extended.MetadataStoreExtended#put(String, byte[], Optional, EnumSet)} or
-     * {@link MetadataStore#put(String, byte[], Optional)} if the metadata store does not support this extended API,
-     * with `Optional.empty()` as the 3rd argument. It means if the path does not exist, it will be created. If the path
-     * already exists, the new value will override the old value.
-     * </p>
+     *
+     * <p>If the path does not exist it will be created; if it exists, the new value will override the old
+     * value. Recognized options include {@link Option.Ephemeral}, {@link Option.Sequential},
+     * {@link Option.SecondaryIndex}, and {@link Option.PartitionKey}. Pass {@link Set#of()} for none.
+     *
      * @param path the path of the object in the metadata store
      * @param value the object to put in the metadata store
-     * @param options the create options if the path does not in the metadata store
+     * @param opts the set of {@link Option options} for this operation
      * @return the future that indicates if this operation failed, it could fail with
      *   {@link java.io.IOException} if the value failed to be serialized
      *   {@link MetadataStoreException} if the metadata store operation failed
      */
-    CompletableFuture<Void> put(String path, T value, EnumSet<CreateOption> options);
+    CompletableFuture<Void> put(String path, T value, Set<Option> opts);
+
+    /**
+     * Legacy {@code EnumSet<CreateOption>} form of {@link #put(String, Object, Set)}. Translates the
+     * {@link CreateOption} set into the canonical {@code Set<Option>} form and forwards to the canonical method.
+     */
+    default CompletableFuture<Void> put(String path, T value, EnumSet<CreateOption> options) {
+        if (options == null || options.isEmpty()) {
+            return put(path, value, Set.of());
+        }
+        Set<Option> opts = new HashSet<>();
+        if (options.contains(CreateOption.Ephemeral)) {
+            opts.add(Option.Ephemeral.INSTANCE);
+        }
+        if (options.contains(CreateOption.Sequential)) {
+            opts.add(Option.Sequential.INSTANCE);
+        }
+        return put(path, value, opts);
+    }
 
     /**
      * Delete an object from the metadata store.

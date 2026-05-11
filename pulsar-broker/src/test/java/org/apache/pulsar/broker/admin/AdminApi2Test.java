@@ -1882,7 +1882,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertTrue(consumedTimestamp < lastConsumedTimestamp);
         assertTrue(ackedTimestamp < lastAckedTimestamp);
         assertTrue(startConsumedTimestampInConsumerStats < lastConsumedTimestamp);
-        assertEquals(lastConsumedFlowTimestamp, consumedFlowTimestamp);
+        // consumedFlowTimestamp may change due to deferred ack completion triggering
+        // additional consumerFlow calls. Only verify it's not reset.
+        assertTrue(lastConsumedFlowTimestamp >= consumedFlowTimestamp);
         assertTrue(ackedTimestampInSubStats < lastAckedTimestampInSubStats);
         assertEquals(lastConsumedTimestamp, lastConsumedTimestampInSubStats);
         assertEquals(firstConsumedFlowTimestamp, firstConsumedFlowTimestamp2);

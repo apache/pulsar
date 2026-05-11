@@ -161,10 +161,41 @@ public class ScalableTopicController {
                 .thenCompose(__ -> {
                     if (isLeader()) {
                         scheduleGcTask();
-                        return restoreSessionsFromStore();
+                        return ensureActiveSegmentsExist()
+                                .thenCompose(___ -> restoreSessionsFromStore());
                     }
                     return CompletableFuture.completedFuture(null);
                 });
+    }
+
+    /**
+     * Recovery path for active segments whose backing topics are missing — e.g.,
+     * a {@code createScalableTopic} call that committed metadata but failed to
+     * materialize all initial segments before crashing, or a force-delete of an
+     * active segment.
+     *
+     * <p>Idempotent: {@code createSegmentAsync} on an existing segment is a
+     * no-op at the broker (it just loads the existing topic).
+     *
+     * <p>Sealed segments are intentionally NOT healed here — if a sealed segment's
+     * backing topic is gone the data is permanently gone (retention applied or
+     * an explicit delete), and re-creating an empty topic would mask that. The
+     * V5 checkpoint consumer skips sealed segments whose topics return
+     * {@code TopicDoesNotExist}.
+     */
+    private CompletableFuture<Void> ensureActiveSegmentsExist() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (SegmentInfo seg : currentLayout.getActiveSegments().values()) {
+            futures.add(createSegmentTopic(seg, List.of())
+                    .exceptionally(ex -> {
+                        log.warn().attr("segmentId", seg.segmentId())
+                                .exceptionMessage(ex)
+                                .log("Failed to ensure active segment topic at controller init; "
+                                        + "next attempt to use this segment will retry");
+                        return null;
+                    }));
+        }
+        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new));
     }
 
     /**
@@ -467,19 +498,6 @@ public class ScalableTopicController {
      * registration (a subscription's type doesn't change in practice); subsequent
      * registers with a different type still work but won't change the ordering policy.
      */
-    /**
-     * @deprecated Defaults to {@link ScalableConsumerType#STREAM}
-     *     for backward compatibility. New callers should pass the explicit type.
-     */
-    @Deprecated
-    public CompletableFuture<ConsumerAssignment> registerConsumer(String subscription,
-                                                                   String consumerName,
-                                                                   long consumerId,
-                                                                   TransportCnx cnx) {
-        return registerConsumer(subscription, consumerName, consumerId,
-                ScalableConsumerType.STREAM, cnx);
-    }
-
     public CompletableFuture<ConsumerAssignment> registerConsumer(String subscription,
                                                                    String consumerName,
                                                                    long consumerId,
@@ -711,11 +729,11 @@ public class ScalableTopicController {
     }
 
     private CompletableFuture<Void> createSubscriptionOnSegment(SegmentInfo segment, String subscription) {
-        String persistentName = toSegmentUnderlyingPersistentName(segment);
+        String segmentTopicName = toSegmentPersistentName(segment);
         try {
             return brokerService.getPulsar().getAdminClient()
-                    .topics().createSubscriptionAsync(persistentName, subscription,
-                            org.apache.pulsar.client.api.MessageId.earliest)
+                    .scalableTopics()
+                    .createSegmentSubscriptionAsync(segmentTopicName, subscription)
                     .exceptionally(ex -> {
                         Throwable cause = org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException.ConflictException) {
@@ -730,17 +748,18 @@ public class ScalableTopicController {
     }
 
     private CompletableFuture<Void> deleteSubscriptionOnSegment(SegmentInfo segment, String subscription) {
-        String persistentName = toSegmentUnderlyingPersistentName(segment);
+        String segmentTopicName = toSegmentPersistentName(segment);
         try {
             return brokerService.getPulsar().getAdminClient()
-                    .topics().deleteSubscriptionAsync(persistentName, subscription, true)
+                    .scalableTopics()
+                    .deleteSegmentSubscriptionAsync(segmentTopicName, subscription)
                     .exceptionally(ex -> {
                         Throwable cause = org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException) {
                             return null;
                         }
                         log.warn().attr("subscription", subscription)
-                                .attr("segment", persistentName).exceptionMessage(cause)
+                                .attr("segment", segmentTopicName).exceptionMessage(cause)
                                 .log("Failed to delete subscription from segment");
                         return null;
                     });
@@ -1094,19 +1113,6 @@ public class ScalableTopicController {
         TopicName segmentTopicName = SegmentTopicName.fromParent(
                 topicName, segment.hashRange(), segment.segmentId());
         return segmentTopicName.toString();
-    }
-
-    /**
-     * Return the {@code persistent://} form of a segment's underlying managed-ledger topic,
-     * suitable for the standard {@link org.apache.pulsar.client.admin.Topics} admin API.
-     * The segment-owning broker is discovered by the admin client's normal bundle routing.
-     */
-    private String toSegmentUnderlyingPersistentName(SegmentInfo segment) {
-        TopicName segmentTopicName = SegmentTopicName.fromParent(
-                topicName, segment.hashRange(), segment.segmentId());
-        return "persistent://" + segmentTopicName.getTenant() + "/"
-                + segmentTopicName.getNamespacePortion() + "/"
-                + segmentTopicName.getLocalName();
     }
 
     private CompletableFuture<Void> terminateSegmentTopic(String segmentTopicName) {

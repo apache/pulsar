@@ -57,6 +57,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
 
     @Override
     public PulsarClientBuilder serviceUrl(String serviceUrl) {
+        validatePulsarServiceUrl(serviceUrl, "serviceUrl");
         conf.setServiceUrl(serviceUrl);
         return this;
     }
@@ -91,6 +92,7 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         conf.setNumIoThreads(policy.ioThreads());
         conf.setNumListenerThreads(policy.callbackThreads());
         if (policy.proxyServiceUrl() != null) {
+            validatePulsarServiceUrl(policy.proxyServiceUrl(), "ConnectionPolicy.proxyServiceUrl");
             conf.setProxyServiceUrl(policy.proxyServiceUrl());
             if (policy.proxyProtocol() != null) {
                 conf.setProxyProtocol(
@@ -141,5 +143,29 @@ final class PulsarClientBuilderV5 implements PulsarClientBuilder {
         this.description = description;
         conf.setDescription(description);
         return this;
+    }
+
+    /**
+     * Reject anything that isn't the broker binary protocol. The most common
+     * mistake is passing the admin/web service URL ({@code http://...}) where a
+     * broker URL is expected — call that out specifically. The v4 client used to
+     * silently fail far downstream with cryptic connection errors; here we fail
+     * fast at configure time with a message the user can act on.
+     */
+    private static void validatePulsarServiceUrl(String url, String fieldName) {
+        if (url == null || url.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " must not be null or blank");
+        }
+        if (url.startsWith("pulsar://") || url.startsWith("pulsar+ssl://")) {
+            return;
+        }
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            throw new IllegalArgumentException(fieldName + " must use the broker binary protocol "
+                    + "(pulsar:// or pulsar+ssl://); got '" + url + "'. This looks like the admin/web "
+                    + "service URL — pass the broker service URL instead (typically port 6650, or "
+                    + "6651 for TLS).");
+        }
+        throw new IllegalArgumentException(fieldName + " must use the broker binary protocol "
+                + "(pulsar:// or pulsar+ssl://); got '" + url + "'.");
     }
 }

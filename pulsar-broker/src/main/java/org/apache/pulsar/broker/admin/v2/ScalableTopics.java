@@ -26,6 +26,7 @@ import io.swagger.annotations.ApiResponses;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -174,9 +175,8 @@ public class ScalableTopics extends AdminResource {
                     Map<String, String> props = properties != null ? properties : Map.of();
                     ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
                             numInitialSegments, props);
-                    // Segment persistent topics are auto-created on demand when clients connect,
-                    // so we only need to store the metadata here.
-                    return resources().createScalableTopicAsync(tn, metadata);
+                    return resources().createScalableTopicAsync(tn, metadata)
+                            .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
                 })
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("topic", tn)
@@ -196,6 +196,35 @@ public class ScalableTopics extends AdminResource {
                     }
                     return null;
                 });
+    }
+
+    /**
+     * Create the backing persistent topic for each segment in the initial layout.
+     *
+     * <p>Segment topics are NEVER auto-created on client connect (see
+     * {@code BrokerService.isAllowAutoTopicCreationAsync}); they only come into
+     * existence through the controller's explicit-create path. So at scalable-topic
+     * creation time we have to materialize the initial segment(s) up front, before
+     * any producer or consumer arrives.
+     *
+     * <p>Routes via the internal admin client so each segment's create lands on
+     * its bundle's owning broker (segment bundles can hash to a different broker
+     * than the one handling this REST call).
+     */
+    private CompletableFuture<Void> createInitialSegmentTopicsAsync(
+            TopicName parentTopic, ScalableTopicMetadata metadata) {
+        try {
+            var admin = pulsar().getAdminClient();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (SegmentInfo seg : metadata.getSegments().values()) {
+                String segmentTopic = SegmentTopicName.fromParent(
+                        parentTopic, seg.hashRange(), seg.segmentId()).toString();
+                futures.add(admin.scalableTopics().createSegmentAsync(segmentTopic, List.of()));
+            }
+            return FutureUtil.waitForAll(futures);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     // --- Get metadata ---
@@ -675,8 +704,9 @@ public class ScalableTopics extends AdminResource {
     }
 
     /**
-     * Best-effort delete underlying persistent topics for all segments.
-     * Uses the internal admin client which handles cross-broker routing.
+     * Best-effort delete the underlying topic for every segment in the DAG. Uses the
+     * segment-aware admin endpoint, which routes to the segment-owning broker via the
+     * standard bundle-ownership lookup.
      */
     private CompletableFuture<Void> deleteSegmentTopics(TopicName parentTopic,
                                                          ScalableTopicMetadata metadata,
@@ -685,10 +715,11 @@ public class ScalableTopics extends AdminResource {
             var admin = pulsar().getAdminClient();
             CompletableFuture<?>[] futures = metadata.getSegments().values().stream()
                     .map(seg -> {
-                        String name = segmentPersistentName(parentTopic, seg);
-                        return admin.topics().deleteAsync(name, force)
+                        String segmentTopicName = SegmentTopicName.fromParent(
+                                parentTopic, seg.hashRange(), seg.segmentId()).toString();
+                        return admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force)
                                 .exceptionally(ex -> {
-                                    log.warn().attr("segment", name).exceptionMessage(ex)
+                                    log.warn().attr("segment", segmentTopicName).exceptionMessage(ex)
                                             .log("Failed to delete segment topic");
                                     return null;
                                 });
@@ -700,16 +731,5 @@ public class ScalableTopics extends AdminResource {
                     .log("Failed to get admin client for segment cleanup");
             return CompletableFuture.completedFuture(null);
         }
-    }
-
-    /**
-     * Convert a segment:// topic name to persistent:// for the underlying managed ledger topic.
-     */
-    private String segmentPersistentName(TopicName parentTopic, SegmentInfo segment) {
-        TopicName segTopic = SegmentTopicName.fromParent(
-                parentTopic, segment.hashRange(), segment.segmentId());
-        return "persistent://" + segTopic.getTenant() + "/"
-                + segTopic.getNamespacePortion() + "/"
-                + segTopic.getLocalName();
     }
 }

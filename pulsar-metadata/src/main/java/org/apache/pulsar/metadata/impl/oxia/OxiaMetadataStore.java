@@ -27,11 +27,14 @@ import io.oxia.client.api.Version;
 import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
 import io.oxia.client.api.options.DeleteOption;
+import io.oxia.client.api.options.GetOption;
+import io.oxia.client.api.options.GetSequenceUpdatesOption;
 import io.oxia.client.api.options.ListOption;
 import io.oxia.client.api.options.PutOption;
+import io.oxia.client.api.options.RangeScanOption;
+import java.io.Closeable;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +44,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import lombok.CustomLog;
 import lombok.NonNull;
@@ -51,9 +55,10 @@ import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 
 @CustomLog
@@ -152,11 +157,11 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
         var pathWithSlash = path.endsWith("/") ? path : path + "/";
 
         return client
-                .list(pathWithSlash, pathWithSlash + "/")
+                .list(pathWithSlash, pathWithSlash + "/", listOptions(opts))
                 .thenApply(
                         children ->
                                 children.stream().map(child -> child.substring(pathWithSlash.length())).toList())
@@ -164,30 +169,27 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     @Override
-    protected CompletableFuture<Boolean> existsFromStore(String path) {
-        return client.get(path).thenApply(Objects::nonNull)
+    protected CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
+        return client.get(path, getOptions(opts)).thenApply(Objects::nonNull)
                 .exceptionallyCompose(this::convertException);
     }
 
     @Override
-    protected CompletableFuture<Optional<GetResult>> storeGet(String path) {
-        return client.get(path).thenApply(res -> convertGetResult(path, res))
+    protected CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
+        return client.get(path, getOptions(opts)).thenApply(res -> convertGetResult(path, res))
                 .exceptionallyCompose(this::convertException);
     }
 
     @Override
-    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
-        return getChildrenFromStore(path)
+    protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
+        return getChildrenFromStore(path, opts)
                 .thenCompose(
                         children -> {
                             if (!children.isEmpty()) {
                                 return CompletableFuture.failedFuture(
                                         new MetadataStoreException("Key '" + path + "' has children"));
                             } else {
-                                Set<DeleteOption> delOption =
-                                        expectedVersion
-                                                .map(v -> Collections.singleton(DeleteOption.IfVersionIdEquals(v)))
-                                                .orElse(Collections.emptySet());
+                                Set<DeleteOption> delOption = deleteOptions(opts, expectedVersion);
                                 CompletableFuture<Boolean> result = client.delete(path, delOption);
                                 return result
                                         .thenCompose(
@@ -206,19 +208,12 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
     @Override
     protected CompletableFuture<Stat> storePut(
-            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options) {
-        return doStorePut(path, data, optExpectedVersion, options, Collections.emptyMap());
+            String path, byte[] data, Optional<Long> optExpectedVersion, Set<Option> opts) {
+        return doStorePut(path, data, optExpectedVersion, opts);
     }
 
     @Override
-    protected CompletableFuture<Stat> storePut(
-            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options,
-            Map<String, String> secondaryIndexes) {
-        return doStorePut(path, data, optExpectedVersion, options, secondaryIndexes);
-    }
-
-    @Override
-    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer) {
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         // Oxia's hierarchical sort makes [parentPath + "/", parentPath + "//") the canonical
         // range covering exactly the immediate children — same convention getChildrenFromStore
         // uses with `client.list(...)`.
@@ -244,7 +239,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                     consumer.onCompleted();
                     done.complete(null);
                 }
-            });
+            }, rangeScanOptions(opts));
         } catch (Throwable t) {
             consumer.onError(t);
             done.completeExceptionally(t);
@@ -255,12 +250,14 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     @Override
     protected CompletableFuture<List<GetResult>> storeFindByIndex(
             String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter) {
+            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
         String scopedKey = scanPathPrefix + "/" + secondaryKey;
-        return client.list(scopedKey, scopedKey + "~", Set.of(ListOption.UseIndex(indexName)))
+        Set<ListOption> listOpts = new HashSet<>(listOptions(opts));
+        listOpts.add(ListOption.UseIndex(indexName));
+        return client.list(scopedKey, scopedKey + "~", listOpts)
                 .thenCompose(primaryKeys -> {
                     List<CompletableFuture<Optional<GetResult>>> futures = primaryKeys.stream()
-                            .map(this::storeGet)
+                            .map(p -> storeGet(p, opts))
                             .toList();
                     return FutureUtil.waitForAll(futures)
                             .thenApply(__ -> futures.stream()
@@ -273,21 +270,28 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     private CompletableFuture<Stat> doStorePut(
-            String path, byte[] data, Optional<Long> optExpectedVersion, EnumSet<CreateOption> options,
-            Map<String, String> secondaryIndexes) {
+            String path, byte[] data, Optional<Long> optExpectedVersion, Set<Option> opts) {
+        boolean sequential = OptionsHelper.isSequential(opts);
+        boolean ephemeral = OptionsHelper.isEphemeral(opts);
+        List<Long> sequenceKeysDeltas = OptionsHelper.sequenceKeysDeltas(opts);
+        Map<String, String> secondaryIndexes = OptionsHelper.secondaryIndexes(opts);
+        if (sequential && sequenceKeysDeltas != null) {
+            return CompletableFuture.failedFuture(new MetadataStoreException(
+                    "Sequential and SequenceKeysDeltas cannot be combined"));
+        }
         CompletableFuture<Void> parentsCreated = createParents(path);
         return parentsCreated.thenCompose(
                 __ -> {
                     var expectedVersion = optExpectedVersion;
-                    if (expectedVersion.isPresent()
-                            && expectedVersion.get() != -1L
-                            && options.contains(CreateOption.Sequential)) {
+                    if (expectedVersion.isPresent() && expectedVersion.get() != -1L
+                            && (sequential || sequenceKeysDeltas != null)) {
                         return CompletableFuture.failedFuture(
                                 new MetadataStoreException(
-                                        "Can't have expectedVersion and Sequential at the same time"));
+                                        "Can't have expectedVersion and Sequential/SequenceKeysDeltas at the "
+                                                + "same time"));
                     }
                     CompletableFuture<String> actualPath;
-                    if (options.contains(CreateOption.Sequential)) {
+                    if (sequential) {
                         var parent = parent(path);
                         var parentPath = parent == null ? "/" : parent;
 
@@ -311,8 +315,15 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                                     })
                             .ifPresent(putOptions::add);
 
-                    if (options.contains(CreateOption.Ephemeral)) {
+                    if (ephemeral) {
                         putOptions.add(PutOption.AsEphemeralRecord);
+                    }
+                    String partitionKey = OptionsHelper.partitionKey(opts);
+                    if (partitionKey != null) {
+                        putOptions.add(PutOption.PartitionKey(partitionKey));
+                    }
+                    if (sequenceKeysDeltas != null) {
+                        putOptions.add(PutOption.SequenceKeysDeltas(sequenceKeysDeltas));
                     }
                     var parentPath = parent(path);
                     var parentPrefix = parentPath == null ? "" : parentPath;
@@ -326,9 +337,68 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                                             client
                                                     .put(aPath, data, putOptions)
                                                     .thenApply(res -> new PathWithPutResult(aPath, res)))
-                            .thenApply(res -> convertStat(res.path(), res.result().version()))
+                            // Use the effective key returned by Oxia — for SequenceKeysDeltas this is
+                            // the server-assigned key with sequence suffixes appended.
+                            .thenApply(res -> convertStat(res.result().key(), res.result().version()))
                             .exceptionallyCompose(this::convertException);
                 });
+    }
+
+    /** Build the Oxia {@link GetOption} set from {@code opts}, currently routing the partition key. */
+    private static Set<GetOption> getOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null ? Set.of() : Set.of(GetOption.PartitionKey(partitionKey));
+    }
+
+    /** Build the Oxia {@link ListOption} set from {@code opts}, currently routing the partition key. */
+    private static Set<ListOption> listOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null ? Set.of() : Set.of(ListOption.PartitionKey(partitionKey));
+    }
+
+    /**
+     * Build the Oxia {@link DeleteOption} set from {@code opts} together with the optional expected
+     * version.
+     */
+    private static Set<DeleteOption> deleteOptions(Set<Option> opts, Optional<Long> expectedVersion) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        if (partitionKey == null && expectedVersion.isEmpty()) {
+            return Set.of();
+        }
+        Set<DeleteOption> result = new HashSet<>();
+        expectedVersion.ifPresent(v -> result.add(DeleteOption.IfVersionIdEquals(v)));
+        if (partitionKey != null) {
+            result.add(DeleteOption.PartitionKey(partitionKey));
+        }
+        return result;
+    }
+
+    /** Build the Oxia {@link RangeScanOption} set from {@code opts}, currently routing the partition key. */
+    private static Set<RangeScanOption> rangeScanOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null ? Set.of() : Set.of(RangeScanOption.PartitionKey(partitionKey));
+    }
+
+    /**
+     * Build the Oxia {@link GetSequenceUpdatesOption} set from {@code opts}, currently routing the
+     * partition key.
+     */
+    private static Set<GetSequenceUpdatesOption> sequenceUpdatesOptions(Set<Option> opts) {
+        String partitionKey = OptionsHelper.partitionKey(opts);
+        return partitionKey == null
+                ? Set.of()
+                : Set.of(GetSequenceUpdatesOption.PartitionKey(partitionKey));
+    }
+
+    @Override
+    public AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts) {
+        Closeable handle = client.getSequenceUpdates(prefix, listener, sequenceUpdatesOptions(opts));
+        return handle::close;
+    }
+
+    @Override
+    protected boolean supportsNativeSequenceKeys() {
+        return true;
     }
 
     private <T> CompletionStage<T> convertException(Throwable ex) {

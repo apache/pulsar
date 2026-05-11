@@ -45,6 +45,9 @@ import org.apache.pulsar.broker.transaction.util.LogIndexLagBackoff;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.awaitility.Awaitility;
@@ -138,6 +141,33 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         );
         serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(txnLogBufferedWriterConfig.isBatchEnabled());
         return (MLPendingAckStore) mlPendingAckStoreProvider.newPendingAckStore(persistentSubscriptionMock).get();
+    }
+
+    @Test
+    public void testPendingAckStoreWithSlashSubscriptionName() throws Exception {
+        String slashSubName = "tenant/namespace/my-function";
+        when(persistentSubscriptionMock.getName()).thenReturn(slashSubName);
+
+        MLPendingAckStoreProvider provider = new MLPendingAckStoreProvider();
+
+        // Should not throw — subscription names containing '/' must be URL-encoded so the
+        // resulting pending-ack topic name is a valid V2 persistent topic name.
+        MLPendingAckStore store = (MLPendingAckStore) provider.newPendingAckStore(persistentSubscriptionMock).get();
+
+        // Verify the managed ledger persistence path encodes the subscription name correctly.
+        // Expected: tenant/namespace/persistent/<encodedLocalName>
+        // where localName = "<topic>-<encodedSubName>__transaction_pending_ack"
+        String originTopicName = persistentSubscriptionMock.getTopic().getName();
+        TopicName origin = TopicName.get(originTopicName);
+        String encodedSubName = Codec.encode(slashSubName);
+        String expectedLocalName = origin.getLocalName() + "-" + encodedSubName
+                + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
+        // getPersistenceNamingEncoding() = tenant/namespace/persistent/encodedLocalName
+        String expectedMlName = origin.getTenant() + "/" + origin.getNamespacePortion()
+                + "/persistent/" + Codec.encode(expectedLocalName);
+        Assert.assertEquals(store.getManagedLedger().get().getName(), expectedMlName);
+
+        closePendingAckStoreWithRetry(store);
     }
 
     /**

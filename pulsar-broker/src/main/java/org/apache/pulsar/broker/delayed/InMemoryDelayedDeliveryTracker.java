@@ -127,16 +127,24 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             messagesHaveFixedDelay = false;
             return false;
         }
-            log.debug()
-                    .attr("ledgerId", ledgerId)
-                    .attr("entryId", entryId)
-                    .attr("deliveryInMs", () -> deliverAt - clock.millis())
-                    .log("Add message");
-                long timestamp = trimLowerBit(deliverAt, timestampPrecisionBitCnt);
-        delayedMessageMap.computeIfAbsent(timestamp, k -> new TreeMap<>())
-                .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap())
-                .add(entryId);
-        delayedMessagesCount.incrementAndGet();
+
+        log.debug()
+                .attr("ledgerId", ledgerId)
+                .attr("entryId", entryId)
+                .attr("deliveryInMs", () -> deliverAt - clock.millis())
+                .log("Add message");
+        long timestamp = trimLowerBit(deliverAt, timestampPrecisionBitCnt);
+
+        Roaring64Bitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new TreeMap<>())
+            .computeIfAbsent(ledgerId, k -> new Roaring64Bitmap());
+        // Roaring64Bitmap does not store duplicates, so track if it a new element
+        // so we can keep delayedMessagesCount in sync
+        boolean isNew = !bitmap.contains(entryId);
+
+        if (isNew) {
+            bitmap.add(entryId);
+            delayedMessagesCount.incrementAndGet();
+        }
 
         updateTimer();
 

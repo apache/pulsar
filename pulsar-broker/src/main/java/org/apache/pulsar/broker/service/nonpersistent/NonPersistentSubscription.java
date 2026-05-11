@@ -207,8 +207,10 @@ public class NonPersistentSubscription extends AbstractSubscription {
     }
 
     @Override
-    public void acknowledgeMessage(List<Position> position, AckType ackType, Map<String, Long> properties) {
+    public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> position, AckType ackType,
+                                                           Map<String, Long> properties) {
         // No-op
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

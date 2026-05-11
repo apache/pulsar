@@ -23,7 +23,6 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -51,6 +50,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
@@ -262,18 +263,26 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> get(String path) {
+    public CompletableFuture<Optional<GetResult>> get(String path, Set<Option> opts) {
         return switch (migrationState.getPhase()) {
-            case NOT_STARTED, PREPARATION, COPYING, FAILED -> sourceStore.get(path);
-            case COMPLETED -> targetStore.get(path);
+            case NOT_STARTED, PREPARATION, COPYING, FAILED -> sourceStore.get(path, opts);
+            case COMPLETED -> targetStore.get(path, opts);
         };
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildren(String path) {
+    public CompletableFuture<List<String>> getChildren(String path, Set<Option> opts) {
         return switch (migrationState.getPhase()) {
-            case NOT_STARTED, PREPARATION, COPYING, FAILED -> sourceStore.getChildren(path);
-            case COMPLETED -> targetStore.getChildren(path);
+            case NOT_STARTED, PREPARATION, COPYING, FAILED -> sourceStore.getChildren(path, opts);
+            case COMPLETED -> targetStore.getChildren(path, opts);
+        };
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
+        return switch (migrationState.getPhase()) {
+            case NOT_STARTED, PREPARATION, COPYING, FAILED -> sourceStore.getChildrenFromStore(path, opts);
+            case COMPLETED -> targetStore.getChildrenFromStore(path, opts);
         };
     }
 
@@ -286,50 +295,55 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public CompletableFuture<Boolean> exists(String path) {
+    public CompletableFuture<Boolean> exists(String path, Set<Option> opts) {
         return switch (migrationState.getPhase()) {
-            case NOT_STARTED, PREPARATION, COPYING, FAILED -> sourceStore.exists(path);
-            case COMPLETED -> targetStore.exists(path);
+            case NOT_STARTED, PREPARATION, COPYING, FAILED -> sourceStore.exists(path, opts);
+            case COMPLETED -> targetStore.exists(path, opts);
         };
-    }
-
-    @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
-        return put(path, value, expectedVersion, EnumSet.noneOf(CreateOption.class));
     }
 
     @Override
     public CompletableFuture<List<GetResult>> findByIndex(
             String scanPathPrefix, String indexName, String secondaryKey,
-            Predicate<GetResult> fallbackFilter) {
+            Predicate<GetResult> fallbackFilter, Set<Option> opts) {
         return switch (migrationState.getPhase()) {
             case NOT_STARTED, PREPARATION, COPYING, FAILED ->
-                    sourceStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter);
+                    sourceStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, opts);
             case COMPLETED ->
-                    targetStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter);
+                    targetStore.findByIndex(scanPathPrefix, indexName, secondaryKey, fallbackFilter, opts);
         };
     }
 
     @Override
-    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer) {
+    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
         return switch (migrationState.getPhase()) {
             case NOT_STARTED, PREPARATION, COPYING, FAILED ->
-                    sourceStore.scanChildren(parentPath, consumer);
+                    sourceStore.scanChildren(parentPath, consumer, opts);
             case COMPLETED ->
-                    targetStore.scanChildren(parentPath, consumer);
+                    targetStore.scanChildren(parentPath, consumer, opts);
         };
     }
 
     @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
-                                       EnumSet<CreateOption> options, Map<String, String> secondaryIndexes) {
+    public AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts)
+            throws MetadataStoreException {
+        return switch (migrationState.getPhase()) {
+            case NOT_STARTED, PREPARATION, COPYING, FAILED ->
+                    sourceStore.subscribeSequence(prefix, listener, opts);
+            case COMPLETED ->
+                    targetStore.subscribeSequence(prefix, listener, opts);
+        };
+    }
+
+    @Override
+    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion, Set<Option> opts) {
         switch (migrationState.getPhase()) {
             case NOT_STARTED, FAILED -> {
-                if (options.contains(CreateOption.Ephemeral)) {
+                if (OptionsHelper.isEphemeral(opts)) {
                     localEphemeralPaths.add(path);
                 }
                 pendingSourceWrites.incrementAndGet();
-                var future = sourceStore.put(path, value, expectedVersion, options, secondaryIndexes);
+                var future = sourceStore.put(path, value, expectedVersion, opts);
                 future.whenComplete((result, e) -> pendingSourceWrites.decrementAndGet());
                 return future;
             }
@@ -337,49 +351,20 @@ public class DualMetadataStore implements MetadataStoreExtended {
                 return CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
             }
             case COMPLETED -> {
-                return targetStore.put(path, value, expectedVersion, options, secondaryIndexes);
+                return targetStore.put(path, value, expectedVersion, opts);
             }
             default -> throw new IllegalStateException("Invalid phase " + migrationState.getPhase());
         }
     }
 
     @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
-                                       EnumSet<CreateOption> options) {
-        switch (migrationState.getPhase()) {
-            case NOT_STARTED, FAILED -> {
-                // Track ephemeral nodes
-                if (options.contains(CreateOption.Ephemeral)) {
-                    localEphemeralPaths.add(path);
-                }
-
-                // Track pending writes
-                pendingSourceWrites.incrementAndGet();
-                var future = sourceStore.put(path, value, expectedVersion, options);
-                future.whenComplete((result, e) -> pendingSourceWrites.decrementAndGet());
-                return future;
-            }
-
-            case PREPARATION, COPYING -> {
-                return CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
-            }
-
-            case COMPLETED -> {
-                return targetStore.put(path, value, expectedVersion, options);
-            }
-
-            default -> throw new IllegalStateException("Invalid phase " + migrationState.getPhase());
-        }
-    }
-
-    @Override
-    public CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+    public CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         switch (migrationState.getPhase()) {
             case NOT_STARTED, FAILED -> {
                 localEphemeralPaths.remove(path);
 
                 pendingSourceWrites.incrementAndGet();
-                var future = sourceStore.delete(path, expectedVersion);
+                var future = sourceStore.delete(path, expectedVersion, opts);
                 future.whenComplete((result, e) -> pendingSourceWrites.decrementAndGet());
                 return future;
             }
@@ -389,7 +374,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
             }
 
             case COMPLETED -> {
-                return targetStore.delete(path, expectedVersion);
+                return targetStore.delete(path, expectedVersion, opts);
             }
 
             default -> throw new IllegalStateException("Invalid phase " + migrationState.getPhase());
@@ -397,11 +382,11 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public CompletableFuture<Void> deleteRecursive(String path) {
+    public CompletableFuture<Void> deleteRecursive(String path, Set<Option> opts) {
         switch (migrationState.getPhase()) {
             case NOT_STARTED, FAILED -> {
                 pendingSourceWrites.incrementAndGet();
-                var future = sourceStore.deleteRecursive(path);
+                var future = sourceStore.deleteRecursive(path, opts);
                 future.whenComplete((result, e) -> pendingSourceWrites.decrementAndGet());
                 return future;
             }
@@ -409,7 +394,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
                 return CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
             }
             case COMPLETED -> {
-                return targetStore.deleteRecursive(path);
+                return targetStore.deleteRecursive(path, opts);
             }
 
             default -> throw new IllegalStateException("Invalid phase " + migrationState.getPhase());
