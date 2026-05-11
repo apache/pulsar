@@ -33,10 +33,8 @@ import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TraceableMessageId;
-import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 
 /**
@@ -78,7 +76,8 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
      * instance handles messages from multiple topic partitions. Cumulative ack only affects
      * messages from the same topic partition.
      */
-    private volatile Map<String, ConcurrentSkipListMap<MessageIdAdv, Span>> messageSpansByTopic;
+    private final Map<String, ConcurrentSkipListMap<MessageIdAdv, Span>> messageSpansByTopic =
+            new ConcurrentHashMap<>();
 
     public OpenTelemetryConsumerInterceptor(InstrumentProvider instrumentProvider) {
         this.tracer = instrumentProvider.getTracer();
@@ -96,38 +95,19 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
         return topic != null ? topic : "";
     }
 
-    /**
-     * Ensure the map is initialized for cumulative acknowledgment support.
-     * This is called when we detect cumulative ack is being used.
-     */
-    private void ensureMapInitialized() {
-        if (messageSpansByTopic == null) {
-            messageSpansByTopic = new ConcurrentHashMap<>();
-            log.debug("Initialized message spans map for cumulative acknowledgment support");
-        }
-    }
-
     @Override
     public void close() {
         // Clean up any remaining spans for Failover/Exclusive subscriptions
-        if (messageSpansByTopic != null) {
-            messageSpansByTopic.values().forEach(topicSpans ->
-                topicSpans.values().forEach(TracingContext::endSpan)
-            );
-            messageSpansByTopic.clear();
-        }
+        messageSpansByTopic.values().forEach(topicSpans ->
+            topicSpans.values().forEach(TracingContext::endSpan)
+        );
+        messageSpansByTopic.clear();
     }
 
     @Override
     public Message<T> beforeConsume(Consumer<T> consumer, Message<T> message) {
         if (tracer == null || propagator == null) {
             return message;
-        }
-
-        if (consumer instanceof ConsumerBase<?> consumerBase
-                && (consumerBase.getConf().getSubscriptionType() == SubscriptionType.Exclusive
-                || consumerBase.getConf().getSubscriptionType() == SubscriptionType.Failover)) {
-            ensureMapInitialized();
         }
 
         try {
@@ -145,7 +125,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                 MessageId messageId = message.getMessageId();
 
                 // Store in map for cumulative ack support (Failover/Exclusive)
-                if (messageSpansByTopic != null && messageId instanceof MessageIdAdv) {
+                if (messageId instanceof MessageIdAdv) {
                     String topicKey = getTopicKey(messageId);
                     messageSpansByTopic.computeIfAbsent(topicKey,
                             k -> new ConcurrentSkipListMap<>()).put((MessageIdAdv) messageId, span);
@@ -187,7 +167,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                 ((TraceableMessageId) messageId).setTracingSpan(null);
 
                 // Remove from map if it exists (Failover/Exclusive)
-                if (messageSpansByTopic != null && messageId instanceof MessageIdAdv) {
+                if (messageId instanceof MessageIdAdv) {
                     String topicKey = getTopicKey(messageId);
                     ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
                     if (topicSpans != null) {
@@ -227,8 +207,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
         String topicKey = getTopicKey(messageId);
 
         // Get the topic-specific map
-        ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic != null
-                ? messageSpansByTopic.get(topicKey) : null;
+        ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
 
         // First, try to get the span for the cumulative ack position itself
         Span currentSpan = null;
@@ -278,7 +257,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
         }
 
         // If the cumulative ack position span wasn't in the map, end it directly
-        if (currentSpan != null && messageId instanceof TraceableMessageId) {
+        if (currentSpan != null) {
             try {
                 if (exception != null) {
                     TracingContext.endSpan(currentSpan, exception);
@@ -310,7 +289,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     ((TraceableMessageId) messageId).setTracingSpan(null);
 
                     // Remove from map if it exists (Failover/Exclusive)
-                    if (messageSpansByTopic != null && messageId instanceof MessageIdAdv) {
+                    if (messageId instanceof MessageIdAdv) {
                         String topicKey = getTopicKey(messageId);
                         ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
                         if (topicSpans != null) {
@@ -342,7 +321,7 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
                     ((TraceableMessageId) messageId).setTracingSpan(null);
 
                     // Remove from map if it exists (Failover/Exclusive)
-                    if (messageSpansByTopic != null && messageId instanceof MessageIdAdv) {
+                    if (messageId instanceof MessageIdAdv) {
                         String topicKey = getTopicKey(messageId);
                         ConcurrentSkipListMap<MessageIdAdv, Span> topicSpans = messageSpansByTopic.get(topicKey);
                         if (topicSpans != null) {
