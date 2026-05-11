@@ -76,12 +76,12 @@ public class OpenTelemetryConsumerInterceptor<T> implements ConsumerInterceptor<
      * instance handles messages from multiple topic partitions. Cumulative ack only affects
      * messages from the same topic partition.
      */
-    private final Map<String, ConcurrentSkipListMap<MessageIdAdv, Span>> messageSpansByTopic =
-            new ConcurrentHashMap<>();
+    private final Map<String, ConcurrentSkipListMap<MessageIdAdv, Span>> messageSpansByTopic;
 
     public OpenTelemetryConsumerInterceptor(InstrumentProvider instrumentProvider) {
         this.tracer = instrumentProvider.getTracer();
         this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+        this.messageSpansByTopic = new ConcurrentHashMap<>();
     }
 
     /**
