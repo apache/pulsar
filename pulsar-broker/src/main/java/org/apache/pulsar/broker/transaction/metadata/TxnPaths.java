@@ -108,8 +108,8 @@ public final class TxnPaths {
     }
 
     /** @return the composite final-state index key {@code <state>:padded(finalizedMs)}. */
-    public static String finalStateKey(String state, long finalizedMs) {
-        return state + ":" + longKey(finalizedMs);
+    public static String finalStateKey(TxnState state, long finalizedMs) {
+        return state.name() + ":" + longKey(finalizedMs);
     }
 
     private TxnPaths() {}

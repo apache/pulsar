@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.transaction.metadata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -47,13 +49,23 @@ public class TxnMetadataStoreTest {
                 MetadataStoreConfig.builder().fsyncEnable(false).build());
     }
 
+    private static TxnHeader open(long createdMs, long timeoutMs) {
+        return new TxnHeader(TxnState.OPEN, Duration.ofMillis(timeoutMs),
+                Instant.ofEpochMilli(createdMs), null);
+    }
+
+    private static TxnHeader finalized(TxnState state, long createdMs, long timeoutMs, long finalizedMs) {
+        return new TxnHeader(state, Duration.ofMillis(timeoutMs),
+                Instant.ofEpochMilli(createdMs), Instant.ofEpochMilli(finalizedMs));
+    }
+
     @Test
     public void headerLifecycle() throws Exception {
         @Cleanup MetadataStore store = newMemoryStore();
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
         String txnId = "tx-1";
-        TxnHeader h = new TxnHeader(TxnHeader.CURRENT_VERSION, TxnState.OPEN, 5000L, 1000L, null);
+        TxnHeader h = open(1000L, 5000L);
         Stat created = txn.createHeader(txnId, h).get();
         assertThat(created.getVersion()).isZero();
 
@@ -63,7 +75,7 @@ public class TxnMetadataStoreTest {
         assertThat(v.version()).isEqualTo(created.getVersion());
 
         // CAS update with the right version succeeds; finalize the txn.
-        TxnHeader committed = new TxnHeader(TxnHeader.CURRENT_VERSION, TxnState.COMMITTED, 5000L, 1000L, 1500L);
+        TxnHeader committed = finalized(TxnState.COMMITTED, 1000L, 5000L, 1500L);
         Stat updated = txn.updateHeader(txnId, committed, v.version()).get();
         assertThat(updated.getVersion()).isGreaterThan(v.version());
 
@@ -82,9 +94,9 @@ public class TxnMetadataStoreTest {
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
         String txnId = "tx-w";
-        TxnOp w1 = new TxnOp(TxnOp.CURRENT_VERSION, TxnOpKind.WRITE, "segment://A", null, "1:1");
-        TxnOp w2 = new TxnOp(TxnOp.CURRENT_VERSION, TxnOpKind.WRITE, "segment://A", null, "1:2");
-        TxnOp wOther = new TxnOp(TxnOp.CURRENT_VERSION, TxnOpKind.WRITE, "segment://B", null, "2:1");
+        TxnOp w1 = new TxnOp(TxnOpKind.WRITE, "segment://A", null, "1:1");
+        TxnOp w2 = new TxnOp(TxnOpKind.WRITE, "segment://A", null, "1:2");
+        TxnOp wOther = new TxnOp(TxnOpKind.WRITE, "segment://B", null, "2:1");
         Stat s1 = txn.appendOp(txnId, w1).get();
         Stat s2 = txn.appendOp(txnId, w2).get();
         txn.appendOp(txnId, wOther).get();
@@ -101,9 +113,9 @@ public class TxnMetadataStoreTest {
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
         String txnId = "tx-a";
-        TxnOp a1 = new TxnOp(TxnOp.CURRENT_VERSION, TxnOpKind.ACK, "segment://A", "sub-x", "1:5");
-        TxnOp a2 = new TxnOp(TxnOp.CURRENT_VERSION, TxnOpKind.ACK, "segment://A", "sub-x", "1:6");
-        TxnOp aOther = new TxnOp(TxnOp.CURRENT_VERSION, TxnOpKind.ACK, "segment://A", "sub-y", "1:7");
+        TxnOp a1 = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-x", "1:5");
+        TxnOp a2 = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-x", "1:6");
+        TxnOp aOther = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-y", "1:7");
         txn.appendOp(txnId, a1).get();
         txn.appendOp(txnId, a2).get();
         txn.appendOp(txnId, aOther).get();
@@ -119,16 +131,13 @@ public class TxnMetadataStoreTest {
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
         // Three open txns with deadlines 1100, 1200, 1300 (created+timeout).
-        TxnHeader open1 = new TxnHeader(TxnHeader.CURRENT_VERSION, TxnState.OPEN, 100L, 1000L, null);
-        TxnHeader open2 = new TxnHeader(TxnHeader.CURRENT_VERSION, TxnState.OPEN, 200L, 1000L, null);
-        TxnHeader open3 = new TxnHeader(TxnHeader.CURRENT_VERSION, TxnState.OPEN, 300L, 1000L, null);
-        txn.createHeader("t1", open1).get();
+        txn.createHeader("t1", open(100L, 1000L)).get();
+        TxnHeader open2 = open(200L, 1000L);
         txn.createHeader("t2", open2).get();
-        txn.createHeader("t3", open3).get();
+        txn.createHeader("t3", open(300L, 1000L)).get();
 
         // One terminal txn — must be excluded by the deadline scan.
-        TxnHeader term = new TxnHeader(TxnHeader.CURRENT_VERSION, TxnState.COMMITTED, 50L, 1000L, 1150L);
-        txn.createHeader("t-term", term).get();
+        txn.createHeader("t-term", finalized(TxnState.COMMITTED, 50L, 1000L, 1150L)).get();
 
         List<TxnHeader> hits = new ArrayList<>();
         txn.listOpenByDeadlineRange(1150L, 1250L, collectHeaders(hits)).get();
@@ -140,9 +149,9 @@ public class TxnMetadataStoreTest {
         @Cleanup MetadataStore store = newMemoryStore();
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
-        TxnHeader c1 = new TxnHeader(TxnHeader.CURRENT_VERSION, TxnState.COMMITTED, 1000L, 1000L, 1100L);
-        TxnHeader c2 = new TxnHeader(TxnHeader.CURRENT_VERSION, TxnState.COMMITTED, 1000L, 1000L, 1200L);
-        TxnHeader a1 = new TxnHeader(TxnHeader.CURRENT_VERSION, TxnState.ABORTED, 1000L, 1000L, 1150L);
+        TxnHeader c1 = finalized(TxnState.COMMITTED, 1000L, 1000L, 1100L);
+        TxnHeader c2 = finalized(TxnState.COMMITTED, 1000L, 1000L, 1200L);
+        TxnHeader a1 = finalized(TxnState.ABORTED, 1000L, 1000L, 1150L);
         txn.createHeader("c1", c1).get();
         txn.createHeader("c2", c2).get();
         txn.createHeader("a1", a1).get();
@@ -169,8 +178,8 @@ public class TxnMetadataStoreTest {
         ConcurrentLinkedQueue<String> received = new ConcurrentLinkedQueue<>();
         @Cleanup AutoCloseable handle = txn.subscribeSegmentEvents(segment, received::add);
 
-        TxnEvent e1 = new TxnEvent(TxnEvent.CURRENT_VERSION, "tx-1", TxnState.COMMITTED);
-        TxnEvent e2 = new TxnEvent(TxnEvent.CURRENT_VERSION, "tx-2", TxnState.ABORTED);
+        TxnEvent e1 = new TxnEvent("tx-1", TxnState.COMMITTED);
+        TxnEvent e2 = new TxnEvent("tx-2", TxnState.ABORTED);
         Stat s1 = txn.publishSegmentEvent(segment, e1).get();
         Stat s2 = txn.publishSegmentEvent(segment, e2).get();
 
@@ -198,21 +207,11 @@ public class TxnMetadataStoreTest {
         ConcurrentLinkedQueue<String> received = new ConcurrentLinkedQueue<>();
         @Cleanup AutoCloseable handle = txn.subscribeSubscriptionEvents(segment, sub, received::add);
 
-        TxnEvent e = new TxnEvent(TxnEvent.CURRENT_VERSION, "tx-1", TxnState.COMMITTED);
+        TxnEvent e = new TxnEvent("tx-1", TxnState.COMMITTED);
         Stat s = txn.publishSubscriptionEvent(segment, sub, e).get();
 
         Awaitility.await().untilAsserted(() ->
                 assertThat(received).isNotEmpty().last().asString().isEqualTo(s.getPath()));
-    }
-
-    @Test
-    public void appendOpRejectsUnknownKind() {
-        // Compile-only validation that bad kinds are rejected — no store needed since the future
-        // fails before the put.
-        TxnMetadataStore txn = new TxnMetadataStore(null);
-        TxnOp bogus = new TxnOp(TxnOp.CURRENT_VERSION, "bogus", "segment://A", null, "1:1");
-        assertThatThrownBy(() -> txn.appendOp("tx", bogus).get())
-                .hasCauseInstanceOf(IllegalArgumentException.class);
     }
 
     // ---- helpers -----------------------------------------------------------

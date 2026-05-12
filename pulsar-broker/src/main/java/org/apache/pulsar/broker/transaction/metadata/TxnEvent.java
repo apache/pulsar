@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.metadata;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -29,8 +28,8 @@ import lombok.NoArgsConstructor;
  * for acks, under the participant's notification prefix:
  *
  * <pre>
- *   /txn-segment-events/&lt;segment&gt;/&lt;seq&gt;            partitionKey=&lt;segment&gt;
- *   /txn-subscription-events/&lt;segment&gt;:&lt;sub&gt;/&lt;seq&gt;  partitionKey=&lt;segment&gt;:&lt;sub&gt;
+ *   /txn-segment-events/&lt;segment&gt;-&lt;seq&gt;            partitionKey=&lt;segment&gt;
+ *   /txn-subscription-events/&lt;segment&gt;:&lt;sub&gt;-&lt;seq&gt;  partitionKey=&lt;segment&gt;:&lt;sub&gt;
  * </pre>
  *
  * <p>Each participant subscribes to its own ordered stream via {@code subscribeSequence} and
@@ -39,16 +38,11 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class TxnEvent {
-
-    public static final int CURRENT_VERSION = 1;
-
-    private int version;
 
     /** The transaction this event refers to. */
     private String txnId;
 
     /** Final decision — {@link TxnState#COMMITTED} or {@link TxnState#ABORTED}. */
-    private String decision;
+    private TxnState decision;
 }

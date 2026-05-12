@@ -18,43 +18,35 @@
  */
 package org.apache.pulsar.broker.transaction.metadata;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import java.time.Duration;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * Header record stored at {@code /txn/<txnId>}. Linearization point for the transaction lifecycle —
- * the v5 TC's {@code endTxn} is a single CAS on this record's {@link #state}.
+ * Header record stored at {@code /txn/&lt;txnId&gt;}. Linearization point for the transaction
+ * lifecycle — the v5 TC's {@code endTxn} is a single CAS on this record's {@link #state}.
  *
- * <p>Schema-versioned by {@link #version}; readers must ignore unknown fields and writers must add
- * new fields as optional. Serialized as JSON via
- * {@link org.apache.pulsar.common.util.ObjectMapperFactory}.
+ * <p>Serialized as JSON via {@link org.apache.pulsar.common.util.ObjectMapperFactory}.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class TxnHeader {
 
-    /** Current record schema version. Bump when adding required fields. */
-    public static final int CURRENT_VERSION = 1;
+    /** Current transaction lifecycle state. */
+    private TxnState state;
 
-    /** Schema version that wrote this record. Readers tolerate unknown future versions. */
-    private int version;
+    /** Relative timeout — duration from {@link #createdAt} after which an OPEN txn is swept. */
+    private Duration timeout;
 
-    /** One of {@link TxnState} as a string. */
-    private String state;
-
-    /** Absolute epoch milliseconds at which an {@code OPEN} txn is timed out by the TC sweep. */
-    private long timeoutMs;
-
-    /** Absolute epoch milliseconds when the transaction was created. */
-    private long createdMs;
+    /** When the transaction was created. */
+    private Instant createdAt;
 
     /**
-     * Absolute epoch milliseconds when the transaction was finalized (committed or aborted). Set
-     * by the TC immediately after the CAS that flips {@link #state}. Null on {@code OPEN}.
+     * When the transaction was finalized (committed or aborted). Set by the TC immediately after
+     * the CAS that flips {@link #state}. {@code null} while OPEN.
      */
-    private Long finalizedMs;
+    private Instant finalizedAt;
 }

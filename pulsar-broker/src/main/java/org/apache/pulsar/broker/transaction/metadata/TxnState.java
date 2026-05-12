@@ -19,25 +19,23 @@
 package org.apache.pulsar.broker.transaction.metadata;
 
 /**
- * Transaction header states. Stored as strings in {@link TxnHeader#getState()} to keep the wire
- * format human-readable and tolerant of future state additions.
+ * Transaction header states. Serialized by Jackson as the constant's name to keep the wire format
+ * human-readable.
  *
  * <p>Valid transitions, applied by the v5 TC as version-conditional puts:
  * <pre>
- *   OPEN -> COMMITTED   (terminal)
- *   OPEN -> ABORTED     (terminal)
+ *   OPEN -&gt; COMMITTED   (terminal)
+ *   OPEN -&gt; ABORTED     (terminal)
  * </pre>
  */
-public final class TxnState {
+public enum TxnState {
 
-    public static final String OPEN = "OPEN";
-    public static final String COMMITTED = "COMMITTED";
-    public static final String ABORTED = "ABORTED";
+    OPEN,
+    COMMITTED,
+    ABORTED;
 
-    private TxnState() {}
-
-    /** @return {@code true} if {@code state} is one of the terminal states (COMMITTED/ABORTED). */
-    public static boolean isTerminal(String state) {
-        return COMMITTED.equals(state) || ABORTED.equals(state);
+    /** @return {@code true} if this is a terminal state (COMMITTED or ABORTED). */
+    public boolean isTerminal() {
+        return this != OPEN;
     }
 }

@@ -19,16 +19,14 @@
 package org.apache.pulsar.broker.transaction.metadata;
 
 /**
- * The kind of operation a {@link TxnOp} record represents. Stored as a string in
- * {@link TxnOp#getKind()} for wire-format tolerance.
+ * The kind of operation a {@link TxnOp} record represents. Serialized by Jackson as the constant's
+ * name to keep the wire format human-readable.
  */
-public final class TxnOpKind {
+public enum TxnOpKind {
 
     /** A transactional message append (TB). */
-    public static final String WRITE = "write";
+    WRITE,
 
     /** A transactional acknowledgement (PendingAckStore). */
-    public static final String ACK = "ack";
-
-    private TxnOpKind() {}
+    ACK
 }

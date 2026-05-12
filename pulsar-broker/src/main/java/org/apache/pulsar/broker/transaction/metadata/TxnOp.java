@@ -18,33 +18,24 @@
  */
 package org.apache.pulsar.broker.transaction.metadata;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
  * Per-write or per-ack operation record. One {@code TxnOp} is appended at
- * {@code /txn-op/<txnId>/<seq>} (with {@code partitionKey = txnId}) every time a participant
- * applies a transactional operation on a segment.
+ * {@code /txn-op/&lt;txnId&gt;-&lt;seq&gt;} (with {@code partitionKey = txnId}) every time a
+ * participant applies a transactional operation on a segment.
  *
  * <p>{@link #kind} discriminates writes from acks. {@link #subscription} is set only for acks.
- *
- * <p>Schema-versioned; readers ignore unknown fields and writers add new fields as optional.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class TxnOp {
 
-    /** Current record schema version. Bump when adding required fields. */
-    public static final int CURRENT_VERSION = 1;
-
-    private int version;
-
-    /** One of {@link TxnOpKind} as a string. */
-    private String kind;
+    /** Whether this is a write or an ack. */
+    private TxnOpKind kind;
 
     /** The segment topic name (segment://...) the operation applies to. */
     private String segment;

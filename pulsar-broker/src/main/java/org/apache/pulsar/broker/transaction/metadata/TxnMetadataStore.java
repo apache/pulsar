@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.transaction.metadata;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -51,8 +50,6 @@ import org.apache.pulsar.metadata.api.Stat;
  * options on writes, so there is no explicit registration step.
  */
 public class TxnMetadataStore {
-
-    private static final ObjectMapper MAPPER = ObjectMapperFactory.getMapper().getObjectMapper();
 
     /** Sequence-keys delta used by all append-only streams in this layout. */
     private static final Option.SequenceKeysDeltas APPEND_DELTAS =
@@ -99,12 +96,12 @@ public class TxnMetadataStore {
 
     private static Set<Option> headerOptions(String txnId, TxnHeader header) {
         Option.SecondaryIndex idx;
-        if (TxnState.isTerminal(header.getState())) {
-            long finalizedMs = header.getFinalizedMs() == null ? 0L : header.getFinalizedMs();
+        if (header.getState().isTerminal()) {
+            long finalizedMs = header.getFinalizedAt() == null ? 0L : header.getFinalizedAt().toEpochMilli();
             idx = new Option.SecondaryIndex(TxnPaths.IDX_TXN_BY_FINAL_STATE,
                     TxnPaths.finalStateKey(header.getState(), finalizedMs));
         } else {
-            long deadlineMs = header.getCreatedMs() + header.getTimeoutMs();
+            long deadlineMs = header.getCreatedAt().toEpochMilli() + header.getTimeout().toMillis();
             idx = new Option.SecondaryIndex(TxnPaths.IDX_TXN_BY_DEADLINE, TxnPaths.longKey(deadlineMs));
         }
         return Set.of(new Option.PartitionKey(txnId), idx);
@@ -119,16 +116,11 @@ public class TxnMetadataStore {
      * {@code path} carries the generated sequence key.
      */
     public CompletableFuture<Stat> appendOp(String txnId, TxnOp op) {
-        Option.SecondaryIndex idx;
-        if (TxnOpKind.WRITE.equals(op.getKind())) {
-            idx = new Option.SecondaryIndex(TxnPaths.IDX_WRITES_BY_SEGMENT, op.getSegment());
-        } else if (TxnOpKind.ACK.equals(op.getKind())) {
-            idx = new Option.SecondaryIndex(TxnPaths.IDX_ACKS_BY_SEGMENT_SUBSCRIPTION,
+        Option.SecondaryIndex idx = switch (op.getKind()) {
+            case WRITE -> new Option.SecondaryIndex(TxnPaths.IDX_WRITES_BY_SEGMENT, op.getSegment());
+            case ACK -> new Option.SecondaryIndex(TxnPaths.IDX_ACKS_BY_SEGMENT_SUBSCRIPTION,
                     TxnPaths.ackIndexKey(op.getSegment(), op.getSubscription()));
-        } else {
-            return CompletableFuture.failedFuture(
-                    new IllegalArgumentException("Unknown TxnOp kind: " + op.getKind()));
-        }
+        };
         Set<Option> opts = Set.of(new Option.PartitionKey(txnId), idx, APPEND_DELTAS);
         return store.put(TxnPaths.opParent(txnId), toJson(op), Optional.empty(), opts);
     }
@@ -141,7 +133,7 @@ public class TxnMetadataStore {
                 segment, segment,
                 gr -> {
                     TxnOp op = fromJson(gr.getValue(), TxnOp.class);
-                    return TxnOpKind.WRITE.equals(op.getKind()) && segment.equals(op.getSegment());
+                    return op.getKind() == TxnOpKind.WRITE && segment.equals(op.getSegment());
                 },
                 consumer);
     }
@@ -154,7 +146,7 @@ public class TxnMetadataStore {
                 key, key,
                 gr -> {
                     TxnOp op = fromJson(gr.getValue(), TxnOp.class);
-                    return TxnOpKind.ACK.equals(op.getKind())
+                    return op.getKind() == TxnOpKind.ACK
                             && segment.equals(op.getSegment())
                             && subscription.equals(op.getSubscription());
                 },
@@ -173,10 +165,10 @@ public class TxnMetadataStore {
                 from, to,
                 gr -> {
                     TxnHeader h = fromJson(gr.getValue(), TxnHeader.class);
-                    if (TxnState.isTerminal(h.getState())) {
+                    if (h.getState().isTerminal()) {
                         return false;
                     }
-                    long deadline = h.getCreatedMs() + h.getTimeoutMs();
+                    long deadline = h.getCreatedAt().toEpochMilli() + h.getTimeout().toMillis();
                     return (fromMsInclusive == null || deadline >= fromMsInclusive)
                             && (toMsInclusive == null || deadline <= toMsInclusive);
                 },
@@ -187,23 +179,24 @@ public class TxnMetadataStore {
      * Stream terminal transactions in {@code state} whose finalization time falls in
      * {@code [fromMsInclusive, toMsInclusive]}. Pass {@code null} on either bound for unbounded.
      */
-    public CompletableFuture<Void> listFinalizedByStateAndTimeRange(String state,
+    public CompletableFuture<Void> listFinalizedByStateAndTimeRange(TxnState state,
                                                                     Long fromMsInclusive, Long toMsInclusive,
                                                                     ScanConsumer consumer) {
-        String from = fromMsInclusive == null ? state + ":" : TxnPaths.finalStateKey(state, fromMsInclusive);
-        String to = toMsInclusive == null ? state + ":" + "9".repeat(TxnPaths.LONG_KEY_WIDTH)
+        String from = fromMsInclusive == null ? state.name() + ":" : TxnPaths.finalStateKey(state, fromMsInclusive);
+        String to = toMsInclusive == null
+                ? state.name() + ":" + "9".repeat(TxnPaths.LONG_KEY_WIDTH)
                 : TxnPaths.finalStateKey(state, toMsInclusive);
         return store.scanByIndex(TxnPaths.TXN_HEADER_PREFIX, TxnPaths.IDX_TXN_BY_FINAL_STATE,
                 from, to,
                 gr -> {
                     TxnHeader h = fromJson(gr.getValue(), TxnHeader.class);
-                    if (!state.equals(h.getState())) {
+                    if (h.getState() != state) {
                         return false;
                     }
-                    Long finalized = h.getFinalizedMs();
-                    if (finalized == null) {
+                    if (h.getFinalizedAt() == null) {
                         return false;
                     }
+                    long finalized = h.getFinalizedAt().toEpochMilli();
                     return (fromMsInclusive == null || finalized >= fromMsInclusive)
                             && (toMsInclusive == null || finalized <= toMsInclusive);
                 },
@@ -252,7 +245,7 @@ public class TxnMetadataStore {
     /** @return UTF-8 JSON bytes for {@code value}. Wraps any I/O error as {@link CompletionException}. */
     public static byte[] toJson(Object value) {
         try {
-            return MAPPER.writeValueAsBytes(value);
+            return ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value);
         } catch (JsonProcessingException e) {
             throw new CompletionException(new MetadataStoreException(e));
         }
@@ -261,7 +254,7 @@ public class TxnMetadataStore {
     /** @return the deserialized record. Wraps any I/O error as {@link CompletionException}. */
     public static <T> T fromJson(byte[] bytes, Class<T> type) {
         try {
-            return MAPPER.readValue(bytes, type);
+            return ObjectMapperFactory.getMapper().reader().readValue(bytes, type);
         } catch (IOException e) {
             throw new CompletionException(new MetadataStoreException(e));
         }
