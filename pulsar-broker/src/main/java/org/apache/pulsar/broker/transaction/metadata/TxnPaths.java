@@ -140,5 +140,25 @@ public final class TxnPaths {
         return state.name() + ":" + longKey(finalizedMs);
     }
 
+    /**
+     * Extract the {@code txnId} key from a path under {@link #TXN_OP_PREFIX}. The path layout is
+     * {@code /txn-op/<txnId>-<paddedSeq>}; txnId itself is {@code <most>-<least>} (one dash), so
+     * the sequence dash is always the last one and the substring before it is the txnId key.
+     *
+     * @return the txnId key, or {@code null} if {@code opPath} doesn't have the expected shape
+     */
+    public static String txnIdFromOpPath(String opPath) {
+        int lastSlash = opPath.lastIndexOf('/');
+        if (lastSlash < 0) {
+            return null;
+        }
+        String name = opPath.substring(lastSlash + 1);
+        int dash = name.lastIndexOf('-');
+        if (dash <= 0) {
+            return null;
+        }
+        return name.substring(0, dash);
+    }
+
     private TxnPaths() {}
 }

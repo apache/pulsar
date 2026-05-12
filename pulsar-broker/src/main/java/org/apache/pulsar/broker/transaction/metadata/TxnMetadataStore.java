@@ -156,6 +156,39 @@ public class TxnMetadataStore {
     }
 
     /**
+     * Delete every {@code /txn-op} write record for {@code (segment, txnId)} — used by the TB once
+     * an event tells it the txn is terminal. Path extraction follows the layout in
+     * {@link TxnPaths#txnIdFromOpPath}. Best-effort: tolerates concurrent deletions via
+     * {@link MetadataStore#deleteIfExists}.
+     */
+    public CompletableFuture<Void> deleteWriteOpsForSegmentAndTxn(String segment, String txnId) {
+        java.util.List<String> paths = new java.util.ArrayList<>();
+        return listWritesBySegment(segment, new ScanConsumer() {
+            @Override
+            public void onNext(org.apache.pulsar.metadata.api.GetResult r) {
+                if (txnId.equals(TxnPaths.txnIdFromOpPath(r.getStat().getPath()))) {
+                    paths.add(r.getStat().getPath());
+                }
+            }
+
+            @Override
+            public void onError(Throwable throwable) {
+            }
+
+            @Override
+            public void onCompleted() {
+            }
+        }).thenCompose(__ -> {
+            Set<Option> opts = Set.of(new Option.PartitionKey(txnId));
+            CompletableFuture<?>[] deletes = new CompletableFuture<?>[paths.size()];
+            for (int i = 0; i < paths.size(); i++) {
+                deletes[i] = store.deleteIfExists(paths.get(i), Optional.empty(), opts);
+            }
+            return CompletableFuture.allOf(deletes);
+        });
+    }
+
+    /**
      * Stream open transactions whose deadline falls in {@code [fromMsInclusive, toMsInclusive]}.
      * Pass {@code null} on either bound for an unbounded range.
      */
