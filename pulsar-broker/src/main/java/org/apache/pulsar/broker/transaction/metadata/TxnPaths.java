@@ -79,6 +79,12 @@ public final class TxnPaths {
     /** Width used when formatting long values into lexicographically-orderable index keys. */
     public static final int LONG_KEY_WIDTH = 20;
 
+    /**
+     * The maximum {@link #LONG_KEY_WIDTH}-wide decimal — useful as the upper bound of a
+     * single-state range scan on the final-state index.
+     */
+    public static final String MAX_LONG_KEY = "99999999999999999999";
+
     /** @return {@code /txn/<txnId>} — the header path for {@code txnId}. */
     public static String header(String txnId) {
         return TXN_HEADER_PREFIX + "/" + txnId;

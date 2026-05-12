@@ -186,7 +186,7 @@ public class TxnMetadataStore {
                                                                     ScanConsumer consumer) {
         String from = fromMsInclusive == null ? state.name() + ":" : TxnPaths.finalStateKey(state, fromMsInclusive);
         String to = toMsInclusive == null
-                ? state.name() + ":" + "9".repeat(TxnPaths.LONG_KEY_WIDTH)
+                ? state.name() + ":" + TxnPaths.MAX_LONG_KEY
                 : TxnPaths.finalStateKey(state, toMsInclusive);
         return store.scanByIndex(TxnPaths.TXN_HEADER_PREFIX, TxnPaths.IDX_TXN_BY_FINAL_STATE,
                 from, to,
