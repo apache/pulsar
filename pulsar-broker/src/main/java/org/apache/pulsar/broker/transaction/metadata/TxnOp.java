@@ -43,6 +43,9 @@ public class TxnOp {
     /** The subscription FQN — only set on {@link TxnOpKind#ACK} entries. */
     private String subscription;
 
-    /** Managed-ledger position as {@code <ledgerId>:<entryId>}. */
-    private String position;
+    /** Managed-ledger ledger id of the entry this op refers to. */
+    private long ledgerId;
+
+    /** Managed-ledger entry id of the entry this op refers to. */
+    private long entryId;
 }

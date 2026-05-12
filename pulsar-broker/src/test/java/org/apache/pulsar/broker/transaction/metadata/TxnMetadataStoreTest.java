@@ -94,9 +94,9 @@ public class TxnMetadataStoreTest {
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
         String txnId = "tx-w";
-        TxnOp w1 = new TxnOp(TxnOpKind.WRITE, "segment://A", null, "1:1");
-        TxnOp w2 = new TxnOp(TxnOpKind.WRITE, "segment://A", null, "1:2");
-        TxnOp wOther = new TxnOp(TxnOpKind.WRITE, "segment://B", null, "2:1");
+        TxnOp w1 = new TxnOp(TxnOpKind.WRITE, "segment://A", null, 1L, 1L);
+        TxnOp w2 = new TxnOp(TxnOpKind.WRITE, "segment://A", null, 1L, 2L);
+        TxnOp wOther = new TxnOp(TxnOpKind.WRITE, "segment://B", null, 2L, 1L);
         Stat s1 = txn.appendOp(txnId, w1).get();
         Stat s2 = txn.appendOp(txnId, w2).get();
         txn.appendOp(txnId, wOther).get();
@@ -113,9 +113,9 @@ public class TxnMetadataStoreTest {
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
         String txnId = "tx-a";
-        TxnOp a1 = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-x", "1:5");
-        TxnOp a2 = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-x", "1:6");
-        TxnOp aOther = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-y", "1:7");
+        TxnOp a1 = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-x", 1L, 5L);
+        TxnOp a2 = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-x", 1L, 6L);
+        TxnOp aOther = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-y", 1L, 7L);
         txn.appendOp(txnId, a1).get();
         txn.appendOp(txnId, a2).get();
         txn.appendOp(txnId, aOther).get();
