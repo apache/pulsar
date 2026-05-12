@@ -250,7 +250,7 @@ public class NonPersistentTopics extends PersistentTopics {
                 bundleRange);
         validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperation(namespaceName, NamespaceOperation.GET_BUNDLE);
-        Policies policies = getNamespacePolicies(property, cluster, namespace);
+        getNamespacePolicies(property, cluster, namespace);
         if (!cluster.equals(Constants.GLOBAL_CLUSTER)) {
             validateClusterOwnership(cluster);
             validateClusterForTenant(property, cluster);
@@ -260,14 +260,14 @@ public class NonPersistentTopics extends PersistentTopics {
         }
         NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
         try {
-            if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)
+            if (!isBundleOwnedByAnyBroker(fqnn, bundleRange)
                 .get(pulsar().getConfig().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property,
                     cluster, namespace, bundleRange);
                 return null;
             }
-            NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange,
-                true, true);
+            NamespaceBundle nsBundle = validateNamespaceBundleOwnershipAsync(fqnn, bundleRange, true, true)
+                .get(pulsar().getConfig().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
             final List<String> topicList = new ArrayList<>();
             pulsar().getBrokerService().forEachTopic(topic -> {
                 TopicName topicName = TopicName.get(topic.getName());
@@ -276,6 +276,13 @@ public class NonPersistentTopics extends PersistentTopics {
                 }
             });
             return topicList;
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof WebApplicationException wae) {
+                throw wae;
+            }
+            log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
+            throw new RestException(cause != null ? cause : e);
         } catch (WebApplicationException wae) {
             throw wae;
         } catch (Exception e) {

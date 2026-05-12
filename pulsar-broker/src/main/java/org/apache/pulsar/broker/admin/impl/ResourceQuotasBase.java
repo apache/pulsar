@@ -76,7 +76,6 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
                             namespaceName.getCluster()));
         }
         return ret
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenApply(policies -> validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange));
+                .thenCompose(__ -> validateNamespaceBundleRangeAsync(namespaceName, bundleRange));
     }
 }
