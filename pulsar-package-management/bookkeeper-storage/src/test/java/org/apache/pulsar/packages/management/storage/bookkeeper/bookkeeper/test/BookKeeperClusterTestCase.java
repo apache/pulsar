@@ -28,7 +28,6 @@ import static org.apache.bookkeeper.bookie.BookKeeperServerStats.BOOKIE_SCOPE;
 import static org.apache.bookkeeper.bookie.BookKeeperServerStats.LD_INDEX_SCOPE;
 import static org.apache.bookkeeper.bookie.BookKeeperServerStats.LD_LEDGER_SCOPE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertFalse;
 import com.google.common.base.Stopwatch;
 import java.io.File;
@@ -291,14 +290,10 @@ public abstract class BookKeeperClusterTestCase {
 
     protected ServerConfiguration newServerConfiguration() throws Exception {
         File f = tmpDirs.createNew("bookie", "test");
-
-        int port;
-        if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts()) {
-            port = nextLockedFreePort();
-        } else {
-            port = 0;
-        }
-        return newServerConfiguration(port, f, new File[] { f });
+        // Bookies need a pre-allocated port: BK identifies them by host:port in metadata
+        // and the test client resolves that back to a TCP address. Port 0 would leave
+        // the cookie + registration with port=0, which fails DNS-style resolution.
+        return newServerConfiguration(PortManager.nextLockedFreePort(), f, new File[] { f });
     }
 
     protected ClientConfiguration newClientConfiguration() {

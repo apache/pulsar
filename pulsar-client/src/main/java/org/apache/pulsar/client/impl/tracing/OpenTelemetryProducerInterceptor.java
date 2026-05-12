@@ -29,8 +29,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.TraceableMessage;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
-import org.apache.pulsar.client.impl.ProducerBase;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 
 /**
@@ -45,28 +43,13 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 @CustomLog
 public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
 
-    private Tracer tracer;
-    private TextMapPropagator propagator;
+    private final Tracer tracer;
+    private final TextMapPropagator propagator;
     private String topic;
-    private boolean initialized = false;
 
-    public OpenTelemetryProducerInterceptor() {
-        // Tracer and propagator will be initialized in beforeSend when we have access to the producer
-    }
-
-    /**
-     * Initialize the tracer from the producer's client.
-     * This is called lazily on the first message.
-     */
-    private void initializeIfNeeded(Producer producer) {
-        if (!initialized && producer instanceof ProducerBase<?> producerBase) {
-            PulsarClientImpl client = producerBase.getClient();
-            InstrumentProvider instrumentProvider = client.instrumentProvider();
-
-            this.tracer = instrumentProvider.getTracer();
-            this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
-            this.initialized = true;
-        }
+    public OpenTelemetryProducerInterceptor(InstrumentProvider instrumentProvider) {
+        this.tracer = instrumentProvider.getTracer();
+        this.propagator = GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
     }
 
     @Override
@@ -82,9 +65,6 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
 
     @Override
     public Message<?> beforeSend(Producer<?> producer, Message<?> message) {
-        // Initialize tracer from producer on first call
-        initializeIfNeeded(producer);
-
         if (!eligible(message)) {
             return message;
         }

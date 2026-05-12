@@ -249,6 +249,50 @@ Flag any change that may break compatibility.
 * Assertions should prefer using AssertJ library with descriptions over using TestNG assertions
 * Awaitility should be used to handle assertions with asynchronous conditions together with AssertJ
 
+## Avoid Reflection in Tests
+
+Do **not** use reflection to access private fields or methods from tests. This includes
+`WhiteboxImpl.getInternalState`, `WhiteboxImpl.setInternalState`, `Field.setAccessible(true)`,
+`Method.setAccessible(true)`, and similar reflection helpers.
+
+Reflection-based test access is discouraged because it:
+
+* breaks during refactoring without any compile-time signal — renaming or retyping a field
+  silently invalidates the test
+* produces verbose, brittle, and hard-to-read test code
+* couples tests to implementation details that should be free to change
+
+Instead, expose what tests legitimately need through **package-private** methods (or fields
+where appropriate) and annotate them with `@VisibleForTesting`:
+
+```java
+@VisibleForTesting
+Map<String, Subscription> getSubscriptions() {
+    return subscriptions;
+}
+```
+
+The test then accesses state through a normal, statically-typed call:
+
+```java
+var subscriptions = persistentTopic.getSubscriptions();
+```
+
+instead of:
+
+```java
+ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions =
+        WhiteboxImpl.getInternalState(persistentTopic, "subscriptions");
+```
+
+Place the test in the same package as the class under test so package-private visibility is
+sufficient — no need to widen visibility to `public` for testing.
+
+When reviewing PRs, flag any new use of reflection in tests and suggest a `@VisibleForTesting`
+package-private accessor instead. See the dev@ thread
+[Stop using reflection to access private fields in tests](https://lists.apache.org/thread/7gr04sqmzyttx4ln6ydtp3qv0xgo1o6m)
+for the full rationale.
+
 # Testing Expectations
 
 Every feature or bug fix should include tests.
@@ -278,5 +322,7 @@ When reviewing a pull request, Copilot should:
 * ensure logging follows project guidelines
 * verify backward compatibility
 * suggest missing tests when appropriate
+* flag reflection-based access to private fields or methods in tests (e.g. `WhiteboxImpl`,
+  `setAccessible(true)`) and recommend a package-private `@VisibleForTesting` accessor instead
 
 Focus feedback on correctness, reliability, and maintainability.

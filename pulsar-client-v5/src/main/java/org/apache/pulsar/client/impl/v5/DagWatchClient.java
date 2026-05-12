@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -30,6 +32,7 @@ import org.apache.pulsar.common.api.proto.ScalableTopicDAG;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.Backoff;
 
 /**
  * Client-side manager for a DAG watch session on a scalable topic.
@@ -39,6 +42,12 @@ import org.apache.pulsar.common.protocol.Commands;
  *
  * <p>Maintains the current {@link ClientSegmentLayout} and notifies a listener
  * when it changes.
+ *
+ * <p>Reconnects automatically on transient broker disconnects. The initial-create
+ * future ({@link #start}) surfaces failures up front so a producer / consumer
+ * {@code create()} fails fast when the broker is unreachable. After the first
+ * layout has arrived, subsequent disconnects schedule a reconnection with
+ * exponential backoff so long-lived producers / consumers survive network blips.
  */
 final class DagWatchClient implements DagWatchSession, AutoCloseable {
 
@@ -52,6 +61,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
     private final long sessionId;
     private final AtomicReference<ClientSegmentLayout> currentLayout = new AtomicReference<>();
     private final CompletableFuture<ClientSegmentLayout> initialLayoutFuture = new CompletableFuture<>();
+    private final Backoff reconnectBackoff;
     private volatile LayoutChangeListener listener;
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
@@ -60,6 +70,10 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         this.v4Client = v4Client;
         this.topicName = topicName;
         this.sessionId = SESSION_ID_GENERATOR.incrementAndGet();
+        this.reconnectBackoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(100))
+                .maxBackoff(Duration.ofSeconds(30))
+                .build();
         this.log = LOG.with().attr("topic", topicName).attr("sessionId", sessionId).build();
     }
 
@@ -70,37 +84,53 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
      * @return a future that completes with the initial layout
      */
     CompletableFuture<ClientSegmentLayout> start() {
-        // Get any broker connection and send the lookup command
         v4Client.getConnection(topicName.toString())
-                .thenAccept(cnx -> {
-                    this.cnx = cnx;
-                    if (!cnx.isSupportsScalableTopics()) {
-                        initialLayoutFuture.completeExceptionally(
-                                new PulsarClientException.FeatureNotSupportedException(
-                                        "Broker does not support scalable topics",
-                                        PulsarClientException.FailedFeatureCheck.SupportsScalableTopics));
-                        return;
-                    }
-                    // Register this session to receive updates
-                    cnx.registerDagWatchSession(sessionId, this);
-
-                    // Send the lookup command
-                    cnx.ctx().writeAndFlush(
-                            Commands.newScalableTopicLookup(sessionId, topicName.toString()))
-                            .addListener(writeFuture -> {
-                                if (!writeFuture.isSuccess()) {
-                                    cnx.removeDagWatchSession(sessionId);
-                                    initialLayoutFuture.completeExceptionally(
-                                            new PulsarClientException(writeFuture.cause()));
-                                }
-                            });
-                })
+                .thenAccept(this::attach)
                 .exceptionally(ex -> {
                     initialLayoutFuture.completeExceptionally(ex);
                     return null;
                 });
-
         return initialLayoutFuture;
+    }
+
+    /**
+     * Wire {@code newCnx} to this session and send a ScalableTopicLookup. Used by
+     * both {@link #start} (first connect) and {@link #reconnect} (after disconnect).
+     */
+    private void attach(ClientCnx newCnx) {
+        if (closed) {
+            return;
+        }
+        if (!newCnx.isSupportsScalableTopics()) {
+            PulsarClientException ex = new PulsarClientException.FeatureNotSupportedException(
+                    "Broker does not support scalable topics",
+                    PulsarClientException.FailedFeatureCheck.SupportsScalableTopics);
+            if (!initialLayoutFuture.isDone()) {
+                initialLayoutFuture.completeExceptionally(ex);
+            } else {
+                log.warn().exceptionMessage(ex)
+                        .log("Reconnect target broker doesn't support scalable topics");
+                scheduleReconnect();
+            }
+            return;
+        }
+        this.cnx = newCnx;
+        newCnx.registerDagWatchSession(sessionId, this);
+        newCnx.ctx().writeAndFlush(
+                        Commands.newScalableTopicLookup(sessionId, topicName.toString()))
+                .addListener(writeFuture -> {
+                    if (!writeFuture.isSuccess()) {
+                        newCnx.removeDagWatchSession(sessionId);
+                        if (!initialLayoutFuture.isDone()) {
+                            initialLayoutFuture.completeExceptionally(
+                                    new PulsarClientException(writeFuture.cause()));
+                        } else {
+                            log.warn().exceptionMessage(writeFuture.cause())
+                                    .log("DAG watch reconnect write failed; will retry");
+                            scheduleReconnect();
+                        }
+                    }
+                });
     }
 
     /**
@@ -121,6 +151,10 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
                 .attr("activeSegmentCount", newLayout.activeSegments().size())
                 .log("Layout updated");
 
+        // Reset the reconnect backoff: the broker confirmed the session is live and
+        // our local state is consistent.
+        reconnectBackoff.reset();
+
         // Complete the initial layout future if this is the first update
         initialLayoutFuture.complete(newLayout);
 
@@ -138,18 +172,56 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
     public void onError(ServerError error, String message) {
         log.error().attr("error", error).attr("message", message)
                 .log("DAG watch session error");
-        initialLayoutFuture.completeExceptionally(
-                new PulsarClientException(
-                        "Scalable topic lookup failed: " + error + " - " + message));
+        if (!initialLayoutFuture.isDone()) {
+            initialLayoutFuture.completeExceptionally(
+                    new PulsarClientException(
+                            "Scalable topic lookup failed: " + error + " - " + message));
+        }
+        // After the initial layout has arrived, broker-side errors on this session
+        // (e.g., metadata unavailable) are transient — a reconnect typically clears
+        // them. The connection-closed path will pick this up; no extra work here.
     }
 
     @Override
     public void connectionClosed() {
         log.warn("DAG watch session connection closed");
         cnx = null;
-        initialLayoutFuture.completeExceptionally(
-                new PulsarClientException("Connection closed while waiting for scalable topic layout"));
-        // TODO: implement automatic reconnection with backoff
+        if (closed) {
+            return;
+        }
+        if (!initialLayoutFuture.isDone()) {
+            // Initial lookup never completed — surface the failure rather than
+            // retrying silently behind the caller of producer / consumer create().
+            initialLayoutFuture.completeExceptionally(
+                    new PulsarClientException(
+                            "Connection closed while waiting for scalable topic layout"));
+            return;
+        }
+        scheduleReconnect();
+    }
+
+    private void scheduleReconnect() {
+        if (closed) {
+            return;
+        }
+        long delayMs = reconnectBackoff.next().toMillis();
+        log.info().attr("delayMs", delayMs).log("Scheduling DAG watch reconnect");
+        v4Client.timer().newTimeout(timeout -> reconnect(),
+                delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    private void reconnect() {
+        if (closed) {
+            return;
+        }
+        v4Client.getConnection(topicName.toString())
+                .thenAccept(this::attach)
+                .exceptionally(ex -> {
+                    log.warn().exceptionMessage(ex)
+                            .log("DAG watch reconnect failed; will retry");
+                    scheduleReconnect();
+                    return null;
+                });
     }
 
     ClientSegmentLayout currentLayout() {
@@ -179,6 +251,18 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         if (c != null) {
             c.removeDagWatchSession(sessionId);
             c.ctx().writeAndFlush(Commands.newScalableTopicClose(sessionId));
+        }
+    }
+
+    /**
+     * Test hook: forcibly close the underlying broker channel to simulate a network
+     * drop. The cnx layer will fire {@link #connectionClosed()} which triggers the
+     * automatic reconnect path. Reached via reflection from cross-module tests.
+     */
+    void forceCloseConnectionForTesting() {
+        ClientCnx c = cnx;
+        if (c != null) {
+            c.ctx().channel().close();
         }
     }
 

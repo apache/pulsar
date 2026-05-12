@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.v5;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.v5.Checkpoint;
@@ -140,11 +139,6 @@ public final class PulsarClientProviderV5 implements PulsarClientProvider {
     @Override
     public Checkpoint latestCheckpoint() {
         return CheckpointV5.LATEST;
-    }
-
-    @Override
-    public Checkpoint checkpointAtTimestamp(Instant timestamp) {
-        return CheckpointV5.atTimestamp(timestamp);
     }
 
     // --- Authentication ---

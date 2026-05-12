@@ -75,6 +75,22 @@ dependencies {
                 }
             }
         }
+        // libthrift is a transitive dependency of distributedlog-core.
+        // libthrift 0.23.0 upgraded to jakarta.* and HttpComponents 5 deps for its HTTP/servlet
+        // transports, which distributedlog-core does not use (only TJSON/TMemory serialization is needed).
+        // Add a component metadata rule to exclude the unnecessary dependencies.
+        withModule("org.apache.thrift:libthrift") {
+            allVariants {
+                withDependencies {
+                    removeAll {
+                        (it.group == "jakarta.annotation" && it.name == "jakarta.annotation-api") ||
+                        (it.group == "jakarta.servlet" && it.name == "jakarta.servlet-api") ||
+                        it.group == "org.apache.httpcomponents.client5" ||
+                        it.group == "org.apache.httpcomponents.core5"
+                    }
+                }
+            }
+        }
     }
 
     // Enforced platform pins all dependency versions from the version catalog.

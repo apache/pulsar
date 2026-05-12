@@ -47,7 +47,7 @@ public class ExtensibleLoadManagerCloseTest {
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
-        bk = new LocalBookkeeperEnsemble(1, 0, () -> 0);
+        bk = new LocalBookkeeperEnsemble(1, 0);
         bk.start();
     }
 

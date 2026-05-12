@@ -20,7 +20,7 @@ package org.apache.pulsar.client.api.v5;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 
 /**
  * Builder for configuring and creating a {@link CheckpointConsumer}.
@@ -62,9 +62,8 @@ public interface CheckpointConsumerBuilder<T> {
     /**
      * Set the initial position for this consumer.
      *
-     * <p>Use {@link Checkpoint#earliest()}, {@link Checkpoint#latest()},
-     * {@link Checkpoint#atTimestamp}, or {@link Checkpoint#fromByteArray} to
-     * create the appropriate starting position.
+     * <p>Use {@link Checkpoint#earliest()}, {@link Checkpoint#latest()}, or
+     * {@link Checkpoint#fromByteArray} to create the appropriate starting position.
      *
      * <p>Defaults to {@link Checkpoint#latest()} if not specified.
      *
@@ -84,13 +83,36 @@ public interface CheckpointConsumerBuilder<T> {
     CheckpointConsumerBuilder<T> consumerName(String name);
 
     /**
+     * Join a named consumer group on this scalable topic. All consumers that pass the
+     * same {@code group} share the topic's segments via the broker's subscription
+     * coordinator: each segment is assigned to exactly one consumer in the group at a
+     * time, and segments rebalance automatically as consumers join or leave.
+     *
+     * <p>When unset (the default), the consumer is unmanaged: it independently reads
+     * every segment from {@link #startPosition the configured start position},
+     * unaffected by any other consumer. This matches the original reader-style
+     * behavior of {@link CheckpointConsumer}.
+     *
+     * <p>Unlike {@link StreamConsumerBuilder}'s subscription, joining a group does
+     * <em>not</em> cause the broker to persist a cursor: each consumer still resumes
+     * from the {@code startPosition} (or a checkpoint deserialized from a previous
+     * run) it provides at create time. The group only affects how segments are
+     * distributed across the live consumer set; once every member of the group goes
+     * away, no broker-side state remains for it.
+     *
+     * @param group the consumer group name
+     * @return this builder instance for chaining
+     */
+    CheckpointConsumerBuilder<T> consumerGroup(String group);
+
+    /**
      * Configure end-to-end message encryption for decryption.
      *
      * @param policy the encryption policy to use
      * @return this builder instance for chaining
-     * @see EncryptionPolicy#forConsumer
+     * @see ConsumerEncryptionPolicy#builder()
      */
-    CheckpointConsumerBuilder<T> encryptionPolicy(EncryptionPolicy policy);
+    CheckpointConsumerBuilder<T> encryptionPolicy(ConsumerEncryptionPolicy policy);
 
     // --- Metadata ---
 

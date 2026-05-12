@@ -50,6 +50,29 @@ public interface ScalableTopics {
     CompletableFuture<List<String>> listScalableTopicsAsync(String namespace);
 
     /**
+     * Get the list of scalable topics under a namespace whose properties contain
+     * every key/value pair in {@code propertyFilters} (AND semantics).
+     *
+     * <p>Backed by the secondary index registered on the topic properties at
+     * create/update time. On stores with native index support the lookup uses one
+     * filter to narrow the candidate set and verifies the rest on the loaded record;
+     * stores without index support fall back to a per-record check.
+     *
+     * @param namespace       Namespace name in the format "tenant/namespace"
+     * @param propertyFilters Property names and exact values that all must match
+     * @return list of matching scalable topic names; an empty filter returns the full
+     *         namespace listing
+     */
+    List<String> listScalableTopicsByProperties(String namespace, Map<String, String> propertyFilters)
+            throws PulsarAdminException;
+
+    /**
+     * Async variant of {@link #listScalableTopicsByProperties(String, Map)}.
+     */
+    CompletableFuture<List<String>> listScalableTopicsByPropertiesAsync(String namespace,
+                                                                         Map<String, String> propertyFilters);
+
+    /**
      * Create a new scalable topic.
      *
      * @param topic              Topic name in the format "tenant/namespace/topic"
@@ -184,6 +207,38 @@ public interface ScalableTopics {
     CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subscription);
 
     /**
+     * Reset a subscription's cursor across every segment to the given wall-clock
+     * timestamp. The controller uses each segment's recorded sealed-time window to
+     * dispatch the cheapest per-segment op.
+     *
+     * @param topic        Topic name in the format "tenant/namespace/topic"
+     * @param subscription Subscription name
+     * @param timestampMs  Wall-clock millis since the unix epoch
+     */
+    void seekSubscription(String topic, String subscription, long timestampMs)
+            throws PulsarAdminException;
+
+    /**
+     * Reset a subscription's cursor across every segment, asynchronously.
+     */
+    CompletableFuture<Void> seekSubscriptionAsync(String topic, String subscription,
+                                                   long timestampMs);
+
+    /**
+     * Skip every undelivered message on the subscription, across every segment in the
+     * DAG (advance each per-segment cursor to the end).
+     *
+     * @param topic        Topic name in the format "tenant/namespace/topic"
+     * @param subscription Subscription name
+     */
+    void clearBacklog(String topic, String subscription) throws PulsarAdminException;
+
+    /**
+     * Skip every undelivered message on the subscription, asynchronously.
+     */
+    CompletableFuture<Void> clearBacklogAsync(String topic, String subscription);
+
+    /**
      * Split a segment into two halves.
      *
      * @param topic     Topic name in the format "tenant/namespace/topic"
@@ -257,4 +312,75 @@ public interface ScalableTopics {
      * Delete a segment topic asynchronously.
      */
     CompletableFuture<Void> deleteSegmentAsync(String segmentTopic, boolean force);
+
+    /**
+     * Create a subscription cursor on the given segment topic at the earliest position.
+     * The call routes to the broker that owns the segment.
+     *
+     * <p>Used internally by {@link org.apache.pulsar.broker.service.scalable.ScalableTopicController
+     * ScalableTopicController} to fan a new scalable-topic subscription out across every
+     * active segment so a future consumer doesn't drop the backlog.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     */
+    CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic, String subscription);
+
+    /**
+     * Delete a subscription cursor on the given segment topic. The call routes to the broker
+     * that owns the segment.
+     *
+     * <p>Used internally by {@link org.apache.pulsar.broker.service.scalable.ScalableTopicController
+     * ScalableTopicController} when a scalable-topic subscription is deleted, so no orphan
+     * cursors remain on any segment in the DAG.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     */
+    CompletableFuture<Void> deleteSegmentSubscriptionAsync(String segmentTopic, String subscription);
+
+    /**
+     * Returns the number of unconsumed entries in the given subscription's cursor on the
+     * segment topic — i.e. the per-subscription backlog. The call routes to the broker
+     * that owns the segment topic, so it works whether the caller is colocated with the
+     * segment or not.
+     *
+     * <p>Used internally by the {@link org.apache.pulsar.broker.service.scalable.SubscriptionCoordinator
+     * SubscriptionCoordinator} to detect when a sealed parent has been drained and its
+     * children can be unblocked. Callers can also use it for diagnostics; a returned
+     * {@code 0} on a sealed segment indicates the subscription has nothing left to
+     * consume there.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     */
+    CompletableFuture<Long> getSegmentSubscriptionBacklogAsync(String segmentTopic,
+                                                                String subscription);
+
+    /**
+     * Reset the segment topic's subscription cursor to the given wall-clock timestamp.
+     * Routes to the broker that owns the segment topic.
+     *
+     * <p>Used internally by the parent-topic seek operation in
+     * {@link org.apache.pulsar.broker.service.scalable.ScalableTopicController
+     * ScalableTopicController}: the controller classifies each segment by its
+     * {@code [createdAtMs, sealedAtMs)} window against the requested timestamp and
+     * dispatches per-segment seek / skip-all calls.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     * @param timestampMs Wall-clock millis since the unix epoch
+     */
+    CompletableFuture<Void> seekSegmentSubscriptionAsync(String segmentTopic, String subscription,
+                                                          long timestampMs);
+
+    /**
+     * Skip every undelivered message on the segment topic's subscription — advance the
+     * cursor to the end of the segment.
+     *
+     * @param segmentTopic Full segment topic name ({@code segment://tenant/namespace/topic/descriptor})
+     * @param subscription Subscription name
+     */
+    CompletableFuture<Void> clearSegmentSubscriptionBacklogAsync(String segmentTopic,
+                                                                  String subscription);
 }

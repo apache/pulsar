@@ -19,15 +19,13 @@
 package org.apache.pulsar.client.impl.v5;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.StreamConsumer;
 import org.apache.pulsar.client.api.v5.StreamConsumerBuilder;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -42,7 +40,11 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     private final PulsarClientV5 client;
     private final Schema<T> v5Schema;
     private final ConsumerConfigurationData<T> conf = new ConsumerConfigurationData<>();
+    // Exactly one of {topicName, namespaceName} must be set at subscribe() time —
+    // single-topic vs multi-topic mode.
     private String topicName;
+    private org.apache.pulsar.common.naming.NamespaceName namespaceName;
+    private Map<String, String> propertyFilters;
 
     StreamConsumerBuilderV5(PulsarClientV5 client, Schema<T> v5Schema) {
         this.client = client;
@@ -63,23 +65,29 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
 
     @Override
     public CompletableFuture<StreamConsumer<T>> subscribeAsync() {
-        if (topicName == null || topicName.isEmpty()) {
+        boolean topicSet = topicName != null && !topicName.isEmpty();
+        boolean namespaceSet = namespaceName != null;
+        if (topicSet == namespaceSet) {
             return CompletableFuture.failedFuture(
-                    new PulsarClientException.InvalidConfigurationException("Topic name is required"));
+                    new PulsarClientException.InvalidConfigurationException(
+                            "Exactly one of .topic(name) or .namespace(...) must be set"));
         }
         if (conf.getSubscriptionName() == null || conf.getSubscriptionName().isEmpty()) {
             return CompletableFuture.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Subscription name is required"));
         }
-
-        TopicName topic = V5Utils.asScalableTopicName(topicName);
         // Default the consumer name to a stable random when the user didn't set one —
         // ScalableConsumerClient uses it as the registration key with the controller.
-        // Use a full UUID (~122 bits of entropy) so the registration key is unique in
-        // practice, even across many concurrent attaches.
         if (conf.getConsumerName() == null || conf.getConsumerName().isEmpty()) {
-            conf.setConsumerName("v5-stream-" + java.util.UUID.randomUUID());
+            conf.setConsumerName("v5-stream-" + V5RandomIds.randomAlphanumeric(8));
         }
+
+        if (namespaceSet) {
+            return MultiTopicStreamConsumer.createAsync(
+                    client, v5Schema, conf, namespaceName, propertyFilters);
+        }
+
+        TopicName topic = V5Utils.asScalableTopicName(topicName);
         ScalableConsumerClient session = new ScalableConsumerClient(
                 client.v4Client(),
                 topic,
@@ -93,28 +101,26 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     }
 
     @Override
-    public StreamConsumerBuilderV5<T> topic(String... topicNames) {
-        if (topicNames.length > 0) {
-            this.topicName = topicNames[0];
-        }
+    public StreamConsumerBuilderV5<T> topic(String topicName) {
+        this.topicName = topicName;
+        return this;
+    }
+
+    @Override
+    public StreamConsumerBuilderV5<T> namespace(String namespace) {
+        return namespace(namespace, Map.of());
+    }
+
+    @Override
+    public StreamConsumerBuilderV5<T> namespace(String namespace, Map<String, String> propertyFilters) {
+        this.namespaceName = org.apache.pulsar.common.naming.NamespaceName.get(namespace);
+        this.propertyFilters = propertyFilters == null ? Map.of() : Map.copyOf(propertyFilters);
         return this;
     }
 
     @Override
     public StreamConsumerBuilderV5<T> subscriptionName(String subscriptionName) {
         conf.setSubscriptionName(subscriptionName);
-        return this;
-    }
-
-    @Override
-    public StreamConsumerBuilderV5<T> seek(MessageId messageId) {
-        // Seek will be applied after consumer creation
-        // Store for later use
-        return this;
-    }
-
-    @Override
-    public StreamConsumerBuilderV5<T> seek(Instant timestamp) {
         return this;
     }
 
@@ -158,8 +164,10 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
     }
 
     @Override
-    public StreamConsumerBuilderV5<T> encryptionPolicy(EncryptionPolicy policy) {
-        conf.setCryptoKeyReader(CryptoKeyReaderAdapter.wrap(policy.keyReader()));
+    public StreamConsumerBuilderV5<T> encryptionPolicy(ConsumerEncryptionPolicy policy) {
+        if (policy.privateKeyProvider() != null) {
+            conf.setCryptoKeyReader(CryptoKeyReaderAdapter.forConsumer(policy.privateKeyProvider()));
+        }
         conf.setCryptoFailureAction(
                 org.apache.pulsar.client.api.ConsumerCryptoFailureAction.valueOf(
                         policy.failureAction().name()));

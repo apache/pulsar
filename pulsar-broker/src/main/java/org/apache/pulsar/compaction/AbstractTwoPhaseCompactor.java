@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
@@ -39,6 +40,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -46,6 +48,7 @@ import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
@@ -62,6 +65,9 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
 
   @VisibleForTesting
   static Runnable injectionAfterSeekInPhaseTwo = () -> {};
+  @VisibleForTesting
+  static BiFunction<RawReader, MessageId, CompletableFuture<Void>> injectionPhaseTwoSeek =
+      RawReader::seekAsync;
   protected static final int MAX_OUTSTANDING = 500;
   protected final Duration phaseOneLoopReadTimeout;
   protected final boolean topicCompactionRetainNullKey;
@@ -197,7 +203,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
       LedgerHandle ledger) {
     CompletableFuture<Long> promise = new CompletableFuture<>();
 
-    reader.seekAsync(from).thenCompose((v) -> {
+    phaseTwoSeekWithRetry(reader, from).thenCompose((v) -> {
           injectionAfterSeekInPhaseTwo.run();
           Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
           CompletableFuture<Void> loopPromise = new CompletableFuture<>();
@@ -220,6 +226,57 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
           }
         });
     return promise;
+  }
+
+  /**
+   * Seek the compaction subscription to {@code from}, retrying on transient
+   * {@link PulsarClientException.ConnectException}.
+   *
+   * <p>Server-side, {@code PersistentSubscription.resetCursorInternal} disconnects the compaction
+   * consumer before resetting the managed cursor, then sends the success response. This races with
+   * the client: {@code channelInactive} fires on the consumer's {@code ClientCnx} and fails the
+   * in-flight seek future with {@code ConnectException} before the broker's success response
+   * arrives. The seek is idempotent and the cursor is already repositioned server-side, so
+   * retrying after a short backoff lets the client reconnect and the next seek complete normally.
+   * Non-transient failures propagate immediately.
+   */
+  private CompletableFuture<Void> phaseTwoSeekWithRetry(RawReader reader, MessageId from) {
+    CompletableFuture<Void> promise = new CompletableFuture<>();
+    Backoff backoff = Backoff.builder()
+        .initialDelay(Duration.ofMillis(100))
+        .maxBackoff(Duration.ofSeconds(1))
+        .mandatoryStop(Duration.ofSeconds(10))
+        .build();
+    attemptPhaseTwoSeek(reader, from, backoff, promise);
+    return promise;
+  }
+
+  private void attemptPhaseTwoSeek(RawReader reader, MessageId from, Backoff backoff,
+      CompletableFuture<Void> promise) {
+    injectionPhaseTwoSeek.apply(reader, from).whenComplete((v, ex) -> {
+      if (ex == null) {
+        promise.complete(null);
+        return;
+      }
+      Throwable cause = FutureUtil.unwrapCompletionException(ex);
+      if (!(cause instanceof PulsarClientException.ConnectException)) {
+        promise.completeExceptionally(cause);
+        return;
+      }
+      long nextMs = backoff.next().toMillis();
+      if (backoff.isMandatoryStopMade()) {
+        promise.completeExceptionally(cause);
+        return;
+      }
+      log.warn()
+          .attr("topic", reader.getTopic())
+          .attr("from", from)
+          .attr("nextMs", nextMs)
+          .exceptionMessage(cause)
+          .log("Phase two seek failed transiently, will retry");
+      scheduler.schedule(() -> attemptPhaseTwoSeek(reader, from, backoff, promise),
+          nextMs, TimeUnit.MILLISECONDS);
+    });
   }
 
   private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,

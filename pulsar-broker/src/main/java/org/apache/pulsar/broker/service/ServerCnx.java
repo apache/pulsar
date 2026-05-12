@@ -486,6 +486,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
         dagWatchSessions.clear();
 
+        // Same for namespace-wide scalable-topic watchers.
+        scalableTopicsWatchers.values().forEach(session -> {
+            try {
+                session.close();
+            } catch (Exception e) {
+                log.warn().exceptionMessage(e)
+                        .log("Error closing scalable-topics watcher on connection close");
+            }
+        });
+        scalableTopicsWatchers.clear();
+
         // Notify the scalable-topic controller that this connection's scalable consumers
         // have dropped. The controller marks them disconnected and starts the grace-period
         // timer; if they reconnect in time, their assignment is preserved.
@@ -790,30 +801,163 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        // Create a DagWatchSession that will send the initial layout and watch for changes
-        var session = new org.apache.pulsar.broker.service.scalable.DagWatchSession(
-                sessionId, topicName, this, resources, service);
-        dagWatchSessions.put(sessionId, session);
-
-        session.start()
-                .thenAcceptAsync(session::pushUpdate, ctx.executor())
-                .exceptionally(ex -> {
-                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-                    log.warn().attr("topic", topicName).exception(cause)
-                            .log("ScalableTopicLookup failed");
-                    dagWatchSessions.remove(sessionId);
-                    session.close();
-                    ctx.executor().execute(() ->
+        isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData)
+                .thenAccept(isAuthorized -> {
+                    if (!isAuthorized) {
+                        final String msg = "Client is not authorized to ScalableTopicLookup";
+                        log.warn()
+                                .attr("principal", getPrincipal())
+                                .attr("topic", topicName)
+                                .log(msg);
                         ctx.writeAndFlush(Commands.newScalableTopicError(sessionId,
-                                ServerError.TopicNotFound, cause.getMessage()))
-                    );
+                                ServerError.AuthorizationError, msg));
+                        return;
+                    }
+                    // Create a DagWatchSession that will send the initial layout and watch for changes
+                    var session = new org.apache.pulsar.broker.service.scalable.DagWatchSession(
+                            sessionId, topicName, this, resources, service);
+                    dagWatchSessions.put(sessionId, session);
+
+                    session.start()
+                            .thenAcceptAsync(session::pushUpdate, ctx.executor())
+                            .exceptionally(ex -> {
+                                Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                                log.warn().attr("topic", topicName).exception(cause)
+                                        .log("ScalableTopicLookup failed");
+                                dagWatchSessions.remove(sessionId);
+                                session.close();
+                                ctx.executor().execute(() ->
+                                    ctx.writeAndFlush(Commands.newScalableTopicError(sessionId,
+                                            ServerError.TopicNotFound, cause.getMessage()))
+                                );
+                                return null;
+                            });
+                })
+                .exceptionally(ex -> {
+                    logAuthException(remoteAddress, "scalable-topic-lookup", getPrincipal(),
+                            Optional.of(topicName), ex);
+                    ctx.writeAndFlush(Commands.newScalableTopicError(sessionId,
+                            ServerError.AuthorizationError,
+                            "Exception occurred while trying to authorize ScalableTopicLookup"));
+                    return null;
+                });
+    }
+
+    // --- Scalable topics namespace watcher ---
+
+    private final java.util.concurrent.ConcurrentHashMap<Long,
+            org.apache.pulsar.broker.service.scalable.ScalableTopicsWatcherSession>
+            scalableTopicsWatchers = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Override
+    protected void handleCommandWatchScalableTopics(
+            org.apache.pulsar.common.api.proto.CommandWatchScalableTopics cmd) {
+        checkArgument(state == State.Connected);
+
+        final long watchId = cmd.getWatchId();
+        final String namespaceStr = cmd.getNamespace();
+        log.debug().attr("namespace", namespaceStr).attr("watchId", watchId)
+                .log("Received WatchScalableTopics");
+
+        if (!scalableTopicsEnabled) {
+            ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
+                    ServerError.NotAllowedError, "Scalable topics are disabled on this broker"));
+            return;
+        }
+
+        final NamespaceName namespaceName;
+        try {
+            namespaceName = NamespaceName.get(namespaceStr);
+        } catch (Exception e) {
+            log.warn().attr("namespace", namespaceStr).log("Invalid namespace in WatchScalableTopics");
+            ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
+                    ServerError.InvalidTopicName, "Invalid namespace: " + namespaceStr));
+            return;
+        }
+
+        final java.util.Map<String, String> propertyFilters = new java.util.HashMap<>();
+        for (int i = 0; i < cmd.getPropertyFiltersCount(); i++) {
+            var kv = cmd.getPropertyFilterAt(i);
+            propertyFilters.put(kv.getKey(), kv.getValue());
+        }
+        final String clientHash = cmd.hasCurrentHash() ? cmd.getCurrentHash() : null;
+
+        if (!this.service.getPulsar().isRunning()) {
+            log.warn("WatchScalableTopics rejected: broker not ready");
+            ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
+                    ServerError.ServiceNotReady, "Broker not ready"));
+            return;
+        }
+
+        org.apache.pulsar.broker.resources.ScalableTopicResources resources =
+                service.getPulsar().getPulsarResources().getScalableTopicResources();
+        if (resources == null) {
+            log.warn("WatchScalableTopics rejected: scalable topic resources not available");
+            ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
+                    ServerError.ServiceNotReady, "Scalable topic resources not available"));
+            return;
+        }
+
+        isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS)
+                .thenAccept(isAuthorized -> {
+                    if (!isAuthorized) {
+                        final String msg = "Client is not authorized to WatchScalableTopics";
+                        log.warn().attr("principal", getPrincipal()).attr("namespace", namespaceName)
+                                .log(msg);
+                        ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
+                                ServerError.AuthorizationError, msg));
+                        return;
+                    }
+                    var session = new org.apache.pulsar.broker.service.scalable
+                            .ScalableTopicsWatcherSession(watchId, namespaceName, propertyFilters,
+                                    clientHash, this, resources, service.getPulsar().getExecutor());
+                    scalableTopicsWatchers.put(watchId, session);
+
+                    session.start().exceptionally(ex -> {
+                        Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                        log.warn().attr("namespace", namespaceName).exception(cause)
+                                .log("WatchScalableTopics failed");
+                        scalableTopicsWatchers.remove(watchId);
+                        session.close();
+                        ctx.executor().execute(() -> ctx.writeAndFlush(
+                                Commands.newWatchScalableTopicsError(watchId,
+                                        ServerError.UnknownError, cause.getMessage())));
+                        return null;
+                    });
+                })
+                .exceptionally(ex -> {
+                    logNamespaceNameAuthException(remoteAddress, "watch-scalable-topics",
+                            getPrincipal(), Optional.of(namespaceName), ex);
+                    ctx.writeAndFlush(Commands.newWatchScalableTopicsError(watchId,
+                            ServerError.AuthorizationError,
+                            "Exception occurred while authorizing WatchScalableTopics"));
                     return null;
                 });
     }
 
     @Override
+    protected void handleCommandWatchScalableTopicsClose(
+            org.apache.pulsar.common.api.proto.CommandWatchScalableTopicsClose cmd) {
+        // Same idempotent-close semantics as DAG watch / consumer close: per-cnx
+        // session, originating subscribe was authorized at create time, no per-call
+        // authz needed. Unknown watchId is a no-op.
+        checkArgument(state == State.Connected);
+        long watchId = cmd.getWatchId();
+        log.debug().attr("watchId", watchId).log("Received WatchScalableTopicsClose");
+        var session = scalableTopicsWatchers.remove(watchId);
+        if (session != null) {
+            session.close();
+        }
+    }
+
+    @Override
     protected void handleCommandScalableTopicClose(
             CommandScalableTopicClose commandScalableTopicClose) {
+        // No per-call authorization: the session is keyed in this connection's
+        // dagWatchSessions map (per-ServerCnx), authentication is enforced at connect,
+        // and the originating ScalableTopicLookup was authorized when the session was
+        // created. A close for an unknown sessionId is an idempotent no-op. Same
+        // pattern as handleCloseProducer / handleCloseConsumer.
         checkArgument(state == State.Connected);
 
         final long sessionId = commandScalableTopicClose.getSessionId();
@@ -853,6 +997,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final String subscription = commandScalableTopicSubscribe.getSubscription();
         final String consumerName = commandScalableTopicSubscribe.getConsumerName();
         final long consumerId = commandScalableTopicSubscribe.getConsumerId();
+        final org.apache.pulsar.common.api.proto.ScalableConsumerType consumerType =
+                commandScalableTopicSubscribe.getConsumerType();
 
         log.debug().attr("topic", topicStr).attr("subscription", subscription)
                 .attr("consumerName", consumerName).attr("requestId", requestId)
@@ -880,23 +1026,46 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
 
-        scalableTopicService.registerConsumer(topicName, subscription, consumerName, consumerId, this)
-                .whenCompleteAsync((assignment, ex) -> {
-                    if (ex != null) {
-                        Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
-                        log.warn().attr("topic", topicName).attr("subscription", subscription)
-                                .attr("consumerName", consumerName).exception(cause)
-                                .log("ScalableTopicSubscribe failed");
+        isTopicOperationAllowed(topicName, subscription, TopicOperation.CONSUME)
+                .thenAccept(isAuthorized -> {
+                    if (!isAuthorized) {
+                        final String msg = "Client is not authorized to ScalableTopicSubscribe";
+                        log.warn()
+                                .attr("principal", getPrincipal())
+                                .attr("topic", topicName)
+                                .attr("subscription", subscription)
+                                .log(msg);
                         getCommandSender().sendScalableTopicSubscribeError(requestId,
-                                ServerError.UnknownError, cause.getMessage());
+                                ServerError.AuthorizationError, msg);
                         return;
                     }
-                    // Record the registration so we can call onConsumerDisconnect on channelInactive.
-                    scalableConsumerRegistrations.put(consumerId,
-                            new ScalableConsumerRegistrationRef(topicName, subscription, consumerName));
-                    getCommandSender().sendScalableTopicSubscribeResponse(requestId,
-                            org.apache.pulsar.broker.service.scalable.ConsumerSession.toProto(assignment));
-                }, ctx.executor());
+                    scalableTopicService.registerConsumer(topicName, subscription, consumerName,
+                                    consumerId, consumerType, this)
+                            .whenCompleteAsync((assignment, ex) -> {
+                                if (ex != null) {
+                                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                                    log.warn().attr("topic", topicName).attr("subscription", subscription)
+                                            .attr("consumerName", consumerName).exception(cause)
+                                            .log("ScalableTopicSubscribe failed");
+                                    getCommandSender().sendScalableTopicSubscribeError(requestId,
+                                            ServerError.UnknownError, cause.getMessage());
+                                    return;
+                                }
+                                // Record the registration so we can call onConsumerDisconnect on channelInactive.
+                                scalableConsumerRegistrations.put(consumerId,
+                                        new ScalableConsumerRegistrationRef(topicName, subscription, consumerName));
+                                getCommandSender().sendScalableTopicSubscribeResponse(requestId,
+                                        org.apache.pulsar.broker.service.scalable.ConsumerSession.toProto(assignment));
+                            }, ctx.executor());
+                })
+                .exceptionally(ex -> {
+                    logAuthException(remoteAddress, "scalable-topic-subscribe", getPrincipal(),
+                            Optional.of(topicName), ex);
+                    getCommandSender().sendScalableTopicSubscribeError(requestId,
+                            ServerError.AuthorizationError,
+                            "Exception occurred while trying to authorize ScalableTopicSubscribe");
+                    return null;
+                });
     }
 
     @Override
@@ -2429,7 +2598,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .log("Ignoring message acks during topic transfer. Total ignored ack count");
                 return;
             }
-            consumer.messageAcked(ack).thenRun(() -> {
+            consumer.messageAcked(ack, hasRequestId).thenRun(() -> {
                 if (hasRequestId) {
                     writeAndFlush(Commands.newAckResponse(
                             requestId, null, null, consumerId));

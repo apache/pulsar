@@ -28,6 +28,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -117,6 +119,27 @@ public class AuthenticationOAuth2Test {
         String authParams = mapper.writeValueAsString(params);
         this.auth.configure(authParams);
         assertNotNull(this.auth.flow);
+    }
+
+    @Test
+    public void testConfiguredAuthIsSerializable() throws Exception {
+        Map<String, String> params = new HashMap<>();
+        params.put("type", "client_credentials");
+        params.put("privateKey", "data:base64,e30=");
+        params.put("issuerUrl", "http://localhost");
+        params.put("connectTimeout", "PT10S");
+        params.put("readTimeout", "PT30S");
+        ObjectMapper mapper = new ObjectMapper();
+        String authParams = mapper.writeValueAsString(params);
+        AuthenticationOAuth2 configuredAuth = new AuthenticationOAuth2();
+        configuredAuth.configure(authParams);
+
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(out)) {
+            objectOutputStream.writeObject(configuredAuth);
+        } finally {
+            configuredAuth.close();
+        }
     }
 
     @Test

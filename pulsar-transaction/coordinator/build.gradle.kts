@@ -31,7 +31,7 @@ dependencies {
     implementation(libs.commons.collections4)
     implementation(libs.netty.buffer)
     implementation(libs.netty.common)
-    implementation(libs.jctools.core)
+    implementation(libs.jctools.core.jdk11)
     implementation(libs.simpleclient)
     implementation(libs.guava)
     implementation(libs.bookkeeper.server)

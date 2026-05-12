@@ -19,6 +19,7 @@
 
 plugins {
     id("pulsar.java-conventions")
+    id("pulsar.binary-license-check-conventions")
 }
 // Distribution module — no Java compilation needed
 tasks.named("compileJava") { enabled = false }
@@ -211,6 +212,10 @@ val shellDistZip by tasks.registering(Zip::class) {
 }
 tasks.named("assemble") {
     dependsOn(shellDistTar, shellDistZip)
+}
+
+binaryLicenseCheck {
+    archive.set(shellDistTar.flatMap { it.archiveFile })
 }
 
 // Export the runtime classpath to a file for bin/ scripts to use

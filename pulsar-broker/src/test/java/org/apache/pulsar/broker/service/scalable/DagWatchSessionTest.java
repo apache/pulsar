@@ -125,15 +125,32 @@ public class DagWatchSessionTest {
     }
 
     @Test
-    public void testStartRegistersMetadataStoreListener() {
-        // Regardless of outcome, start() should wire up a notification listener so that
-        // subsequent metadata changes flow into the session.
+    public void testStartRegistersWithResources() {
+        // start() routes through the resources-level fan-out instead of registering
+        // directly on the metadata store — that way close() can drop the
+        // registration cleanly via deregisterPathListener.
         when(resources.getScalableTopicMetadataAsync(TOPIC, true))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
         session.start();
 
-        verify(resources.getStore()).registerListener(any());
+        verify(resources).registerPathListener(session);
+    }
+
+    @Test
+    public void testCloseDeregistersPathListener() {
+        // The whole point of the registry pattern: close() must remove the listener so
+        // the per-event fan-out skips us. Otherwise we leak a stale entry per session
+        // for the broker's lifetime.
+        session.close();
+        verify(resources).deregisterPathListener(session);
+    }
+
+    @Test
+    public void testGetMetadataPathExposesTopicPath() {
+        // The registry uses this for its dispatch filter — must exactly match the
+        // path that the resources layer would generate for the topic.
+        assertEquals(session.getMetadataPath(), TOPIC_PATH);
     }
 
     // --- onNotification filtering ---
@@ -207,6 +224,11 @@ public class DagWatchSessionTest {
         assertEquals(parent.getChildIdAt(1), 3L);
         assertEquals(parent.getCreatedAtEpoch(), 0L);
         assertEquals(parent.getSealedAtEpoch(), 5L);
+        // wall-clock timestamps from seg() helper: createdAtMs = 1000 + id;
+        // sealed segments add 100ms to that.
+        assertEquals(parent.getCreatedAtMs(), 1_000L);
+        assertTrue(parent.hasSealedAtMs(), "sealed segment must carry sealedAtMs");
+        assertEquals(parent.getSealedAtMs(), 1_100L);
 
         // active children should reference parent 0
         var childA = findSegment(dag, 2L);
@@ -217,6 +239,9 @@ public class DagWatchSessionTest {
         // sealedAtEpoch is only written when non-negative
         assertTrue(!childA.hasSealedAtEpoch() || childA.getSealedAtEpoch() == 0,
                 "active segment should not have sealedAtEpoch set");
+        assertEquals(childA.getCreatedAtMs(), 1_002L);
+        assertTrue(!childA.hasSealedAtMs() || childA.getSealedAtMs() == 0,
+                "active segment should not have sealedAtMs set");
 
         // broker addresses only for the 2 active segments
         assertEquals(dag.getSegmentBrokersCount(), 2);
@@ -276,6 +301,10 @@ public class DagWatchSessionTest {
     private static SegmentInfo seg(long id, int start, int end, SegmentState state,
                                    long[] parents, long[] children,
                                    long createdAt, long sealedAt) {
+        // wall-clock timestamps don't matter for these wire-format tests; use a
+        // deterministic non-zero value so the proto round-trip is observable.
+        long createdAtMs = 1_000L + id;
+        long sealedAtMs = state == SegmentState.SEALED ? createdAtMs + 100L : -1;
         return new SegmentInfo(
                 id,
                 HashRange.of(start, end),
@@ -283,7 +312,9 @@ public class DagWatchSessionTest {
                 toList(parents),
                 toList(children),
                 createdAt,
-                sealedAt);
+                sealedAt,
+                createdAtMs,
+                sealedAtMs);
     }
 
     private static java.util.List<Long> toList(long[] arr) {

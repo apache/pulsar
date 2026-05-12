@@ -1301,6 +1301,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = false,
             category = CATEGORY_POLICIES,
+            doc = "Grace period (seconds) the controller leader waits for a disconnected scalable-topic "
+                    + "consumer to reconnect with the same consumer name before evicting its session and "
+                    + "reassigning its segments to remaining consumers."
+    )
+    private int scalableTopicConsumerSessionGracePeriodSeconds = 60;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
             doc = "Max length of subscription pattern"
     )
     private int subscriptionPatternMaxLength = 50;

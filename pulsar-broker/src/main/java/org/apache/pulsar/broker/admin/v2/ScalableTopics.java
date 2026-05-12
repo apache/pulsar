@@ -26,6 +26,8 @@ import io.swagger.annotations.ApiResponses;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -93,10 +95,17 @@ public class ScalableTopics extends AdminResource {
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Filter to topics whose properties contain every key=value pair."
+                    + " Each repetition of the parameter adds one filter (AND semantics).")
+            @QueryParam("property") List<String> properties) {
         validateNamespaceName(tenant, namespace);
+        Map<String, String> propertyFilters = parseKeyValuePairs(properties);
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
-                .thenCompose(__ -> resources().listScalableTopicsAsync(namespaceName))
+                .thenCompose(__ -> propertyFilters.isEmpty()
+                        ? resources().listScalableTopicsAsync(namespaceName)
+                        : resources().findScalableTopicsByPropertiesAsync(
+                                namespaceName, propertyFilters))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error().attr("clientAppId", clientAppId()).attr("namespace", namespaceName)
@@ -104,6 +113,30 @@ public class ScalableTopics extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    /**
+     * Parse {@code key=value} entries from a list of query parameter values into a map.
+     * Accepts {@code null} / empty input. Rejects malformed entries (no {@code =}, empty
+     * key, or empty value) with a 412.
+     */
+    private static Map<String, String> parseKeyValuePairs(List<String> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> result = new java.util.LinkedHashMap<>(entries.size());
+        for (String entry : entries) {
+            if (entry == null || entry.isEmpty()) {
+                continue;
+            }
+            int eq = entry.indexOf('=');
+            if (eq <= 0 || eq == entry.length() - 1) {
+                throw new RestException(Response.Status.fromStatusCode(412),
+                        "property filter must be in the form key=value, got: " + entry);
+            }
+            result.put(entry.substring(0, eq), entry.substring(eq + 1));
+        }
+        return result;
     }
 
     // --- Create ---
@@ -142,9 +175,8 @@ public class ScalableTopics extends AdminResource {
                     Map<String, String> props = properties != null ? properties : Map.of();
                     ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
                             numInitialSegments, props);
-                    // Segment persistent topics are auto-created on demand when clients connect,
-                    // so we only need to store the metadata here.
-                    return resources().createScalableTopicAsync(tn, metadata);
+                    return resources().createScalableTopicAsync(tn, metadata)
+                            .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
                 })
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("topic", tn)
@@ -164,6 +196,35 @@ public class ScalableTopics extends AdminResource {
                     }
                     return null;
                 });
+    }
+
+    /**
+     * Create the backing persistent topic for each segment in the initial layout.
+     *
+     * <p>Segment topics are NEVER auto-created on client connect (see
+     * {@code BrokerService.isAllowAutoTopicCreationAsync}); they only come into
+     * existence through the controller's explicit-create path. So at scalable-topic
+     * creation time we have to materialize the initial segment(s) up front, before
+     * any producer or consumer arrives.
+     *
+     * <p>Routes via the internal admin client so each segment's create lands on
+     * its bundle's owning broker (segment bundles can hash to a different broker
+     * than the one handling this REST call).
+     */
+    private CompletableFuture<Void> createInitialSegmentTopicsAsync(
+            TopicName parentTopic, ScalableTopicMetadata metadata) {
+        try {
+            var admin = pulsar().getAdminClient();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (SegmentInfo seg : metadata.getSegments().values()) {
+                String segmentTopic = SegmentTopicName.fromParent(
+                        parentTopic, seg.hashRange(), seg.segmentId()).toString();
+                futures.add(admin.scalableTopics().createSegmentAsync(segmentTopic, List.of()));
+            }
+            return FutureUtil.waitForAll(futures);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     // --- Get metadata ---
@@ -372,6 +433,92 @@ public class ScalableTopics extends AdminResource {
                 });
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/subscriptions/{subscription}/seek")
+    @ApiOperation(value = "Reset a subscription's cursor on every segment to the given"
+            + " wall-clock timestamp. The controller uses each segment's recorded sealed-time"
+            + " window to dispatch the cheapest per-segment op.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Cursor reset successfully on all segments"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
+            @ApiResponse(code = 404, message = "Scalable topic or subscription doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void seekSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription name", required = true)
+            @PathParam("subscription") String subscription,
+            @ApiParam(value = "Wall-clock millis since the unix epoch", required = true)
+            @QueryParam("timestamp") long timestampMs) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateTopicOperationAsync(tn, TopicOperation.RESET_CURSOR, subscription)
+                .thenCompose(__ -> onControllerLeader(tn,
+                        svc -> svc.seekSubscription(tn, subscription, timestampMs)))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId())
+                            .attr("subscription", subscription).attr("topic", tn)
+                            .attr("timestampMs", timestampMs)
+                            .log("Sought subscription on scalable topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId())
+                            .attr("subscription", subscription).attr("topic", tn)
+                            .exception(ex).log("Failed to seek subscription");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/subscriptions/{subscription}/skip-all")
+    @ApiOperation(value = "Skip every undelivered message on the subscription, across every"
+            + " segment in the DAG (advance each per-segment cursor to the end).")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Backlog cleared successfully on all segments"),
+            @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(code = 403, message = "Don't have admin permission on the namespace"),
+            @ApiResponse(code = 404, message = "Scalable topic or subscription doesn't exist"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void clearBacklog(
+            @Suspended final AsyncResponse asyncResponse,
+            @ApiParam(value = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @ApiParam(value = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @ApiParam(value = "Subscription name", required = true)
+            @PathParam("subscription") String subscription) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateTopicOperationAsync(tn, TopicOperation.SKIP, subscription)
+                .thenCompose(__ -> onControllerLeader(tn,
+                        svc -> svc.clearBacklog(tn, subscription)))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId())
+                            .attr("subscription", subscription).attr("topic", tn)
+                            .log("Cleared backlog on scalable topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error().attr("clientAppId", clientAppId())
+                            .attr("subscription", subscription).attr("topic", tn)
+                            .exception(ex).log("Failed to clear subscription backlog");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
     // --- Segment operations ---
 
     @POST
@@ -557,8 +704,9 @@ public class ScalableTopics extends AdminResource {
     }
 
     /**
-     * Best-effort delete underlying persistent topics for all segments.
-     * Uses the internal admin client which handles cross-broker routing.
+     * Best-effort delete the underlying topic for every segment in the DAG. Uses the
+     * segment-aware admin endpoint, which routes to the segment-owning broker via the
+     * standard bundle-ownership lookup.
      */
     private CompletableFuture<Void> deleteSegmentTopics(TopicName parentTopic,
                                                          ScalableTopicMetadata metadata,
@@ -567,10 +715,11 @@ public class ScalableTopics extends AdminResource {
             var admin = pulsar().getAdminClient();
             CompletableFuture<?>[] futures = metadata.getSegments().values().stream()
                     .map(seg -> {
-                        String name = segmentPersistentName(parentTopic, seg);
-                        return admin.topics().deleteAsync(name, force)
+                        String segmentTopicName = SegmentTopicName.fromParent(
+                                parentTopic, seg.hashRange(), seg.segmentId()).toString();
+                        return admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force)
                                 .exceptionally(ex -> {
-                                    log.warn().attr("segment", name).exceptionMessage(ex)
+                                    log.warn().attr("segment", segmentTopicName).exceptionMessage(ex)
                                             .log("Failed to delete segment topic");
                                     return null;
                                 });
@@ -582,16 +731,5 @@ public class ScalableTopics extends AdminResource {
                     .log("Failed to get admin client for segment cleanup");
             return CompletableFuture.completedFuture(null);
         }
-    }
-
-    /**
-     * Convert a segment:// topic name to persistent:// for the underlying managed ledger topic.
-     */
-    private String segmentPersistentName(TopicName parentTopic, SegmentInfo segment) {
-        TopicName segTopic = SegmentTopicName.fromParent(
-                parentTopic, segment.hashRange(), segment.segmentId());
-        return "persistent://" + segTopic.getTenant() + "/"
-                + segTopic.getNamespacePortion() + "/"
-                + segTopic.getLocalName();
     }
 }

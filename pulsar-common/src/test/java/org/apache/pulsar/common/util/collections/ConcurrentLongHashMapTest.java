@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CyclicBarrier;
@@ -35,7 +36,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongFunction;
 import lombok.Cleanup;
@@ -211,65 +214,387 @@ public class ConcurrentLongHashMapTest {
         assertTrue(map.capacity() == initCapacity);
     }
 
+    /**
+     * Spins many readers against a section that is constantly expanding and shrinking. The
+     * stable key '1' is never removed, so every read must observe "v1"; volatile keys 2/3 may or
+     * may not be present at any instant. Any torn read or sentinel leak surfaces as an
+     * AssertionError or runtime exception captured in {@code ex}.
+     */
     @Test
-    public void testConcurrentExpandAndShrinkAndGet()  throws Throwable {
+    public void testConcurrentExpandAndShrinkAndGet() throws Throwable {
         ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
                 .expectedItems(2)
                 .concurrencyLevel(1)
                 .autoShrink(true)
                 .mapIdleFactor(0.25f)
                 .build();
-        assertEquals(map.capacity(), 4);
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
         final int readThreads = 16;
         final int writeThreads = 1;
         final int n = 1_000;
-        CyclicBarrier barrier = new CyclicBarrier(writeThreads + readThreads);
-        Future<?> future = null;
-        AtomicReference<Exception> ex = new AtomicReference<>();
 
-        for (int i = 0; i < readThreads; i++) {
-            executor.submit(() -> {
-                try {
-                    barrier.await();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-                try {
-                    map.get(1);
-                } catch (Exception e) {
-                    ex.set(e);
-                }
-            });
-        }
+        CyclicBarrier barrier = new CyclicBarrier(readThreads + writeThreads);
+        AtomicReference<Throwable> ex = new AtomicReference<>();
+        List<Future<?>> futures = new ArrayList<>();
+        AtomicBoolean writerDone = new AtomicBoolean(false);
 
         assertNull(map.put(1, "v1"));
-        future = executor.submit(() -> {
-            try {
+
+        for (int i = 0; i < readThreads; i++) {
+            futures.add(executor.submit(() -> {
                 barrier.await();
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+                try {
+                    while (!writerDone.get()) {
+                        assertEquals(map.get(1), "v1");
+                        map.get(2);
+                        map.get(3);
+                    }
+                } catch (Throwable t) {
+                    ex.compareAndSet(null, t);
+                }
+                return null;
+            }));
+        }
 
-            for (int i = 0; i < n; i++) {
-                // expand hashmap
-                assertNull(map.put(2, "v2"));
-                assertNull(map.put(3, "v3"));
-                assertEquals(map.capacity(), 8);
+        futures.add(executor.submit(() -> {
+            barrier.await();
+            try {
+                for (int i = 0; i < n; i++) {
+                    assertNull(map.put(2, "v2"));
+                    assertNull(map.put(3, "v3"));
+                    assertEquals(map.capacity(), 8);
 
-                // shrink hashmap
-                assertTrue(map.remove(2, "v2"));
-                assertTrue(map.remove(3, "v3"));
-                assertEquals(map.capacity(), 4);
+                    assertTrue(map.remove(2, "v2"));
+                    assertTrue(map.remove(3, "v3"));
+                    assertEquals(map.capacity(), 4);
+                }
+            } finally {
+                writerDone.set(true);
             }
+            return null;
+        }));
+
+        for (Future<?> future : futures) {
+            future.get(60, TimeUnit.SECONDS);
+        }
+
+        assertNull(ex.get());
+    }
+
+    /**
+     * Many concurrent writers all targeting the same section so {@code put}/{@code remove} race
+     * against {@code rehash} (both expand and shrink). Each writer owns a disjoint key range so
+     * the post-condition is deterministic. Readers concurrently look up every key written.
+     */
+    @Test
+    public void testConcurrentMultiWriterExpandShrink() throws Throwable {
+        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
+                .expectedItems(4)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.20f)
+                .build();
+
+        final int writeThreads = 8;
+        final int readThreads = 8;
+        final int rounds = 200;
+        final int keysPerThread = 64;
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+        CyclicBarrier barrier = new CyclicBarrier(writeThreads + readThreads);
+        AtomicReference<Throwable> ex = new AtomicReference<>();
+        AtomicBoolean writersDone = new AtomicBoolean(false);
+        List<Future<?>> futures = new ArrayList<>();
+
+        for (int t = 0; t < writeThreads; t++) {
+            final long base = (long) t * keysPerThread;
+            futures.add(executor.submit(() -> {
+                barrier.await();
+                try {
+                    for (int round = 0; round < rounds; round++) {
+                        for (int k = 0; k < keysPerThread; k++) {
+                            map.put(base + k, "v-" + (base + k));
+                        }
+                        for (int k = 0; k < keysPerThread; k++) {
+                            assertEquals(map.get(base + k), "v-" + (base + k));
+                        }
+                        for (int k = 0; k < keysPerThread; k++) {
+                            assertEquals(map.remove(base + k), "v-" + (base + k));
+                        }
+                        for (int k = 0; k < keysPerThread; k++) {
+                            assertNull(map.get(base + k));
+                        }
+                    }
+                } catch (Throwable th) {
+                    ex.compareAndSet(null, th);
+                }
+                return null;
+            }));
+        }
+
+        for (int r = 0; r < readThreads; r++) {
+            futures.add(executor.submit(() -> {
+                barrier.await();
+                try {
+                    long total = (long) writeThreads * keysPerThread;
+                    long key = 0;
+                    while (!writersDone.get()) {
+                        String v = map.get(key);
+                        if (v != null && !v.equals("v-" + key)) {
+                            throw new AssertionError("torn read for key " + key + ": " + v);
+                        }
+                        key = (key + 1) % total;
+                    }
+                } catch (Throwable th) {
+                    ex.compareAndSet(null, th);
+                }
+                return null;
+            }));
+        }
+
+        for (int i = 0; i < writeThreads; i++) {
+            futures.get(i).get(120, TimeUnit.SECONDS);
+        }
+        writersDone.set(true);
+        for (int i = writeThreads; i < futures.size(); i++) {
+            futures.get(i).get(60, TimeUnit.SECONDS);
+        }
+
+        assertNull(ex.get());
+        assertEquals(map.size(), 0);
+    }
+
+    /**
+     * Differential test against {@link java.util.concurrent.ConcurrentHashMap}. Each thread owns
+     * a disjoint key partition (so any single-key sequence is linearizable), but every operation
+     * is mirrored onto both maps. Per-call return values must agree, and after the workload the
+     * two maps must contain exactly the same entries — including the reverse direction.
+     */
+    @Test
+    public void testCorrectnessAgainstConcurrentHashMap() throws Throwable {
+        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(4)
+                .autoShrink(true)
+                .mapIdleFactor(0.20f)
+                .build();
+        ConcurrentHashMap<Long, String> reference = new ConcurrentHashMap<>();
+
+        final int nThreads = 8;
+        final int opsPerThread = 50_000;
+        final int keyRange = 2048;
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(nThreads);
+        CyclicBarrier barrier = new CyclicBarrier(nThreads);
+        List<Future<?>> futures = new ArrayList<>();
+
+        for (int t = 0; t < nThreads; t++) {
+            final int threadId = t;
+            final long base = (long) threadId << 40;
+            futures.add(executor.submit(() -> {
+                Random rnd = new Random(threadId);
+                barrier.await();
+                for (int i = 0; i < opsPerThread; i++) {
+                    long key = base + rnd.nextInt(keyRange);
+                    int op = rnd.nextInt(5);
+                    String value = "v-" + threadId + "-" + i;
+                    switch (op) {
+                        case 0:
+                            assertEquals(map.put(key, value), reference.put(key, value));
+                            break;
+                        case 1:
+                            assertEquals(map.putIfAbsent(key, value), reference.putIfAbsent(key, value));
+                            break;
+                        case 2:
+                            assertEquals(map.remove(key), reference.remove(key));
+                            break;
+                        case 3:
+                            assertEquals(map.get(key), reference.get(key));
+                            break;
+                        default:
+                            assertEquals(map.containsKey(key), reference.containsKey(key));
+                            break;
+                    }
+                }
+                return null;
+            }));
+        }
+
+        for (Future<?> future : futures) {
+            future.get(120, TimeUnit.SECONDS);
+        }
+
+        assertEquals(map.size(), (long) reference.size());
+        for (Map.Entry<Long, String> e : reference.entrySet()) {
+            assertEquals(map.get(e.getKey()), e.getValue());
+        }
+        AtomicLong observed = new AtomicLong();
+        map.forEach((k, v) -> {
+            observed.incrementAndGet();
+            assertEquals(v, reference.get(k));
         });
+        assertEquals(observed.get(), (long) reference.size());
+    }
 
-        future.get();
-        assertTrue(ex.get() == null);
-        // shut down pool
-        executor.shutdown();
+    /**
+     * Cross-thread put-publish-then-read invariant: once a {@code put(k, v)} has returned and the
+     * writer has published k via a volatile counter, EVERY reader that observes that counter must
+     * see a non-null value for k. A failure here would mean a successful put was "lost" by the
+     * map's get path — the failure mode the Table-snapshot design exists to prevent.
+     *
+     * <p>The map starts at the smallest legal capacity with autoShrink enabled, so the rehash
+     * code path is exercised on virtually every put. This is the most aggressive workload for
+     * the rehash-vs-get race that the previous separate-volatile-arrays design couldn't survive.
+     */
+    @Test
+    public void testNoLostGetAfterPublish() throws Throwable {
+        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+
+        final int totalKeys = 50_000;
+        final int readerThreads = 8;
+
+        AtomicLong highestPublished = new AtomicLong(-1);
+        AtomicReference<Throwable> ex = new AtomicReference<>();
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+        CyclicBarrier barrier = new CyclicBarrier(readerThreads + 1);
+        List<Future<?>> futures = new ArrayList<>();
+
+        // Writer: put then publish. The volatile-set on highestPublished establishes
+        // happens-before with any reader that observes the published value.
+        futures.add(executor.submit(() -> {
+            barrier.await();
+            for (int i = 0; i < totalKeys; i++) {
+                assertNull(map.put(i, "v" + i));
+                highestPublished.set(i);
+            }
+            return null;
+        }));
+
+        // Readers: observe the published counter, then verify every key in [0, counter] is
+        // present with the expected value. The reader pulls the counter once per cycle and
+        // catches up to it before pulling again.
+        for (int r = 0; r < readerThreads; r++) {
+            futures.add(executor.submit(() -> {
+                barrier.await();
+                try {
+                    long lastChecked = -1;
+                    while (lastChecked < totalKeys - 1) {
+                        long target = highestPublished.get();
+                        while (lastChecked < target) {
+                            lastChecked++;
+                            String v = map.get(lastChecked);
+                            if (v == null) {
+                                throw new AssertionError(
+                                        "lost get for key " + lastChecked
+                                                + "; highestPublished=" + target);
+                            }
+                            if (!v.equals("v" + lastChecked)) {
+                                throw new AssertionError(
+                                        "wrong value for key " + lastChecked + ": " + v);
+                            }
+                        }
+                    }
+                } catch (Throwable t) {
+                    ex.compareAndSet(null, t);
+                }
+                return null;
+            }));
+        }
+
+        for (Future<?> f : futures) {
+            f.get(120, TimeUnit.SECONDS);
+        }
+
+        assertNull(ex.get());
+        assertEquals(map.size(), (long) totalKeys);
+    }
+
+    /**
+     * forEach during concurrent writes is documented as not strongly thread-safe, but it must
+     * never throw, never expose {@code DeletedValue}/{@code EmptyValue} sentinels, and every
+     * observed (key, value) pair must be a legitimate pair that was written at some point.
+     */
+    @Test
+    public void testForEachDuringWrites() throws Throwable {
+        ConcurrentLongHashMap<String> map = ConcurrentLongHashMap.<String>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+
+        final int writers = 4;
+        final int keysPerWriter = 256;
+        final int writeRounds = 200;
+        final int forEachRounds = 100;
+
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newCachedThreadPool();
+        CyclicBarrier barrier = new CyclicBarrier(writers + 1);
+        AtomicReference<Throwable> ex = new AtomicReference<>();
+        AtomicBoolean writersDone = new AtomicBoolean(false);
+        List<Future<?>> futures = new ArrayList<>();
+
+        for (int t = 0; t < writers; t++) {
+            final long base = (long) t * keysPerWriter;
+            futures.add(executor.submit(() -> {
+                barrier.await();
+                try {
+                    for (int round = 0; round < writeRounds; round++) {
+                        for (int k = 0; k < keysPerWriter; k++) {
+                            map.put(base + k, "v-" + (base + k));
+                        }
+                        for (int k = 0; k < keysPerWriter; k++) {
+                            map.remove(base + k);
+                        }
+                    }
+                } catch (Throwable th) {
+                    ex.compareAndSet(null, th);
+                }
+                return null;
+            }));
+        }
+
+        futures.add(executor.submit(() -> {
+            barrier.await();
+            try {
+                for (int round = 0; round < forEachRounds && !writersDone.get(); round++) {
+                    AtomicInteger seen = new AtomicInteger();
+                    map.forEach((k, v) -> {
+                        seen.incrementAndGet();
+                        String expected = "v-" + k;
+                        if (!expected.equals(v)) {
+                            throw new AssertionError("Inconsistent (k,v): (" + k + "," + v + ")");
+                        }
+                    });
+                    long sz = map.size();
+                    assertTrue(sz >= 0, "size went negative: " + sz);
+                    assertTrue(sz <= (long) writers * keysPerWriter, "size > universe: " + sz);
+                }
+            } catch (Throwable th) {
+                ex.compareAndSet(null, th);
+            }
+            return null;
+        }));
+
+        for (int i = 0; i < writers; i++) {
+            futures.get(i).get(120, TimeUnit.SECONDS);
+        }
+        writersDone.set(true);
+        futures.get(writers).get(60, TimeUnit.SECONDS);
+
+        assertNull(ex.get());
     }
 
     @Test

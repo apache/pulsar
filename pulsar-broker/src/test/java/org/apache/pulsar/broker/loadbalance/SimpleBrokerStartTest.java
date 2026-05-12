@@ -48,7 +48,7 @@ public class SimpleBrokerStartTest {
         }
         // Start local bookkeeper ensemble
         @Cleanup("stop")
-        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         // Start broker
         ServiceConfiguration config = new ServiceConfiguration();
@@ -79,7 +79,7 @@ public class SimpleBrokerStartTest {
         }
         // Start local bookkeeper ensemble
         @Cleanup("stop")
-        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         // Start broker
         ServiceConfiguration config = new ServiceConfiguration();

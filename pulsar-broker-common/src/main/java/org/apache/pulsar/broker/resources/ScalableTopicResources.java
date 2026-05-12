@@ -18,19 +18,30 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.ScanConsumer;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
  * Metadata store access for scalable topic metadata.
@@ -54,17 +65,177 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     private static final String SUBSCRIPTIONS_SEGMENT = "subscriptions";
     private static final String CONSUMERS_SEGMENT = "consumers";
 
+    /**
+     * Use the topic's {@code properties} map verbatim as the secondary-index entries.
+     * Each property {@code k -> v} is registered as the index named {@code k} with
+     * secondary key {@code v}; querying by that key/value pair via
+     * {@link MetadataStore#findByIndex} returns the record. Index names live in a
+     * per-record-type namespace, so there's no need to disambiguate them with a prefix.
+     */
+    private static final Function<ScalableTopicMetadata, Map<String, String>> PROPERTY_INDEX_EXTRACTOR =
+            metadata -> metadata.getProperties() != null ? metadata.getProperties() : Map.of();
+
     private final MetadataCache<SubscriptionMetadata> subscriptionCache;
     private final MetadataCache<ConsumerRegistration> consumerRegistrationCache;
+
+    /**
+     * Per-path listeners for scalable-topic metadata events. Each listener watches a
+     * single exact path (typically a topic record); the resources-level fan-out
+     * dispatches notifications whose path equals the listener's registered path.
+     * Used by {@link DagWatchSession}-style subscribers that want events for one
+     * specific topic.
+     *
+     * <p>Hosted here — rather than letting each subscriber call
+     * {@code store.registerListener} directly — because {@code MetadataStore} has no
+     * {@code unregisterListener}: per-subscriber direct registration would leak a
+     * listener for the broker's lifetime every time a session ends, and every
+     * metadata notification would fan out to all stale listeners. Mirrors
+     * {@link TopicResources} for {@code TopicListener}.
+     */
+    private final Map<MetadataPathListener, String> pathListeners = new ConcurrentHashMap<>();
+
+    /**
+     * Per-namespace listeners for scalable-topic create / modify / delete events.
+     * Used by namespace-wide watchers (e.g. multi-topic consumer wrappers); the
+     * fan-out matches direct children of the listener's namespace base path. Same
+     * leak-avoidance rationale as {@link #pathListeners}.
+     */
+    private final Map<NamespaceListener, NamespaceName> namespaceListeners =
+            new ConcurrentHashMap<>();
 
     public ScalableTopicResources(MetadataStore store, int operationTimeoutSec) {
         super(store, ScalableTopicMetadata.class, operationTimeoutSec);
         this.subscriptionCache = store.getMetadataCache(SubscriptionMetadata.class);
         this.consumerRegistrationCache = store.getMetadataCache(ConsumerRegistration.class);
+        // Single shared metadata-store listener fans out to both per-path and
+        // per-namespace subscribers. Per-subscriber lifecycle goes through the
+        // register / deregister methods below.
+        if (store instanceof MetadataStoreExtended ext) {
+            ext.registerListener(this::handleNotification);
+        } else {
+            store.registerListener(this::handleNotification);
+        }
+    }
+
+    // --- Per-path metadata listeners ---
+
+    /**
+     * Listener for metadata events on a specific scalable-topic-related path. The
+     * fan-out in {@link ScalableTopicResources} compares each notification's path
+     * against {@link #getMetadataPath()} and dispatches on exact match.
+     */
+    public interface MetadataPathListener {
+        /** Exact path this listener is interested in (no wildcard / prefix). */
+        String getMetadataPath();
+
+        /** Called for every metadata event on the listener's path. */
+        void onNotification(Notification notification);
+    }
+
+    /**
+     * Register a per-path metadata listener. Idempotent — re-registering the same
+     * listener just refreshes its path mapping (e.g. if the listener moved its path).
+     */
+    public void registerPathListener(MetadataPathListener listener) {
+        pathListeners.put(listener, listener.getMetadataPath());
+    }
+
+    /**
+     * Deregister a previously-registered listener. Safe to call multiple times or for
+     * listeners that were never registered.
+     */
+    public void deregisterPathListener(MetadataPathListener listener) {
+        pathListeners.remove(listener);
+    }
+
+    // --- Namespace-level scalable-topics listeners ---
+
+    /**
+     * Listener for scalable-topic create / modify / delete events under a single
+     * namespace. The fan-out in {@link ScalableTopicResources} filters notifications
+     * to the listener's namespace and to direct topic records (skipping subtree paths
+     * like {@code <topic>/subscriptions/...} or {@code <topic>/controller}).
+     */
+    public interface NamespaceListener {
+        /** Namespace this listener is scoped to. */
+        NamespaceName getNamespaceName();
+
+        /** Called for every metadata event affecting a topic record in the namespace. */
+        void onNotification(Notification notification);
+    }
+
+    /**
+     * Register a per-namespace listener. The listener will receive every
+     * Created / Modified / Deleted event whose path is a direct child of
+     * {@code /topics/<tenant>/<ns>}. Idempotent — re-registering the same listener
+     * just updates the namespace mapping.
+     */
+    public void registerNamespaceListener(NamespaceListener listener) {
+        namespaceListeners.put(listener, listener.getNamespaceName());
+    }
+
+    /**
+     * Deregister a previously-registered namespace listener. Safe to call multiple
+     * times or for listeners that were never registered.
+     */
+    public void deregisterNamespaceListener(NamespaceListener listener) {
+        namespaceListeners.remove(listener);
+    }
+
+    /**
+     * Single fan-out path. For each registered subscriber:
+     * <ul>
+     *   <li>Path listener: dispatch when the notification's path equals the listener's
+     *       registered path.</li>
+     *   <li>Namespace listener: dispatch when the notification's path is a direct
+     *       child of {@code /topics/<tenant>/<ns>} (skips subtree events like
+     *       subscriptions / controller lock).</li>
+     * </ul>
+     */
+    void handleNotification(Notification notification) {
+        String path = notification.getPath();
+
+        // Path listeners — exact match.
+        if (!pathListeners.isEmpty()) {
+            for (Map.Entry<MetadataPathListener, String> entry : pathListeners.entrySet()) {
+                if (entry.getValue().equals(path)) {
+                    try {
+                        entry.getKey().onNotification(notification);
+                    } catch (Exception e) {
+                        log.warn().attr("listener", entry.getKey())
+                                .attr("path", path)
+                                .exceptionMessage(e)
+                                .log("Failed to dispatch scalable-topic path notification");
+                    }
+                }
+            }
+        }
+
+        // Namespace listeners — direct child of /topics/<ns>.
+        if (!namespaceListeners.isEmpty() && path.startsWith(SCALABLE_TOPIC_PATH + "/")) {
+            for (Map.Entry<NamespaceListener, NamespaceName> entry : namespaceListeners.entrySet()) {
+                String basePath = namespacePath(entry.getValue());
+                if (!path.startsWith(basePath + "/")) {
+                    continue;
+                }
+                String rest = path.substring(basePath.length() + 1);
+                if (rest.indexOf('/') >= 0) {
+                    continue;
+                }
+                try {
+                    entry.getKey().onNotification(notification);
+                } catch (Exception e) {
+                    log.warn().attr("listener", entry.getKey())
+                            .attr("path", path)
+                            .exceptionMessage(e)
+                            .log("Failed to dispatch scalable-topic namespace notification");
+                }
+            }
+        }
     }
 
     public CompletableFuture<Void> createScalableTopicAsync(TopicName tn, ScalableTopicMetadata metadata) {
-        return createAsync(topicPath(tn), metadata);
+        return getCache().create(topicPath(tn), metadata, PROPERTY_INDEX_EXTRACTOR);
     }
 
     public CompletableFuture<Optional<ScalableTopicMetadata>> getScalableTopicMetadataAsync(TopicName tn) {
@@ -82,7 +253,10 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     public CompletableFuture<Void> updateScalableTopicAsync(TopicName tn,
                                                              Function<ScalableTopicMetadata,
                                                                      ScalableTopicMetadata> updateFunction) {
-        return setAsync(topicPath(tn), updateFunction);
+        // Refresh property indexes on every update — the modify function may add or remove
+        // properties and the underlying store needs to see the post-modification view.
+        return getCache().readModifyUpdate(topicPath(tn), updateFunction, PROPERTY_INDEX_EXTRACTOR)
+                .thenApply(__ -> null);
     }
 
     public CompletableFuture<Void> deleteScalableTopicAsync(TopicName tn) {
@@ -98,6 +272,70 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                 .thenApply(list -> list.stream()
                         .map(encoded -> TopicName.get("topic", ns, Codec.decode(encoded)).toString())
                         .collect(Collectors.toList()));
+    }
+
+    /**
+     * List scalable topics in a namespace whose {@code properties} map contains every
+     * key/value pair in {@code propertyFilters} (AND semantics).
+     *
+     * <p>Stores with native secondary-index support (Oxia) serve the most-restrictive
+     * lookup via the index for one of the filters, then a record-level check rejects
+     * anything that doesn't satisfy the rest. Stores without native index support fall
+     * through to a children scan + the same predicate. An empty {@code propertyFilters}
+     * map degenerates to {@link #listScalableTopicsAsync}.
+     *
+     * @param ns              the namespace to scope the query to
+     * @param propertyFilters property name/value pairs that all must match (AND)
+     * @return fully qualified scalable topic names matching every filter
+     */
+    public CompletableFuture<List<String>> findScalableTopicsByPropertiesAsync(
+            NamespaceName ns, Map<String, String> propertyFilters) {
+        if (propertyFilters == null || propertyFilters.isEmpty()) {
+            return listScalableTopicsAsync(ns);
+        }
+        String scanPathPrefix = joinPath(SCALABLE_TOPIC_PATH, ns.toString());
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+
+        // Pick any single filter to drive the index lookup (native stores will use it
+        // to narrow the candidate set; iteration order is acceptable since we don't
+        // know index cardinalities up front). The predicate then enforces AND across
+        // every filter on the loaded record.
+        Map.Entry<String, String> indexFilter = propertyFilters.entrySet().iterator().next();
+        Predicate<GetResult> matchesAll = result -> {
+            try {
+                ScalableTopicMetadata md =
+                        mapper.readValue(result.getValue(), ScalableTopicMetadata.class);
+                Map<String, String> props = md.getProperties();
+                if (props == null) {
+                    return false;
+                }
+                for (Map.Entry<String, String> e : propertyFilters.entrySet()) {
+                    if (!e.getValue().equals(props.get(e.getKey()))) {
+                        return false;
+                    }
+                }
+                return true;
+            } catch (IOException e) {
+                return false;
+            }
+        };
+        List<GetResult> results = new ArrayList<>();
+        return getStore().scanByIndex(scanPathPrefix,
+                        indexFilter.getKey(), indexFilter.getValue(), indexFilter.getValue(),
+                        matchesAll,
+                        ScanConsumer.collectInto(results))
+                .thenApply(__ ->
+                        // Native-index implementations don't apply the fallback predicate, so
+                        // re-check here. On the fallback path this is a no-op (predicate already
+                        // applied) but cheap.
+                        results.stream()
+                                .filter(matchesAll)
+                                .map(r -> {
+                                    String path = r.getStat().getPath();
+                                    String encoded = path.substring(path.lastIndexOf('/') + 1);
+                                    return TopicName.get("topic", ns, Codec.decode(encoded)).toString();
+                                })
+                                .collect(Collectors.toList()));
     }
 
     // --- Subscriptions ---
@@ -200,6 +438,15 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
 
     public String topicPath(TopicName tn) {
         return joinPath(SCALABLE_TOPIC_PATH, tn.getNamespace(), tn.getEncodedLocalName());
+    }
+
+    /**
+     * Path under which all scalable topic records for a namespace live as direct
+     * children. Used by namespace-wide watchers as the prefix to filter metadata
+     * notifications down to events that touch a topic record.
+     */
+    public String namespacePath(NamespaceName ns) {
+        return joinPath(SCALABLE_TOPIC_PATH, ns.toString());
     }
 
     public String subscriptionPath(TopicName tn, String subscription) {

@@ -265,13 +265,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             }
         }
 
-        Map<String, String> extraConfigurations = properties.entrySet().stream()
-                .filter(entry -> entry.getKey().toString().startsWith(EXTRA_CONFIG_PREFIX))
-                .collect(Collectors.toMap(
-                        entry -> entry.getKey().toString().replaceFirst(EXTRA_CONFIG_PREFIX, ""),
-                        entry -> entry.getValue().toString()));
-
-        data.getManagedLedgerExtraConfigurations().putAll(extraConfigurations);
+        Map<String, String> extraConfigurations = getExtraConfigurations(properties);
+        if (extraConfigurations != null) {
+            data.getManagedLedgerExtraConfigurations().putAll(extraConfigurations);
+        }
 
         data.compatibleWithBrokerConfigFile(properties);
         return data;
@@ -470,7 +467,9 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
      */
     private static Object getCompatibleValue(Properties properties, Field field) {
         Object object;
-        if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
+        if (field.getName().equals("managedLedgerExtraConfigurations")) {
+            return getExtraConfigurations(properties);
+        } else if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
             object = properties.getProperty("managedLedgerOffloadThresholdInBytes",
                     properties.getProperty(OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE));
         } else if (field.getName().equals("managedLedgerOffloadDeletionLagInMillis")) {
@@ -483,6 +482,15 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             object = properties.get(field.getName());
         }
         return value((String) object, field);
+    }
+
+    private static Map<String, String> getExtraConfigurations(Properties properties) {
+        Map<String, String> extraConfigurations = properties.entrySet().stream()
+                .filter(entry -> entry.getKey().toString().startsWith(EXTRA_CONFIG_PREFIX))
+                .collect(Collectors.toMap(
+                        entry -> entry.getKey().toString().replaceFirst(EXTRA_CONFIG_PREFIX, ""),
+                        entry -> entry.getValue().toString()));
+        return extraConfigurations.isEmpty() ? null : extraConfigurations;
     }
 
     public static class OffloadPoliciesImplBuilder implements OffloadPolicies.Builder {

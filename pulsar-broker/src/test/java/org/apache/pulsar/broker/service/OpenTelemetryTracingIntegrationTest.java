@@ -128,33 +128,30 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
         // Force flush tracer provider
         flushSpans();
 
-        // Verify spans - at least one span should be created
+        // Verify spans - expected 2 spans to be created
         List<SpanData> spans = spanExporter.getFinishedSpanItems();
-        assertTrue(spans.size() > 0, "Expected at least one span, got: " + spans.size());
+        assertEquals(spans.size(), 2, "Expected 2 spans, got: " + spans.size());
 
-        // Verify producer span if present
-        spans.stream()
+        // Verify producer span
+        SpanData producerSpan = spans.stream()
                 .filter(s -> s.getKind() == SpanKind.PRODUCER)
                 .findFirst()
-                .ifPresent(producerSpan -> {
-                    assertEquals(producerSpan.getName(), "send " + topic);
-                    assertEquals(producerSpan.getAttributes().get(
-                            io.opentelemetry.api.common.AttributeKey.stringKey("messaging.system")), "pulsar");
-                });
+                .orElseThrow();
+        assertEquals(producerSpan.getName(), "send " + topic);
+        assertEquals(producerSpan.getAttributes().get(
+                io.opentelemetry.api.common.AttributeKey.stringKey("messaging.system")), "pulsar");
 
-        // Verify consumer span if present
-        spans.stream()
+        // Verify consumer span
+        SpanData consumerSpan = spans.stream()
                 .filter(s -> s.getKind() == SpanKind.CONSUMER)
                 .findFirst()
-                .ifPresent(consumerSpan -> {
-                    assertEquals(consumerSpan.getName(), "process " + topic);
-                    assertEquals(consumerSpan.getAttributes().get(
-                            io.opentelemetry.api.common.AttributeKey.stringKey("messaging.system")), "pulsar");
-                    assertEquals(consumerSpan.getAttributes().get(
-                            io.opentelemetry.api.common.AttributeKey.stringKey(
-                                    "messaging.pulsar.acknowledgment.type")),
-                            "acknowledge");
-                });
+                .orElseThrow();
+        assertEquals(consumerSpan.getName(), "process " + topic);
+        assertEquals(consumerSpan.getAttributes().get(
+                io.opentelemetry.api.common.AttributeKey.stringKey("messaging.system")), "pulsar");
+        assertEquals(consumerSpan.getAttributes().get(
+                io.opentelemetry.api.common.AttributeKey.stringKey("messaging.pulsar.acknowledgment.type")),
+                "acknowledge");
     }
 
     @Test
@@ -720,14 +717,16 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
                 .subscriptionName("test-sub")
                 .subscribe();
 
+        int numMessages = 5;
+
         // Send batch of messages
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < numMessages; i++) {
             producer.sendAsync("message-" + i);
         }
         producer.flush();
 
         // Receive and acknowledge all messages
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < numMessages; i++) {
             Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             consumer.acknowledge(msg);
@@ -741,9 +740,10 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
         flushSpans();
 
         // Verify spans for batched messages
-        // Note: Tracing behavior may vary for batched messages depending on when spans are created
         List<SpanData> spans = spanExporter.getFinishedSpanItems();
-        assertTrue(spans.size() > 0, "Expected at least some spans for batched messages");
+        int expectedNumSpans = numMessages * 2;
+        assertEquals(spans.size(), expectedNumSpans,
+                "Expected " + expectedNumSpans + " spans for batched messages, got " + spans.size());
 
         // Verify that spans have correct attributes
         spans.stream()

@@ -41,10 +41,16 @@ public interface PulsarClientBuilder {
     PulsarClient build() throws PulsarClientException;
 
     /**
-     * Set the Pulsar service URL (e.g., {@code pulsar://localhost:6650}).
+     * Set the Pulsar service URL — the broker's binary-protocol endpoint.
      *
-     * @param serviceUrl the Pulsar service URL to connect to
+     * <p>Must use {@code pulsar://} or {@code pulsar+ssl://}. The admin/web
+     * service URL ({@code http://...} / {@code https://...}) is NOT accepted.
+     *
+     * @param serviceUrl the Pulsar broker service URL to connect to,
+     *                   e.g. {@code pulsar://localhost:6650}
      * @return this builder instance for chaining
+     * @throws IllegalArgumentException if {@code serviceUrl} is null, blank, or
+     *         does not use {@code pulsar://} / {@code pulsar+ssl://}
      */
     PulsarClientBuilder serviceUrl(String serviceUrl);
 

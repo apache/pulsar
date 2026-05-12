@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.INTEGER;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.AssertJUnit.assertEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -127,15 +128,17 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer(), 0);
         final String topicName = "persistent://my-property/my-ns/testConsumerStatsOnZeroMaxUnackedMessagesPerConsumer";
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
                 .subscriptionName("sub")
                 .subscribe();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
+                .enableBatching(false)
                 .create();
 
         final int messages = 10;
@@ -143,15 +146,15 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             producer.send(("message-" + i).getBytes());
         }
 
-        int received = 0;
+        List<Message<byte[]>> received = new ArrayList<>();
         for (int i = 0; i < messages; i++) {
             // don't ack messages here
-            consumer.receive();
-            received++;
+            Message<byte[]> receive = consumer.receive(3, TimeUnit.SECONDS);
+            assertNotNull(receive);
+            received.add(receive);
         }
 
-        Assert.assertEquals(received, messages);
-        received = 0;
+        Assert.assertEquals(received.size(), messages);
 
         TopicStats stats = admin.topics().getStats(topicName);
         Assert.assertEquals(stats.getSubscriptions().size(), 1);
@@ -162,22 +165,21 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next()
                 .getValue().getConsumers().get(0).getUnackedMessages(), messages);
 
-        for (int i = 0; i < messages; i++) {
-            consumer.acknowledge(consumer.receive());
-            received++;
-        }
+        received.forEach(n -> {
+            try {
+                consumer.acknowledge(n);
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
+        });
 
-        Assert.assertEquals(received, messages);
-
-        // wait acknowledge send
-        Thread.sleep(2000);
-
-        stats = admin.topics().getStats(topicName);
-
-        Assert.assertFalse(stats.getSubscriptions().entrySet().iterator().next()
-                .getValue().getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
-        Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next()
-                .getValue().getConsumers().get(0).getUnackedMessages(), 0);
+        Awaitility.await().untilAsserted(() -> {
+            TopicStats topicStats = admin.topics().getStats(topicName);
+            Assert.assertFalse(topicStats.getSubscriptions().entrySet().iterator().next()
+                    .getValue().getConsumers().get(0).isBlockedConsumerOnUnackedMsgs());
+            Assert.assertEquals(topicStats.getSubscriptions().entrySet().iterator().next()
+                    .getValue().getConsumers().get(0).getUnackedMessages(), 0);
+        });
     }
 
     @Test

@@ -21,10 +21,12 @@ package org.apache.pulsar.client.impl.v5;
 import io.github.merlimat.slog.Logger;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientCnx;
@@ -38,6 +40,7 @@ import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.util.Backoff;
 
 /**
  * Client-side session for a scalable-topic consumer (Stream or Checkpoint).
@@ -51,6 +54,13 @@ import org.apache.pulsar.common.scalable.HashRange;
  * <p>Mirrors {@link DagWatchClient} in shape; the wire path is different — subscribe
  * is request/response (matched by request id) and updates are tagged with the
  * client-chosen consumer id.
+ *
+ * <p><b>Reconnect.</b> On {@link #connectionClosed} after the initial assignment has
+ * arrived, the session re-runs lookup → connect → register → subscribe with backoff
+ * and feeds the response back through {@link #onAssignmentUpdate}. Within the
+ * controller's grace period the broker re-attaches the existing registration and
+ * returns the same assignment (no listener-visible change); past grace the controller
+ * rebalances and the listener applies the diff.
  */
 final class ScalableConsumerClient implements ScalableConsumerSession, AutoCloseable {
 
@@ -63,6 +73,7 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
     private final String consumerName;
     private final long consumerId;
     private final ScalableConsumerType consumerType;
+    private final Backoff reconnectBackoff;
 
     private final AtomicReference<List<ActiveSegment>> currentAssignment =
             new AtomicReference<>(List.of());
@@ -84,6 +95,10 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
         this.consumerName = consumerName;
         this.consumerId = v4Client.newConsumerId();
         this.consumerType = consumerType;
+        this.reconnectBackoff = Backoff.builder()
+                .initialDelay(Duration.ofMillis(100))
+                .maxBackoff(Duration.ofSeconds(30))
+                .build();
         this.log = LOG.with()
                 .attr("topic", topicName)
                 .attr("subscription", subscription)
@@ -99,6 +114,29 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
      * complete with the initial assignment.
      */
     CompletableFuture<List<ActiveSegment>> start() {
+        connectAndSubscribe()
+                .thenAccept(assignment -> {
+                    List<ActiveSegment> segments = applyAssignment(assignment);
+                    log.info().attr("epoch", currentEpoch)
+                            .attr("segments", segments.size())
+                            .log("Initial assignment received");
+                    initialAssignmentFuture.complete(segments);
+                })
+                .exceptionally(ex -> {
+                    initialAssignmentFuture.completeExceptionally(ex);
+                    return null;
+                });
+        return initialAssignmentFuture;
+    }
+
+    /**
+     * Open a connection to the controller, register this session, and send the
+     * subscribe command. Resolves with the assignment returned by the controller, or
+     * fails if any step (lookup, connect, write, or response) fails.
+     */
+    private CompletableFuture<ScalableConsumerAssignment> connectAndSubscribe() {
+        CompletableFuture<ScalableConsumerAssignment> result = new CompletableFuture<>();
+
         DagWatchClient watch = new DagWatchClient(v4Client, topicName);
         watch.start()
                 .thenCompose(layout -> {
@@ -125,9 +163,14 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
                     watch.close();
                 })
                 .thenAccept(cnx -> {
+                    if (closed) {
+                        result.completeExceptionally(
+                                new PulsarClientException.AlreadyClosedException("Session closed"));
+                        return;
+                    }
                     this.cnx = cnx;
                     if (!cnx.isSupportsScalableTopics()) {
-                        initialAssignmentFuture.completeExceptionally(
+                        result.completeExceptionally(
                                 new PulsarClientException.FeatureNotSupportedException(
                                         "Broker does not support scalable topics",
                                         PulsarClientException.FailedFeatureCheck.SupportsScalableTopics));
@@ -150,30 +193,24 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
                                 if (!writeFuture.isSuccess()) {
                                     cnx.getPendingRequests().remove(requestId);
                                     cnx.removeScalableConsumerSession(consumerId);
-                                    initialAssignmentFuture.completeExceptionally(
+                                    result.completeExceptionally(
                                             new PulsarClientException(writeFuture.cause()));
                                 }
                             });
 
                     responseFuture.whenComplete((assignment, ex) -> {
                         if (ex != null) {
-                            initialAssignmentFuture.completeExceptionally(ex);
-                            return;
+                            result.completeExceptionally(ex);
+                        } else {
+                            result.complete(assignment);
                         }
-                        List<ActiveSegment> segments = toSegmentList(assignment);
-                        currentAssignment.set(segments);
-                        currentEpoch = assignment.getLayoutEpoch();
-                        log.info().attr("epoch", currentEpoch)
-                                .attr("segments", segments.size())
-                                .log("Initial assignment received");
-                        initialAssignmentFuture.complete(segments);
                     });
                 })
                 .exceptionally(ex -> {
-                    initialAssignmentFuture.completeExceptionally(ex);
+                    result.completeExceptionally(ex);
                     return null;
                 });
-        return initialAssignmentFuture;
+        return result;
     }
 
     @Override
@@ -187,6 +224,16 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
                     .log("Ignoring stale assignment update");
             return;
         }
+        applyAssignment(assignment);
+    }
+
+    /**
+     * Update the current assignment + epoch and notify the listener. Returns the new
+     * segment list. Caller is responsible for the staleness check; this method always
+     * applies what it's given.
+     */
+    private List<ActiveSegment> applyAssignment(ScalableConsumerAssignment assignment) {
+        long epoch = assignment.getLayoutEpoch();
         List<ActiveSegment> newSegments = toSegmentList(assignment);
         List<ActiveSegment> oldSegments = currentAssignment.getAndSet(newSegments);
         currentEpoch = epoch;
@@ -201,17 +248,59 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
                 log.error().exception(e).log("Error in assignment change listener");
             }
         }
+        return newSegments;
     }
 
     @Override
     public void connectionClosed() {
         log.warn("Scalable consumer session connection closed");
         cnx = null;
+        if (closed) {
+            return;
+        }
         if (!initialAssignmentFuture.isDone()) {
+            // Initial subscribe never completed: surface the failure to the caller
+            // rather than retrying silently. The application chose to fail the
+            // subscribe, so failing here matches that expectation.
             initialAssignmentFuture.completeExceptionally(
                     new PulsarClientException("Connection closed before initial assignment arrived"));
+            return;
         }
-        // TODO: implement automatic re-subscribe on reconnect
+        scheduleReconnect();
+    }
+
+    private void scheduleReconnect() {
+        if (closed) {
+            return;
+        }
+        long delayMs = reconnectBackoff.next().toMillis();
+        log.info().attr("delayMs", delayMs).log("Scheduling reconnect");
+        v4Client.timer().newTimeout(timeout -> reconnect(),
+                delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    private void reconnect() {
+        if (closed) {
+            return;
+        }
+        connectAndSubscribe()
+                .thenAccept(assignment -> {
+                    if (closed) {
+                        return;
+                    }
+                    // Feed the response through the standard update path so the
+                    // listener gets the diff. Within grace this is a no-op (same
+                    // segments); past grace the controller has rebalanced and the
+                    // listener attaches/detaches accordingly.
+                    onAssignmentUpdate(assignment);
+                    reconnectBackoff.reset();
+                    log.info().log("Reconnect succeeded");
+                })
+                .exceptionally(ex -> {
+                    log.warn().exceptionMessage(ex).log("Reconnect failed; will retry");
+                    scheduleReconnect();
+                    return null;
+                });
     }
 
     private static List<ActiveSegment> toSegmentList(ScalableConsumerAssignment assignment) {
@@ -236,6 +325,18 @@ final class ScalableConsumerClient implements ScalableConsumerSession, AutoClose
 
     long consumerId() {
         return consumerId;
+    }
+
+    /**
+     * Test hook: forcibly close the underlying broker channel to simulate a network
+     * drop. The cnx layer will fire {@link #connectionClosed()} which triggers the
+     * automatic reconnect path. Reached via reflection from cross-module tests.
+     */
+    void forceCloseConnectionForTesting() {
+        ClientCnx c = cnx;
+        if (c != null) {
+            c.ctx().channel().close();
+        }
     }
 
     @Override

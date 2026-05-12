@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.impl;
 
 import com.google.common.collect.MapMaker;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,8 +44,10 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 @CustomLog
@@ -107,7 +108,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
+    public CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
         synchronized (map) {
             Value v = map.get(path);
             if (v != null) {
@@ -122,7 +123,40 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
+        // Snapshot the immediate children under the lock, then dispatch outside it so a slow
+        // consumer can't stall other store operations.
+        List<GetResult> snapshot = new ArrayList<>();
+        synchronized (map) {
+            String firstKey = parentPath.equals("/") ? "/" : parentPath + "/";
+            String lastKey = parentPath.equals("/") ? "0" : parentPath + "0";
+            map.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                // Filter to direct children only — paths with no further "/" beyond the
+                // parent's level. Same scoping `getChildrenFromStore` applies.
+                int relStart = firstKey.length();
+                if (key.indexOf('/', relStart) >= 0) {
+                    return;
+                }
+                snapshot.add(new GetResult(
+                        value.data,
+                        new Stat(key, value.version, value.createdTimestamp, value.modifiedTimestamp,
+                                value.isEphemeral(), true)));
+            });
+        }
+        try {
+            for (GetResult r : snapshot) {
+                consumer.onNext(r);
+            }
+            consumer.onCompleted();
+            return CompletableFuture.completedFuture(null);
+        } catch (Throwable t) {
+            consumer.onError(t);
+            return FutureUtil.failedFuture(t);
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -144,7 +178,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Boolean> existsFromStore(String path) {
+    public CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -156,7 +190,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                            EnumSet<CreateOption> options) {
+                                            Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -164,14 +198,15 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             boolean hasVersion = optExpectedVersion.isPresent();
             int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
-            if (options.contains(CreateOption.Sequential)) {
+            if (OptionsHelper.isSequential(opts)) {
                 path += Long.toString(sequentialIdGenerator.getAndIncrement());
             }
+            boolean ephemeral = OptionsHelper.isEphemeral(opts);
 
             long now = System.currentTimeMillis();
 
             if (hasVersion && expectedVersion == -1) {
-                Value newValue = new Value(0, data, now, now, options.contains(CreateOption.Ephemeral));
+                Value newValue = new Value(0, data, now, now, ephemeral);
                 Value existingValue = map.putIfAbsent(path, newValue);
                 if (existingValue != null) {
                     return FutureUtils.exception(new BadVersionException(""));
@@ -188,8 +223,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 } else {
                     long newVersion = existingValue != null ? existingValue.version + 1 : 0;
                     long createdTimestamp = existingValue != null ? existingValue.createdTimestamp : now;
-                    Value newValue = new Value(newVersion, data, createdTimestamp, now,
-                            options.contains(CreateOption.Ephemeral));
+                    Value newValue = new Value(newVersion, data, createdTimestamp, now, ephemeral);
                     map.put(path, newValue);
 
                     NotificationType type =
@@ -208,7 +242,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
+    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion, Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }

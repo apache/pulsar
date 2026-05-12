@@ -18,20 +18,27 @@
  */
 package org.apache.pulsar.client.api.v5;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.v5.async.AsyncProducer;
 import org.apache.pulsar.client.api.v5.async.AsyncQueueConsumer;
 import org.apache.pulsar.client.api.v5.async.AsyncStreamConsumer;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationFactory;
+import org.apache.pulsar.client.api.v5.auth.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.v5.auth.PemFileKeyProvider;
 import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
 import org.apache.pulsar.client.api.v5.config.CompressionPolicy;
 import org.apache.pulsar.client.api.v5.config.CompressionType;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
+import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
+import org.apache.pulsar.client.api.v5.config.ProducerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -63,7 +70,7 @@ public class Examples {
         try (var client = PulsarClient.builder()
                 .serviceUrl("pulsar+ssl://pulsar.example.com:6651")
                 .authentication(AuthenticationFactory.token("eyJhbGci..."))
-                .tlsPolicy(TlsPolicy.of("/etc/pulsar/ca.pem"))
+                .tlsPolicy(TlsPolicy.builder().trustCertsFilePath("/etc/pulsar/ca.pem").build())
                 .operationTimeout(Duration.ofSeconds(30))
                 .connectionPolicy(ConnectionPolicy.builder()
                         .connectionTimeout(Duration.ofSeconds(10))
@@ -105,8 +112,11 @@ public class Examples {
         try (var producer = client.newProducer(Schema.json(SensorReading.class))
                 .topic("sensor-data")
                 .compressionPolicy(CompressionPolicy.of(CompressionType.ZSTD))
-                .batchingPolicy(BatchingPolicy.of(
-                        Duration.ofMillis(10), 5000, MemorySize.ofMegabytes(1)))
+                .batchingPolicy(BatchingPolicy.builder()
+                        .maxPublishDelay(Duration.ofMillis(10))
+                        .maxMessages(5000)
+                        .maxSize(MemorySize.ofMegabytes(1))
+                        .build())
                 .create()) {
 
             for (int i = 0; i < 100_000; i++) {
@@ -276,10 +286,10 @@ public class Examples {
         try (var consumer = client.newQueueConsumer(Schema.json(Order.class))
                 .topic("orders")
                 .subscriptionName("order-processor")
-                .ackTimeout(Duration.ofSeconds(30))
+                .processingTimeout(ProcessingTimeoutPolicy.of(Duration.ofSeconds(30)))
                 .negativeAckRedeliveryBackoff(
                         BackoffPolicy.exponential(Duration.ofSeconds(1), Duration.ofMinutes(5)))
-                .deadLetterPolicy(DeadLetterPolicy.of(5))
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(5).build())
                 .subscribe()) {
 
             while (true) {
@@ -292,6 +302,42 @@ public class Examples {
                     // After 5 redeliveries → moves to dead letter topic automatically
                 }
             }
+        }
+    }
+
+    /**
+     * End-to-end encryption — producer encrypts with a public key, consumer decrypts
+     * with the matching private key. The {@link PemFileKeyProvider} is the
+     * batteries-included reader for local PEM files; for remote key stores
+     * (KMS, Vault, ...) implement {@link org.apache.pulsar.client.api.v5.auth.PublicKeyProvider}
+     * or {@link org.apache.pulsar.client.api.v5.auth.PrivateKeyProvider} directly.
+     */
+    void encryptedProducerAndConsumer(PulsarClient client) throws Exception {
+        try (var producer = client.newProducer(Schema.string())
+                .topic("orders")
+                .encryptionPolicy(ProducerEncryptionPolicy.builder()
+                        .publicKeyProvider(PemFileKeyProvider.builder()
+                                .publicKey("orders-v1", Path.of("/etc/keys/orders-pub.pem"))
+                                .build())
+                        .keyName("orders-v1")
+                        .build())
+                .create()) {
+            producer.newMessage().value("classified payload").send();
+        }
+
+        try (var consumer = client.newQueueConsumer(Schema.string())
+                .topic("orders")
+                .subscriptionName("trusted")
+                .encryptionPolicy(ConsumerEncryptionPolicy.builder()
+                        .privateKeyProvider(PemFileKeyProvider.builder()
+                                .privateKey("orders-v1", Path.of("/etc/keys/orders-priv.pem"))
+                                .build())
+                        .failureAction(ConsumerCryptoFailureAction.FAIL)
+                        .build())
+                .subscribe()) {
+            Message<String> msg = consumer.receive(Duration.ofSeconds(5));
+            // ... use msg.value()
+            consumer.acknowledge(msg.id());
         }
     }
 
@@ -393,15 +439,21 @@ public class Examples {
     }
 
     // ==================================================================================
-    // 8. Multi-topic queue consumer with pattern
+    // 8. Multi-topic queue consumer over a namespace, optionally filtered by property
     // ==================================================================================
 
-    /** Subscribe to all topics matching a pattern. */
-    void patternSubscription(PulsarClient client) throws Exception {
+    /**
+     * Subscribe to every scalable topic in a namespace whose properties match the
+     * given key/value pairs. The matching set follows live: when topics are created
+     * with matching properties, the consumer attaches automatically; when they're
+     * deleted or change properties out of the filter, it detaches. Pass
+     * {@code Map.of()} (or use the single-arg overload) to subscribe to every
+     * scalable topic in the namespace.
+     */
+    void namespaceSubscription(PulsarClient client) throws Exception {
         try (var consumer = client.newQueueConsumer(Schema.string())
-                .topicsPattern("persistent://public/default/events-.*")
+                .namespace("public/default", Map.of("kind", "events"))
                 .subscriptionName("all-events")
-                .patternAutoDiscoveryPeriod(Duration.ofMinutes(1))
                 .subscribe()) {
 
             while (true) {
@@ -487,26 +539,6 @@ public class Examples {
                 }
 
                 processSensorReading(msg.value());
-            }
-        }
-    }
-
-    /** Time-travel seek — rewind to a specific timestamp. */
-    void checkpointConsumerSeek(PulsarClient client) throws Exception {
-        try (var consumer = client.newCheckpointConsumer(Schema.string())
-                .topic("events")
-                .startPosition(Checkpoint.latest())
-                .create()) {
-
-            // Seek back to replay from a specific time
-            consumer.seek(Checkpoint.atTimestamp(Instant.parse("2025-12-01T00:00:00Z")));
-
-            while (true) {
-                Message<String> msg = consumer.receive(Duration.ofSeconds(5));
-                if (msg == null) {
-                    break;
-                }
-                System.out.printf("[%s] %s%n", msg.publishTime(), msg.value());
             }
         }
     }

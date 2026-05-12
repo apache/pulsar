@@ -450,8 +450,9 @@ public class PersistentSubscription extends AbstractSubscription {
         dispatcher.consumerFlow(consumer, additionalNumberOfMessages);
     }
 
-    @Override
-    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+    public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
+                                                           Map<String, Long> properties) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         cursor.updateLastActive();
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
 
@@ -460,21 +461,25 @@ public class PersistentSubscription extends AbstractSubscription {
             if (positions.size() != 1) {
                 log.warn()
                         .log("Invalid cumulative ack received with multiple message ids.");
-                return;
+                future.completeExceptionally(
+                        new IllegalArgumentException("Invalid cumulative ack received with multiple message ids."));
+                return future;
             }
 
             Position position = positions.get(0);
             log.debug()
                     .attr("position", position)
                     .log("Cumulative ack on");
+            AckCallback callback = new AckCallback(previousMarkDeletePosition, future);
             cursor.asyncMarkDelete(position, mergeCursorProperties(properties),
-                    markDeleteCallback, previousMarkDeletePosition);
+                    callback, callback);
 
         } else {
             log.debug()
                     .attr("positions", positions)
                     .log("Individual acks on");
-            cursor.asyncDelete(positions, deleteCallback, previousMarkDeletePosition);
+            AckCallback callback = new AckCallback(previousMarkDeletePosition, future);
+            cursor.asyncDelete(positions, callback, callback);
             if (config.isTransactionCoordinatorEnabled()) {
                 positions.forEach(position -> {
                     if ((cursor.isMessageDeleted(position))) {
@@ -494,6 +499,8 @@ public class PersistentSubscription extends AbstractSubscription {
                 checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
             }
         }
+
+        return future;
     }
 
     public CompletableFuture<Void> transactionIndividualAcknowledge(
@@ -506,63 +513,69 @@ public class PersistentSubscription extends AbstractSubscription {
         return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
     }
 
-    private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
+    private final class AckCallback implements MarkDeleteCallback, DeleteCallback {
+        private final Position previousMarkDeletePosition;
+        private final CompletableFuture<Void> completionFuture;
+
+        private AckCallback(Position previousMarkDeletePosition, CompletableFuture<Void> completionFuture) {
+            this.previousMarkDeletePosition = previousMarkDeletePosition;
+            this.completionFuture = completionFuture;
+        }
+
         @Override
         public void markDeleteComplete(Object ctx) {
-            Position oldMD = (Position) ctx;
             Position newMD = cursor.getMarkDeletedPosition();
             log.debug()
                     .attr("newMD", newMD)
-                    .attr("oldMD", oldMD)
+                    .attr("oldMD", previousMarkDeletePosition)
                     .log("Mark deleted messages to position from position");
-            // Signal the dispatchers to give chance to take extra actions
-            if (dispatcher != null) {
-                dispatcher.afterAckMessages(null, ctx);
-            }
-            // Signal the dispatchers to give chance to take extra actions
-            notifyTheMarkDeletePositionChanged(oldMD);
+            completeAck();
         }
 
         @Override
         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
             // TODO: cut consumer connection on markDeleteFailed
             log.debug()
-                    .attr("ctx", ctx)
+                    .attr("oldMD", previousMarkDeletePosition)
                     .exceptionMessage(exception)
                     .log("Failed to mark delete for position");
-            // Signal the dispatchers to give chance to take extra actions
-            if (dispatcher != null) {
-                dispatcher.afterAckMessages(null, ctx);
-            }
+            failAck(exception);
         }
-    };
 
-    private final DeleteCallback deleteCallback = new DeleteCallback() {
         @Override
         public void deleteComplete(Object context) {
-            // The value of the param "context" is a position.
             log.debug()
-                    .attr("context", context)
+                    .attr("oldMD", previousMarkDeletePosition)
                     .log("Deleted message");
-            // Signal the dispatchers to give chance to take extra actions
-            if (dispatcher != null) {
-                dispatcher.afterAckMessages(null, context);
-            }
-            notifyTheMarkDeletePositionChanged((Position) context);
+            completeAck();
         }
 
         @Override
         public void deleteFailed(ManagedLedgerException exception, Object ctx) {
             log.warn()
-                    .attr("ctx", ctx)
+                    .attr("odMD", previousMarkDeletePosition)
                     .exceptionMessage(exception)
                     .log("Failed to delete message");
-            // Signal the dispatchers to give chance to take extra actions
-            if (dispatcher != null) {
-                dispatcher.afterAckMessages(exception, ctx);
-            }
+            failAck(exception);
         }
-    };
+
+        private void completeAck() {
+            Dispatcher currentDispatcher = dispatcher;
+            if (currentDispatcher != null) {
+                currentDispatcher.afterAckMessages(null, this);
+            }
+            notifyTheMarkDeletePositionChanged(previousMarkDeletePosition);
+            completionFuture.complete(null);
+        }
+
+        private void failAck(ManagedLedgerException exception) {
+            Dispatcher currentDispatcher = dispatcher;
+            if (currentDispatcher != null) {
+                currentDispatcher.afterAckMessages(exception, this);
+            }
+            completionFuture.completeExceptionally(exception);
+        }
+    }
 
     /**
      * This method is called after acknowledgements (such as individual acks) have been processed and the mark-delete

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -97,21 +96,22 @@ public class PulsarFunctionTlsTest {
     void setup() throws Exception {
         log.info("---- Initializing TopicOwnerTest -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
-            int brokerPort = nextLockedFreePort();
-            int webPort = nextLockedFreePort();
-
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setWebServicePort(Optional.empty());
-            config.setWebServicePortTls(Optional.of(webPort));
+            // Pre-allocate the TLS web port: PulsarService.initializeWorkerConfigFromBrokerConfig
+            // builds workerId = "c-{cluster}-fw-{host}-{port}" from the CONFIGURED port. Two
+            // brokers configured with port 0 would end up with the same workerId and the
+            // function-worker membership manager would never elect a leader.
+            config.setWebServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
             config.setBrokerServicePort(Optional.empty());
-            config.setBrokerServicePortTls(Optional.of(brokerPort));
+            config.setBrokerServicePortTls(Optional.of(0));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
             config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
@@ -220,11 +220,9 @@ public class PulsarFunctionTlsTest {
             }
             for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarServices[i] != null) {
-                    pulsarServices[i].close();
-                    pulsarServices[i].getConfiguration().
-                            getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
                     pulsarServices[i].getConfiguration()
-                            .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
+                            .getWebServicePortTls().ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i].close();
                     pulsarServices[i] = null;
                 }
             }

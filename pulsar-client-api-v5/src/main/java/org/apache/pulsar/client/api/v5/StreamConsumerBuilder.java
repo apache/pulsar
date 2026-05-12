@@ -19,10 +19,9 @@
 package org.apache.pulsar.client.api.v5;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.v5.config.EncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 
 /**
@@ -48,14 +47,37 @@ public interface StreamConsumerBuilder<T> {
     CompletableFuture<StreamConsumer<T>> subscribeAsync();
 
     // --- Required ---
+    // Either {@link #topic(String)} or {@link #namespace} must be set, not both.
 
     /**
-     * The topic(s) to subscribe to.
+     * Subscribe to a single scalable topic by name.
      *
-     * @param topicNames one or more topic names
+     * @param topicName the fully-qualified topic name (e.g. {@code topic://tenant/ns/name})
      * @return this builder instance for chaining
      */
-    StreamConsumerBuilder<T> topic(String... topicNames);
+    StreamConsumerBuilder<T> topic(String topicName);
+
+    /**
+     * Subscribe to every scalable topic under a namespace. The matching set follows
+     * live: when topics are created in or deleted from the namespace, the consumer
+     * attaches / detaches automatically.
+     *
+     * @param namespace the namespace in {@code tenant/namespace} form
+     * @return this builder instance for chaining
+     */
+    StreamConsumerBuilder<T> namespace(String namespace);
+
+    /**
+     * Subscribe to scalable topics under a namespace whose properties match every
+     * key/value pair in {@code propertyFilters} (AND semantics). An empty map is
+     * equivalent to {@link #namespace(String)} — every topic in the namespace.
+     * The matching set follows live as topic properties change.
+     *
+     * @param namespace       the namespace in {@code tenant/namespace} form
+     * @param propertyFilters property name/value pairs that all must match
+     * @return this builder instance for chaining
+     */
+    StreamConsumerBuilder<T> namespace(String namespace, Map<String, String> propertyFilters);
 
     /**
      * The subscription name.
@@ -64,25 +86,6 @@ public interface StreamConsumerBuilder<T> {
      * @return this builder instance for chaining
      */
     StreamConsumerBuilder<T> subscriptionName(String subscriptionName);
-
-    // --- Seek (initial position override) ---
-
-    /**
-     * Reset the subscription to a specific message ID.
-     *
-     * @param messageId the message ID to seek to
-     * @return this builder instance for chaining
-     */
-    StreamConsumerBuilder<T> seek(MessageId messageId);
-
-    /**
-     * Reset the subscription to a specific timestamp. The subscription
-     * will be positioned at the first message published at or after this timestamp.
-     *
-     * @param timestamp the timestamp to seek to
-     * @return this builder instance for chaining
-     */
-    StreamConsumerBuilder<T> seek(Instant timestamp);
 
     // --- Optional ---
 
@@ -141,9 +144,9 @@ public interface StreamConsumerBuilder<T> {
      *
      * @param policy the encryption policy to use
      * @return this builder instance for chaining
-     * @see EncryptionPolicy#forConsumer
+     * @see ConsumerEncryptionPolicy#builder()
      */
-    StreamConsumerBuilder<T> encryptionPolicy(EncryptionPolicy policy);
+    StreamConsumerBuilder<T> encryptionPolicy(ConsumerEncryptionPolicy policy);
 
     // --- Metadata ---
 

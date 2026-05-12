@@ -16,22 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api.v5.auth;
+package org.apache.pulsar.client.impl.v5;
 
-import java.util.Map;
-import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.api.v5.Message;
+import org.apache.pulsar.client.api.v5.QueueConsumer;
 
 /**
- * Holds an encryption key and associated metadata.
- *
- * @param key      the raw key bytes
- * @param metadata key-value metadata associated with the key
+ * Internal extension of {@link QueueConsumer} that exposes the async hooks
+ * needed by {@link AsyncQueueConsumerV5}. Implemented by both
+ * {@link ScalableQueueConsumer} (single-topic) and {@link MultiTopicQueueConsumer}
+ * so the async wrapper works against either without duplication.
  */
-public record EncryptionKeyInfo(byte[] key, Map<String, String> metadata) {
-    public EncryptionKeyInfo {
-        Objects.requireNonNull(key, "key must not be null");
-        if (metadata == null) {
-            metadata = Map.of();
-        }
-    }
+interface QueueConsumerImpl<T> extends QueueConsumer<T> {
+    CompletableFuture<Message<T>> receiveAsync();
+
+    CompletableFuture<Void> closeAsync();
 }

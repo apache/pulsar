@@ -29,7 +29,7 @@ dependencies {
     implementation(libs.opentelemetry.sdk.extension.autoconfigure)
     implementation(libs.opentelemetry.instrumentation.resources)
     implementation(libs.opentelemetry.semconv)
-    implementation(libs.opentelemetry.instrumentation.runtime.telemetry.java17)
+    implementation(libs.opentelemetry.instrumentation.runtime.telemetry)
     implementation(libs.guava)
     implementation(libs.commons.lang3)
 
