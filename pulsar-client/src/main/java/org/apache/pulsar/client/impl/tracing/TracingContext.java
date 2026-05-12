@@ -31,6 +31,9 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -90,6 +93,44 @@ public class TracingContext {
         for (Map.Entry<String, String> entry : carrier.entrySet()) {
             messageBuilder.property(entry.getKey(), entry.getValue());
         }
+    }
+
+    /**
+     * Inject trace context into a message's properties by directly writing
+     * to the underlying {@link MessageMetadata}. This is used by the producer
+     * interceptor at {@code beforeSend} time, where the message has already
+     * been constructed and the {@link TypedMessageBuilder} is no longer available.
+     *
+     * @param message the message to inject context into
+     * @param context the context to inject
+     * @param propagator the text map propagator to use
+     */
+    public static void injectContext(Message<?> message, Context context, TextMapPropagator propagator) {
+        if (message == null || context == null || propagator == null) {
+            return;
+        }
+        MessageMetadata metadata = getMessageMetadata(message);
+        if (metadata == null) {
+            return;
+        }
+        Map<String, String> carrier = new HashMap<>();
+        propagator.inject(context, carrier, SETTER);
+        for (Map.Entry<String, String> entry : carrier.entrySet()) {
+            metadata.addProperty()
+                    .setKey(entry.getKey())
+                    .setValue(entry.getValue());
+        }
+    }
+
+    @Nullable
+    private static MessageMetadata getMessageMetadata(Message<?> message) {
+        if (message instanceof MessageImpl) {
+            return ((MessageImpl<?>) message).getMessageBuilder();
+        }
+        if (message instanceof TopicMessageImpl) {
+            return getMessageMetadata(((TopicMessageImpl<?>) message).getMessage());
+        }
+        return null;
     }
 
     /**

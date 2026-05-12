@@ -21,11 +21,14 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -70,7 +73,10 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
 
         openTelemetry = OpenTelemetrySdk.builder()
                 .setTracerProvider(tracerProvider)
+                .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
                 .build();
+        GlobalOpenTelemetry.resetForTest();
+        GlobalOpenTelemetry.set(openTelemetry);
 
         baseSetup();
     }
@@ -82,6 +88,7 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
         if (openTelemetry != null) {
             openTelemetry.close();
         }
+        GlobalOpenTelemetry.resetForTest();
     }
 
     private void flushSpans() throws Exception {
@@ -152,6 +159,60 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
         assertEquals(consumerSpan.getAttributes().get(
                 io.opentelemetry.api.common.AttributeKey.stringKey("messaging.pulsar.acknowledgment.type")),
                 "acknowledge");
+    }
+
+    @Test
+    public void testContextPropagationViaMessageProperties() throws Exception {
+        String topic = "persistent://prop/ns-abc/test-context-propagation";
+        spanExporter.reset();
+
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .openTelemetry(openTelemetry)
+                .enableTracing(true)
+                .build();
+
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("test-sub")
+                .subscribe();
+
+        // Send and receive message
+        producer.send("test-message");
+
+        Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+        assertNotNull(msg);
+        consumer.acknowledge(msg);
+
+        producer.close();
+        consumer.close();
+        client.close();
+
+        flushSpans();
+
+        // Verify spans exist
+        List<SpanData> spans = spanExporter.getFinishedSpanItems();
+        assertEquals(spans.size(), 2, "Expected 2 spans, got: " + spans.size());
+
+        SpanData producerSpan = spans.stream()
+                .filter(s -> s.getKind() == SpanKind.PRODUCER)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Producer span not found"));
+        SpanData consumerSpan = spans.stream()
+                .filter(s -> s.getKind() == SpanKind.CONSUMER)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Consumer span not found"));
+
+        // Verify trace context was propagated through message properties:
+        // consumer span must share the same traceId and be a child of the producer span
+        assertEquals(producerSpan.getTraceId(), consumerSpan.getTraceId(),
+                "Producer and consumer spans should share the same traceId");
+        assertEquals(consumerSpan.getParentSpanId(), producerSpan.getSpanId(),
+                "Consumer span should be a child of the producer span");
     }
 
     @Test

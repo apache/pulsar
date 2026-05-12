@@ -83,6 +83,9 @@ public class OpenTelemetryProducerInterceptor implements ProducerInterceptor {
             if (TracingContext.isValid(span) && message instanceof TraceableMessage) {
                 // Attach the span directly to the message
                 ((TraceableMessage) message).setTracingSpan(span);
+                // Inject trace context into message properties so the consumer
+                // can extract it and correlate its span with this producer span
+                TracingContext.injectContext(message, Context.current().with(span), propagator);
                 log.debug().attr("topic", topic).log("Created producer span");
             }
         } catch (Exception e) {
