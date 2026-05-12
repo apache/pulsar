@@ -438,6 +438,10 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                     if (currentPath.indexOf('/', firstKey.length()) >= 0) {
                         continue;
                     }
+                    if (isSequenceCounterChild(currentPath.substring(firstKey.length()))) {
+                        // Sidecar bookkeeping for SequenceKeysDeltas — not a user record.
+                        continue;
+                    }
                     byte[] value = iterator.value();
                     if (value == null) {
                         continue;

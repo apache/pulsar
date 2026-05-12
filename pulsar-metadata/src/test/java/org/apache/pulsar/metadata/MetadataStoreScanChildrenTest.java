@@ -36,6 +36,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
@@ -132,6 +133,35 @@ public class MetadataStoreScanChildrenTest extends BaseMetadataStoreTest {
 
         assertEquals(consumer.records.size(), 1);
         assertEquals(consumer.records.get(0).getStat().getPath(), child);
+    }
+
+    @Test(dataProvider = "impl")
+    public void skipsSequenceCounterSidecars(String provider, Supplier<String> urlSupplier) throws Exception {
+        // When SequenceKeysDeltas is used on a non-native backend, the abstract layer writes a
+        // sidecar counter document under the same parent. scanChildren must not surface it as a
+        // user record (its value is the binary counter encoding, not the caller's payload).
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(
+                urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String parent = newKey();
+        String prefix = parent + "/op";
+        Set<Option> putOpts = "Oxia".equals(provider)
+                ? Set.of(new Option.SequenceKeysDeltas(List.of(1L)), new Option.PartitionKey(prefix))
+                : Set.of(new Option.SequenceKeysDeltas(List.of(1L)));
+        store.put(prefix, "a".getBytes(StandardCharsets.UTF_8), Optional.empty(), putOpts).join();
+        store.put(prefix, "b".getBytes(StandardCharsets.UTF_8), Optional.empty(), putOpts).join();
+
+        CollectingConsumer consumer = new CollectingConsumer();
+        store.scanChildren(parent, consumer).join();
+        consumer.awaitDone();
+
+        // Only the two appended records; the counter sidecar (if any) is filtered out.
+        assertEquals(consumer.records.size(), 2);
+        for (GetResult r : consumer.records) {
+            assertTrue(!r.getStat().getPath().endsWith("__seq_counter__"),
+                    "counter sidecar leaked through scanChildren: " + r.getStat().getPath());
+        }
     }
 
     @Test(dataProvider = "impl")
