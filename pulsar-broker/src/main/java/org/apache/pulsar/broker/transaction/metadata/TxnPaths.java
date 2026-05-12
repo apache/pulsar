@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.metadata;
 
+import org.apache.pulsar.common.util.Codec;
+
 /**
  * Path templates and secondary-index names for PIP-473 transaction metadata.
  *
@@ -87,19 +89,39 @@ public final class TxnPaths {
         return TXN_OP_PREFIX + "/" + txnId;
     }
 
-    /** @return {@code /txn-segment-events/<segment>} — parent path for {@code segment}'s event stream. */
+    /**
+     * @return URL-encoded form of {@code segment} suitable for use as a metadata-store path
+     *     component, partition key, or single-field index key. Encoding is required because segment
+     *     topic names contain {@code ://} and {@code /} ({@code segment://tenant/ns/topic/...}) —
+     *     ZooKeeper rejects those in paths, and using them raw also makes composite keys (see
+     *     {@link #ackIndexKey}) ambiguous. Mirrors the convention used elsewhere in the transaction
+     *     code (e.g. {@code MLPendingAckStore}, {@code TopicTransactionBuffer}).
+     */
+    public static String segmentKey(String segment) {
+        return Codec.encode(segment);
+    }
+
+    /** @return {@code /txn-segment-events/<encoded-segment>} — parent path for {@code segment}'s event stream. */
     public static String segmentEventsParent(String segment) {
-        return TXN_SEGMENT_EVENTS_PREFIX + "/" + segment;
+        return TXN_SEGMENT_EVENTS_PREFIX + "/" + segmentKey(segment);
     }
 
-    /** @return {@code /txn-subscription-events/&lt;segment&gt;:&lt;sub&gt;} — parent for (segment, sub) events. */
+    /**
+     * @return {@code /txn-subscription-events/<encoded-segment>:<encoded-sub>} — parent for
+     *     (segment, sub) events. Both components are URL-encoded so the {@code :} separator is
+     *     unambiguous (segment names contain {@code :} in their URI scheme).
+     */
     public static String subscriptionEventsParent(String segment, String subscription) {
-        return TXN_SUBSCRIPTION_EVENTS_PREFIX + "/" + segment + ":" + subscription;
+        return TXN_SUBSCRIPTION_EVENTS_PREFIX + "/" + ackIndexKey(segment, subscription);
     }
 
-    /** @return the composite ack-index key {@code segment:sub}. */
+    /**
+     * @return the composite ack-index key {@code <encoded-segment>:<encoded-sub>}. Used as both
+     *     the secondary-index value and the partition key for ack notifications. Components are
+     *     URL-encoded so the separator stays unambiguous.
+     */
     public static String ackIndexKey(String segment, String subscription) {
-        return segment + ":" + subscription;
+        return segmentKey(segment) + ":" + Codec.encode(subscription);
     }
 
     /** @return {@code value} formatted as a zero-padded fixed-width decimal for use as a range-scan index key. */

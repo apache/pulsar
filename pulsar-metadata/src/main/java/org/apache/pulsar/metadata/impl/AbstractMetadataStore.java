@@ -774,6 +774,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
      * @return {@code true} when {@code childName} is a synthesized sequence-counter sidecar — i.e.
      *     bookkeeping written by {@link #atomicIncrementSequenceCounter}, not a user record. Scan
      *     primitives use this to filter counters out of their output on non-native backends.
+     *
+     * <p>The match is a literal-suffix check. A user record whose final path segment happens to
+     *     end with {@value #SEQUENCE_COUNTER_SUFFIX} would also be filtered. We accept that as
+     *     acceptable: callers don't get to pick paths ending in the {@code __seq_counter__} marker
+     *     accidentally (the suffix is 16 characters of internal-only marker), and a strict check
+     *     would require either tracking active prefixes or reserving a delimiter that the path
+     *     backends forbid. The cost of a false positive is silently dropping that record from
+     *     {@code scanChildren}/{@code scanByIndex}; no data loss.
      */
     static boolean isSequenceCounterChild(String childName) {
         return childName != null && childName.endsWith(SEQUENCE_COUNTER_SUFFIX);

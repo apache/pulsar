@@ -117,7 +117,8 @@ public class TxnMetadataStore {
      */
     public CompletableFuture<Stat> appendOp(String txnId, TxnOp op) {
         Option.SecondaryIndex idx = switch (op.getKind()) {
-            case WRITE -> new Option.SecondaryIndex(TxnPaths.IDX_WRITES_BY_SEGMENT, op.getSegment());
+            case WRITE -> new Option.SecondaryIndex(TxnPaths.IDX_WRITES_BY_SEGMENT,
+                    TxnPaths.segmentKey(op.getSegment()));
             case ACK -> new Option.SecondaryIndex(TxnPaths.IDX_ACKS_BY_SEGMENT_SUBSCRIPTION,
                     TxnPaths.ackIndexKey(op.getSegment(), op.getSubscription()));
         };
@@ -129,8 +130,9 @@ public class TxnMetadataStore {
 
     /** Stream all write ops targeting {@code segment}. */
     public CompletableFuture<Void> listWritesBySegment(String segment, ScanConsumer consumer) {
+        String key = TxnPaths.segmentKey(segment);
         return store.scanByIndex(TxnPaths.TXN_OP_PREFIX, TxnPaths.IDX_WRITES_BY_SEGMENT,
-                segment, segment,
+                key, key,
                 gr -> {
                     TxnOp op = fromJson(gr.getValue(), TxnOp.class);
                     return op.getKind() == TxnOpKind.WRITE && segment.equals(op.getSegment());
@@ -207,7 +209,7 @@ public class TxnMetadataStore {
 
     /** Append a per-segment notification event. */
     public CompletableFuture<Stat> publishSegmentEvent(String segment, TxnEvent event) {
-        Set<Option> opts = Set.of(new Option.PartitionKey(segment), APPEND_DELTAS);
+        Set<Option> opts = Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment)), APPEND_DELTAS);
         return store.put(TxnPaths.segmentEventsParent(segment), toJson(event), Optional.empty(), opts);
     }
 
@@ -228,7 +230,7 @@ public class TxnMetadataStore {
     public AutoCloseable subscribeSegmentEvents(String segment, Consumer<String> listener)
             throws MetadataStoreException {
         return store.subscribeSequence(TxnPaths.segmentEventsParent(segment), listener,
-                Set.of(new Option.PartitionKey(segment)));
+                Set.of(new Option.PartitionKey(TxnPaths.segmentKey(segment))));
     }
 
     /** Subscribe to new {@link TxnEvent} entries for {@code (segment, subscription)}. */

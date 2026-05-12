@@ -94,16 +94,20 @@ public class TxnMetadataStoreTest {
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
         String txnId = "tx-w";
-        TxnOp w1 = new TxnOp(TxnOpKind.WRITE, "segment://A", null, 1L, 1L);
-        TxnOp w2 = new TxnOp(TxnOpKind.WRITE, "segment://A", null, 1L, 2L);
-        TxnOp wOther = new TxnOp(TxnOpKind.WRITE, "segment://B", null, 2L, 1L);
+        // Use realistic segment URIs with the segment:// scheme so we exercise URL encoding of
+        // path components — segment names contain "://" and "/" which would otherwise break ZK.
+        String segA = "segment://public/default/topic/0000-7fff-0";
+        String segB = "segment://public/default/topic/8000-ffff-0";
+        TxnOp w1 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 1L);
+        TxnOp w2 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 2L);
+        TxnOp wOther = new TxnOp(TxnOpKind.WRITE, segB, null, 2L, 1L);
         Stat s1 = txn.appendOp(txnId, w1).get();
         Stat s2 = txn.appendOp(txnId, w2).get();
         txn.appendOp(txnId, wOther).get();
         assertThat(s2.getPath()).isGreaterThan(s1.getPath());
 
         List<TxnOp> hits = new ArrayList<>();
-        txn.listWritesBySegment("segment://A", collectOps(hits)).get();
+        txn.listWritesBySegment(segA, collectOps(hits)).get();
         assertThat(hits).containsExactlyInAnyOrder(w1, w2);
     }
 
@@ -113,15 +117,16 @@ public class TxnMetadataStoreTest {
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
         String txnId = "tx-a";
-        TxnOp a1 = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-x", 1L, 5L);
-        TxnOp a2 = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-x", 1L, 6L);
-        TxnOp aOther = new TxnOp(TxnOpKind.ACK, "segment://A", "sub-y", 1L, 7L);
+        String segA = "segment://public/default/topic/0000-7fff-0";
+        TxnOp a1 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 5L);
+        TxnOp a2 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 6L);
+        TxnOp aOther = new TxnOp(TxnOpKind.ACK, segA, "sub/y", 1L, 7L);
         txn.appendOp(txnId, a1).get();
         txn.appendOp(txnId, a2).get();
         txn.appendOp(txnId, aOther).get();
 
         List<TxnOp> hits = new ArrayList<>();
-        txn.listAcksBySegmentSubscription("segment://A", "sub-x", collectOps(hits)).get();
+        txn.listAcksBySegmentSubscription(segA, "sub/x", collectOps(hits)).get();
         assertThat(hits).containsExactlyInAnyOrder(a1, a2);
     }
 
@@ -174,7 +179,7 @@ public class TxnMetadataStoreTest {
         @Cleanup MetadataStore store = newMemoryStore();
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
-        String segment = "segment://A";
+        String segment = "segment://public/default/topic/0000-7fff-0";
         ConcurrentLinkedQueue<String> received = new ConcurrentLinkedQueue<>();
         @Cleanup AutoCloseable handle = txn.subscribeSegmentEvents(segment, received::add);
 
@@ -202,8 +207,8 @@ public class TxnMetadataStoreTest {
         @Cleanup MetadataStore store = newMemoryStore();
         TxnMetadataStore txn = new TxnMetadataStore(store);
 
-        String segment = "segment://A";
-        String sub = "sub-x";
+        String segment = "segment://public/default/topic/0000-7fff-0";
+        String sub = "sub/x";
         ConcurrentLinkedQueue<String> received = new ConcurrentLinkedQueue<>();
         @Cleanup AutoCloseable handle = txn.subscribeSubscriptionEvents(segment, sub, received::add);
 
