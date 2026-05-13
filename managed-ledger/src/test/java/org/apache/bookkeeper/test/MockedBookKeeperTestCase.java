@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -85,8 +86,7 @@ public abstract class MockedBookKeeperTestCase {
         initManagedLedgerFactoryConfig(managedLedgerFactoryConfig);
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         initManagedLedgerConfig(managedLedgerConfig);
-        factory =
-                new ManagedLedgerFactoryImpl(metadataStore, bkc, managedLedgerFactoryConfig, managedLedgerConfig);
+        factory = initManagedLedgerFactory(metadataStore, bkc, managedLedgerFactoryConfig, managedLedgerConfig);
 
         setUpTestCase();
     }
@@ -99,6 +99,14 @@ public abstract class MockedBookKeeperTestCase {
     protected void initManagedLedgerFactoryConfig(ManagedLedgerFactoryConfig config) {
         // increase default cache eviction interval so that caching could be tested with less flakyness
         config.setCacheEvictionIntervalMs(200);
+    }
+
+    protected ManagedLedgerFactoryImpl initManagedLedgerFactory(MetadataStoreExtended metadataStore,
+                                                                BookKeeper bookKeeper,
+                                                                ManagedLedgerFactoryConfig managedLedgerFactoryConfig,
+                                                                ManagedLedgerConfig managedLedgerConfig)
+            throws Exception {
+        return new ManagedLedgerFactoryImpl(metadataStore, bookKeeper, managedLedgerFactoryConfig, managedLedgerConfig);
     }
 
     protected void setUpTestCase() throws Exception {
