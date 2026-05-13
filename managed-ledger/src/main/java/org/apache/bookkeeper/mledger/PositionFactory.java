@@ -48,6 +48,7 @@ public final class PositionFactory {
         return new ImmutablePositionImpl(ledgerId, entryId);
     }
 
+
     /**
      * Create a new position or returns the other instance if it's immutable.
      *

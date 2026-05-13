@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -32,6 +33,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.commons.collections4.CollectionUtils;
 
 @CustomLog
 class OpReadEntry implements ReadEntriesCallback {
@@ -79,8 +81,8 @@ class OpReadEntry implements ReadEntriesCallback {
         return op;
     }
 
-    private void internalReadEntriesComplete(List<Entry> returnedEntries) {
-        if (returnedEntries.isEmpty()) {
+    void internalReadEntriesComplete(List<Entry> returnedEntries, Position lastReadPosition) {
+        if (returnedEntries.isEmpty() && lastReadPosition == null) {
             log.warn().attr("op", this).log("Read no entries unexpectedly");
             checkReadCompletion();
             return;
@@ -102,13 +104,13 @@ class OpReadEntry implements ReadEntriesCallback {
                 .log("Read entries succeeded");
 
         // Entries might be released after `filterReadEntries`, so retrieve the last position before that
-        final var lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
+        final var lastPosition = lastReadPosition != null ? lastReadPosition
+                : returnedEntries.get(entriesCount - 1).getPosition();
         final var filteredEntries = cursor.filterReadEntries(returnedEntries);
         entries.addAll(filteredEntries);
 
         // if entries have been filtered out then try to skip reading of already deletedMessages in that range
-        final Position nexReadPosition = entriesCount != filteredEntries.size()
-                ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
+        final Position nexReadPosition = cursor.getNextAvailablePosition(lastPosition);
         updateReadPosition(nexReadPosition);
         checkReadCompletion();
     }
@@ -116,7 +118,7 @@ class OpReadEntry implements ReadEntriesCallback {
     @Override
     public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
         try {
-            internalReadEntriesComplete(returnedEntries);
+            internalReadEntriesComplete(returnedEntries, null);
         } catch (Throwable throwable) {
             log.error().attr("op", this).exception(throwable)
                     .log("Fallback to readEntriesFailed for exception in readEntriesComplete");
@@ -127,16 +129,18 @@ class OpReadEntry implements ReadEntriesCallback {
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
         try {
-            internalReadEntriesFailed(exception, ctx);
+            internalReadEntriesFailed(null, exception, ctx);
         } catch (Throwable throwable) {
             // At least we should complete the callback
             fail(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
         }
     }
 
-    private void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
+    void internalReadEntriesFailed(Collection<Entry> ret, ManagedLedgerException exception, Object ctx) {
         cursor.readOperationCompleted();
-
+        if (CollectionUtils.isNotEmpty(ret)) {
+            entries.addAll(ret);
+        }
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
             complete(ctx);

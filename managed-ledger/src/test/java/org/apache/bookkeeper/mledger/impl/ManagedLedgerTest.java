@@ -5321,4 +5321,398 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), expectedProperties);
     }
+
+
+    @Test
+    public void testBatchReadEntriesCallback() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchReadEntriesCallback");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 10, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, ledger.lastConfirmedEntry, position -> position.getEntryId() % 2 == 0, true);
+
+        List<Long> entryIds = List.of(1L, 3L, 5L, 7L, 9L);
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(entryIds, opReadEntry, null);
+        long ledgerId = ledger.currentLedger.getId();
+
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1,  new byte[1])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3,  new byte[3])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 7,  new byte[7])), null);
+        callback.readEntriesFailed(
+                new ManagedLedgerException.InvalidCursorPositionException("Invalid cursor position"), null);
+        // After call readEntriesFailed, the following readEntriesComplete should be ignored.
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 5,  new byte[5])), null);
+
+        latch.await();
+        // should not fail
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 2);
+
+        // `entries` should be only the entries with entryId 1 and 3.
+        assertEquals(entries.get(0).getEntryId(), 1);
+        assertEquals(entries.get(1).getEntryId(), 3);
+
+        // ReadPosition should be updated to [4]
+        assertEquals(cursor.getReadPosition().getEntryId(), 4);
+    }
+
+    @Test
+    public void testSyncFailureOnFirstRangeStopsSubmittingLaterRanges() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testSyncFailureOnFirstRangeStopsSubmittingLaterRanges");
+        ledger = Mockito.spy(ledger);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger submitCount = new AtomicInteger();
+        AtomicReference<ManagedLedgerException> callbackFailure = new AtomicReference<>();
+        Mockito.doAnswer(inv -> {
+            int invocationCount = submitCount.incrementAndGet();
+            if (invocationCount == 1) {
+                ReadEntriesCallback callback = inv.getArgument(4);
+                Object ctx = inv.getArgument(5);
+                callback.readEntriesFailed(
+                        new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), ctx);
+                return null;
+            }
+            fail("should not submit later ranges after the first range fails synchronously");
+            return null;
+        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                Mockito.anyLong(), Mockito.any(ManagedCursorImpl.class), Mockito.any(ReadEntriesCallback.class),
+                Mockito.any());
+
+        cursor.asyncReadEntriesWithSkip(10, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                callbackFailure.set(exception);
+                latch.countDown();
+            }
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(submitCount.get(), 1);
+        assertTrue(callbackFailure.get() instanceof ManagedLedgerException.TooManyRequestsException);
+    }
+
+    @Test
+    public void testReadEntriesFromDifferentLedgersWithSkipCondition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(5);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipCondition", config);
+        ledger = Mockito.spy(ledger);
+
+        AtomicInteger counter = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            counter.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntries(Mockito.any());
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+
+        Position lastPosition = null;
+        for (int i = 0; i < 12; i++) {
+            lastPosition = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        cursor.asyncReadEntriesWithSkip(100, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        latch.await();
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 5);
+        // Read entries from 3 ledgers, the counter is 3.
+        assertEquals(counter.get(), 3);
+        Position readPosition = cursor.getReadPosition();
+        assertTrue(readPosition.getLedgerId() == lastPosition.getLedgerId()
+                && readPosition.getEntryId() == lastPosition.getEntryId() + 1);
+    }
+
+    @Test
+    public void testReadEntriesFromOneSameLedgerWithSkipCondition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipCondition", config);
+        ledger = Mockito.spy(ledger);
+
+        AtomicInteger counter = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            counter.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntries(Mockito.any());
+
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+
+        Position lastPosition = null;
+        for (int i = 0; i < 10; i++) {
+            lastPosition = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        cursor.asyncReadEntriesWithSkip(100, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        latch.await();
+        assertEquals(counter.get(), 1);
+
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 5);
+
+        Position readPosition = cursor.getReadPosition();
+        assertTrue(readPosition.getLedgerId() == lastPosition.getLedgerId()
+                && readPosition.getEntryId() == lastPosition.getEntryId() + 1);
+    }
+
+    // ===== Unit tests for buildRanges =====
+
+    private static List<Pair<Long, Long>> callBuildRanges(long firstEntry, long lastEntry, long ledgerId,
+                                                           Predicate<Position> skipCondition,
+                                                           List<Long> entryIds) {
+        return ManagedLedgerImpl.buildRanges(firstEntry, lastEntry, ledgerId, skipCondition, entryIds);
+    }
+
+    @Test
+    public void testBuildRangesNoSkip() {
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(0, 4, 1, pos -> false, entryIds);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0).getLeft().longValue(), 0L);
+        assertEquals(ranges.get(0).getRight().longValue(), 4L);
+        assertEquals(entryIds, Arrays.asList(0L, 1L, 2L, 3L, 4L));
+    }
+
+    @Test
+    public void testBuildRangesAllSkipped() {
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(0, 4, 1, pos -> true, entryIds);
+
+        assertTrue(ranges.isEmpty());
+        assertTrue(entryIds.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesSingleEntryNotSkipped() {
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(5, 5, 1, pos -> false, entryIds);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0).getLeft().longValue(), 5L);
+        assertEquals(ranges.get(0).getRight().longValue(), 5L);
+        assertEquals(entryIds, Collections.singletonList(5L));
+    }
+
+    @Test
+    public void testBuildRangesSingleEntrySkipped() {
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(5, 5, 1, pos -> true, entryIds);
+
+        assertTrue(ranges.isEmpty());
+        assertTrue(entryIds.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesSkipFirst() {
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(0, 4, 1,
+                pos -> pos.getEntryId() == 0, entryIds);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0).getLeft().longValue(), 1L);
+        assertEquals(ranges.get(0).getRight().longValue(), 4L);
+        assertEquals(entryIds, Arrays.asList(1L, 2L, 3L, 4L));
+    }
+
+    @Test
+    public void testBuildRangesSkipLast() {
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(0, 4, 1,
+                pos -> pos.getEntryId() == 4, entryIds);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0).getLeft().longValue(), 0L);
+        assertEquals(ranges.get(0).getRight().longValue(), 3L);
+        assertEquals(entryIds, Arrays.asList(0L, 1L, 2L, 3L));
+    }
+
+    @Test
+    public void testBuildRangesMultipleDisjointRanges() {
+        // Skip entry 2 and 5: ranges should be [0,1], [3,4], [6,6]
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(0, 6, 1,
+                pos -> pos.getEntryId() == 2 || pos.getEntryId() == 5, entryIds);
+
+        assertEquals(ranges.size(), 3);
+        assertEquals(ranges.get(0).getLeft().longValue(), 0L);
+        assertEquals(ranges.get(0).getRight().longValue(), 1L);
+        assertEquals(ranges.get(1).getLeft().longValue(), 3L);
+        assertEquals(ranges.get(1).getRight().longValue(), 4L);
+        assertEquals(ranges.get(2).getLeft().longValue(), 6L);
+        assertEquals(ranges.get(2).getRight().longValue(), 6L);
+        assertEquals(entryIds, Arrays.asList(0L, 1L, 3L, 4L, 6L));
+    }
+
+    @Test
+    public void testBuildRangesConsecutiveSkipsInMiddle() {
+        // Skip entries 2,3,4: ranges should be [0,1], [5,6]
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(0, 6, 1,
+                pos -> pos.getEntryId() >= 2 && pos.getEntryId() <= 4, entryIds);
+
+        assertEquals(ranges.size(), 2);
+        assertEquals(ranges.get(0).getLeft().longValue(), 0L);
+        assertEquals(ranges.get(0).getRight().longValue(), 1L);
+        assertEquals(ranges.get(1).getLeft().longValue(), 5L);
+        assertEquals(ranges.get(1).getRight().longValue(), 6L);
+        assertEquals(entryIds, Arrays.asList(0L, 1L, 5L, 6L));
+    }
+
+    @Test
+    public void testBuildRangesSkipEvenEntries() {
+        // Skip even entries: each range is a single entry [1,1], [3,3], [5,5]
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(0, 5, 1,
+                pos -> pos.getEntryId() % 2 == 0, entryIds);
+
+        assertEquals(ranges.size(), 3);
+        assertEquals(ranges.get(0), Pair.of(1L, 1L));
+        assertEquals(ranges.get(1), Pair.of(3L, 3L));
+        assertEquals(ranges.get(2), Pair.of(5L, 5L));
+        assertEquals(entryIds, Arrays.asList(1L, 3L, 5L));
+    }
+
+    @Test
+    public void testBuildRangesPredicateUsesLedgerId() {
+        // Skip entries in ledger 1, but predicate checks ledgerId
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(0, 2, 1,
+                pos -> pos.getLedgerId() == 1, entryIds);
+
+        assertTrue(ranges.isEmpty());
+        assertTrue(entryIds.isEmpty());
+
+        // Now with a different ledgerId, nothing should be skipped
+        entryIds = new ArrayList<>();
+        ranges = callBuildRanges(0, 2, 2,
+                pos -> pos.getLedgerId() == 1, entryIds);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), Pair.of(0L, 2L));
+        assertEquals(entryIds, Arrays.asList(0L, 1L, 2L));
+    }
+
+    @Test
+    public void testBuildRangesLargeEntryIds() {
+        List<Long> entryIds = new ArrayList<>();
+        // Use values large enough to test long range but not so large as to overflow
+        // the ArrayList capacity calculation in the caller
+        long first = 999_999_999_999L;
+        long last = 999_999_999_999L + 2;
+        List<Pair<Long, Long>> ranges = callBuildRanges(first, last, 1, pos -> false, entryIds);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0).getLeft().longValue(), first);
+        assertEquals(ranges.get(0).getRight().longValue(), last);
+        assertEquals(entryIds.size(), 3);
+        assertEquals(entryIds.get(0).longValue(), first);
+        assertEquals(entryIds.get(2).longValue(), last);
+    }
+
+    @Test
+    public void testBuildRangesOnlyMiddleKept() {
+        // Only keep entry 3, skip everything else
+        List<Long> entryIds = new ArrayList<>();
+        List<Pair<Long, Long>> ranges = callBuildRanges(0, 6, 1,
+                pos -> pos.getEntryId() != 3, entryIds);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), Pair.of(3L, 3L));
+        assertEquals(entryIds, Collections.singletonList(3L));
+    }
+
+    @Test
+    public void testBuildRangesEmptyEntriesIdsList() {
+        // Verify entryIds list starts empty and is populated correctly
+        List<Long> entryIds = new ArrayList<>();
+        callBuildRanges(10, 12, 5, pos -> pos.getEntryId() == 11, entryIds);
+
+        assertEquals(entryIds, Arrays.asList(10L, 12L));
+    }
+
+    @Test
+    public void testBuildRangesPositionFieldsCorrect() {
+        // Verify that the predicate receives correct ledgerId and entryId
+        List<Long> seenLedgerIds = new ArrayList<>();
+        List<Long> seenEntryIds = new ArrayList<>();
+        List<Long> entryIds = new ArrayList<>();
+
+        callBuildRanges(3, 5, 99, pos -> {
+            seenLedgerIds.add(pos.getLedgerId());
+            seenEntryIds.add(pos.getEntryId());
+            return false;
+        }, entryIds);
+
+        assertEquals(seenLedgerIds, Arrays.asList(99L, 99L, 99L));
+        assertEquals(seenEntryIds, Arrays.asList(3L, 4L, 5L));
+    }
 }
