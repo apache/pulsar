@@ -29,6 +29,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -345,7 +346,7 @@ public class OffloadPoliciesTest {
 
         Assert.assertNotNull(offloadPolicies);
         assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
-                Map.of("tieredStorageBucketPrefix", bucketPrefix));
+                Collections.singletonMap("tieredStorageBucketPrefix", bucketPrefix));
     }
 
     @Test
@@ -362,7 +363,7 @@ public class OffloadPoliciesTest {
 
         Assert.assertNotNull(offloadPolicies);
         assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
-                Map.of("tieredStorageBucketPrefix", "topic-prefix"));
+                Collections.singletonMap("tieredStorageBucketPrefix", "topic-prefix"));
     }
 
     @Test
@@ -379,7 +380,7 @@ public class OffloadPoliciesTest {
 
         Assert.assertNotNull(offloadPolicies);
         assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
-                Map.of("tieredStorageBucketPrefix", ""));
+                Collections.singletonMap("tieredStorageBucketPrefix", ""));
     }
 
 
