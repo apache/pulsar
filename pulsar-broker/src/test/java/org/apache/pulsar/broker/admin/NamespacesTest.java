@@ -197,7 +197,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             cleanupNamespaceByPredicate(this.testTenant, v -> !existsNsSetAferSetup.contains(v));
             cleanupNamespaceByPredicate(this.testOtherTenant, v -> !existsNsSetAferSetup.contains(v));
         } catch (Exception e) {
-            log.warn().exception(e).log("Failed to clean up namespaces after test method");
+            log.warn("Failed to clean up namespaces after test method", e);
         }
     }
 
