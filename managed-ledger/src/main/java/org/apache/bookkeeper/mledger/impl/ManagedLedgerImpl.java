@@ -1750,13 +1750,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         try {
                             State state = STATE_UPDATER.get(ManagedLedgerImpl.this);
                             if (state == State.Closed || state.isFenced()) {
-                                log.debug()
-                                        .attr("name", name)
-                                        .log("skip ledger update after create complete ledger is closed or fenced");
+                                log.debug().log("skip ledger update after create complete ledger is closed or fenced");
                                 lh.closeAsync().exceptionally(e -> {
                                     if (e != null) {
                                         log.error()
-                                            .attr("ledgerName", name)
                                             .attr("ledgerId", lh.getId())
                                             .attr("error", e.getMessage())
                                             .log("Failed to close ledger");
@@ -2077,8 +2074,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     synchronized void clearPendingAddEntries(ManagedLedgerException e) {
-        while (!pendingAddEntries.isEmpty()) {
-            OpAddEntry op = pendingAddEntries.poll();
+        OpAddEntry op;
+        while ((op = pendingAddEntries.poll()) != null) {
             op.failed(e);
         }
     }
@@ -4441,18 +4438,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @VisibleForTesting
     public synchronized void setFenced() {
-        log.info().attr("ledgerName", name).log("Moving to Fenced state");
-        if (STATE_UPDATER.get(this) != State.Fenced) {
-            STATE_UPDATER.set(this, State.Fenced);
+        log.info().log("Moving to Fenced state");
+        State prev = STATE_UPDATER.getAndSet(this, State.Fenced);
+        if (prev != State.Fenced) {
             clearPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger "
                 + name + " is fenced"));
         }
     }
 
     synchronized void setFencedForDeletion() {
-        log.info().attr("ledgerName", name).log("Moving to FencedForDeletion state");
-        if (STATE_UPDATER.get(this) != State.FencedForDeletion) {
-            STATE_UPDATER.set(this, State.FencedForDeletion);
+        log.info().log("Moving to FencedForDeletion state");
+        State prev = STATE_UPDATER.getAndSet(this, State.FencedForDeletion);
+        if (prev != State.FencedForDeletion) {
             clearPendingAddEntries(new ManagedLedgerFencedException("ManagedLedger "
                 + name + " is fenced"));
         }
