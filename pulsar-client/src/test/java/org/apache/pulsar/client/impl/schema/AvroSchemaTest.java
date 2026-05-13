@@ -570,4 +570,44 @@ public class AvroSchemaTest {
         LocalDateTimePojo pojo = avroSchema.decode(bytes);
         assertEquals(pojo.getValue().truncatedTo(ChronoUnit.MILLIS), now.truncatedTo(ChronoUnit.MILLIS));
     }
+
+    public static class UuidLogicalTypeDto {
+        public UUID id;
+        public String name;
+
+        public UuidLogicalTypeDto() {
+        }
+
+        public UuidLogicalTypeDto(UUID id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    @Test
+    public void testDecodeUuidLogicalTypeWithClass() {
+        UUID id = UUID.randomUUID();
+        String name = "name";
+        AvroSchema<UuidLogicalTypeDto> schema = AvroSchema.of(UuidLogicalTypeDto.class);
+        byte[] encoded = schema.encode(new UuidLogicalTypeDto(id, name));
+
+        UuidLogicalTypeDto decoded = schema.decode(encoded);
+        assertEquals(decoded.id, id);
+        assertEquals(decoded.name, name);
+    }
+
+    @Test
+    public void testDecodeUuidLogicalTypeWithJsonDef() {
+        UUID id = UUID.randomUUID();
+        String name = "name";
+        AvroSchema<UuidLogicalTypeDto> schemaFromClass = AvroSchema.of(UuidLogicalTypeDto.class);
+        byte[] encoded = schemaFromClass.encode(new UuidLogicalTypeDto(id, name));
+        String jsonDef = schemaFromClass.getSchemaInfo().getSchemaDefinition();
+
+        AvroSchema<UuidLogicalTypeDto> schemaFromJsonDef = AvroSchema.of(
+                SchemaDefinition.<UuidLogicalTypeDto>builder().withJsonDef(jsonDef).build());
+        UuidLogicalTypeDto decoded = schemaFromJsonDef.decode(encoded);
+        assertEquals(decoded.id, id);
+        assertEquals(decoded.name, name);
+    }
 }
