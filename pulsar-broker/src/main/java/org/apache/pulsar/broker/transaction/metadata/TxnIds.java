@@ -24,28 +24,32 @@ import org.apache.pulsar.client.api.transaction.TxnID;
  * Round-trip between {@link TxnID} and the string form used in metadata-store paths and
  * partition keys (e.g. {@code /txn/<txnId>}, {@code partitionKey = txnId}).
  *
- * <p>Format: {@code <mostSigBits>-<leastSigBits>}. Path-friendly (no parens/commas) and round-trips
- * losslessly. {@link TxnID#toString} uses {@code (most,least)} which leaks shell-unfriendly
- * characters into paths; this helper is the single point that controls the on-the-wire encoding.
+ * <p>Format: {@code <mostSigBits>_<leastSigBits>}. Path-friendly (no parens/commas) and round-trips
+ * losslessly for any pair of {@code long} values — including negatives — because {@code _} cannot
+ * appear inside a decimal long literal (Java's {@link Long#parseLong} rejects it). {@link TxnID#toString}
+ * uses {@code (most,least)} which leaks shell-unfriendly characters into paths; this helper is the
+ * single point that controls the on-the-wire encoding.
  */
 public final class TxnIds {
 
-    /** @return {@code <most>-<least>}, suitable for use as a metadata-store path segment. */
+    private static final char SEP = '_';
+
+    /** @return {@code <most>_<least>}, suitable for use as a metadata-store path segment. */
     public static String toKey(TxnID txnId) {
-        return txnId.getMostSigBits() + "-" + txnId.getLeastSigBits();
+        return txnId.getMostSigBits() + String.valueOf(SEP) + txnId.getLeastSigBits();
     }
 
     /**
      * @return the {@link TxnID} parsed from {@code key}.
-     * @throws IllegalArgumentException if {@code key} is not in the expected {@code <most>-<least>} form
+     * @throws IllegalArgumentException if {@code key} is not in the expected {@code <most>_<least>} form
      */
     public static TxnID fromKey(String key) {
-        int dash = key.indexOf('-');
-        if (dash <= 0 || dash == key.length() - 1) {
+        int sep = key.indexOf(SEP);
+        if (sep <= 0 || sep == key.length() - 1 || key.indexOf(SEP, sep + 1) >= 0) {
             throw new IllegalArgumentException("Invalid txnId key: " + key);
         }
-        long most = Long.parseLong(key, 0, dash, 10);
-        long least = Long.parseLong(key, dash + 1, key.length(), 10);
+        long most = Long.parseLong(key, 0, sep, 10);
+        long least = Long.parseLong(key, sep + 1, key.length(), 10);
         return new TxnID(most, least);
     }
 

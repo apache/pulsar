@@ -73,6 +73,20 @@ import org.apache.pulsar.metadata.api.ScanConsumer;
  *       {@code txnId}, fetch each header, and seed the in-memory cache. Then subscribe to the
  *       event stream for forward updates.</li>
  * </ul>
+ *
+ * <p><b>TC ordering contract.</b> There is a TOCTOU window between the header authorization read
+ * in {@link #appendBufferToTxn} and the managed-ledger append: the TC may flip the header (commit
+ * or abort) in between, and the entry still lands. On commit that's harmless — the message is
+ * visible. On abort, the subsequent segment-event delivery marks the txn ABORTED in the cache and
+ * {@link #isTxnAborted} filters it. This relies on the TC publishing the segment event <em>after</em>
+ * the header CAS lands so a participant that lost the race always learns the decision. The legacy
+ * {@code TopicTransactionBuffer} has the same window with marker-message ordering.
+ *
+ * <p><b>In-memory growth.</b> Terminal txns stay in the {@code txns} cache for the segment's
+ * lifetime so {@code isTxnAborted} can answer authoritatively for dispatcher reads — evicting a
+ * COMMITTED entry would mean the default "unknown → aborted" filter wrongly hides its messages.
+ * Long-running segments with high txn turnover will accumulate cached entries. Cache pruning tied
+ * to data-ledger trimming / header GC is a P5/P6 concern.
  */
 @CustomLog
 public class MetadataTransactionBuffer implements TransactionBuffer {
@@ -156,6 +170,10 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         .whenComplete((__, err) -> {
             if (err != null) {
                 log.error().attr("segment", segmentName).exception(err).log("TB recovery failed");
+                // Close the subscription we opened above so the listener doesn't outlive a
+                // failed-to-recover TB instance (closeAsync may never be called if recovery never
+                // succeeded).
+                closeSubscriptionQuietly();
                 recoveryFuture.completeExceptionally(err);
                 return;
             }
@@ -163,6 +181,10 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 recomputeMaxReadPositionLocked();
             }
             recoveryFuture.complete(null);
+            // Drain any events that fired between subscribe and now — triggerReconcile short-
+            // circuits while recoveryFuture is not done, so we explicitly kick a reconcile pass
+            // now to pick up state transitions whose only notification landed in that window.
+            triggerReconcile();
         });
     }
 
@@ -243,14 +265,16 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         return txnStore.appendOp(txnIdKey, op).thenApply(stat -> {
             synchronized (lock) {
                 TxnEntry entry = txns.get(txnIdKey);
-                if (entry == null) {
-                    // Concurrent reconcile may have evicted; re-add as OPEN since the put succeeded.
-                    entry = new TxnEntry(TxnState.OPEN, position);
-                    txns.put(txnIdKey, entry);
-                } else if (entry.firstPosition == null || position.compareTo(entry.firstPosition) < 0) {
-                    entry.firstPosition = position;
+                // Only an OPEN entry pins maxReadPosition. If a concurrent reconcile flipped this
+                // txn to terminal between the cache-first authorization read and this update, do
+                // NOT resurrect it as OPEN — the ML append still lands but isTxnAborted will mask
+                // it for aborted txns (see class javadoc on the publish-side TOCTOU window).
+                if (entry != null && entry.state == TxnState.OPEN) {
+                    if (entry.firstPosition == null || position.compareTo(entry.firstPosition) < 0) {
+                        entry.firstPosition = position;
+                        recomputeMaxReadPositionLocked();
+                    }
                 }
-                recomputeMaxReadPositionLocked();
             }
             return position;
         });
@@ -394,15 +418,21 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Void> closeAsync() {
         closed = true;
-        AutoCloseable handle = subscription;
-        if (handle != null) {
-            try {
-                handle.close();
-            } catch (Throwable t) {
-                log.warn().attr("segment", segmentName).exception(t).log("Failed to close subscription");
-            }
-        }
+        closeSubscriptionQuietly();
         return CompletableFuture.completedFuture(null);
+    }
+
+    private void closeSubscriptionQuietly() {
+        AutoCloseable handle = subscription;
+        if (handle == null) {
+            return;
+        }
+        subscription = null;
+        try {
+            handle.close();
+        } catch (Throwable t) {
+            log.warn().attr("segment", segmentName).exception(t).log("Failed to close subscription");
+        }
     }
 
     @Override
