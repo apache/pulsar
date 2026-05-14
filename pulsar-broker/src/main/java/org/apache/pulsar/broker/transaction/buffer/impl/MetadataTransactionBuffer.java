@@ -261,7 +261,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
 
     private CompletableFuture<Position> recordOp(TxnID txnId, String txnIdKey, Position position) {
         TxnOp op = new TxnOp(TxnOpKind.WRITE, segmentName, null,
-                position.getLedgerId(), position.getEntryId());
+                position.getLedgerId(), position.getEntryId(), null);
         return txnStore.appendOp(txnIdKey, op).thenApply(stat -> {
             synchronized (lock) {
                 TxnEntry entry = txns.get(txnIdKey);

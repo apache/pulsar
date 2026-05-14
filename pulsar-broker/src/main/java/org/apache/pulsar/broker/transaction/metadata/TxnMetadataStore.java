@@ -162,8 +162,29 @@ public class TxnMetadataStore {
      * {@link MetadataStore#deleteIfExists}.
      */
     public CompletableFuture<Void> deleteWriteOpsForSegmentAndTxn(String segment, String txnId) {
+        return scanAndDeleteOpsForTxn(txnId, collector -> listWritesBySegment(segment, collector));
+    }
+
+    /**
+     * Delete every {@code /txn-op} ack record for {@code (segment, subscription, txnId)} — used by
+     * the PendingAckStore once an event tells it the txn is terminal. Same path-extraction +
+     * best-effort semantics as {@link #deleteWriteOpsForSegmentAndTxn}.
+     */
+    public CompletableFuture<Void> deleteAckOpsForSegmentSubscriptionAndTxn(String segment, String subscription,
+                                                                            String txnId) {
+        return scanAndDeleteOpsForTxn(txnId,
+                collector -> listAcksBySegmentSubscription(segment, subscription, collector));
+    }
+
+    /**
+     * Shared implementation: invoke the supplied scan with a collector that captures only paths
+     * matching {@code txnId}, then delete each captured path with the txn-scoped partition key.
+     */
+    private CompletableFuture<Void> scanAndDeleteOpsForTxn(
+            String txnId,
+            java.util.function.Function<ScanConsumer, CompletableFuture<Void>> scan) {
         java.util.List<String> paths = new java.util.ArrayList<>();
-        return listWritesBySegment(segment, new ScanConsumer() {
+        ScanConsumer collector = new ScanConsumer() {
             @Override
             public void onNext(org.apache.pulsar.metadata.api.GetResult r) {
                 if (txnId.equals(TxnPaths.txnIdFromOpPath(r.getStat().getPath()))) {
@@ -178,7 +199,8 @@ public class TxnMetadataStore {
             @Override
             public void onCompleted() {
             }
-        }).thenCompose(__ -> {
+        };
+        return scan.apply(collector).thenCompose(__ -> {
             Set<Option> opts = Set.of(new Option.PartitionKey(txnId));
             CompletableFuture<?>[] deletes = new CompletableFuture<?>[paths.size()];
             for (int i = 0; i < paths.size(); i++) {

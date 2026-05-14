@@ -98,9 +98,9 @@ public class TxnMetadataStoreTest {
         // path components — segment names contain "://" and "/" which would otherwise break ZK.
         String segA = "segment://public/default/topic/0000-7fff-0";
         String segB = "segment://public/default/topic/8000-ffff-0";
-        TxnOp w1 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 1L);
-        TxnOp w2 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 2L);
-        TxnOp wOther = new TxnOp(TxnOpKind.WRITE, segB, null, 2L, 1L);
+        TxnOp w1 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 1L, null);
+        TxnOp w2 = new TxnOp(TxnOpKind.WRITE, segA, null, 1L, 2L, null);
+        TxnOp wOther = new TxnOp(TxnOpKind.WRITE, segB, null, 2L, 1L, null);
         Stat s1 = txn.appendOp(txnId, w1).get();
         Stat s2 = txn.appendOp(txnId, w2).get();
         txn.appendOp(txnId, wOther).get();
@@ -118,9 +118,9 @@ public class TxnMetadataStoreTest {
 
         String txnId = "tx-a";
         String segA = "segment://public/default/topic/0000-7fff-0";
-        TxnOp a1 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 5L);
-        TxnOp a2 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 6L);
-        TxnOp aOther = new TxnOp(TxnOpKind.ACK, segA, "sub/y", 1L, 7L);
+        TxnOp a1 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 5L, false);
+        TxnOp a2 = new TxnOp(TxnOpKind.ACK, segA, "sub/x", 1L, 6L, false);
+        TxnOp aOther = new TxnOp(TxnOpKind.ACK, segA, "sub/y", 1L, 7L, false);
         txn.appendOp(txnId, a1).get();
         txn.appendOp(txnId, a2).get();
         txn.appendOp(txnId, aOther).get();
