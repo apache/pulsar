@@ -528,22 +528,22 @@ The Apache Software License, Version 2.0
   * RoaringBitmap
     - org.roaringbitmap-RoaringBitmap-1.6.9.jar
   * OpenTelemetry
-    - io.opentelemetry-opentelemetry-api-1.61.0.jar
+    - io.opentelemetry-opentelemetry-api-1.62.0.jar
     - io.opentelemetry-opentelemetry-api-incubator-1.61.0-alpha.jar
-    - io.opentelemetry-opentelemetry-common-1.61.0.jar
-    - io.opentelemetry-opentelemetry-context-1.61.0.jar
-    - io.opentelemetry-opentelemetry-exporter-common-1.61.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-1.61.0.jar
-    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.61.0.jar
+    - io.opentelemetry-opentelemetry-common-1.62.0.jar
+    - io.opentelemetry-opentelemetry-context-1.62.0.jar
+    - io.opentelemetry-opentelemetry-exporter-common-1.62.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-1.62.0.jar
+    - io.opentelemetry-opentelemetry-exporter-otlp-common-1.62.0.jar
     - io.opentelemetry-opentelemetry-exporter-prometheus-1.61.0-alpha.jar
-    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.61.0.jar
-    - io.opentelemetry-opentelemetry-sdk-1.61.0.jar
-    - io.opentelemetry-opentelemetry-sdk-common-1.61.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.61.0.jar
-    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.61.0.jar
-    - io.opentelemetry-opentelemetry-sdk-logs-1.61.0.jar
-    - io.opentelemetry-opentelemetry-sdk-metrics-1.61.0.jar
-    - io.opentelemetry-opentelemetry-sdk-trace-1.61.0.jar
+    - io.opentelemetry-opentelemetry-exporter-sender-okhttp-1.62.0.jar
+    - io.opentelemetry-opentelemetry-sdk-1.62.0.jar
+    - io.opentelemetry-opentelemetry-sdk-common-1.62.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-1.62.0.jar
+    - io.opentelemetry-opentelemetry-sdk-extension-autoconfigure-spi-1.62.0.jar
+    - io.opentelemetry-opentelemetry-sdk-logs-1.62.0.jar
+    - io.opentelemetry-opentelemetry-sdk-metrics-1.62.0.jar
+    - io.opentelemetry-opentelemetry-sdk-trace-1.62.0.jar
     - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-2.27.0.jar
     - io.opentelemetry.instrumentation-opentelemetry-instrumentation-api-incubator-2.27.0-alpha.jar
     - io.opentelemetry.instrumentation-opentelemetry-resources-2.27.0-alpha.jar

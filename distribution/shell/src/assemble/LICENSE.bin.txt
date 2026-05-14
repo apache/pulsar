@@ -387,10 +387,10 @@ The Apache Software License, Version 2.0
     - log4j-slf4j2-impl-2.25.4.jar
     - log4j-web-2.25.4.jar
  * OpenTelemetry
-    - opentelemetry-api-1.61.0.jar
+    - opentelemetry-api-1.62.0.jar
     - opentelemetry-api-incubator-1.61.0-alpha.jar
-    - opentelemetry-common-1.61.0.jar
-    - opentelemetry-context-1.61.0.jar
+    - opentelemetry-common-1.62.0.jar
+    - opentelemetry-context-1.62.0.jar
   * Slog
     - slog-0.9.7.jar
 
