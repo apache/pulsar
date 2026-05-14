@@ -527,7 +527,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
             }), StandardCharsets.UTF_8)) {
                 statsProvider.writeAllMetrics(writer);
             } catch (IOException e) {
-                log.error().exception(e).log("Failed to write managed ledger bookie client metrics");
+                log.error().exception(e).log("Failed to write metrics");
             }
     }
 
