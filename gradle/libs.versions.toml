@@ -38,7 +38,7 @@ slog = "0.9.7"
 log4j2 = "2.25.4"
 lombok = "1.18.42"
 # OpenTelemetry
-opentelemetry = "1.61.0"
+opentelemetry = "1.62.0"
 opentelemetry-alpha = "1.61.0-alpha"
 opentelemetry-instrumentation = "2.27.0"
 opentelemetry-instrumentation-alpha = "2.27.0-alpha"
