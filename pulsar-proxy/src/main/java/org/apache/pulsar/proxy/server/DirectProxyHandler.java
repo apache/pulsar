@@ -193,6 +193,10 @@ public class DirectProxyHandler {
                 // Close the connection if the connection attempt has failed.
                 log.warn("[{}] Establishing connection to {} ({}) failed. Closing inbound channel.", inboundChannel,
                         targetBrokerAddress, brokerHostAndPort, future.cause());
+                Channel channel = f.channel();
+                if (channel != null) {
+                    channel.close();
+                }
                 inboundChannel.close();
             }
         });
