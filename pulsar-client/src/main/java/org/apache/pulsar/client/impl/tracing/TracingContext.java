@@ -27,10 +27,8 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import io.opentelemetry.context.propagation.TextMapSetter;
-import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -54,9 +52,9 @@ public class TracingContext {
         }
     };
 
-    private static final TextMapSetter<Map<String, String>> SETTER = (carrier, key, value) -> {
-        if (carrier != null) {
-            carrier.put(key, value);
+    private static final TextMapSetter<MessageMetadata> SETTER = (metadata, key, value) -> {
+        if (metadata != null) {
+            metadata.addProperty().setKey(key).setValue(value);
         }
     };
 
@@ -75,31 +73,9 @@ public class TracingContext {
     }
 
     /**
-     * Inject trace context into message properties.
-     *
-     * @param messageBuilder the message builder to inject context into
-     * @param context the context to inject
-     * @param propagator the text map propagator to use
-     */
-    public static <T> void injectContext(TypedMessageBuilder<T> messageBuilder, Context context,
-                                          TextMapPropagator propagator) {
-        if (messageBuilder == null || context == null || propagator == null) {
-            return;
-        }
-
-        Map<String, String> carrier = new HashMap<>();
-        propagator.inject(context, carrier, SETTER);
-
-        for (Map.Entry<String, String> entry : carrier.entrySet()) {
-            messageBuilder.property(entry.getKey(), entry.getValue());
-        }
-    }
-
-    /**
      * Inject trace context into a message's properties by directly writing
      * to the underlying {@link MessageMetadata}. This is used by the producer
-     * interceptor at {@code beforeSend} time, where the message has already
-     * been constructed and the {@link TypedMessageBuilder} is no longer available.
+     * interceptor at {@code beforeSend} time.
      *
      * @param message the message to inject context into
      * @param context the context to inject
@@ -113,13 +89,7 @@ public class TracingContext {
         if (metadata == null) {
             return;
         }
-        Map<String, String> carrier = new HashMap<>();
-        propagator.inject(context, carrier, SETTER);
-        for (Map.Entry<String, String> entry : carrier.entrySet()) {
-            metadata.addProperty()
-                    .setKey(entry.getKey())
-                    .setValue(entry.getValue());
-        }
+        propagator.inject(context, metadata, SETTER);
     }
 
     @Nullable
