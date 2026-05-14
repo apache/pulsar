@@ -100,7 +100,9 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             this.rootPath = new ConnectStringParser(zkConnectString).getChrootPath();
 
             isZkManaged = true;
-            StatsLogger statsLogger = metadataStoreConfig.getStatsProvider().getStatsLogger("ZKMetadataStore");
+            StatsLogger statsLogger = metadataStoreConfig.getStatsProvider()
+                    .getStatsLogger("ZkMetadataStore")
+                    .scopeLabel("storeName", metadataStoreConfig.getMetadataStoreName());
             zkc = PulsarZooKeeperClient.newBuilder().connectString(zkConnectString)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
