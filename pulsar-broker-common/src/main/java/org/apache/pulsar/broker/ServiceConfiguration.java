@@ -3738,10 +3738,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "Class name for transaction buffer provider"
+            doc = "Class name for transaction buffer provider. Default routes segment:// topics to the"
+                    + " legacy TopicTransactionBuffer. Set this to"
+                    + " org.apache.pulsar.broker.transaction.buffer.impl.DispatchingTransactionBufferProvider"
+                    + " once the v5 transaction coordinator (PIP-473 P5) is enabled to opt segment topics"
+                    + " into MetadataTransactionBuffer."
     )
     private String transactionBufferProviderClassName =
-            "org.apache.pulsar.broker.transaction.buffer.impl.DispatchingTransactionBufferProvider";
+            "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider";
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
