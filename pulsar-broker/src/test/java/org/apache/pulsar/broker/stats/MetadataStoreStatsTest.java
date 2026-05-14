@@ -120,26 +120,26 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
             String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsOutput + "\n";
 
             // Verify the "multi" opStats metric exists.
-            Assert.assertTrue(metricsMap.containsKey("ZKMetadataStore_zk_multi_count"),
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_multi_count"),
                     "Expected ZKMetadataStore_zk_multi_count metric to be present. " + metricsDebugMessage);
 
-            Assert.assertTrue(metricsMap.containsKey("ZKMetadataStore_zk_multi_sum"),
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_multi_sum"),
                     "Expected ZKMetadataStore_zk_multi_sum metric to be present. " + metricsDebugMessage);
 
             // Verify that multi metrics have the correct cluster tag
-            for (Metric m : metricsMap.get("ZKMetadataStore_zk_multi_count")) {
+            for (Metric m : metricsMap.get("ZkMetadataStore_storeName_test_zk_prometheus_zk_multi_count")) {
                 Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             }
 
             // Verify other ZK operation metrics are also present
             // (these are registered by PulsarZooKeeperClient in its constructor)
-            Assert.assertTrue(metricsMap.containsKey("ZKMetadataStore_zk_create_count"),
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_create_count"),
                     "Expected ZKMetadataStore_zk_create_count metric to be present. " + metricsDebugMessage);
 
-            Assert.assertTrue(metricsMap.containsKey("ZKMetadataStore_zk_get_data_count"),
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_get_data_count"),
                     "Expected ZKMetadataStore_zk_get_data_count metric to be present. " + metricsDebugMessage);
 
-            Assert.assertTrue(metricsMap.containsKey("ZKMetadataStore_zk_exists_count"),
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_exists_count"),
                     "Expected ZKMetadataStore_zk_exists_count metric to be present. " + metricsDebugMessage);
         } finally {
             prometheusMetricsProvider.stop();
