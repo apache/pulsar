@@ -199,6 +199,10 @@ public class DirectProxyHandler {
                         .attr("brokerHost", brokerHostAndPort)
                         .exception(future.cause())
                         .log("Establishing connection failed. Closing inbound channel.");
+                Channel channel = f.channel();
+                if (channel != null) {
+                    channel.close();
+                }
                 inboundChannel.close();
             }
         });
