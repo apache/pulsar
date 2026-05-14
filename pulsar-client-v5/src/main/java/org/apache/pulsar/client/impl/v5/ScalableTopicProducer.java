@@ -389,7 +389,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         // that segment will surface the error via the normal PulsarClientException
         // path. (The initial-create path uses {@link #eagerAttachInitialAsync} for
         // strict claim.)
-        if (requiresExclusiveAttach()) {
+        if (requiresExclusiveAttach() && oldLayout != null) {
             CompletableFuture.runAsync(() -> {
                 for (var seg : newLayout.activeSegments()) {
                     if (segmentProducers.containsKey(seg.segmentId())) {
@@ -449,9 +449,6 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         }
         return CompletableFuture.runAsync(() -> {
             for (var seg : activeSegments) {
-                if (segmentProducers.containsKey(seg.segmentId())) {
-                    continue;
-                }
                 try {
                     getOrCreateSegmentProducer(seg.segmentId());
                 } catch (PulsarClientException e) {
