@@ -152,7 +152,10 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
 
             @Override
             public void onError(Throwable throwable) {
-                // Future propagation handled by listWritesBySegment's returned future.
+                // Recovery still fails loudly via the scan's returned future and the terminal
+                // whenComplete below; logging here captures the cause with segment context.
+                log.warn().attr("segment", segmentName).exception(throwable)
+                        .log("TB recovery scan errored");
             }
 
             @Override

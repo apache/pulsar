@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -49,6 +50,7 @@ import org.apache.pulsar.metadata.api.Stat;
  * <p>The façade is stateless apart from holding the store reference — index population happens via
  * options on writes, so there is no explicit registration step.
  */
+@CustomLog
 public class TxnMetadataStore {
 
     /** Sequence-keys delta used by all append-only streams in this layout. */
@@ -194,6 +196,10 @@ public class TxnMetadataStore {
 
             @Override
             public void onError(Throwable throwable) {
+                // The caller observes failure via the scan's returned future; logging here so
+                // the cause is visible alongside the txnId context.
+                log.warn().attr("txnId", txnId).exception(throwable)
+                        .log("Op-record cleanup scan errored");
             }
 
             @Override

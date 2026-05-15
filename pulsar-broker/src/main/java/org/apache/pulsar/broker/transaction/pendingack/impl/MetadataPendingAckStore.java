@@ -110,6 +110,9 @@ public class MetadataPendingAckStore implements PendingAckStore {
         }
 
         // Scan all ack op records for this (segment, sub) and seed openTxns from the headers.
+        // The store delivers per-entry errors via this scan's returned future as well — recovery
+        // still fails loudly via the terminal whenComplete below — but we log here so the cause
+        // is captured with the segment/subscription context.
         Set<String> txnIdKeys = ConcurrentHashMap.newKeySet();
         txnStore.listAcksBySegmentSubscription(segmentName, subscriptionName, new ScanConsumer() {
             @Override
@@ -127,6 +130,8 @@ public class MetadataPendingAckStore implements PendingAckStore {
 
             @Override
             public void onError(Throwable throwable) {
+                log.warn().attr("segment", segmentName).attr("sub", subscriptionName)
+                        .exception(throwable).log("PendingAckStore recovery scan errored");
             }
 
             @Override
