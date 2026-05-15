@@ -328,7 +328,7 @@ flexible messaging model and an intuitive client API.</description>
     <docker-java.version>3.7.0</docker-java.version>
     <hamcrest.version>2.2</hamcrest.version>
     <restassured.version>5.4.0</restassured.version>
-    <kerby.version>1.1.1</kerby.version>
+    <kerby.version>2.1.1</kerby.version>
     <testng.version>7.7.1</testng.version>
     <mockito.version>5.19.0</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
