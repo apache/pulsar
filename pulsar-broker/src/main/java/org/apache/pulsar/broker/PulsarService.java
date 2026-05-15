@@ -754,9 +754,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 } else {
                     log.warn().exception(t).log("Closed with errors");
                 }
-                state = State.Closed;
                 mutex.lock();
                 try {
+                    state = State.Closed;
                     isClosedCondition.signalAll();
                 } finally {
                     mutex.unlock();
