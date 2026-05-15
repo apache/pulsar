@@ -431,7 +431,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 Object object;
                 if (field.getName().equals("managedLedgerExtraConfigurations")) {
                     object = mergeManagedLedgerExtraConfigurations(topicLevelPolicies, nsLevelPolicies,
-                            brokerProperties, field);
+                            brokerProperties);
                 } else if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
                     object = field.get(topicLevelPolicies);
                 } else if (nsLevelPolicies != null && field.get(nsLevelPolicies) != null) {
@@ -457,30 +457,26 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<String, String> mergeManagedLedgerExtraConfigurations(OffloadPoliciesImpl topicLevelPolicies,
                                                                             OffloadPoliciesImpl nsLevelPolicies,
-                                                                            Properties brokerProperties,
-                                                                            Field field)
-            throws IllegalAccessException {
+                                                                            Properties brokerProperties) {
         Map<String, String> mergedExtraConfigurations = new HashMap<>();
-        Object brokerExtraConfigurations = getCompatibleValue(brokerProperties, field);
-        if (brokerExtraConfigurations instanceof Map) {
-            mergedExtraConfigurations.putAll((Map<String, String>) brokerExtraConfigurations);
-        }
+        putAllExtraConfigurations(mergedExtraConfigurations, getExtraConfigurations(brokerProperties));
         if (nsLevelPolicies != null) {
-            Map<String, String> nsExtraConfigurations = (Map<String, String>) field.get(nsLevelPolicies);
-            if (nsExtraConfigurations != null && !nsExtraConfigurations.isEmpty()) {
-                mergedExtraConfigurations.putAll(nsExtraConfigurations);
-            }
+            putAllExtraConfigurations(mergedExtraConfigurations,
+                    nsLevelPolicies.getManagedLedgerExtraConfigurations());
         }
         if (topicLevelPolicies != null) {
-            Map<String, String> topicExtraConfigurations = (Map<String, String>) field.get(topicLevelPolicies);
-            if (topicExtraConfigurations != null && !topicExtraConfigurations.isEmpty()) {
-                mergedExtraConfigurations.putAll(topicExtraConfigurations);
-            }
+            putAllExtraConfigurations(mergedExtraConfigurations,
+                    topicLevelPolicies.getManagedLedgerExtraConfigurations());
         }
         return mergedExtraConfigurations.isEmpty() ? null : mergedExtraConfigurations;
+    }
+
+    private static void putAllExtraConfigurations(Map<String, String> target, Map<String, String> extraConfigurations) {
+        if (extraConfigurations != null && !extraConfigurations.isEmpty()) {
+            target.putAll(extraConfigurations);
+        }
     }
 
     /**
