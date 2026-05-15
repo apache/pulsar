@@ -112,7 +112,7 @@ public class TxnMetadataStore {
     // ---- Op-log append -----------------------------------------------------
 
     /**
-     * Append a {@link TxnOp} under {@code /txn-op/<txnId>-<seq>}. Adds the per-kind secondary-index
+     * Append a {@link TxnOp} under {@code /txn/op/<txnId>-<seq>}. Adds the per-kind secondary-index
      * entry — {@link TxnPaths#IDX_WRITES_BY_SEGMENT} for writes,
      * {@link TxnPaths#IDX_ACKS_BY_SEGMENT_SUBSCRIPTION} for acks. Returns the {@link Stat} whose
      * {@code path} carries the generated sequence key.
@@ -158,7 +158,7 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Delete every {@code /txn-op} write record for {@code (segment, txnId)} — used by the TB once
+     * Delete every {@code /txn/op} write record for {@code (segment, txnId)} — used by the TB once
      * an event tells it the txn is terminal. Path extraction follows the layout in
      * {@link TxnPaths#txnIdFromOpPath}. Best-effort: tolerates concurrent deletions via
      * {@link MetadataStore#deleteIfExists}.
@@ -168,7 +168,7 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Delete every {@code /txn-op} ack record for {@code (segment, subscription, txnId)} — used by
+     * Delete every {@code /txn/op} ack record for {@code (segment, subscription, txnId)} — used by
      * the PendingAckStore once an event tells it the txn is terminal. Same path-extraction +
      * best-effort semantics as {@link #deleteWriteOpsForSegmentAndTxn}.
      */

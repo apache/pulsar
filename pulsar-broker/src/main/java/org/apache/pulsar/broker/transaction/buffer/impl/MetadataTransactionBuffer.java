@@ -65,8 +65,8 @@ import org.apache.pulsar.metadata.api.ScanConsumer;
  * <ul>
  *   <li><b>Publish</b> — {@link #appendBufferToTxn} reads the txn header (cache-first), appends the
  *       entry to the managed ledger, then appends a {@link TxnOp} record under
- *       {@code /txn-op/<txnId>-<seq>}. Both must succeed before we ack the publisher.</li>
- *   <li><b>State transitions</b> — driven by {@code /txn-segment-events/<segment>-*} sequence
+ *       {@code /txn/op/<txnId>-<seq>}. Both must succeed before we ack the publisher.</li>
+ *   <li><b>State transitions</b> — driven by {@code /txn/segment-events/<segment>-*} sequence
  *       events. The events are wake-ups; the truth is the header. On each notification we
  *       re-read headers for every currently-open txn and apply the resulting state changes.</li>
  *   <li><b>Recovery</b> (Option C) — scan {@code idx:writes-by-segment} for this segment, group by
@@ -136,7 +136,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         }
         subscription = handle;
 
-        // Scan all /txn-op records for this segment, group by txnId.
+        // Scan all /txn/op records for this segment, group by txnId.
         Map<String, List<Position>> opsByTxn = new ConcurrentHashMap<>();
         txnStore.listWritesBySegment(segmentName, new ScanConsumer() {
             @Override
@@ -335,7 +335,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     }
 
     /**
-     * Delete every {@code /txn-op} record for {@code (this segment, txnIdKey)}. Best-effort —
+     * Delete every {@code /txn/op} record for {@code (this segment, txnIdKey)}. Best-effort —
      * failures are logged and retried by the next reconcile.
      */
     private void cleanupOpRecords(String txnIdKey) {
