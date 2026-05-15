@@ -429,7 +429,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
             for (Field field : CONFIGURATION_FIELDS) {
                 Object object;
-                if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
+                if (field.getName().equals("managedLedgerExtraConfigurations")) {
+                    object = mergeManagedLedgerExtraConfigurations(topicLevelPolicies, nsLevelPolicies,
+                            brokerProperties, field);
+                } else if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
                     object = field.get(topicLevelPolicies);
                 } else if (nsLevelPolicies != null && field.get(nsLevelPolicies) != null) {
                     object = field.get(nsLevelPolicies);
@@ -452,6 +455,32 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             log.error().exception(e).log("Failed to merge configuration.");
             return null;
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> mergeManagedLedgerExtraConfigurations(OffloadPoliciesImpl topicLevelPolicies,
+                                                                            OffloadPoliciesImpl nsLevelPolicies,
+                                                                            Properties brokerProperties,
+                                                                            Field field)
+            throws IllegalAccessException {
+        Map<String, String> mergedExtraConfigurations = new HashMap<>();
+        Object brokerExtraConfigurations = getCompatibleValue(brokerProperties, field);
+        if (brokerExtraConfigurations instanceof Map) {
+            mergedExtraConfigurations.putAll((Map<String, String>) brokerExtraConfigurations);
+        }
+        if (nsLevelPolicies != null) {
+            Map<String, String> nsExtraConfigurations = (Map<String, String>) field.get(nsLevelPolicies);
+            if (nsExtraConfigurations != null && !nsExtraConfigurations.isEmpty()) {
+                mergedExtraConfigurations.putAll(nsExtraConfigurations);
+            }
+        }
+        if (topicLevelPolicies != null) {
+            Map<String, String> topicExtraConfigurations = (Map<String, String>) field.get(topicLevelPolicies);
+            if (topicExtraConfigurations != null && !topicExtraConfigurations.isEmpty()) {
+                mergedExtraConfigurations.putAll(topicExtraConfigurations);
+            }
+        }
+        return mergedExtraConfigurations.isEmpty() ? null : mergedExtraConfigurations;
     }
 
     /**
