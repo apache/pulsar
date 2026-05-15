@@ -37,8 +37,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.apache.pulsar.common.policies.data.OffloadPoliciesImpl.EXTRA_CONFIG_PREFIX;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
