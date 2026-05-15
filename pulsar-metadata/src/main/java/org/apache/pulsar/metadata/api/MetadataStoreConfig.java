@@ -22,6 +22,7 @@ import io.opentelemetry.api.OpenTelemetry;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
+import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 
 /**
@@ -109,5 +110,6 @@ public class MetadataStoreConfig {
     @Builder.Default
     private final int numSerDesThreads = 1;
 
-    private StatsProvider statsProvider;
+    @Builder.Default
+    private StatsProvider statsProvider = new NullStatsProvider();
 }
