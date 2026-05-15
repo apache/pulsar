@@ -25,7 +25,6 @@ package org.apache.pulsar.common.nar;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,8 +34,6 @@ import java.nio.channels.FileLock;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
@@ -77,7 +74,7 @@ public class NarUnpacker {
                 throw new IOException("Cannot create " + parentDirectory);
             }
         }
-        String md5Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(calculateMd5sum(nar));
+        String md5Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(FileUtils.calculateMd5sum(nar));
         // ensure that one process can extract the files
         File lockFile = new File(parentDirectory, "." + md5Sum + ".lock");
         // prevent OverlappingFileLockException by ensuring that one thread tries to create a lock in this JVM
@@ -169,34 +166,6 @@ public class NarUnpacker {
             while ((numRead = in.read(bytes)) != -1) {
                 fos.write(bytes, 0, numRead);
             }
-        }
-    }
-
-    /**
-     * Calculates an md5 sum of the specified file.
-     *
-     * @param file
-     *            to calculate the md5sum of
-     * @return the md5sum bytes
-     * @throws IOException
-     *             if cannot read file
-     */
-    protected static byte[] calculateMd5sum(final File file) throws IOException {
-        try (final FileInputStream inputStream = new FileInputStream(file)) {
-            // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
-            final MessageDigest md5 = MessageDigest.getInstance("md5");
-
-            final byte[] buffer = new byte[1024];
-            int read = inputStream.read(buffer);
-
-            while (read > -1) {
-                md5.update(buffer, 0, read);
-                read = inputStream.read(buffer);
-            }
-
-            return md5.digest();
-        } catch (NoSuchAlgorithmException nsae) {
-            throw new IllegalArgumentException(nsae);
         }
     }
 }

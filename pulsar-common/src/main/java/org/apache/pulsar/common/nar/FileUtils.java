@@ -25,8 +25,11 @@
 package org.apache.pulsar.common.nar;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.zip.ZipEntry;
@@ -43,6 +46,34 @@ import org.slf4j.Logger;
 public class FileUtils {
 
     public static final long MILLIS_BETWEEN_ATTEMPTS = 50L;
+
+    /**
+     * Calculates an md5 sum of the specified file.
+     *
+     * @param file
+     *            to calculate the md5sum of
+     * @return the md5sum bytes
+     * @throws IOException
+     *             if cannot read file
+     */
+    public static byte[] calculateMd5sum(final File file) throws IOException {
+        try (final FileInputStream inputStream = new FileInputStream(file)) {
+            // codeql[java/weak-cryptographic-algorithm] - md5 is sufficient for this use case
+            final MessageDigest md5 = MessageDigest.getInstance("md5");
+
+            final byte[] buffer = new byte[1024];
+            int read = inputStream.read(buffer);
+
+            while (read > -1) {
+                md5.update(buffer, 0, read);
+                read = inputStream.read(buffer);
+            }
+
+            return md5.digest();
+        } catch (NoSuchAlgorithmException nsae) {
+            throw new IllegalArgumentException(nsae);
+        }
+    }
 
     public static void ensureDirectoryExistAndCanReadAndWrite(final File dir) throws IOException {
         if (dir.exists() && !dir.isDirectory()) {

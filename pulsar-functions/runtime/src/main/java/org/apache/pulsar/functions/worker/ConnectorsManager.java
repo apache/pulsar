@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -31,6 +32,7 @@ import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.utils.io.Connector;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
+import org.apache.pulsar.functions.utils.io.ReloadConnectorsResult;
 
 @Slf4j
 public class ConnectorsManager implements AutoCloseable {
@@ -48,10 +50,14 @@ public class ConnectorsManager implements AutoCloseable {
     }
 
     private static TreeMap<String, Connector> createConnectors(WorkerConfig workerConfig) throws IOException {
-        boolean enableClassloading = workerConfig.getEnableClassloadingOfBuiltinFiles()
-                || ThreadRuntimeFactory.class.getName().equals(workerConfig.getFunctionRuntimeFactoryClassName());
+        boolean enableClassloading = isEnableClassloading(workerConfig);
         return ConnectorUtils.searchForConnectors(workerConfig.getConnectorsDirectory(),
                 workerConfig.getNarExtractionDirectory(), enableClassloading);
+    }
+
+    private static boolean isEnableClassloading(WorkerConfig workerConfig) {
+        return workerConfig.getEnableClassloadingOfBuiltinFiles()
+                || ThreadRuntimeFactory.class.getName().equals(workerConfig.getFunctionRuntimeFactoryClassName());
     }
 
     @VisibleForTesting
@@ -89,9 +95,13 @@ public class ConnectorsManager implements AutoCloseable {
     }
 
     public void reloadConnectors(WorkerConfig workerConfig) throws IOException {
-        TreeMap<String, Connector> oldConnectors = connectors;
-        this.connectors = createConnectors(workerConfig);
-        closeConnectors(oldConnectors);
+        ReloadConnectorsResult reload = ConnectorUtils.reloadConnectors(
+                this.connectors,
+                workerConfig.getConnectorsDirectory(),
+                workerConfig.getNarExtractionDirectory(),
+                isEnableClassloading(workerConfig));
+        this.connectors = reload.connectors();
+        closeConnectors(reload.connectorsToClose());
     }
 
     @Override
@@ -99,14 +109,18 @@ public class ConnectorsManager implements AutoCloseable {
         closeConnectors(connectors);
     }
 
-    private void closeConnectors(TreeMap<String, Connector> connectorMap) {
-        connectorMap.values().forEach(connector -> {
+    private void closeConnectors(Collection<Connector> connectors) {
+        connectors.forEach(connector -> {
             try {
                 connector.close();
             } catch (Exception e) {
                 log.warn("Failed to close connector", e);
             }
         });
+    }
+
+    private void closeConnectors(TreeMap<String, Connector> connectorMap) {
+        closeConnectors(connectorMap.values());
         connectorMap.clear();
     }
 
