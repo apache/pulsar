@@ -2381,8 +2381,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             getLedgerHandle(ledgerId)
                     .thenAccept(ledger -> asyncReadEntry(ledger, firstEntry, lastEntry, callback0, ctx))
                     .exceptionally(ex -> {
-                        log.error("[{}] Error opening ledger for reading at position {} - {}, entries {}", name,
-                                finalStart, numberOfEntriesToRead, ex.getMessage());
+                        log.error().attr("ledgerName", name).attr("position", finalStart)
+                                .attr("numberOfEntries", numberOfEntriesToRead).exception(ex)
+                                .log("Error opening ledger for reading at position");
                         callback0.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()),
                                 ctx);
                         return null;
